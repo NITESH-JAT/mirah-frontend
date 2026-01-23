@@ -1,0 +1,20 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "fullName": "Nitesh",
+      "phone": "1234567890",
+      "city": "Mumbai",
+      "role": "user",
+      "createdAt": "2026-01-20T10:00:00Z"
+    },
+    {
+      "id": "2",
+      "fullName": "Priya Jewellers",
+      "phone": "1122334455",
+      "city": "Surat",
+      "role": "seller",
+      "createdAt": "2026-01-21T12:00:00Z"
+    }
+  ]
+}
