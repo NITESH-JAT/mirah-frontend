@@ -33,17 +33,24 @@ const FloatingLabelInput = ({ label, type = "text", value, onChange, ...props })
   );
 };
 
-// --- Login Form ---
+
 // --- Login Form ---
 export const LoginForm = () => {
   const [rawValue, setRawValue] = useState('');
-  const [isFocused, setIsFocused] = useState(false); // 1. New state for focus
+  const [isFocused, setIsFocused] = useState(false);
+  const [cursorPos, setCursorPos] = useState(null); // Track exact cursor position
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
   const handleInput = (e) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setRawValue(val);
+    // Determine cursor position after typing
+    setCursorPos(e.target.selectionStart);
+  };
+
+  const handleSelect = (e) => {
+    setCursorPos(e.target.selectionStart);
   };
 
   const handleNext = () => {
@@ -53,29 +60,35 @@ export const LoginForm = () => {
     }
   };
 
-  // 2. Updated renderDigit to show blinking cursor
   const renderDigit = (index) => {
     const isFilled = index < rawValue.length;
-    // The cursor should appear on the current empty slot (index === length)
-    // OR at the last slot if the input is full (index === 9 and length === 10)? 
-    // Usually it sits on the next available slot.
-    const isCursorPos = index === rawValue.length; 
-    
     const digit = isFilled ? rawValue[index] : '0';
+    
+  
+    const showCursor = isFocused && cursorPos === index;
 
     return (
-      <div key={index} className="relative flex justify-center items-center w-[18px] lg:w-[20px]">
-        {/* The Digit */}
+      <div key={index} className="relative flex justify-center items-center w-[20px] lg:w-[22px] h-[40px]">
+  
         <span 
-          className={`${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} transition-colors duration-100`}
+          className={`
+            ${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} 
+            ${(showCursor && !isFilled) ? 'opacity-0' : 'opacity-100'} 
+            transition-colors duration-100
+          `}
         >
           {digit}
         </span>
 
-        {/* The Blinking Cursor Line */}
-        {isFocused && isCursorPos && (
-          <div className="absolute inset-0 flex items-center justify-center">
-             <div className="h-8 w-0.5 bg-primary-dark animate-pulse translate-y-[1px]"></div>
+      
+        {showCursor && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            {/* If filled: Place cursor to the LEFT of the digit (Insert mode style)
+               If empty: Center the cursor (Replacement style)
+            */}
+            <div 
+              className={`h-8 w-0.5 bg-primary-dark animate-pulse ${isFilled ? '-translate-x-3' : ''}`}
+            ></div>
           </div>
         )}
       </div>
@@ -94,22 +107,23 @@ export const LoginForm = () => {
         <p>Sign up in seconds!</p>
       </div>
       
-      {/* Container for input */}
+      {/* Input Container */}
       <div 
-        className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto group" 
+        className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto" 
         onClick={() => inputRef.current?.focus()}
       >
         <div className="flex items-center justify-center gap-4 font-serif text-[32px] lg:text-[34px]">
           <span className="text-primary-dark font-medium select-none">+91</span>
           
           <div className="flex items-center tracking-widest">
-            <div className="flex gap-1"> {/* Added gap-1 for better spacing */}
+          
+            <div className="flex gap-0.5">
               {[0, 1, 2, 3, 4].map(i => renderDigit(i))}
             </div>
             
-            <span className="text-[#E5E7EB] mx-2">-</span>
+            <span className="text-[#E5E7EB] mx-2 select-none">-</span>
             
-            <div className="flex gap-1">
+            <div className="flex gap-0.5">
               {[5, 6, 7, 8, 9].map(i => renderDigit(i))}
             </div>
           </div>
@@ -120,10 +134,12 @@ export const LoginForm = () => {
           type="tel"
           value={rawValue}
           onChange={handleInput}
+          onSelect={handleSelect} 
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer font-serif text-[32px] text-center z-10"
+          className="absolute inset-0 w-full h-full opacity-0 cursor-text font-serif text-[32px] text-center z-10 bg-transparent"
           autoFocus
+          spellCheck="false"
         />
       </div>
 
