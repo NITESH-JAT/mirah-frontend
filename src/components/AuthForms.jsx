@@ -8,7 +8,7 @@ const FloatingLabelInput = ({ label, type = "text", value, onChange, ...props })
   const hasValue = value && value.length > 0;
 
   return (
-    <div className="relative mb-4 lg:mb-2.5">
+    <div className="relative mb-3 lg:mb-2.5">
       <input
         {...props}
         type={type}
@@ -282,12 +282,12 @@ export const RegisterForm = () => {
 
   return (
     <div className="w-full">
-      <div className="text-center mb-6 lg:mb-4">
+      <div className="text-center mb-2 lg:mb-4">
         <h1 className="font-serif text-[32px] lg:text-[26px] font-bold text-primary-dark mb-1 lg:mb-0.5">Create Your Account</h1>
         <p className=" text-center font-sans text-gray-400 text-sm lg:text-[12px]">Join our community of jewelry lovers and artisans.</p>
       </div>
 
-      <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-6 lg:mb-3 flex">
+      <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-4 lg:mb-3 flex">
         <button 
           onClick={() => setRole('user')} 
           className={`flex-1 cursor-pointer py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
@@ -305,7 +305,7 @@ export const RegisterForm = () => {
       </div>
 
 
-      <p className="text-center text-[13px] lg:text-[10px] text-gray-400 mb-8 lg:mb-4 leading-relaxed px-1">
+      <p className="text-center text-[13px] lg:text-[10px] text-gray-400 mb-4 lg:mb-4 leading-relaxed px-1">
         Mirah will help you find clients who are looking for custom jewelry so you can showcase your craft and grow your business
       </p>
 
@@ -321,7 +321,7 @@ export const RegisterForm = () => {
         onChange={e => setFormData({...formData, phone: e.target.value})} 
       />
       
-      <div className="relative mb-4 lg:mb-2.5" ref={cityWrapperRef}>
+      <div className="relative mb-3 lg:mb-2.5" ref={cityWrapperRef}>
         <div className="relative">
           <input
             value={searchTerm}
@@ -388,7 +388,7 @@ export const RegisterForm = () => {
         Next
       </button>
       
-      <p className="text-center text-xs lg:text-[10px] text-gray-500 mt-6 lg:mt-3 font-sans font-medium">
+      <p className="text-center text-xs lg:text-[10px] text-gray-500 mt-3 lg:mt-3 font-sans font-medium">
         Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
       </p>
     </div>
