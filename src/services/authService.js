@@ -13,10 +13,18 @@ export const initDB = () => {
 };
 
 export const authService = {
-  // Replace localStorage logic with fetch('api/endpoint') later
+  // Simulating an API call for UAE Cities
+  getUAECities: async () => {
+    return [
+      "Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", 
+      "Fujairah", "Umm Al Quwain", "Al Ain", "Khor Fakkan"
+    ].sort();
+  },
+
   login: async (phone) => {
     const users = JSON.parse(localStorage.getItem(KEYS.users) || '[]');
-    const user = users.find(u => u.phone === phone);
+    const cleanPhone = phone.replace(/\D/g, '');
+    const user = users.find(u => u.phone.replace(/\D/g, '') === cleanPhone);
     if (user) {
       localStorage.setItem(KEYS.session, JSON.stringify(user));
       return { success: true, user };

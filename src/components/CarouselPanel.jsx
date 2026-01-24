@@ -1,18 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import gsap from 'gsap';
+import img1 from '../assets/mirah_img1.png';
+import img2 from '../assets/mirah_img2.png';
+import img3 from '../assets/mirah_img3.png';
 
 const slides = [
   {
-    image: "https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=800",
+    image: img1,
     title: "Custom Jewellery, Crafted Just for You",
     desc: "Upload your jewelry idea, describe your vision, and let skilled jewelers transform it into a timeless piece crafted just for you"
   },
   {
-    image: "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&q=80&w=800",
+    image: img2,
     title: "Connect with Skilled Artisans",
     desc: "Direct access to master makers who bring centuries of tradition to your modern designs."
   },
   {
-    image: "https://images.unsplash.com/photo-1598560912015-f3a73656719a?auto=format&fit=crop&q=80&w=800",
+    image: img3,
     title: "Transparent Crafting Process",
     desc: "Track every step of your jewelry creation, from initial sketch to final polish."
   }
@@ -20,36 +24,68 @@ const slides = [
 
 export default function CarouselPanel() {
   const [active, setActive] = useState(0);
+  const contentRef = useRef(null);
+  const imageRef = useRef(null);
+
+  const handleFade = (index) => {
+    if (index === active) return;
+    
+    gsap.to([contentRef.current, imageRef.current], {
+      opacity: 0,
+      y: 10,
+      duration: 0.3,
+      onComplete: () => {
+        setActive(index);
+        gsap.to([contentRef.current, imageRef.current], {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          ease: "power2.out"
+        });
+      }
+    });
+  }; 
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setActive(prev => (prev + 1) % slides.length);
-    }, 4000);
+      const next = (active + 1) % slides.length;
+      handleFade(next);
+    }, 5000);
     return () => clearInterval(timer);
-  }, []);
+  }, [active]);
 
   return (
-    <div className="hidden lg:flex w-1/2 bg-white h-full p-8 items-center justify-center">
-      <div className="max-w-md w-full text-center">
-        <div className="relative h-80 mb-12 flex items-center justify-center">
-           <img 
+    // Card Container - Strictly fitting within parent padding
+    <div className="w-full h-full bg-white rounded-[25px] shadow-sm flex items-center justify-center px-8 py-10 overflow-hidden relative">
+      <div className="w-full h-full flex flex-col items-center justify-center">
+        
+        {/* Image Area */}
+        <div className="relative w-full flex-1 flex items-center justify-center min-h-0 mb-8">
+          <img 
+            ref={imageRef}
             src={slides[active].image} 
-            className="max-h-full object-contain transition-opacity duration-700"
-            alt="Jewellery" 
+            className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-xl"
+            alt="Jewellery Display" 
           />
         </div>
-        <h2 className="auth-heading text-3xl font-semibold mb-4 px-4 leading-tight">
-          {slides[active].title}
-        </h2>
-        <p className="text-gray-500 text-sm leading-relaxed px-6 mb-10">
-          {slides[active].desc}
-        </p>
-        <div className="flex justify-center gap-2">
+        
+        {/* Text Content */}
+        <div ref={contentRef} className="text-center max-w-[400px] mt-auto shrink-0">
+          <h2 className="font-serif text-[26px] leading-tight font-bold mb-4 text-primary-dark">
+            {slides[active].title}
+          </h2>
+          <p className="font-sans text-gray-400 text-sm leading-relaxed px-2 mb-10">
+            {slides[active].desc}
+          </p>
+        </div>
+
+        {/* Indicators */}
+        <div className="flex justify-center gap-2 shrink-0">
           {slides.map((_, i) => (
             <button 
               key={i}
-              onClick={() => setActive(i)}
-              className={`h-2 rounded-full transition-all duration-300 ${active === i ? 'w-6 bg-primary-dark' : 'w-2 bg-gray-300'}`}
+              onClick={() => handleFade(i)}
+              className={`h-1.5 rounded-full transition-all duration-300 ${active === i ? 'w-8 bg-primary-dark' : 'w-1.5 bg-gray-200'}`}
             />
           ))}
         </div>
