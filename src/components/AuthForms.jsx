@@ -34,8 +34,10 @@ const FloatingLabelInput = ({ label, type = "text", value, onChange, ...props })
 };
 
 // --- Login Form ---
+// --- Login Form ---
 export const LoginForm = () => {
   const [rawValue, setRawValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false); // 1. New state for focus
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
@@ -51,24 +53,38 @@ export const LoginForm = () => {
     }
   };
 
-
+  // 2. Updated renderDigit to show blinking cursor
   const renderDigit = (index) => {
     const isFilled = index < rawValue.length;
+    // The cursor should appear on the current empty slot (index === length)
+    // OR at the last slot if the input is full (index === 9 and length === 10)? 
+    // Usually it sits on the next available slot.
+    const isCursorPos = index === rawValue.length; 
+    
     const digit = isFilled ? rawValue[index] : '0';
+
     return (
-      <span 
-        key={index} 
-        className={`${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} transition-colors duration-100`}
-      >
-        {digit}
-      </span>
+      <div key={index} className="relative flex justify-center items-center w-[18px] lg:w-[20px]">
+        {/* The Digit */}
+        <span 
+          className={`${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} transition-colors duration-100`}
+        >
+          {digit}
+        </span>
+
+        {/* The Blinking Cursor Line */}
+        {isFocused && isCursorPos && (
+          <div className="absolute inset-0 flex items-center justify-center">
+             <div className="h-8 w-0.5 bg-primary-dark animate-pulse translate-y-[1px]"></div>
+          </div>
+        )}
+      </div>
     );
   };
 
   return (
     <div className="text-center w-full h-full flex flex-col items-center pt-4 lg:pt-0">
       
-
       <h1 className="font-serif text-[30px] lg:text-[36px] font-medium text-primary-dark mb-2 lg:mb-2 tracking-tight whitespace-nowrap">
         Enter your phone number
       </h1>
@@ -78,46 +94,43 @@ export const LoginForm = () => {
         <p>Sign up in seconds!</p>
       </div>
       
-
-      <div className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto" onClick={() => inputRef.current?.focus()}>
-        
-
+      {/* Container for input */}
+      <div 
+        className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto group" 
+        onClick={() => inputRef.current?.focus()}
+      >
         <div className="flex items-center justify-center gap-4 font-serif text-[32px] lg:text-[34px]">
-          
-
           <span className="text-primary-dark font-medium select-none">+91</span>
           
-
           <div className="flex items-center tracking-widest">
-
-            <div className="flex">
+            <div className="flex gap-1"> {/* Added gap-1 for better spacing */}
               {[0, 1, 2, 3, 4].map(i => renderDigit(i))}
             </div>
             
             <span className="text-[#E5E7EB] mx-2">-</span>
             
-            <div className="flex">
+            <div className="flex gap-1">
               {[5, 6, 7, 8, 9].map(i => renderDigit(i))}
             </div>
           </div>
         </div>
-
 
         <input
           ref={inputRef}
           type="tel"
           value={rawValue}
           onChange={handleInput}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-text font-serif text-[32px] text-center z-10"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer font-serif text-[32px] text-center z-10"
           autoFocus
         />
       </div>
 
-
       <button 
         onClick={handleNext}
         disabled={rawValue.length < 10}
-        className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-xl shadow-blue-900/10 active:scale-[0.98] transition-all hover:shadow-blue-900/20 disabled:opacity-50 disabled:shadow-none font-sans"
+        className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-xl shadow-blue-900/10 active:scale-[0.98] hover:bg-primary-dark/90 hover:shadow-blue-900/20 transition-all disabled:opacity-50 disabled:shadow-none font-sans"
       >
         Next
       </button>
@@ -146,7 +159,6 @@ export const OTPForm = () => {
 
   const handleVerify = async () => {
     if (otp.join('') === '1234') {
-      // const result = await authService.login(phone);
       const result = { success: true }; 
       if (result.success) navigate('/welcome');
       else navigate('/register');
@@ -157,7 +169,6 @@ export const OTPForm = () => {
 
     <div className="w-full min-h-[80vh] flex flex-col justify-between lg:block lg:min-h-0 lg:h-auto text-left lg:text-center pt-4 lg:pt-0">
       
-      {/* --- TOP CONTENT --- */}
       <div>
         
         {/* Heading */}
@@ -165,7 +176,6 @@ export const OTPForm = () => {
           OTP Code
         </h1>
 
-        {/* Subtext with Phone and Edit Icon */}
         <div className="flex flex-col items-start lg:items-center justify-center gap-1 mb-10 lg:mb-8 font-sans">
           <div className="flex items-center gap-1.5 text-[14px] lg:text-[13px] text-gray-500">
             <span>Enter the OTP sent to</span>
@@ -209,7 +219,7 @@ export const OTPForm = () => {
         <button 
           onClick={handleVerify}
           disabled={otp.join('').length < 4}
-          className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-lg shadow-blue-900/20 active:scale-[0.98] transition-all disabled:opacity-50 font-sans"
+          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 font-sans"
         >
           Verify
         </button>
@@ -264,15 +274,15 @@ export const RegisterForm = () => {
       <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-6 lg:mb-3 flex">
         <button 
           onClick={() => setRole('user')} 
-          className={`flex-1 py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
-            ${role === 'user' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 cursor-pointer py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
+            ${role === 'user' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
         >
           As a User
         </button>
         <button 
           onClick={() => setRole('seller')} 
-          className={`flex-1 py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
-            ${role === 'seller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+          className={`flex-1 cursor-pointer py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
+            ${role === 'seller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
         >
           As a Jeweller
         </button>
@@ -357,7 +367,7 @@ export const RegisterForm = () => {
 
       <button 
         onClick={handleRegister} 
-        className="w-full bg-primary-dark text-white py-3.5 lg:py-2 rounded-full text-[15px] lg:text-[12px] font-semibold shadow-lg shadow-blue-900/20 mt-4 lg:mt-1 active:scale-[0.98] transition-all font-sans"
+        className="w-full cursor-pointer bg-primary-dark text-white py-3.5 lg:py-2 rounded-full text-[15px] lg:text-[12px] font-semibold shadow-lg shadow-blue-900/20 mt-4 lg:mt-1 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans"
       >
         Next
       </button>
