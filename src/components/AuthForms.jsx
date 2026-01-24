@@ -38,14 +38,14 @@ const FloatingLabelInput = ({ label, type = "text", value, onChange, ...props })
 export const LoginForm = () => {
   const [rawValue, setRawValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const [cursorPos, setCursorPos] = useState(null); // Track exact cursor position
+  const [cursorPos, setCursorPos] = useState(null);
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
   const handleInput = (e) => {
     const val = e.target.value.replace(/\D/g, '').slice(0, 10);
     setRawValue(val);
-    // Determine cursor position after typing
+
     setCursorPos(e.target.selectionStart);
   };
 
@@ -83,9 +83,7 @@ export const LoginForm = () => {
       
         {showCursor && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            {/* If filled: Place cursor to the LEFT of the digit (Insert mode style)
-               If empty: Center the cursor (Replacement style)
-            */}
+
             <div 
               className={`h-8 w-0.5 bg-primary-dark animate-pulse ${isFilled ? '-translate-x-3' : ''}`}
             ></div>
@@ -107,7 +105,7 @@ export const LoginForm = () => {
         <p>Sign up in seconds!</p>
       </div>
       
-      {/* Input Container */}
+
       <div 
         className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto" 
         onClick={() => inputRef.current?.focus()}
@@ -187,7 +185,6 @@ export const OTPForm = () => {
       
       <div>
         
-        {/* Heading */}
         <h1 className="font-serif text-[32px] lg:text-[32px] font-medium text-primary-dark mb-2 lg:mb-2">
           OTP Code
         </h1>
@@ -210,7 +207,7 @@ export const OTPForm = () => {
           </div>
         </div>
 
-        {/* OTP Inputs */}
+
         <div className="flex justify-start lg:justify-center gap-4 lg:gap-4 mb-5 lg:mb-4">
           {otp.map((digit, i) => (
             <input

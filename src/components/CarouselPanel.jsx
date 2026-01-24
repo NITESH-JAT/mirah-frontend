@@ -55,11 +55,11 @@ export default function CarouselPanel() {
   }, [active]);
 
   return (
-    // Card Container - Strictly fitting within parent padding
+
     <div className="w-full h-full bg-white rounded-[25px] shadow-sm flex items-center justify-center px-8 py-10 overflow-hidden relative">
       <div className="w-full h-full flex flex-col items-center justify-center">
         
-        {/* Image Area */}
+
         <div className="relative w-full flex-1 flex items-center justify-center min-h-0 mb-8">
           <img 
             ref={imageRef}
@@ -69,7 +69,7 @@ export default function CarouselPanel() {
           />
         </div>
         
-        {/* Text Content */}
+
         <div ref={contentRef} className="text-center max-w-[400px] mt-auto shrink-0">
           <h2 className="font-serif text-[26px] leading-tight font-bold mb-4 text-primary-dark">
             {slides[active].title}
@@ -79,7 +79,7 @@ export default function CarouselPanel() {
           </p>
         </div>
 
-        {/* Indicators */}
+
         <div className="flex justify-center gap-2 shrink-0">
           {slides.map((_, i) => (
             <button 

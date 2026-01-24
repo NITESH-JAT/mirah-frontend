@@ -12,10 +12,9 @@ body {
   color: #1A1A1A;
   margin: 0;
   padding: 0;
-  overflow: hidden; /* Enforce single page view */
+  overflow: hidden; 
 }
 
-/* Typography Utility Classes */
 .auth-heading {
   font-family: var(--font-serif);
   color: #0F3456;
@@ -25,7 +24,7 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Hide scrollbar utility */
+
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

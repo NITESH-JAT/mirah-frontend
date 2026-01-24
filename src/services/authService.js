@@ -13,7 +13,7 @@ export const initDB = () => {
 };
 
 export const authService = {
-  // Simulating an API call for UAE Cities
+
   getUAECities: async () => {
     return [
       "Dubai", "Abu Dhabi", "Sharjah", "Ajman", "Ras Al Khaimah", 
