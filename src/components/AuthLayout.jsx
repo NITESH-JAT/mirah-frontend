@@ -3,32 +3,39 @@ import CarouselPanel from './CarouselPanel';
 
 export default function AuthLayout({ children }) {
   return (
-
-    <div className="flex h-[100dvh] w-full bg-[#F6F7F9] overflow-hidden font-sans">
+    // h-[100dvh] handles mobile browsers perfectly
+    <div className="flex h-[100dvh] w-full bg-white overflow-hidden font-sans">
       
-
-      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-[#F6F7F9] overflow-y-auto overflow-x-hidden">
+      {/* Left Panel - Form Side */}
+      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white overflow-y-auto lg:overflow-hidden">
         
-
-        <div className="absolute top-4 sm:top-5 md:top-6 left-4 sm:left-5 md:left-6 lg:left-8 z-10 flex items-center gap-2">
-          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-dark rounded-md flex items-center justify-center shadow-lg shadow-blue-900/20">
-            <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 border-2 border-white rotate-45"></div>
+        {/* LOGO: 
+            Mobile: Static (p-6) so it pushes content down and never overlaps.
+            Desktop: Absolute (top-6 left-8) to stay pinned while form centers.
+        */}
+        <div className="w-full p-6 pb-0 lg:absolute lg:top-6 lg:left-8 lg:p-0 z-10 flex items-center gap-2 shrink-0">
+          <div className="w-8 h-8 bg-primary-dark rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
+            <div className="w-3.5 h-3.5 border-2 border-white rotate-45"></div>
           </div>
-          <span className="font-serif text-xl sm:text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
+          <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
         </div>
 
-
-        <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 pt-20 sm:pt-24 md:pt-28 pb-8 sm:pb-10 px-6 lg:px-6 lg:pt-14 lg:pb-0">
-
-          <div className="w-full max-w-[380px] lg:max-w-[320px] animate-fade-in mx-auto">
+        {/* Content Container 
+            Mobile: flex-1 ensures it fills space after logo.
+            Desktop: Centered vertically with padding adjustments.
+        */}
+        <div className="flex-1 w-full lg:h-full flex flex-col justify-start lg:justify-center items-center px-5 sm:px-8 pt-8 pb-8 lg:pt-16 lg:pb-4">
+          <div className="w-full max-w-[420px] lg:max-w-[440px]"> 
             {children}
           </div>
         </div>
       </div>
 
-
-      <div className="hidden lg:block w-1/2 h-full p-5 pl-0">
-         <CarouselPanel />
+      {/* Right Panel - Carousel (Hidden on Mobile) */}
+      <div className="hidden lg:block w-1/2 h-full p-4 pl-0">
+         <div className="h-full w-full">
+            <CarouselPanel />
+         </div>
       </div>
     </div>
   );

@@ -1,157 +1,333 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
 
+// --- Helper: Click Outside Hook ---
+function useClickOutside(ref, handler) {
+  useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) return;
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
 
-const FloatingLabelInput = ({ label, type = "text", value, onChange, ...props }) => {
-  const [isFocused, setIsFocused] = useState(false);
-  const hasValue = value && value.length > 0;
+// --- Shared: Standard Input Field ---
+const InputField = ({ label, className, ...props }) => (
+  <div className={`w-full ${className}`}>
+    <input
+      {...props}
+      className="w-full px-5 py-4 lg:px-3 lg:py-2.5 rounded-[12px] lg:rounded-[8px] border border-gray-200 text-gray-700 text-[15px] lg:text-[13px] font-medium placeholder:text-gray-400 focus:outline-none focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 transition-all font-sans"
+    />
+  </div>
+);
+
+// --- Shared: Searchable Custom Dropdown ---
+const CustomSelect = ({ options, placeholder, value, onChange, disabled, className }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const wrapperRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  useClickOutside(wrapperRef, () => setIsOpen(false));
+
+  useEffect(() => {
+    if (isOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+    if (!isOpen) setSearchTerm(''); // Reset search on close
+  }, [isOpen]);
+
+  const handleSelect = (optionValue) => {
+    onChange({ target: { value: optionValue } });
+    setIsOpen(false);
+  };
+
+  const filteredOptions = useMemo(() => {
+    return options.filter(opt => {
+      const label = opt.label || opt;
+      return String(label).toLowerCase().includes(searchTerm.toLowerCase());
+    });
+  }, [options, searchTerm]);
+
+  const selectedLabel = options.find(o => (o.value || o) === value)?.label || 
+                        options.find(o => (o.value || o) === value) || 
+                        value || 
+                        placeholder;
+  
+  const isPlaceholder = !value;
 
   return (
-    <div className="relative mb-3 lg:mb-2.5">
-      <input
-        {...props}
-        type={type}
-        value={value}
-        onChange={onChange}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        className={`peer w-full px-4 lg:px-3.5 py-3.5 lg:py-2 border rounded-xl bg-white text-gray-800 text-[15px] lg:text-[12px] focus:outline-none focus:ring-1 transition-all font-sans
-          ${isFocused || hasValue ? 'border-primary-dark ring-primary-dark/10' : 'border-gray-200'}
-        `}
-      />
-      <label
-        className={`absolute left-4 lg:left-3.5 transition-all duration-200 pointer-events-none bg-white px-1 font-sans leading-none
-          ${(isFocused || hasValue) 
-            ? '-top-2 lg:-top-1.5 text-xs lg:text-[9px] text-primary-dark font-medium' 
-            : 'top-4 lg:top-2.5 text-gray-400 text-[15px] lg:text-[12px]'}
+    <div className={`relative w-full ${className}`} ref={wrapperRef}>
+      {/* Trigger Area */}
+      <div 
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        className={`w-full px-5 py-4 lg:px-3 lg:py-2.5 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-gray-200 text-[15px] lg:text-[13px] font-medium bg-white focus:outline-none focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 transition-all cursor-pointer flex items-center
+          ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-gray-300'}
+          ${isPlaceholder ? 'text-gray-400' : 'text-gray-700'}
         `}
       >
-        {label}
-      </label>
+        <span className="truncate">{selectedLabel}</span>
+      </div>
+
+      <div className="absolute right-4 lg:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 lg:w-3.5 lg:h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </div>
+
+      {/* Dropdown List */}
+      {isOpen && !disabled && (
+        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-[12px] lg:rounded-[8px] shadow-xl z-50 overflow-hidden flex flex-col">
+          
+          {/* Search Input (Sticky Top) */}
+          <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full px-3 py-1.5 text-[13px] lg:text-[12px] border border-gray-200 rounded-md focus:outline-none focus:border-primary-dark font-sans bg-white"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+
+          <ul className="max-h-[140px] overflow-y-auto custom-scrollbar">
+            {/* Show Placeholder Option if needed */}
+            <li 
+               onClick={() => handleSelect("")}
+               className="px-5 py-3 lg:px-3 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-400 hover:bg-gray-50 cursor-pointer border-b border-gray-50"
+            >
+              {placeholder}
+            </li>
+
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((opt, idx) => {
+                const val = opt.value || opt;
+                const lab = opt.label || opt;
+                return (
+                  <li 
+                    key={idx}
+                    onClick={() => handleSelect(val)}
+                    className={`px-5 py-3 lg:px-3 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0
+                      ${val === value ? 'bg-primary-dark/5 text-primary-dark font-semibold' : ''}
+                    `}
+                  >
+                    {lab}
+                  </li>
+                );
+              })
+            ) : (
+              <li className="px-5 py-3 lg:px-3 lg:py-2.5 text-[13px] text-gray-400 italic text-center">No results found</li>
+            )}
+          </ul>
+        </div>
+      )}
     </div>
   );
 };
 
-
 // --- Login Form ---
 export const LoginForm = () => {
   const [rawValue, setRawValue] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
+  const [maxLength, setMaxLength] = useState(10);
+  const [countriesList, setCountriesList] = useState([]);
+  
+  // Custom Select State for Login
+  const [isCodeOpen, setIsCodeOpen] = useState(false);
+  const [codeSearch, setCodeSearch] = useState('');
+  const codeWrapperRef = useRef(null);
+  const codeSearchRef = useRef(null);
+  
   const [isFocused, setIsFocused] = useState(false);
   const [cursorPos, setCursorPos] = useState(null);
+  
   const navigate = useNavigate();
   const inputRef = useRef(null);
 
-  const handleInput = (e) => {
-    const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-    setRawValue(val);
+  useClickOutside(codeWrapperRef, () => setIsCodeOpen(false));
 
-    setCursorPos(e.target.selectionStart);
+  useEffect(() => {
+    const fetchCountries = async () => {
+      const data = await authService.getCountries();
+      setCountriesList(data);
+    };
+    fetchCountries();
+  }, []);
+
+  useEffect(() => {
+    if (isCodeOpen && codeSearchRef.current) {
+      codeSearchRef.current.focus();
+    }
+    if (!isCodeOpen) setCodeSearch('');
+  }, [isCodeOpen]);
+
+  const handleCountrySelect = (code) => {
+    setCountryCode(code);
+    const country = countriesList.find(c => c.dialCode === code);
+    if (country) setMaxLength(country.phoneLength || 10);
+    setIsCodeOpen(false);
   };
 
-  const handleSelect = (e) => {
+  const handleInput = (e) => {
+    const val = e.target.value.replace(/\D/g, '').slice(0, maxLength);
+    setRawValue(val);
     setCursorPos(e.target.selectionStart);
   };
 
   const handleNext = () => {
-    if (rawValue.length === 10) {
-      localStorage.setItem('mirah_pending_phone', rawValue);
+    if (rawValue.length === maxLength) {
+      localStorage.setItem('mirah_pending_phone', `${countryCode} ${rawValue}`);
       navigate('/otp');
     }
   };
 
   const renderDigit = (index) => {
     const isFilled = index < rawValue.length;
-    const digit = isFilled ? rawValue[index] : '0';
-    
-  
     const showCursor = isFocused && cursorPos === index;
+    const showPlaceholder = !isFilled && !showCursor;
+    const digit = isFilled ? rawValue[index] : (showPlaceholder ? '0' : '');
 
     return (
-      <div key={index} className="relative flex justify-center items-center w-[20px] lg:w-[22px] h-[40px]">
-  
-        <span 
-          className={`
-            ${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} 
-            ${(showCursor && !isFilled) ? 'opacity-0' : 'opacity-100'} 
-            transition-colors duration-100
-          `}
-        >
+      <div key={index} className="relative flex justify-center items-end w-[22px] lg:w-[26px] h-[50px]">
+        <span className={`${isFilled ? 'text-primary-dark' : 'text-[#E5E7EB]'} transition-colors duration-100 font-serif text-[34px] lg:text-[40px] leading-none`}>
           {digit}
         </span>
-
-      
         {showCursor && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-
-            <div 
-              className={`h-8 w-0.5 bg-primary-dark animate-pulse ${isFilled ? '-translate-x-3' : ''}`}
-            ></div>
+          <div className="absolute inset-0 flex items-end justify-center pointer-events-none pb-[8px] lg:pb-[9px]">
+            <div className={`h-8 lg:h-9 w-[2px] bg-primary-dark animate-pulse ${isFilled ? '-translate-x-3' : ''}`}></div>
           </div>
         )}
       </div>
     );
   };
 
+  const filteredCountries = countriesList.filter(c => 
+    c.name.toLowerCase().includes(codeSearch.toLowerCase()) || 
+    c.dialCode.includes(codeSearch) ||
+    c.code.toLowerCase().includes(codeSearch.toLowerCase())
+  );
+
   return (
-    <div className="text-center w-full h-full flex flex-col items-center pt-4 lg:pt-0">
+    <div className="text-center w-full h-full flex flex-col items-center justify-center py-6 lg:py-0 relative">
       
-      <h1 className="font-serif text-[30px] lg:text-[36px] font-medium text-primary-dark mb-2 lg:mb-2 tracking-tight whitespace-nowrap">
-        Enter your phone number
-      </h1>
-      
-      <div className="font-sans text-gray-400 text-[13px] lg:text-[14px] leading-relaxed mb-12 lg:mb-10">
-        <p>Join us today and unlock a world of possibilities.</p>
-        <p>Sign up in seconds!</p>
-      </div>
-      
-
-      <div 
-        className="relative w-full max-w-[320px] mt-20 mb-30 lg:mt-15 mb-26 cursor-text mx-auto" 
-        onClick={() => inputRef.current?.focus()}
-      >
-        <div className="flex items-center justify-center gap-4 font-serif text-[32px] lg:text-[34px]">
-          <span className="text-primary-dark font-medium select-none">+91</span>
-          
-          <div className="flex items-center tracking-widest">
-          
-            <div className="flex gap-0.5">
-              {[0, 1, 2, 3, 4].map(i => renderDigit(i))}
-            </div>
-            
-            <span className="text-[#E5E7EB] mx-2 select-none">-</span>
-            
-            <div className="flex gap-0.5">
-              {[5, 6, 7, 8, 9].map(i => renderDigit(i))}
-            </div>
-          </div>
+      {/* Header */}
+      <div className="w-full mb-20 lg:mb-28 mt-4 lg:mt-0">
+        <h1 className="font-serif text-[32px] lg:text-[36px] font-medium text-primary-dark mb-3 lg:mb-4 tracking-tight">
+          Enter your phone number
+        </h1>
+        <div className="font-sans text-gray-400 text-[14px] lg:text-[14px] leading-relaxed px-6">
+          <p>Join us today and unlock a world of possibilities.</p>
+          <p className="hidden lg:block">Sign up in seconds!</p>
         </div>
-
-        <input
-          ref={inputRef}
-          type="tel"
-          value={rawValue}
-          onChange={handleInput}
-          onSelect={handleSelect} 
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setIsFocused(false)}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-text font-serif text-[32px] text-center z-10 bg-transparent"
-          autoFocus
-          spellCheck="false"
-        />
       </div>
 
-      <button 
-        onClick={handleNext}
-        disabled={rawValue.length < 10}
-        className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-xl shadow-blue-900/10 active:scale-[0.98] hover:bg-primary-dark/90 hover:shadow-blue-900/20 transition-all disabled:opacity-50 disabled:shadow-none font-sans"
-      >
-        Next
-      </button>
+      {/* Input Section */}
+      <div className="w-full mb-20 lg:mb-28 px-4">
+        <div className="w-full max-w-[400px] mx-auto flex items-end justify-center gap-4 lg:gap-5">
+            
+            {/* A. Searchable Country Code Trigger */}
+            <div 
+              ref={codeWrapperRef}
+              className="relative shrink-0 h-[50px] flex items-end cursor-pointer gap-2 z-50"
+              onClick={() => setIsCodeOpen(!isCodeOpen)}
+            >
+              <span className="text-primary-dark font-medium select-none text-[34px] lg:text-[40px] font-serif leading-none transition-colors">
+                 {countryCode}
+              </span>
 
-      <p className="mt-8 lg:mt-8 text-[13px] text-gray-400 font-sans pb-4 lg:pb-0">
-        Don't have account? <span onClick={() => navigate('/register')} className="text-primary-dark font-bold cursor-pointer hover:underline">Sign Up</span>
-      </p>
+              <div className="pb-1.5 lg:pb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className={`w-3.5 h-3.5 text-gray-300 transition-all ${isCodeOpen ? 'text-primary-dark rotate-180' : ''}`}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
+              </div>
+              
+              {/* Custom Searchable Dropdown */}
+              {isCodeOpen && (
+                <div className="absolute top-full left-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl w-[180px] overflow-hidden flex flex-col">
+                   {/* Search Bar */}
+                   <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+                     <input 
+                        ref={codeSearchRef}
+                        type="text" 
+                        placeholder="Search country..." 
+                        className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:border-primary-dark font-sans"
+                        value={codeSearch}
+                        onChange={(e) => setCodeSearch(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                     />
+                   </div>
+
+                   <ul className="max-h-[140px] overflow-y-auto custom-scrollbar text-left">
+                     {filteredCountries.map((c, i) => (
+                       <li 
+                         key={i} 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           handleCountrySelect(c.dialCode);
+                         }}
+                         className={`px-4 py-3 text-[14px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0 font-sans flex items-center justify-between gap-2
+                           ${c.dialCode === countryCode ? 'bg-primary-dark/5 text-primary-dark font-semibold' : ''}
+                         `}
+                       >
+                         <span className="truncate flex-1">{c.name}</span>
+                         <span className="text-gray-400 text-xs">{c.dialCode}</span>
+                       </li>
+                     ))}
+                     {filteredCountries.length === 0 && (
+                       <li className="px-4 py-3 text-[12px] text-gray-400 text-center">No match</li>
+                     )}
+                   </ul>
+                </div>
+              )}
+            </div>
+            
+            {/* B. Digits Input Area */}
+            <div 
+               className="relative cursor-text flex items-end h-[50px]"
+               onClick={() => inputRef.current?.focus()}
+            >
+              <div className="flex items-end tracking-widest flex-nowrap justify-center gap-[1px] lg:gap-1">
+                {Array.from({ length: maxLength }).map((_, i) => renderDigit(i))}
+              </div>
+              <input
+                ref={inputRef}
+                type="tel"
+                value={rawValue}
+                onChange={handleInput}
+                onSelect={(e) => setCursorPos(e.target.selectionStart)}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-text z-10"
+                autoFocus
+              />
+            </div>
+        </div>
+      </div>
+
+      {/* Button Section */}
+      <div className="w-full max-w-[360px] lg:max-w-[400px]">
+        <button 
+          onClick={handleNext}
+          disabled={rawValue.length < maxLength}
+          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-4 rounded-full text-[16px] lg:text-[16px] font-medium shadow-xl shadow-blue-900/10 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50"
+        >
+          Next
+        </button>
+        <div className="mt-8 lg:mt-8">
+          <p className="text-[14px] lg:text-[13px] text-gray-400 font-sans">
+            Don't have account? <span onClick={() => navigate('/register')} className="text-primary-dark font-bold cursor-pointer hover:underline">Sign Up</span>
+          </p>
+        </div>
+      </div>
     </div>
   );
 };
@@ -171,70 +347,54 @@ export const OTPForm = () => {
     if (val && i < 3) inputs.current[i + 1].focus();
   };
 
-  const handleVerify = async () => {
-    if (otp.join('') === '1234') {
-      const result = { success: true }; 
-      if (result.success) navigate('/welcome');
-      else navigate('/register');
-    }
+  const handleVerify = () => {
+    if (otp.join('') === '1234') navigate('/dashboard/profile'); 
+  };
+
+  const handleResend = () => {
+    alert("OTP Resent!");
+    setOtp(['','','','']);
+    inputs.current[0]?.focus();
   };
 
   return (
-
-    <div className="w-full min-h-[80vh] flex flex-col justify-between lg:block lg:min-h-0 lg:h-auto text-left lg:text-center pt-4 lg:pt-0">
-      
-      <div>
-        
-        <h1 className="font-serif text-[32px] lg:text-[32px] font-medium text-primary-dark mb-2 lg:mb-2">
-          OTP Code
-        </h1>
-
-        <div className="flex flex-col items-start lg:items-center justify-center gap-1 mb-10 lg:mb-8 font-sans">
-          <div className="flex items-center gap-1.5 text-[14px] lg:text-[13px] text-gray-500">
-            <span>Enter the OTP sent to</span>
-          </div>
-          <div className="flex items-center gap-2 text-[14px] lg:text-[13px]">
-            <span className="font-bold text-primary-dark">
-              +91 {phone?.replace(/(\d{5})(\d{5})/, '$1 $2')}
-            </span>
-            <button className="text-primary-dark hover:text-blue-700 transition-colors" onClick={() => navigate('/login')}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                <path d="M21.731 2.269a2.625 2.625 0 113.712 3.712l-9.376 9.376-2.067.58a.5.5 0 01-.613-.613l.58-2.067 9.376-9.376zM9.375 12.25l-2.067.58a.5.5 0 01-.613-.613l.58-2.067 7.5-7.5-6.643 6.643a3.565 3.565 0 00-.736.96l-1.355 2.71a1.125 1.125 0 001.272 1.272l2.71-1.355a3.565 3.565 0 00.96-.736L12.25 9.375l-2.875 2.875z" />
-                <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75.38-1.745 1.056-2.617l-1.42-1.42A11.218 11.218 0 0012 .75C5.787.75.75 5.787.75 12s5.037 11.25 11.25 11.25S23.25 18.213 23.25 12c0-.62-.05-1.229-.146-1.821l-1.47 1.47c.075.446.116.903.116 1.366 0 4.556-3.694 8.25-8.25 8.25S3.75 16.556 3.75 12 7.444 3.75 12 3.75c1.45 0 2.816.376 4.01 1.03l1.1-1.1A11.21 11.21 0 0012 2.25z" clipRule="evenodd" opacity="0" /> 
-                <path d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-
-
-        <div className="flex justify-start lg:justify-center gap-4 lg:gap-4 mb-5 lg:mb-4">
+    <div className="w-full text-center h-full flex flex-col justify-between lg:justify-center py-6 lg:py-0">
+      <div className="hidden lg:block"></div>
+      <div className="mt-10 lg:mt-0">
+        <h1 className="font-serif text-[34px] lg:text-[32px] font-medium text-primary-dark mb-3 lg:mb-2">OTP Code</h1>
+        <p className="text-gray-500 text-[15px] lg:text-[14px] font-sans px-4">
+          Enter the OTP sent to <span className="font-bold text-primary-dark whitespace-nowrap">{phone}</span>
+        </p>
+      </div>
+      <div className="flex flex-col gap-10 lg:gap-12 my-auto w-full max-w-[360px] mx-auto">
+        <div className="flex justify-center gap-4 lg:gap-4">
           {otp.map((digit, i) => (
             <input
               key={i}
               ref={el => inputs.current[i] = el}
               type="text"
               inputMode="numeric"
-              className="w-12 h-12 lg:w-12 lg:h-12 border border-gray-200 rounded-[14px] text-center text-2xl lg:text-xl font-bold text-primary-dark bg-white focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/20 outline-none transition-all font-sans shadow-sm"
+              className="w-16 h-16 lg:w-14 lg:h-14 border border-gray-200 rounded-[18px] lg:rounded-xl text-center text-[28px] lg:text-2xl font-bold text-primary-dark focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/20 outline-none shadow-sm transition-all"
               value={digit}
               onChange={(e) => handleChange(e.target.value, i)}
               onKeyDown={(e) => e.key === 'Backspace' && !otp[i] && i > 0 && inputs.current[i-1].focus()}
             />
           ))}
         </div>
-
-        <div className="text-[13px] lg:text-[12px] text-gray-400 font-sans mb-8">
-          Didn't receive the code? <span className="text-primary-dark font-bold cursor-pointer hover:underline">Resend OTP</span>
-        </div>
-      </div>
-
-      <div className="pb-6 lg:pb-0 w-full lg:mt-24">
         <button 
           onClick={handleVerify}
           disabled={otp.join('').length < 4}
-          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] lg:text-[15px] font-medium shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 font-sans"
+          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-4 rounded-full text-[16px] lg:text-[16px] font-medium shadow-lg shadow-blue-900/20 hover:bg-primary-dark/90 transition-all disabled:opacity-50"
         >
           Verify
+        </button>
+      </div>
+      <div className="mb-10 lg:mb-0">
+        <button 
+          onClick={handleResend}
+          className="text-gray-400 text-[14px] lg:text-[13px] font-medium hover:text-primary-dark transition-colors cursor-pointer py-2"
+        >
+          Didn't receive the code? <span className="underline decoration-gray-300 underline-offset-4 hover:decoration-primary-dark">Resend OTP</span>
         </button>
       </div>
     </div>
@@ -243,149 +403,153 @@ export const OTPForm = () => {
 
 // --- Register Form ---
 export const RegisterForm = () => {
-  const [role, setRole] = useState('user');
-  const [cities, setCities] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [showCities, setShowCities] = useState(false);
-  const cityWrapperRef = useRef(null);
-  
-  const [formData, setFormData] = useState({ 
-    fullName: '', 
-    phone: localStorage.getItem('mirah_pending_phone') || '', 
-    city: '', 
-    password: '', 
-    confirmPassword: '' 
-  });
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [countriesList, setCountriesList] = useState([]);
+  const [statesList, setStatesList] = useState([]);
+  const [citiesList, setCitiesList] = useState([]);
+
+  const [formData, setFormData] = useState({
+    firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
+    countryCode: '', phone: '', country: '', state: '', city: '', address: '', pinCode: '',
+    userType: 'customer' 
+  });
 
   useEffect(() => {
-    authService.getUAECities().then(setCities);
-    const handleClickOutside = (event) => {
-      if (cityWrapperRef.current && !cityWrapperRef.current.contains(event.target)) {
-        setShowCities(false);
-      }
+    const fetchCountries = async () => {
+      const data = await authService.getCountries();
+      setCountriesList(data);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    fetchCountries();
   }, []);
 
-  const filteredCities = cities.filter(c => c.toLowerCase().includes(searchTerm.toLowerCase()));
+  useEffect(() => {
+    if (!formData.country) { setStatesList([]); return; }
+    const fetchStates = async () => {
+      const states = await authService.getStates(formData.country);
+      setStatesList(states.map(s => s.name));
+    };
+    fetchStates();
+    setFormData(prev => ({ ...prev, state: '', city: '' }));
+  }, [formData.country]);
 
-  const handleRegister = async () => {
-    if (formData.password !== formData.confirmPassword) return alert("Passwords mismatch");
-    await authService.register({ ...formData, role });
-    navigate('/welcome');
+  useEffect(() => {
+    if (!formData.state) { setCitiesList([]); return; }
+    const fetchCities = async () => {
+      const cities = await authService.getCities(formData.country, formData.state);
+      setCitiesList(cities);
+    };
+    fetchCities();
+    setFormData(prev => ({ ...prev, city: '' }));
+  }, [formData.state]);
+
+  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+
+  const handleSubmit = async () => {
+    if (formData.password !== formData.confirmPassword) return alert("Passwords do not match");
+    if (!formData.firstName || !formData.email || !formData.phone) return alert("Please fill required fields");
+
+    setLoading(true);
+    try {
+      await authService.register(formData);
+      navigate('/dashboard/profile');
+    } catch (err) {
+      alert(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="w-full">
-      <div className="text-center mb-3 sm:mb-2 lg:mb-4">
-        <h1 className="font-serif text-[26px] sm:text-[28px] md:text-[30px] lg:text-[26px] font-bold text-primary-dark mb-1 sm:mb-1 lg:mb-0.5">Create Your Account</h1>
-        <p className="text-center font-sans text-gray-400 text-[12px] sm:text-[13px] md:text-sm lg:text-[12px]">Join our community of jewelry lovers and artisans.</p>
+    <div className="w-full flex flex-col gap-4 lg:gap-0">
+      <div className="text-center mb-4 lg:mb-2">
+        <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-primary-dark mb-1">Create Your Account</h1>
+        <p className="font-sans text-gray-400 text-[14px] lg:text-[11px] tracking-wide">Join our community of jewelry lovers.</p>
       </div>
 
-      <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-3 sm:mb-3.5 lg:mb-3 flex">
+      <div className="bg-gray-100 p-1.5 lg:p-0.5 rounded-xl lg:rounded-lg mb-4 lg:mb-3 flex">
         <button 
-          onClick={() => setRole('user')} 
-          className={`flex-1 cursor-pointer py-2 sm:py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[12px] sm:text-sm lg:text-[11px] font-semibold transition-all font-sans 
-            ${role === 'user' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
+          onClick={() => setFormData({...formData, userType: 'customer'})} 
+          className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans 
+            ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
         >
           As a User
         </button>
         <button 
-          onClick={() => setRole('seller')} 
-          className={`flex-1 cursor-pointer py-2 sm:py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[12px] sm:text-sm lg:text-[11px] font-semibold transition-all font-sans 
-            ${role === 'seller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
+          onClick={() => setFormData({...formData, userType: 'jeweller'})} 
+          className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans 
+            ${formData.userType === 'jeweller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
         >
           As a Jeweller
         </button>
       </div>
 
-
-      <p className="text-center text-[11px] sm:text-[12px] md:text-[13px] lg:text-[10px] text-gray-400 mb-3 sm:mb-3.5 lg:mb-4 leading-relaxed px-1">
-        Mirah will help you find clients who are looking for custom jewelry so you can showcase your craft and grow your business
-      </p>
-
-      <FloatingLabelInput 
-        label="Full Name" 
-        value={formData.fullName} 
-        onChange={e => setFormData({...formData, fullName: e.target.value})} 
-      />
-      
-      <FloatingLabelInput 
-        label="Phone Number" 
-        value={formData.phone} 
-        onChange={e => setFormData({...formData, phone: e.target.value})} 
-      />
-      
-      <div className="relative mb-3 lg:mb-2.5" ref={cityWrapperRef}>
-        <div className="relative">
-          <input
-            value={searchTerm}
-            onFocus={() => setShowCities(true)}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setShowCities(true);
-              if (e.target.value === '') setFormData({...formData, city: ''});
-            }}
-
-            className="peer w-full px-4 lg:px-3.5 py-3.5 lg:py-2 border border-gray-200 rounded-xl bg-white text-gray-800 text-[15px] lg:text-[12px] focus:outline-none focus:ring-1 focus:border-primary-dark focus:ring-primary-dark/10 transition-all font-sans"
-          />
-          <label className={`absolute left-4 lg:left-3.5 transition-all duration-200 pointer-events-none bg-white px-1 font-sans leading-none
-            ${(showCities || searchTerm) 
-              ? '-top-2 lg:-top-1.5 text-xs lg:text-[9px] text-primary-dark font-medium' 
-              : 'top-4 lg:top-2.5 text-gray-400 text-[15px] lg:text-[12px]'}
-          `}>
-            Select City (UAE)
-          </label>
-           <div className="absolute right-4 lg:right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 lg:w-3 lg:h-3">
-               <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-             </svg>
-           </div>
+      <div className="flex flex-col gap-4 lg:gap-3">
+        <div className="flex gap-4 lg:gap-2.5">
+          <InputField name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} />
+          <InputField name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} />
         </div>
-        
-        {showCities && filteredCities.length > 0 && (
-          <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-xl shadow-xl z-50 max-h-48 lg:max-h-32 overflow-y-auto no-scrollbar">
-            {filteredCities.map(city => (
-              <div 
-                key={city}
-                className="px-5 lg:px-4 py-3 lg:py-2 hover:bg-gray-50 cursor-pointer text-sm lg:text-[12px] text-gray-600 border-b border-gray-50 last:border-0 font-sans"
-                onClick={() => {
-                  setFormData({...formData, city});
-                  setSearchTerm(city);
-                  setShowCities(false);
-                }}
-              >
-                {city}
-              </div>
-            ))}
+        <InputField name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} />
+        <div className="flex gap-4 lg:gap-2.5">
+          <div className="w-[120px] lg:w-[90px] shrink-0">
+             {/* Searchable Select for Code */}
+             <CustomSelect
+              placeholder="Code"
+              value={formData.countryCode}
+              onChange={(e) => setFormData({...formData, countryCode: e.target.value})}
+              options={countriesList.map(c => ({ value: c.dialCode, label: `${c.code} ${c.dialCode}` }))}
+             />
           </div>
-        )}
+          <InputField name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} />
+        </div>
+        <div className="flex gap-4 lg:gap-2.5">
+          {/* Searchable Select for Country */}
+          <CustomSelect 
+            placeholder="Country" 
+            value={formData.country} 
+            onChange={(e) => setFormData({...formData, country: e.target.value})} 
+            options={countriesList.map(c => c.name)} 
+          />
+          {/* Searchable Select for State */}
+          <CustomSelect 
+            placeholder="State" 
+            value={formData.state} 
+            onChange={(e) => setFormData({...formData, state: e.target.value})} 
+            options={statesList} 
+            disabled={!formData.country} 
+          />
+        </div>
+        <div className="flex gap-4 lg:gap-2.5">
+          <div className="flex-[2]">
+            {/* Searchable Select for City */}
+            <CustomSelect 
+              placeholder="City" 
+              value={formData.city} 
+              onChange={(e) => setFormData({...formData, city: e.target.value})} 
+              options={citiesList} 
+              disabled={!formData.state} 
+            />
+          </div>
+          <div className="flex-1">
+            <InputField name="pinCode" placeholder="Pin Code" value={formData.pinCode} onChange={handleChange} />
+          </div>
+        </div>
+        <InputField name="address" placeholder="Address" value={formData.address} onChange={handleChange} />
+        <div className="flex gap-4 lg:gap-2.5">
+           <InputField name="password" type="password" placeholder="Password" value={formData.password} onChange={handleChange} />
+          <InputField name="confirmPassword" type="password" placeholder="Conf. Password" value={formData.confirmPassword} onChange={handleChange} />
+        </div>
       </div>
 
-      <FloatingLabelInput 
-        label="Password" 
-        type="password" 
-        value={formData.password} 
-        onChange={e => setFormData({...formData, password: e.target.value})} 
-      />
-      
-      <FloatingLabelInput 
-        label="Confirm Password" 
-        type="password" 
-        value={formData.confirmPassword} 
-        onChange={e => setFormData({...formData, confirmPassword: e.target.value})} 
-      />
-
       <button 
-        onClick={handleRegister} 
-        className="w-full cursor-pointer bg-primary-dark text-white py-3 sm:py-3.5 lg:py-2 rounded-full text-[14px] sm:text-[15px] lg:text-[12px] font-semibold shadow-lg shadow-blue-900/20 mt-3 sm:mt-3.5 lg:mt-1 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans"
+        onClick={handleSubmit} 
+        disabled={loading}
+        className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 mt-8 lg:mt-5 rounded-full lg:rounded-[8px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-70"
       >
-        Next
+        {loading ? 'Creating...' : 'Next'}
       </button>
-      
-      <p className="text-center text-[10px] sm:text-xs lg:text-[10px] text-gray-500 mt-2.5 sm:mt-3 lg:mt-3 font-sans font-medium">
+
+      <p className="text-center text-[13px] lg:text-[10px] text-gray-500 mt-6 lg:mt-3 font-sans font-medium">
         Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
       </p>
     </div>
