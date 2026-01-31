@@ -10,15 +10,15 @@ export default function AuthLayout({ children }) {
       <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-[#F6F7F9] overflow-y-auto overflow-x-hidden">
         
 
-        <div className="absolute top-6 left-6 lg:left-8 z-10 flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary-dark rounded-md flex items-center justify-center shadow-lg shadow-blue-900/20">
-            <div className="w-3.5 h-3.5 border-2 border-white rotate-45"></div>
+        <div className="absolute top-4 sm:top-5 md:top-6 left-4 sm:left-5 md:left-6 lg:left-8 z-10 flex items-center gap-2">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary-dark rounded-md flex items-center justify-center shadow-lg shadow-blue-900/20">
+            <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 border-2 border-white rotate-45"></div>
           </div>
-          <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
+          <span className="font-serif text-xl sm:text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
         </div>
 
 
-        <div className="flex-1 flex flex-col items-center justify-center w-full min-h-[600px] lg:min-h-0 pt-16 pb-10 px-6 lg:px-6 lg:pt-14 lg:pb-0">
+        <div className="flex-1 flex flex-col items-center justify-center w-full min-h-0 pt-20 sm:pt-24 md:pt-28 pb-8 sm:pb-10 px-6 lg:px-6 lg:pt-14 lg:pb-0">
 
           <div className="w-full max-w-[380px] lg:max-w-[320px] animate-fade-in mx-auto">
             {children}

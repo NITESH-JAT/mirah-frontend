@@ -279,22 +279,22 @@ export const RegisterForm = () => {
 
   return (
     <div className="w-full">
-      <div className="text-center mb-2 lg:mb-4">
-        <h1 className="font-serif text-[32px] lg:text-[26px] font-bold text-primary-dark mb-1 lg:mb-0.5">Create Your Account</h1>
-        <p className=" text-center font-sans text-gray-400 text-sm lg:text-[12px]">Join our community of jewelry lovers and artisans.</p>
+      <div className="text-center mb-3 sm:mb-2 lg:mb-4">
+        <h1 className="font-serif text-[26px] sm:text-[28px] md:text-[30px] lg:text-[26px] font-bold text-primary-dark mb-1 sm:mb-1 lg:mb-0.5">Create Your Account</h1>
+        <p className="text-center font-sans text-gray-400 text-[12px] sm:text-[13px] md:text-sm lg:text-[12px]">Join our community of jewelry lovers and artisans.</p>
       </div>
 
-      <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-4 lg:mb-3 flex">
+      <div className="bg-[#EBEAEA] p-1 lg:p-0.5 rounded-xl lg:rounded-[8px] mb-3 sm:mb-3.5 lg:mb-3 flex">
         <button 
           onClick={() => setRole('user')} 
-          className={`flex-1 cursor-pointer py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
+          className={`flex-1 cursor-pointer py-2 sm:py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[12px] sm:text-sm lg:text-[11px] font-semibold transition-all font-sans 
             ${role === 'user' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
         >
           As a User
         </button>
         <button 
           onClick={() => setRole('seller')} 
-          className={`flex-1 cursor-pointer py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-sm lg:text-[11px] font-semibold transition-all font-sans 
+          className={`flex-1 cursor-pointer py-2 sm:py-2.5 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[12px] sm:text-sm lg:text-[11px] font-semibold transition-all font-sans 
             ${role === 'seller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200/50'}`}
         >
           As a Jeweller
@@ -302,7 +302,7 @@ export const RegisterForm = () => {
       </div>
 
 
-      <p className="text-center text-[13px] lg:text-[10px] text-gray-400 mb-4 lg:mb-4 leading-relaxed px-1">
+      <p className="text-center text-[11px] sm:text-[12px] md:text-[13px] lg:text-[10px] text-gray-400 mb-3 sm:mb-3.5 lg:mb-4 leading-relaxed px-1">
         Mirah will help you find clients who are looking for custom jewelry so you can showcase your craft and grow your business
       </p>
 
@@ -380,12 +380,12 @@ export const RegisterForm = () => {
 
       <button 
         onClick={handleRegister} 
-        className="w-full cursor-pointer bg-primary-dark text-white py-3.5 lg:py-2 rounded-full text-[15px] lg:text-[12px] font-semibold shadow-lg shadow-blue-900/20 mt-4 lg:mt-1 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans"
+        className="w-full cursor-pointer bg-primary-dark text-white py-3 sm:py-3.5 lg:py-2 rounded-full text-[14px] sm:text-[15px] lg:text-[12px] font-semibold shadow-lg shadow-blue-900/20 mt-3 sm:mt-3.5 lg:mt-1 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans"
       >
         Next
       </button>
       
-      <p className="text-center text-xs lg:text-[10px] text-gray-500 mt-3 lg:mt-3 font-sans font-medium">
+      <p className="text-center text-[10px] sm:text-xs lg:text-[10px] text-gray-500 mt-2.5 sm:mt-3 lg:mt-3 font-sans font-medium">
         Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
       </p>
     </div>
