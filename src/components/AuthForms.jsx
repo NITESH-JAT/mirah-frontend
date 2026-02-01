@@ -41,7 +41,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
     if (isOpen && searchInputRef.current) {
       searchInputRef.current.focus();
     }
-    if (!isOpen) setSearchTerm(''); // Reset search on close
+    if (!isOpen) setSearchTerm(''); 
   }, [isOpen]);
 
   const handleSelect = (optionValue) => {
@@ -86,7 +86,6 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
       {isOpen && !disabled && (
         <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-[12px] lg:rounded-[8px] shadow-xl z-50 overflow-hidden flex flex-col">
           
-          {/* Search Input (Sticky Top) */}
           <div className="p-2 border-b border-gray-50 bg-gray-50/50">
             <input
               ref={searchInputRef}
@@ -100,7 +99,6 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
           </div>
 
           <ul className="max-h-[140px] overflow-y-auto custom-scrollbar">
-            {/* Show Placeholder Option if needed */}
             <li 
                onClick={() => handleSelect("")}
                className="px-5 py-3 lg:px-3 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-400 hover:bg-gray-50 cursor-pointer border-b border-gray-50"
@@ -141,7 +139,6 @@ export const LoginForm = () => {
   const [maxLength, setMaxLength] = useState(10);
   const [countriesList, setCountriesList] = useState([]);
   
-  // Custom Select State for Login
   const [isCodeOpen, setIsCodeOpen] = useState(false);
   const [codeSearch, setCodeSearch] = useState('');
   const codeWrapperRef = useRef(null);
@@ -202,7 +199,8 @@ export const LoginForm = () => {
           {digit}
         </span>
         {showCursor && (
-          <div className="absolute inset-0 flex items-end justify-center pointer-events-none pb-[8px] lg:pb-[9px]">
+          // FIX: Changed items-end to items-center and removed pb to center vertically
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className={`h-8 lg:h-9 w-[2px] bg-primary-dark animate-pulse ${isFilled ? '-translate-x-3' : ''}`}></div>
           </div>
         )}
@@ -230,11 +228,9 @@ export const LoginForm = () => {
         </div>
       </div>
 
-      {/* Input Section */}
       <div className="w-full mb-20 lg:mb-28 px-4">
         <div className="w-full max-w-[400px] mx-auto flex items-end justify-center gap-4 lg:gap-5">
             
-            {/* A. Searchable Country Code Trigger */}
             <div 
               ref={codeWrapperRef}
               className="relative shrink-0 h-[50px] flex items-end cursor-pointer gap-2 z-50"
@@ -250,10 +246,8 @@ export const LoginForm = () => {
                 </svg>
               </div>
               
-              {/* Custom Searchable Dropdown */}
               {isCodeOpen && (
                 <div className="absolute top-full left-0 mt-2 bg-white border border-gray-100 rounded-xl shadow-xl w-[180px] overflow-hidden flex flex-col">
-                   {/* Search Bar */}
                    <div className="p-2 border-b border-gray-50 bg-gray-50/50">
                      <input 
                         ref={codeSearchRef}
@@ -290,7 +284,6 @@ export const LoginForm = () => {
               )}
             </div>
             
-            {/* B. Digits Input Area */}
             <div 
                className="relative cursor-text flex items-end h-[50px]"
                onClick={() => inputRef.current?.focus()}
@@ -313,7 +306,6 @@ export const LoginForm = () => {
         </div>
       </div>
 
-      {/* Button Section */}
       <div className="w-full max-w-[360px] lg:max-w-[400px]">
         <button 
           onClick={handleNext}
@@ -358,29 +350,33 @@ export const OTPForm = () => {
   };
 
   return (
-    <div className="w-full text-center h-full flex flex-col justify-between lg:justify-center py-6 lg:py-0">
-      <div className="hidden lg:block"></div>
-      <div className="mt-10 lg:mt-0">
-        <h1 className="font-serif text-[34px] lg:text-[32px] font-medium text-primary-dark mb-3 lg:mb-2">OTP Code</h1>
+    <div className="w-full text-center h-full flex flex-col justify-center py-6 lg:py-0 relative">
+      
+      {/* Header - Increased Margins */}
+      <div className="w-full mb-16 lg:mb-20 mt-4 lg:mt-0">
+        <h1 className="font-serif text-[34px] lg:text-[36px] font-medium text-primary-dark mb-4 lg:mb-3">OTP Code</h1>
         <p className="text-gray-500 text-[15px] lg:text-[14px] font-sans px-4">
           Enter the OTP sent to <span className="font-bold text-primary-dark whitespace-nowrap">{phone}</span>
         </p>
       </div>
-      <div className="flex flex-col gap-10 lg:gap-12 my-auto w-full max-w-[360px] mx-auto">
-        <div className="flex justify-center gap-4 lg:gap-4">
+
+      {/* Input Section - Increased Gap */}
+      <div className="flex flex-col gap-14 lg:gap-12 my-auto w-full max-w-[360px] mx-auto mb-2 lg:mb-20">
+        <div className="flex justify-center gap-5 lg:gap-4">
           {otp.map((digit, i) => (
             <input
               key={i}
               ref={el => inputs.current[i] = el}
               type="text"
               inputMode="numeric"
-              className="w-16 h-16 lg:w-14 lg:h-14 border border-gray-200 rounded-[18px] lg:rounded-xl text-center text-[28px] lg:text-2xl font-bold text-primary-dark focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/20 outline-none shadow-sm transition-all"
+              className="w-16 h-16 lg:w-16 lg:h-16 border border-gray-200 rounded-[18px] lg:rounded-xl text-center text-[28px] lg:text-3xl font-bold text-primary-dark focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/20 outline-none shadow-sm transition-all"
               value={digit}
               onChange={(e) => handleChange(e.target.value, i)}
               onKeyDown={(e) => e.key === 'Backspace' && !otp[i] && i > 0 && inputs.current[i-1].focus()}
             />
           ))}
         </div>
+
         <button 
           onClick={handleVerify}
           disabled={otp.join('').length < 4}
@@ -389,7 +385,8 @@ export const OTPForm = () => {
           Verify
         </button>
       </div>
-      <div className="mb-10 lg:mb-0">
+
+      <div className="mb-0 lg:mb-0 mt-8">
         <button 
           onClick={handleResend}
           className="text-gray-400 text-[14px] lg:text-[13px] font-medium hover:text-primary-dark transition-colors cursor-pointer py-2"
@@ -503,14 +500,12 @@ export const RegisterForm = () => {
           <InputField name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} />
         </div>
         <div className="flex gap-4 lg:gap-2.5">
-          {/* Searchable Select for Country */}
           <CustomSelect 
             placeholder="Country" 
             value={formData.country} 
             onChange={(e) => setFormData({...formData, country: e.target.value})} 
             options={countriesList.map(c => c.name)} 
           />
-          {/* Searchable Select for State */}
           <CustomSelect 
             placeholder="State" 
             value={formData.state} 
@@ -521,7 +516,6 @@ export const RegisterForm = () => {
         </div>
         <div className="flex gap-4 lg:gap-2.5">
           <div className="flex-[2]">
-            {/* Searchable Select for City */}
             <CustomSelect 
               placeholder="City" 
               value={formData.city} 
@@ -544,12 +538,12 @@ export const RegisterForm = () => {
       <button 
         onClick={handleSubmit} 
         disabled={loading}
-        className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 mt-8 lg:mt-5 rounded-full lg:rounded-[8px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-70"
+        className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 mt-8 lg:mt-3 rounded-full lg:rounded-[8px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-70"
       >
         {loading ? 'Creating...' : 'Next'}
       </button>
 
-      <p className="text-center text-[13px] lg:text-[10px] text-gray-500 mt-6 lg:mt-3 font-sans font-medium">
+      <p className="text-center text-[13px] lg:text-[10px] text-gray-500 mt-6 lg:mt-2 font-sans font-medium">
         Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
       </p>
     </div>

@@ -1,18 +1,16 @@
 import React from 'react';
+import { Outlet } from 'react-router-dom'; // Import Outlet
 import CarouselPanel from './CarouselPanel';
 
-export default function AuthLayout({ children }) {
+// Remove 'children' prop, use <Outlet /> instead
+export default function AuthLayout() {
   return (
-    // h-[100dvh] handles mobile browsers perfectly
-    <div className="flex h-[100dvh] w-full bg-white overflow-hidden font-sans">
+    <div className="flex h-screen w-full bg-white overflow-hidden font-sans">
       
       {/* Left Panel - Form Side */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white overflow-y-auto lg:overflow-hidden">
         
-        {/* LOGO: 
-            Mobile: Static (p-6) so it pushes content down and never overlaps.
-            Desktop: Absolute (top-6 left-8) to stay pinned while form centers.
-        */}
+        {/* Logo */}
         <div className="w-full p-6 pb-0 lg:absolute lg:top-6 lg:left-8 lg:p-0 z-10 flex items-center gap-2 shrink-0">
           <div className="w-8 h-8 bg-primary-dark rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
             <div className="w-3.5 h-3.5 border-2 border-white rotate-45"></div>
@@ -20,18 +18,14 @@ export default function AuthLayout({ children }) {
           <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
         </div>
 
-        {/* Content Container 
-            Mobile: flex-1 ensures it fills space after logo.
-            Desktop: Centered vertically with padding adjustments.
-        */}
         <div className="flex-1 w-full lg:h-full flex flex-col justify-start lg:justify-center items-center px-5 sm:px-8 pt-8 pb-8 lg:pt-16 lg:pb-4">
           <div className="w-full max-w-[420px] lg:max-w-[440px]"> 
-            {children}
+            <Outlet />
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Carousel (Hidden on Mobile) */}
+      {/* Right Panel - Carousel */}
       <div className="hidden lg:block w-1/2 h-full p-4 pl-0">
          <div className="h-full w-full">
             <CarouselPanel />

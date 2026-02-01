@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export default function Profile() {
   const [userData, setUserData] = useState({
-    fullName: "Amanda Haydenson",
+    fullName: "Nick",
     phone: "+91 62029 48676",
     city: "Mumbai, India",
     password: "••••••"
@@ -11,7 +11,7 @@ export default function Profile() {
   return (
     <div className="w-full">
       
-      {/* 1. Basic Info Section */}
+      {/* Basic Info Section */}
       <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
         <div className="flex items-center justify-between mb-6 lg:mb-8">
           <h2 className="font-sans text-lg font-bold text-gray-800">Basic Information</h2>
@@ -21,7 +21,6 @@ export default function Profile() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Avatar */}
           <div className="w-full lg:w-auto flex flex-col items-center gap-3">
             <div className="w-20 h-20 lg:w-24 lg:h-24 rounded-full p-1 border border-gray-100 relative group cursor-pointer">
               <img 
@@ -33,14 +32,14 @@ export default function Profile() {
                  <span className="text-white text-xs font-medium">Edit</span>
               </div>
             </div>
-            {/* Mobile Name Display */}
+
             <div className="lg:hidden text-center">
               <h3 className="font-bold text-gray-800 text-lg">{userData.fullName}</h3>
               <p className="text-xs text-gray-400">Jeweller Account</p>
             </div>
           </div>
 
-          {/* Form Fields */}
+
           <div className="flex-1 w-full grid grid-cols-1 lg:grid-cols-2 gap-5">
             
             <div className="space-y-1.5">
@@ -80,9 +79,8 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 2. Stats Section */}
+      {/* Stats Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* History Card */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-sm font-bold text-gray-800 mb-5 pb-4 border-b border-gray-50">My Bidding History</h3>
           <div className="space-y-4">
@@ -107,7 +105,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Revenue Card */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-sm font-bold text-gray-800 mb-5 pb-4 border-b border-gray-50">Revenue Statistics</h3>
           <div className="flex items-center justify-center h-32 text-gray-300 text-xs font-medium border-2 border-dashed border-gray-100 rounded-xl">
