@@ -1,15 +1,18 @@
 import React, { lazy } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 
-import AuthLayout from '../components/AuthLayout';
+// Layouts
+import AuthLayout from '../components/Auth/AuthLayout';
 import DashboardLayout from '../components/layout/DashboardLayout';
 
+// Guards
 import AuthGuard from '../components/guards/AuthGuard';
 import GuestGuard from '../components/guards/GuestGuard';
 
-const LoginForm = lazy(() => import('../components/AuthForms').then(m => ({ default: m.LoginForm })));
-const OTPForm = lazy(() => import('../components/AuthForms').then(m => ({ default: m.OTPForm })));
-const RegisterForm = lazy(() => import('../components/AuthForms').then(m => ({ default: m.RegisterForm })));
+// Lazy Pages
+const LoginForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.LoginForm })));
+const RegisterForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.RegisterForm })));
+const VerificationForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.VerificationForm })));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
 
 const Placeholder = ({ title }) => (
@@ -17,6 +20,7 @@ const Placeholder = ({ title }) => (
 );
 
 export const routes = [
+  // --- AUTH ROUTES ---
   {
     path: '/',
     element: (
@@ -27,27 +31,49 @@ export const routes = [
     children: [
       { index: true, element: <Navigate to="/login" replace /> },
       { path: 'login', element: <LoginForm /> },
-      { path: 'otp', element: <OTPForm /> },
-      { path: 'register', element: <RegisterForm /> }
+      { path: 'register', element: <RegisterForm /> },
+      { path: 'verification', element: <VerificationForm /> } // New Route
     ]
   },
-
-
+  
+  // --- DASHBOARD ROUTES (Mixed Public/Protected) ---
   {
     path: '/dashboard',
-    element: (
-      <AuthGuard>
-        <DashboardLayout />
-      </AuthGuard>
-    ),
+    element: <DashboardLayout />, // Layout is always visible
     children: [
-      { path: 'profile', element: <Profile /> },
+      { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
+      
+      // PUBLIC PAGE: Shopping is now accessible without login
       { path: 'shopping', element: <Placeholder title="Shopping" /> },
-      { path: 'projects', element: <Placeholder title="My Projects" /> },
-      { path: 'messages', element: <Placeholder title="Messages" /> }
+
+      // PROTECTED PAGES: Wrapped in AuthGuard individually
+      { 
+        path: 'profile', 
+        element: (
+          <AuthGuard>
+            <Profile />
+          </AuthGuard>
+        ) 
+      },
+      { 
+        path: 'projects', 
+        element: (
+          <AuthGuard>
+            <Placeholder title="My Projects" />
+          </AuthGuard>
+        ) 
+      },
+      { 
+        path: 'messages', 
+        element: (
+          <AuthGuard>
+            <Placeholder title="Messages" />
+          </AuthGuard>
+        ) 
+      }
     ]
   },
-
   
+  // --- FALLBACK ---
   { path: '*', element: <Navigate to="/login" replace /> }
 ];

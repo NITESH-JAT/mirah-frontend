@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import gsap from 'gsap';
-import img1 from '../assets/mirah_img1.png';
-import img2 from '../assets/mirah_img2.png';
-import img3 from '../assets/mirah_img3.png';
+import img1 from '../../assets/mirah_img1.png';
+import img2 from '../../assets/mirah_img2.png';
+import img3 from '../../assets/mirah_img3.png';
 
 const slides = [
   {

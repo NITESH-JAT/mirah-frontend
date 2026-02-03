@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom'; // Import Outlet
+import { Outlet } from 'react-router-dom';
 import CarouselPanel from './CarouselPanel';
 
 // Remove 'children' prop, use <Outlet /> instead

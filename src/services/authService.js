@@ -1,88 +1,99 @@
 import axios from 'axios';
 
-// Public APIs for Location Data
-const COUNTRIES_API = "https://countriesnow.space/api/v0.1/countries";
-const CITIES_API = "https://countriesnow.space/api/v0.1/countries/state/cities";
-const STATES_API = "https://countriesnow.space/api/v0.1/countries/states";
+const API_URL = "https://mira-backend-production-0a62.up.railway.app";
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 export const authService = {
-  // --- Location Data Fetchers ---
-
-  getCountries: async () => {
+  // --- Public Data ---
+  getCountryCodes: async () => {
     try {
-      const response = await axios.get('https://restcountries.com/v3.1/all?fields=name,idd,cca2');
-      return response.data
-        .map(c => ({
-          name: c.name.common,
-          code: c.cca2,
-          dialCode: c.idd.root + (c.idd.suffixes ? c.idd.suffixes[0] : ''),
-          // Simple length mapping for demo purposes (Default to 10)
-          phoneLength: (['AE', 'SA', 'KW'].includes(c.cca2)) ? 9 : 
-                       (['GB', 'CN'].includes(c.cca2)) ? 11 : 10
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      const response = await api.get('/api/public/country-codes');
+
+      return response.data || [];
     } catch (error) {
-      console.error("Error fetching countries:", error);
+      console.error("Error fetching country codes:", error);
       return [];
     }
   },
 
-  getStates: async (countryName) => {
+  // --- Auth Flow ---
+  
+  // 1. Register User
+  signup: async (userData) => {
     try {
-      const response = await axios.post(STATES_API, { country: countryName });
-      return response.data.data.states || [];
-    } catch (error) {
-      return [];
-    }
-  },
-
-  getCities: async (countryName, stateName) => {
-    try {
-      const response = await axios.post(CITIES_API, { country: countryName, state: stateName });
-      return response.data.data || [];
-    } catch (error) {
-      return [];
-    }
-  },
-
-  // --- Auth Endpoints (DEMO MODE) ---
-
-  register: async (payload) => {
-    // --- REAL API (COMMENTED OUT FOR DEMO) ---
-    /*
-    try {
-      const response = await axios.post("https://signs-implementing-spirit-warrior.trycloudflare.com/api/user/auth/signup", payload, {
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (response.data) {
-        localStorage.setItem('mirah_session_user', JSON.stringify(response.data));
-      }
+      const response = await api.post('/api/user/auth/signup', userData);
+      localStorage.setItem('mirah_temp_user', JSON.stringify({
+        email: userData.email,
+        phone: userData.phone,
+        countryCode: userData.countryCode
+      }));
       return response.data;
     } catch (error) {
-      throw error.response?.data?.message || "Registration failed.";
+      throw error.response?.data?.message || "Registration failed";
     }
-    */
-
-    // --- DUMMY DATA LOGIC (ACTIVE) ---
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const newUser = { ...payload, id: Date.now() };
-        localStorage.setItem('mirah_session_user', JSON.stringify(newUser));
-        // Also save to a dummy 'users' list if needed, or just proceed
-        resolve(newUser);
-      }, 1000);
-    });
   },
 
-  login: async (phone) => {
-    // Dummy login response
-    return { success: true };
+  // 2. Verify Phone OTP
+  verifyPhoneOtp: async (phone, otp) => {
+    try {
+      const response = await api.post('/api/user/auth/verify-otp', { phone, otp });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || "Phone verification failed";
+    }
   },
 
-  getCurrentUser: () => JSON.parse(localStorage.getItem('mirah_session_user')),
-  
+  // 3. Verify Email OTP
+  verifyEmailOtp: async (email, otp) => {
+    try {
+      const response = await api.post('/api/user/auth/verify-email-otp', { email, otp });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data?.message || "Email verification failed";
+    }
+  },
+
+  // 4. Resend Phone OTP
+  resendPhoneOtp: async (phone) => {
+    try {
+      await api.post('/api/user/auth/resend-otp', { phone });
+      return true;
+    } catch (error) {
+      throw error.response?.data?.message || "Failed to resend phone OTP";
+    }
+  },
+
+  // 5. Resend Email OTP
+  resendEmailOtp: async (email) => {
+    try {
+      await api.post('/api/user/auth/resend-email-otp', { email });
+      return true;
+    } catch (error) {
+      throw error.response?.data?.message || "Failed to resend email OTP";
+    }
+  },
+
+  // --- Session Management ---
+  login: async (credentials) => {
+    // Implement standard login here later
+    // Return { needsVerification: true } if verify is pending
+    return { success: true }; 
+  },
+
+  getCurrentUser: () => {
+    const user = localStorage.getItem('mirah_session_user');
+    return user ? JSON.parse(user) : null;
+  },
+
   logout: () => {
     localStorage.removeItem('mirah_session_user');
-    localStorage.removeItem('mirah_pending_phone');
+    localStorage.removeItem('mirah_temp_user');
   }
 };
