@@ -10,7 +10,7 @@ import AuthGuard from '../components/guards/AuthGuard';
 import GuestGuard from '../components/guards/GuestGuard';
 
 // Lazy Pages
-const LoginForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.LoginForm })));
+const LoginForm = lazy(() => import('../components/Auth/LoginForm').then(m => ({ default: m.LoginForm })));
 const RegisterForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.RegisterForm })));
 const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
@@ -36,10 +36,10 @@ export const routes = [
     ]
   },
   
-  // --- DASHBOARD ROUTES (Mixed Public/Protected) ---
+  // --- DASHBOARD ROUTES---
   {
     path: '/dashboard',
-    element: <DashboardLayout />, // Layout is always visible
+    element: <DashboardLayout />,
     children: [
       { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
     

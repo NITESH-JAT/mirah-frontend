@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-
 const VerificationTab = ({ type, label, isActive, isVerified, onClick }) => {
   return (
     <button
@@ -35,7 +34,7 @@ const VerificationTab = ({ type, label, isActive, isVerified, onClick }) => {
   );
 };
 
-// OTP Input
+
 const OtpInputGroup = ({ value, onChange, onEnter }) => {
   const inputs = useRef([]);
 
@@ -106,7 +105,20 @@ export const VerificationForm = () => {
     try {
       const stored = localStorage.getItem('mirah_temp_user');
       if (!stored) throw new Error();
-      setTempUser(JSON.parse(stored));
+      const userData = JSON.parse(stored);
+      setTempUser(userData);
+
+
+      const pVerified = userData.isPhoneVerified === true || userData.phoneVerified === true || userData.phoneVerified === "true";
+      const eVerified = userData.isEmailVerified === true || userData.emailVerified === true || userData.emailVerified === "true";
+
+      setPhoneVerified(pVerified);
+      setEmailVerified(eVerified);
+
+      if (pVerified && !eVerified) {
+         setActiveTab('email');
+      }
+
     } catch (e) {
       navigate('/register');
     }
@@ -140,7 +152,7 @@ export const VerificationForm = () => {
         setEmailVerified(true);
       }
     } catch (err) {
-      alert(err || "Verification Failed");
+      alert(err.message || err || "Verification Failed");
     } finally {
       setLoading(false);
     }
@@ -160,16 +172,17 @@ export const VerificationForm = () => {
       }
       setResendCooldown(30);
     } catch (err) {
-      alert(err || "Failed to resend");
+      alert(err.message || err || "Failed to resend");
     } finally {
       setLoading(false);
     }
   };
 
   const handleFinalSubmit = () => {
-     localStorage.setItem('mirah_session_user', JSON.stringify(tempUser));
-     localStorage.removeItem('mirah_temp_user');
-     navigate('/dashboard/profile');
+      const finalUser = { ...tempUser, isPhoneVerified: true, isEmailVerified: true };
+      localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
+      localStorage.removeItem('mirah_temp_user');
+      navigate('/dashboard/profile');
   };
 
   if (!tempUser) return null;
@@ -246,7 +259,7 @@ export const VerificationForm = () => {
                 {(!phoneVerified || !emailVerified) && (
                      <button 
                         onClick={() => setActiveTab(activeTab === 'phone' ? 'email' : 'phone')}
-                        className="mt-6 bg-white text-green-700 px-6 py-2 rounded-full text-xs font-bold shadow-sm border border-green-200 hover:bg-green-50"
+                        className="mt-6 bg-white text-green-700 px-6 py-2 rounded-full text-xs font-bold shadow-sm border border-green-200 hover:bg-green-50 cursor-pointer"
                      >
                         Verify {activeTab === 'phone' ? 'Email' : 'Phone'} Now →
                      </button>
@@ -261,7 +274,7 @@ export const VerificationForm = () => {
             <button 
                 onClick={() => handleVerify()} 
                 disabled={loading}
-                className="w-full bg-primary-dark text-white py-4 rounded-full text-[15px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-primary-dark text-white py-4 rounded-full text-[15px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
                 {loading ? 'Verifying...' : 'Verify Code'}
             </button>
@@ -269,7 +282,7 @@ export const VerificationForm = () => {
              <button 
                 onClick={handleFinalSubmit} 
                 disabled={!phoneVerified || !emailVerified}
-                className="w-full bg-primary-dark text-white py-4 rounded-full text-[15px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none"
+                className="w-full bg-primary-dark text-white py-4 rounded-full text-[15px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-50 disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none cursor-pointer"
             >
                 {(!phoneVerified || !emailVerified) ? 'Verify Both to Continue' : 'Complete Registration'}
             </button>

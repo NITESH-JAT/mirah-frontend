@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const API_URL = "https://mira-backend-production-0a62.up.railway.app";
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -11,11 +10,9 @@ const api = axios.create({
 });
 
 export const authService = {
-  // --- Public Data ---
   getCountryCodes: async () => {
     try {
       const response = await api.get('/api/public/country-codes');
-
       return response.data || [];
     } catch (error) {
       console.error("Error fetching country codes:", error);
@@ -23,8 +20,6 @@ export const authService = {
     }
   },
 
-  // --- Auth Flow ---
-  
   // 1. Register User
   signup: async (userData) => {
     try {
@@ -36,19 +31,19 @@ export const authService = {
       }));
       return response.data;
     } catch (error) {
-      throw error.response?.data?.message || "Registration failed";
+      throw error.response?.data || { message: "Registration failed" };
     }
   },
 
   // 2. Verify Phone OTP
   verifyPhoneOtp: async (phone, otp, countryCode) => {
-  try {
-    const response = await api.post('/api/user/auth/verify-otp', { phone, otp, countryCode });
-    return response.data;
-  } catch (error) {
-    throw error.response?.data?.message || "Phone verification failed";
-  }
-},
+    try {
+      const response = await api.post('/api/user/auth/verify-otp', { phone, otp, countryCode });
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: "Phone verification failed" };
+    }
+  },
 
   // 3. Verify Email OTP
   verifyEmailOtp: async (email, otp) => {
@@ -56,7 +51,7 @@ export const authService = {
       const response = await api.post('/api/user/auth/verify-email-otp', { email, otp });
       return response.data;
     } catch (error) {
-      throw error.response?.data?.message || "Email verification failed";
+      throw error.response?.data || { message: "Email verification failed" };
     }
   },
 
@@ -66,7 +61,7 @@ export const authService = {
       await api.post('/api/user/auth/resend-otp', { phone, countryCode });
       return true;
     } catch (error) {
-      throw error.response?.data?.message || "Failed to resend phone OTP";
+      throw error.response?.data || { message: "Failed to resend phone OTP" };
     }
   },
 
@@ -76,17 +71,40 @@ export const authService = {
       await api.post('/api/user/auth/resend-email-otp', { email });
       return true;
     } catch (error) {
-      throw error.response?.data?.message || "Failed to resend email OTP";
+      throw error.response?.data || { message: "Failed to resend email OTP" };
     }
   },
 
-  // --- Session Management ---
+  // 6. User Login
   login: async (credentials) => {
-    // Implement standard login here later
-    // Return { needsVerification: true } if verify is pending
-    return { success: true }; 
+    try {
+      const response = await api.post('/api/user/auth/login', credentials);
+      return response.data; 
+    } catch (error) {
+      throw error.response?.data || { message: "Login failed" };
+    }
   },
 
+  // 7. Forgot Password - Send Reset OTP
+  forgotPassword: async (data) => {
+    try {
+      const response = await api.post('/api/user/auth/forgot-password', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: "Failed to send reset OTP" };
+    }
+  },
+
+  // 8. Reset Password
+  resetPassword: async (data) => {
+    try {
+      const response = await api.post('/api/user/auth/reset-password', data);
+      return response.data;
+    } catch (error) {
+      throw error.response?.data || { message: "Password reset failed" };
+    }
+  },
+  
   getCurrentUser: () => {
     const user = localStorage.getItem('mirah_session_user');
     return user ? JSON.parse(user) : null;

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import CarouselPanel from './CarouselPanel';
+import logo from '../../assets/logo.png';
 
-// Remove 'children' prop, use <Outlet /> instead
 export default function AuthLayout() {
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden font-sans">
@@ -12,8 +12,12 @@ export default function AuthLayout() {
         
         {/* Logo */}
         <div className="w-full p-6 pb-0 lg:absolute lg:top-6 lg:left-8 lg:p-0 z-10 flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 bg-primary-dark rounded-lg flex items-center justify-center shadow-lg shadow-blue-900/20">
-            <div className="w-3.5 h-3.5 border-2 border-white rotate-45"></div>
+          <div className="w-10 h-10  rounded-lg flex items-center justify-center shadow-sm shadow-blue-900/20 overflow-hidden">
+            <img 
+              src={logo} 
+              alt="Mirah Logo" 
+              className="w-full h-full object-cover" 
+            />
           </div>
           <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
         </div>
