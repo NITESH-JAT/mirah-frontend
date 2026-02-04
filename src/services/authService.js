@@ -41,14 +41,14 @@ export const authService = {
   },
 
   // 2. Verify Phone OTP
-  verifyPhoneOtp: async (phone, otp) => {
-    try {
-      const response = await api.post('/api/user/auth/verify-otp', { phone, otp });
-      return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || "Phone verification failed";
-    }
-  },
+  verifyPhoneOtp: async (phone, otp, countryCode) => {
+  try {
+    const response = await api.post('/api/user/auth/verify-otp', { phone, otp, countryCode });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data?.message || "Phone verification failed";
+  }
+},
 
   // 3. Verify Email OTP
   verifyEmailOtp: async (email, otp) => {
@@ -61,9 +61,9 @@ export const authService = {
   },
 
   // 4. Resend Phone OTP
-  resendPhoneOtp: async (phone) => {
+  resendPhoneOtp: async (phone, countryCode) => {
     try {
-      await api.post('/api/user/auth/resend-otp', { phone });
+      await api.post('/api/user/auth/resend-otp', { phone, countryCode });
       return true;
     } catch (error) {
       throw error.response?.data?.message || "Failed to resend phone OTP";

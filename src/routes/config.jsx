@@ -12,7 +12,7 @@ import GuestGuard from '../components/guards/GuestGuard';
 // Lazy Pages
 const LoginForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.LoginForm })));
 const RegisterForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.RegisterForm })));
-const VerificationForm = lazy(() => import('../components/Auth/AuthForms').then(m => ({ default: m.VerificationForm })));
+const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
 
 const Placeholder = ({ title }) => (
@@ -32,7 +32,7 @@ export const routes = [
       { index: true, element: <Navigate to="/login" replace /> },
       { path: 'login', element: <LoginForm /> },
       { path: 'register', element: <RegisterForm /> },
-      { path: 'verification', element: <VerificationForm /> } // New Route
+      { path: 'verification', element: <VerificationForm /> }
     ]
   },
   
@@ -42,11 +42,10 @@ export const routes = [
     element: <DashboardLayout />, // Layout is always visible
     children: [
       { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
-      
-      // PUBLIC PAGE: Shopping is now accessible without login
+    
       { path: 'shopping', element: <Placeholder title="Shopping" /> },
 
-      // PROTECTED PAGES: Wrapped in AuthGuard individually
+
       { 
         path: 'profile', 
         element: (
