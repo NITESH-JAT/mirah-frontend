@@ -2,28 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// --- GLOBAL STYLES (Scrollbar & Animations) ---
-const globalStyles = `
-
-  /* Toast Animations */
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
-  .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
-`;
-
 // --- TOAST COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); // 10s auto-dismiss
+    const timer = setTimeout(() => handleClose(), 10000); 
     return () => clearTimeout(timer);
   }, []);
 
@@ -62,7 +46,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
   );
 };
 
-// --- SUB-COMPONENTS ---
+// --- UI COMPONENTS ---
 
 const VerificationTab = ({ type, label, isActive, isVerified, onClick }) => {
   return (
@@ -153,8 +137,14 @@ const OtpInputGroup = ({ value, onChange, onEnter }) => {
 export const VerificationForm = () => {
   const navigate = useNavigate();
   
+  const [toasts, setToasts] = useState([]);
+  const addToast = (message, type = 'error') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+
   const [tempUser, setTempUser] = useState(null);
-  
   const [activeTab, setActiveTab] = useState('phone');
   
   const [phoneOtp, setPhoneOtp] = useState('');
@@ -164,19 +154,12 @@ export const VerificationForm = () => {
   const [emailVerified, setEmailVerified] = useState(false);
   
   const [loading, setLoading] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
-  const [toasts, setToasts] = useState([]);
+  
+  // Independent Timers
+  const [phoneTimer, setPhoneTimer] = useState(0);
+  const [emailTimer, setEmailTimer] = useState(0);
 
-  // --- NOTIFICATION HELPERS ---
-  const addToast = (message, type = 'error') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
-
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
-
+  // Load User Data
   useEffect(() => {
     try {
       const stored = localStorage.getItem('mirah_temp_user');
@@ -199,16 +182,17 @@ export const VerificationForm = () => {
     }
   }, [navigate]);
 
+  // Handle Timers
   useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
+    let interval = setInterval(() => {
+        setPhoneTimer(prev => prev > 0 ? prev - 1 : 0);
+        setEmailTimer(prev => prev > 0 ? prev - 1 : 0);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Handlers
   const handleVerify = async (manualOtp) => {
-
     const otpFromState = activeTab === 'phone' ? phoneOtp : emailOtp;
     const currentOtp = typeof manualOtp === 'string' ? manualOtp : otpFromState;
 
@@ -216,61 +200,86 @@ export const VerificationForm = () => {
 
     setLoading(true);
     try {
+      let updatedData;
       if (activeTab === 'phone') {
-        await authService.verifyPhoneOtp(tempUser.phone, currentOtp, tempUser.countryCode);
+        updatedData = await authService.verifyPhoneOtp(tempUser.phone, currentOtp, tempUser.countryCode);
         setPhoneVerified(true);
         addToast("Phone verified successfully!", "success");
-        if (!emailVerified) {
-             setActiveTab('email');
-        }
+        if (!emailVerified) setActiveTab('email');
       } else {
-        await authService.verifyEmailOtp(tempUser.email, currentOtp);
+        updatedData = await authService.verifyEmailOtp(tempUser.email, currentOtp);
         setEmailVerified(true);
         addToast("Email verified successfully!", "success");
       }
+      
+
+      setTempUser(prev => ({ ...prev, ...updatedData }));
+      
     } catch (err) {
-      addToast(err.message || err || "Verification Failed", "error");
+      addToast(err.message || "Verification Failed", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleResend = async () => {
-    if (resendCooldown > 0) return;
+    const isPhone = activeTab === 'phone';
+    if (isPhone && phoneTimer > 0) return;
+    if (!isPhone && emailTimer > 0) return;
     
     setLoading(true);
     try {
-      if (activeTab === 'phone') {
+      if (isPhone) {
         await authService.resendPhoneOtp(tempUser.phone, tempUser.countryCode);
         addToast("Code resent to your phone!", "success");
+        setPhoneTimer(30);
       } else {
         await authService.resendEmailOtp(tempUser.email);
         addToast("Code resent to your email!", "success");
+        setEmailTimer(30);
       }
-      setResendCooldown(30);
     } catch (err) {
-      addToast(err.message || err || "Failed to resend", "error");
+      addToast(err.message || "Failed to resend", "error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleFinalSubmit = () => {
-      const finalUser = { ...tempUser, isPhoneVerified: true, isEmailVerified: true };
-      localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
-      localStorage.removeItem('mirah_temp_user');
-      navigate('/dashboard/profile');
+
+      const storedTemp = JSON.parse(localStorage.getItem('mirah_temp_user') || '{}');
+      
+      const finalUser = { 
+          ...storedTemp, 
+          isPhoneVerified: true, 
+          isEmailVerified: true 
+      };
+
+      // CHECK FOR TOKEN
+      // If we have a token, we can go to dashboard.
+      // If NOT, we must force a login.
+      if (finalUser.token) {
+          localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
+          localStorage.removeItem('mirah_temp_user');
+          addToast("Registration Complete!", "success");
+          setTimeout(() => navigate('/dashboard/profile'), 500);
+      } else {
+          // Token missing (backend didn't send it during verify). Force login.
+          localStorage.removeItem('mirah_temp_user');
+          addToast("Verification complete! Please login.", "success");
+          setTimeout(() => navigate('/login'), 1500);
+      }
   };
 
   if (!tempUser) return null;
 
   const isCurrentVerified = activeTab === 'phone' ? phoneVerified : emailVerified;
+  const currentTimer = activeTab === 'phone' ? phoneTimer : emailTimer;
 
   return (
     <div className="w-full flex flex-col items-center pt-6 px-1 h-[calc(100dvh-140px)] lg:h-[82vh]">
-      <style>{globalStyles}</style>
 
-      {/* TOAST CONTAINER (Top Right) */}
+      {/* TOAST CONTAINER */}
       <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
         <div className="pointer-events-auto">
              {toasts.map(toast => (
@@ -293,7 +302,7 @@ export const VerificationForm = () => {
         </p>
       </div>
 
-      {/*  Tabs */}
+      {/* Tabs */}
       <div className="shrink-0 w-full max-w-[340px] flex gap-3 mb-8">
         <VerificationTab 
           label="Phone" 
@@ -330,17 +339,16 @@ export const VerificationForm = () => {
                 <div className="mt-8 text-center font-sans">
                     <button 
                         onClick={handleResend} 
-                        disabled={resendCooldown > 0 || loading}
+                        disabled={currentTimer > 0 || loading}
                         className={`text-[13px] font-semibold transition-colors
-                            ${resendCooldown > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-primary-dark cursor-pointer'}
+                            ${currentTimer > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-primary-dark cursor-pointer'}
                         `}
                     >
-                        {resendCooldown > 0 ? `Resend Code in ${resendCooldown}s` : 'Resend Code'}
+                        {currentTimer > 0 ? `Resend Code in ${currentTimer}s` : 'Resend Code'}
                     </button>
                 </div>
             </>
         ) : (
-            // Success State Card
             <div className="flex flex-col items-center justify-center p-8 w-full max-w-[340px] bg-white rounded-[20px] border border-gray-100 shadow-xl shadow-blue-900/5">
                 <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mb-4 border border-green-100">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -365,6 +373,7 @@ export const VerificationForm = () => {
 
       </div>
 
+      {/* Bottom Button */}
       <div className="shrink-0 w-full max-w-[360px] pb-6 px-4">
         {!isCurrentVerified ? (
             <button 

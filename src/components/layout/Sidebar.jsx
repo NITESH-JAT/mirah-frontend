@@ -6,8 +6,7 @@ const NavItem = ({ icon, label, path, active }) => {
   return (
     <div 
       onClick={() => navigate(path)}
-      // Changed to 'rounded-lg' and added 'mx-4' to make it a contained button like the image
-      // Removed border-l logic, replaced with full background fill
+
       className={`flex items-center gap-3 px-4 py-3 mx-4 mb-1 cursor-pointer transition-all duration-200 font-sans text-[14px] font-medium rounded-lg
         ${active 
           ? 'bg-primary-dark text-white shadow-md' 

@@ -1,13 +1,8 @@
-// LoginForm.jsx
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// --- GLOBAL STYLES ---
 const globalStyles = `
-
-  /* Toast Animations */
   @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
@@ -20,24 +15,6 @@ const globalStyles = `
   .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
 `;
 
-// --- HELPER COMPONENTS ---
-
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const listener = (event) => {
-      if (!ref.current || ref.current.contains(event.target)) return;
-      handler(event);
-    };
-    document.addEventListener("mousedown", listener);
-    document.addEventListener("touchstart", listener);
-    return () => {
-      document.removeEventListener("mousedown", listener);
-      document.removeEventListener("touchstart", listener);
-    };
-  }, [ref, handler]);
-}
-
-// TOAST NOTIFICATION COMPONENT
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
@@ -80,6 +57,21 @@ const ToastNotification = ({ id, message, type, onClose }) => {
     </div>
   );
 };
+
+function useClickOutside(ref, handler) {
+  useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) return;
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
 
 const MainLayout = ({ children }) => (
     <div className="w-full flex flex-col relative">
@@ -163,10 +155,15 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
     }
   }, [isOpen]);
 
-  const filteredOptions = options.filter(opt => 
-      opt.label.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      String(opt.value).includes(searchTerm)
-  );
+  const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    const lowerTerm = searchTerm.toLowerCase();
+    return options.filter(opt => 
+        opt.label.toLowerCase().includes(lowerTerm) || 
+        String(opt.value).includes(lowerTerm) ||
+        (opt.countryName && opt.countryName.toLowerCase().includes(lowerTerm))
+    );
+  }, [options, searchTerm]);
 
   const selectedLabel = options.find(o => (o.value || o) === value)?.label || value || placeholder;
 
@@ -222,9 +219,6 @@ const VerificationTab = ({ label, isActive, onClick }) => (
   </button>
 );
 
-
-// LOGIN FORM COMPONENT
-
 export const LoginForm = () => {
   const navigate = useNavigate();
    
@@ -244,7 +238,6 @@ export const LoginForm = () => {
     newPassword: ''
   });
 
-  // --- NOTIFICATION HELPERS ---
   const addToast = (message, type = 'error') => {
     const id = Date.now();
     setToasts(prev => [...prev, { id, message, type }]);
@@ -254,7 +247,6 @@ export const LoginForm = () => {
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
-  // --- DATA LOADING & GEO ---
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -269,7 +261,6 @@ export const LoginForm = () => {
         
         setCountryCodes(validCodes);
 
-
         try {
             const geoRes = await fetch('https://ipapi.co/json/');
             const geoInfo = await geoRes.json();
@@ -278,14 +269,11 @@ export const LoginForm = () => {
                const matched = validCodes.find(c => c.code === geoInfo.country_code);
                if (matched && !formData.countryCode) {
                    setFormData(prev => ({ ...prev, countryCode: matched.value }));
-               } else {
-                   throw new Error("Geo match failed");
                }
             } else {
-               throw new Error("Geo failed");
+               throw new Error("Geo match failed");
             }
         } catch (geoError) {
-
             if (validCodes.length > 0 && !formData.countryCode) {
                 const india = validCodes.find(c => c.countryName === "India" || c.code === "IN" || c.value === "+91");
                 const fallback = india || validCodes[0];
@@ -303,7 +291,6 @@ export const LoginForm = () => {
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // HANDLE LOGIN
   const handleLogin = async () => {
     setLoading(true);
     try {
@@ -315,18 +302,9 @@ export const LoginForm = () => {
         password: formData.password
       };
 
-      const response = await authService.login(payload);
-      
-      let userData = null;
-      if (response.data && response.data.user) {
-         userData = response.data.user;
-      } else if (response.user) {
-         userData = response.user;
-      } else {
-         userData = response;
-      }
-      
-      const isVerified = userData.isVerified === true || (userData.phoneVerified && userData.emailVerified);
+      const userData = await authService.login(payload);
+
+      const isVerified = userData?.isVerified === true || (userData?.phoneVerified && userData?.emailVerified);
 
       if (isVerified) {
         localStorage.setItem('mirah_session_user', JSON.stringify(userData));
@@ -343,30 +321,28 @@ export const LoginForm = () => {
       
       if (errorMsg.includes('verify') || errorMsg.includes('otp') || errorMsg.includes('not verified')) {
          
-         const backendData = err.data || (err.response && err.response.data && err.response.data.data);
-
-         const tempUser = {
-            ...backendData,
-            email: backendData?.email || (loginType === 'email' ? formData.email : undefined),
-            phone: backendData?.phone || (loginType === 'phone' ? formData.phone : undefined),
-            countryCode: backendData?.countryCode || (loginType === 'phone' ? formData.countryCode : undefined),
-            isPhoneVerified: backendData?.isPhoneVerified,
-            isEmailVerified: backendData?.isEmailVerified
-         };
-
-         localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
-         
-         addToast(err.message || "Please verify your account to continue.", "error");
-         setTimeout(() => navigate('/verification'), 1500);
-      } else {
-         addToast("Login Failed: " + (err.message || "Unknown error"), "error");
-      }
-    } finally {
+         const backendData = err.data || (err.response?.data?.data);
+       if(backendData) {
+           const tempUser = {
+              ...backendData,
+              email: backendData.email || (loginType === 'email' ? formData.email : undefined),
+              phone: backendData.phone || (loginType === 'phone' ? formData.phone : undefined),
+              countryCode: backendData.countryCode || (loginType === 'phone' ? formData.countryCode : undefined)
+           };
+           localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
+           setTimeout(() => navigate('/verification'), 1500);
+           addToast("Please verify your account.", "error");
+       } else {
+           addToast(err.message, "error");
+       }
+    } else {
+       addToast(err.message || "Login failed", "error");
+    }
+  } finally {
       setLoading(false);
     }
   };
 
-  // HANDLE FORGOT PASSWORD (SEND OTP)
   const handleForgotRequest = async () => {
     setLoading(true);
     try {
@@ -387,7 +363,6 @@ export const LoginForm = () => {
     }
   };
 
-  // HANDLE RESET PASSWORD
   const handleResetPassword = async () => {
     if (formData.newPassword.length < 8) {
         addToast("Password must be at least 8 chars", "error");
@@ -415,7 +390,6 @@ export const LoginForm = () => {
     }
   };
 
-  // --- RENDERS ---
   const renderHeader = (title, sub) => (
     <div className="shrink-0 text-center px-4 mb-6 lg:mb-8">
       <h1 className="font-serif text-[30px] lg:text-[36px] font-bold text-primary-dark mb-2">{title}</h1>
@@ -466,7 +440,6 @@ export const LoginForm = () => {
     <>
       <style>{globalStyles}</style>
       
-      {/* TOAST CONTAINER (Top Right) */}
       <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
         <div className="pointer-events-auto">
              {toasts.map(toast => (

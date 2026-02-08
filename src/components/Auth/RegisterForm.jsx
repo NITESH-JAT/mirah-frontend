@@ -12,17 +12,6 @@ const globalStyles = `
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  /* Toast Animations */
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
-  .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
 `;
 
 // --- HELPER COMPONENTS ---
@@ -560,7 +549,7 @@ export const RegisterForm = () => {
           {loading ? 'Creating...' : 'Next'}
         </button>
 
-        <p className="text-center text-[13px] lg:text-[10px] text-gray-500 mt-5 lg:mt-2 font-sans font-medium">
+        <p className="text-center text-[13px] lg:text-[14px] text-gray-500 mt-5 lg:mt-2 font-sans font-medium">
           Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
         </p>
       </div>
