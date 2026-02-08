@@ -4,27 +4,28 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// GLOBAL STYLES (Improved Small Scrollbar)
-const customScrollbarStyles = `
-  
-  .custom-scrollbar::-webkit-scrollbar {
-    width: 8px;
-  }
+// --- GLOBAL STYLES ---
+const globalStyles = `
+  /* Custom Scrollbar */
+  .custom-scrollbar::-webkit-scrollbar { width: 7px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin-block: 8rem; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-  .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-    margin-block: 8rem;
+  /* Toast Animations */
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
   }
- 
-  .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 10px;
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
   }
-
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
-  }
+  .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
+  .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
 `;
+
+// --- HELPER COMPONENTS ---
 
 function useClickOutside(ref, handler) {
   useEffect(() => {
@@ -40,6 +41,58 @@ function useClickOutside(ref, handler) {
     };
   }, [ref, handler]);
 }
+
+// 1. NOTIFICATION TOAST COMPONENT
+const ToastNotification = ({ id, message, type, onClose }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleClose(), 10000); // 10 seconds auto-dismiss
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => onClose(id), 400);
+  };
+
+  const isError = type === 'error';
+
+  return (
+    <div className={`
+      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      ${isError ? 'border-red-500' : 'border-green-500'}
+      ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
+    `}>
+      {/* Icon */}
+      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+        {isError ? (
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
+        ) : (
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 pt-0.5">
+        <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+          {isError ? 'Action Failed' : 'Success'}
+        </h4>
+        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+      </div>
+
+      {/* Close Button */}
+      <button 
+        onClick={handleClose} 
+        className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+          <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  );
+};
 
 const InputField = ({ label, className, type="text", readOnly, required, error, onBlur, ...props }) => (
   <div className={`w-full ${className}`}>
@@ -111,7 +164,6 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
   );
 };
 
-// CUSTOM SELECT
 const CustomSelect = ({ options, placeholder, value, onChange, disabled, className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,13 +187,11 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
     const lowerTerm = searchTerm.toLowerCase();
     
     return options.filter(opt => {
-      // Search across provided searchData if available
       if (opt.searchData) {
         return Object.values(opt.searchData).some(val => 
           String(val).toLowerCase().includes(lowerTerm)
         );
       }
-      // Fallback
       const label = opt.label || opt;
       const val = opt.value || opt;
       return String(label).toLowerCase().includes(lowerTerm) || String(val).toLowerCase().includes(lowerTerm);
@@ -208,41 +258,34 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   );
 };
 
-// --- REGISTER FORM ---
+// --- MAIN REGISTER FORM ---
 export const RegisterForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [countryData, setCountryData] = useState([]); 
+  const [toasts, setToasts] = useState([]); // Store notifications
   
   const [errors, setErrors] = useState({});
-  const [isValid, setIsValid] = useState(false);
-
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
     countryCode: '', phone: '', country: '', state: '', 
     pinCode: '', userType: 'customer', termsAccepted: false
   });
 
-  useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'termsAcceptedSignal') {
-        setFormData(prev => {
-          const updated = { ...prev, termsAccepted: true };
-          validateForm(updated);
-          return updated;
-        });
-      }
-    };
+  // --- NOTIFICATION HELPERS ---
+  const addToast = (message, type = 'error') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
 
-  //  Load Country Codes & Detect Location
+  // --- LOAD DATA & GEO ---
   useEffect(() => {
     const initData = async () => {
       try {
-        // Fetch supported codes from backend
         const response = await authService.getCountryCodes();
         const data = response.data || response;
         
@@ -254,13 +297,11 @@ export const RegisterForm = () => {
 
         setCountryData(validCountries);
 
-        // Detect User Location via IP API
         try {
           const geoRes = await fetch('https://ipapi.co/json/');
           const geoInfo = await geoRes.json();
           
           if (geoInfo && validCountries.length > 0) {
-
             const matchedCode = validCountries.find(c => c.code === geoInfo.country_code);
             const matchedName = validCountries.find(c => c.name === geoInfo.country_name) || matchedCode;
 
@@ -269,13 +310,19 @@ export const RegisterForm = () => {
               countryCode: matchedCode ? matchedCode.dial_code : validCountries[0]?.dial_code,
               country: matchedName ? matchedName.name : validCountries[0]?.name
             }));
+          } else {
+             throw new Error("Geo failed");
           }
         } catch (geoErr) {
+          // FALLBACK: Hardcode India (+91)
           if (validCountries.length > 0) {
+            const india = validCountries.find(c => c.name === "India" || c.code === "IN" || c.dial_code === "+91");
+            const fallback = india || validCountries[0];
+
             setFormData(prev => ({ 
               ...prev, 
-              countryCode: validCountries[0].dial_code, 
-              country: validCountries[0].name 
+              countryCode: fallback.dial_code, 
+              country: fallback.name 
             }));
           }
         }
@@ -287,6 +334,27 @@ export const RegisterForm = () => {
     initData();
   }, []);
 
+  // --- CROSS-TAB TERMS ---
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'termsAcceptedSignal') {
+        setFormData(prev => {
+           // Clear terms error if it exists
+           setErrors(errs => {
+             const newErrs = { ...errs };
+             delete newErrs.termsAccepted;
+             return newErrs;
+           });
+           return { ...prev, termsAccepted: true };
+        });
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // --- HANDLERS ---
+
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
     let val = type === 'checkbox' ? checked : value;
@@ -294,42 +362,56 @@ export const RegisterForm = () => {
     if (name === 'phone') val = val.replace(/\D/g, ''); 
     if ((name === 'password' || name === 'confirmPassword') && val.length > 15) return; 
 
-    setFormData(prev => {
-      const updated = { ...prev, [name]: val };
-      validateForm(updated); 
-      return updated;
-    });
+    // Update form
+    setFormData(prev => ({ ...prev, [name]: val }));
+
+    // CLEAR ERROR for this specific field immediately
+    if (errors[name]) {
+        setErrors(prev => {
+            const newErrs = { ...prev };
+            delete newErrs[name];
+            return newErrs;
+        });
+    }
   };
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
+    
+    // Only simple checks on blur (optional)
     if ((name === 'password' || name === 'confirmPassword') && value.length > 0 && value.length < 8) {
       setErrors(prev => ({ ...prev, [name]: "Must be at least 8 characters" }));
     }
   };
 
-  const validateForm = (data) => {
+  const handleSubmit = async () => {
+    // 1. Validate All
     const newErrors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
-    if (!data.firstName) newErrors.firstName = "Required";
-    if (!data.email) newErrors.email = "Required";
-    else if (!emailRegex.test(data.email)) newErrors.email = "Invalid email format";
-
-    if (!data.phone) newErrors.phone = "Required";
+    if (!formData.firstName) newErrors.firstName = "Required";
+    if (!formData.lastName) newErrors.lastName = "Required";
     
-    if (!data.password) newErrors.password = "Required";
-    else if (data.password.length < 8) newErrors.password = "Must be at least 8 characters"; 
+    if (!formData.email) newErrors.email = "Required";
+    else if (!emailRegex.test(formData.email)) newErrors.email = "Invalid email format";
 
-    if (data.confirmPassword !== data.password) newErrors.confirmPassword = "Passwords do not match";
-    if (!data.termsAccepted) newErrors.termsAccepted = "Must accept terms";
+    if (!formData.phone) newErrors.phone = "Required";
+    
+    if (!formData.password) newErrors.password = "Required";
+    else if (formData.password.length < 8) newErrors.password = "Must be at least 8 characters"; 
 
-    setErrors(newErrors);
-    setIsValid(Object.keys(newErrors).length === 0);
-  };
+    if (formData.confirmPassword !== formData.password) newErrors.confirmPassword = "Passwords do not match";
+    if (!formData.termsAccepted) newErrors.termsAccepted = "You must accept the terms";
 
-  const handleSubmit = async () => {
-    if (!isValid) return; 
+    // 2. If Errors, Show them and stop
+    if (Object.keys(newErrors).length > 0) {
+        setErrors(newErrors);
+        // Optional: Show a toast summarizing that there are errors
+        addToast("Please fill in all required fields correctly.", "error");
+        return;
+    }
+
+    // 3. Submit
     setLoading(true);
     
     const payload = {
@@ -349,10 +431,10 @@ export const RegisterForm = () => {
 
     try {
       await authService.signup(payload);
-      navigate('/verification');
+      addToast("Account created successfully!", "success");
+      setTimeout(() => navigate('/verification'), 1000);
     } catch (err) {
-      alert("Registration Failed: " + (err.message || err));
-    } finally {
+      addToast(err.message || "Registration Failed", "error");
       setLoading(false);
     }
   };
@@ -374,8 +456,24 @@ export const RegisterForm = () => {
   }, [countryData]);
 
   return (
-    <div className="w-full h-[calc(100dvh-140px)] lg:h-[84vh] overflow-y-auto custom-scrollbar pt-4 pb-4 px-1">
-      <style>{customScrollbarStyles}</style>
+    <div className="w-full h-[calc(100dvh-140px)] lg:h-[82vh] overflow-y-auto custom-scrollbar pt-4 pb-4 px-1 relative">
+      <style>{globalStyles}</style>
+
+      {/* NOTIFICATION CONTAINER (Fixed Top Right) */}
+      <div className="fixed top-6 right-6 z-50 flex flex-col items-end pointer-events-none">
+        {/* Child elements enable pointer events */}
+        <div className="pointer-events-auto">
+             {toasts.map(toast => (
+                <ToastNotification 
+                    key={toast.id} 
+                    id={toast.id} 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={removeToast} 
+                />
+             ))}
+        </div>
+      </div>
 
       {/* HEADER */}
       <div className="shrink-0 text-center mb-6 lg:mb-4">
@@ -393,7 +491,7 @@ export const RegisterForm = () => {
       <div className="flex flex-col gap-4 lg:gap-3 mb-6">
         <div className="flex gap-4 lg:gap-2.5">
           <InputField required name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
-          <InputField name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} />
+          <InputField required name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
         </div>
         
         <InputField required name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
@@ -456,7 +554,7 @@ export const RegisterForm = () => {
 
         <button 
           onClick={handleSubmit} 
-          disabled={loading || !isValid} 
+          disabled={loading} 
           className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating...' : 'Next'}

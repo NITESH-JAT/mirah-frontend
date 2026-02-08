@@ -1,8 +1,26 @@
+// LoginForm.jsx
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// SHARED COMPONENTS
+// --- GLOBAL STYLES ---
+const globalStyles = `
+
+  /* Toast Animations */
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
+  .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
+`;
+
+// --- HELPER COMPONENTS ---
 
 function useClickOutside(ref, handler) {
   useEffect(() => {
@@ -18,6 +36,50 @@ function useClickOutside(ref, handler) {
     };
   }, [ref, handler]);
 }
+
+// TOAST NOTIFICATION COMPONENT
+const ToastNotification = ({ id, message, type, onClose }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleClose(), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(() => onClose(id), 400); 
+  };
+
+  const isError = type === 'error';
+
+  return (
+    <div className={`
+      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      ${isError ? 'border-red-500' : 'border-green-500'}
+      ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
+    `}>
+      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
+        {isError ? (
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
+        ) : (
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
+        )}
+      </div>
+      <div className="flex-1 pt-0.5">
+        <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+          {isError ? 'Action Failed' : 'Success'}
+        </h4>
+        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+      </div>
+      <button onClick={handleClose} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+          <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </div>
+  );
+};
 
 const MainLayout = ({ children }) => (
     <div className="w-full flex flex-col relative">
@@ -171,6 +233,7 @@ export const LoginForm = () => {
    
   const [loading, setLoading] = useState(false);
   const [countryCodes, setCountryCodes] = useState([]);
+  const [toasts, setToasts] = useState([]);
    
   const [formData, setFormData] = useState({
     email: '',
@@ -181,6 +244,17 @@ export const LoginForm = () => {
     newPassword: ''
   });
 
+  // --- NOTIFICATION HELPERS ---
+  const addToast = (message, type = 'error') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // --- DATA LOADING & GEO ---
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -188,13 +262,41 @@ export const LoginForm = () => {
         const data = Array.isArray(response) ? response : (response.data || []);
         const validCodes = data.map(c => ({
           value: c.phoneCode,
-          label: `${c.countryCode} ${c.phoneCode}`
+          label: `${c.countryCode} ${c.phoneCode}`,
+          countryName: c.countryName,
+          code: c.countryCode
         }));
+        
         setCountryCodes(validCodes);
-        if(validCodes.length > 0 && !formData.countryCode) {
-           setFormData(prev => ({ ...prev, countryCode: validCodes[0].value }));
+
+
+        try {
+            const geoRes = await fetch('https://ipapi.co/json/');
+            const geoInfo = await geoRes.json();
+            
+            if (geoInfo && validCodes.length > 0) {
+               const matched = validCodes.find(c => c.code === geoInfo.country_code);
+               if (matched && !formData.countryCode) {
+                   setFormData(prev => ({ ...prev, countryCode: matched.value }));
+               } else {
+                   throw new Error("Geo match failed");
+               }
+            } else {
+               throw new Error("Geo failed");
+            }
+        } catch (geoError) {
+
+            if (validCodes.length > 0 && !formData.countryCode) {
+                const india = validCodes.find(c => c.countryName === "India" || c.code === "IN" || c.value === "+91");
+                const fallback = india || validCodes[0];
+                setFormData(prev => ({ ...prev, countryCode: fallback.value }));
+            }
         }
-      } catch (e) { console.error(e); }
+
+      } catch (e) { 
+          console.error(e); 
+          addToast("Failed to load country codes.", "error");
+      }
     };
     loadData();
   }, []);
@@ -229,9 +331,11 @@ export const LoginForm = () => {
       if (isVerified) {
         localStorage.setItem('mirah_session_user', JSON.stringify(userData));
         navigate('/dashboard/store');
+        addToast("Welcome back!", "success");
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));
         navigate('/verification');
+        addToast("Please verify your account.", "error");
       }
 
     } catch (err) {
@@ -239,9 +343,7 @@ export const LoginForm = () => {
       
       if (errorMsg.includes('verify') || errorMsg.includes('otp') || errorMsg.includes('not verified')) {
          
-
          const backendData = err.data || (err.response && err.response.data && err.response.data.data);
-
 
          const tempUser = {
             ...backendData,
@@ -254,10 +356,10 @@ export const LoginForm = () => {
 
          localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
          
-         alert(err.message || "Please verify your account to continue.");
-         navigate('/verification');
+         addToast(err.message || "Please verify your account to continue.", "error");
+         setTimeout(() => navigate('/verification'), 1500);
       } else {
-         alert("Login Failed: " + (err.message || "Unknown error"));
+         addToast("Login Failed: " + (err.message || "Unknown error"), "error");
       }
     } finally {
       setLoading(false);
@@ -277,8 +379,9 @@ export const LoginForm = () => {
 
       await authService.forgotPassword(payload);
       setView('forgot-reset');
+      addToast("OTP sent successfully!", "success");
     } catch (err) {
-      alert("Error: " + (err.message || err));
+      addToast("Error: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -286,7 +389,10 @@ export const LoginForm = () => {
 
   // HANDLE RESET PASSWORD
   const handleResetPassword = async () => {
-    if (formData.newPassword.length < 8) return alert("Password must be at least 8 chars");
+    if (formData.newPassword.length < 8) {
+        addToast("Password must be at least 8 chars", "error");
+        return;
+    }
     setLoading(true);
     try {
       const payload = {
@@ -299,11 +405,11 @@ export const LoginForm = () => {
       };
 
       await authService.resetPassword(payload);
-      alert("Password Reset Successfully! Please login.");
+      addToast("Password Reset Successfully! Please login.", "success");
       setView('login');
       setFormData(prev => ({ ...prev, password: '', otp: '', newPassword: '' }));
     } catch (err) {
-      alert("Reset Failed: " + (err.message || err));
+      addToast("Reset Failed: " + (err.message || err), "error");
     } finally {
       setLoading(false);
     }
@@ -356,79 +462,93 @@ export const LoginForm = () => {
     </div>
   );
 
-  if (view === 'login') {
-    return (
-      <MainLayout>
-        {renderHeader("Welcome Back", "Login to access your store dashboard.")}
-        <div className="w-full max-w-[420px] mx-auto pb-4">
-            {renderTabs()}
-            <div className="w-full space-y-5">
-                {renderContactInputs()}
-                <div>
-                    <PasswordInput 
-                    placeholder="Password" 
-                    name="password"
-                    value={formData.password} 
-                    onChange={handleChange} 
-                    />
-                </div>
-                <div className="flex justify-end pt-1">
-                    <button onClick={() => setView('forgot-request')} className="text-[13px] text-gray-500 font-medium hover:text-primary-dark transition-colors px-2 py-1 cursor-pointer">
-                    Forgot Password?
-                    </button>
-                </div>
+  return (
+    <>
+      <style>{globalStyles}</style>
+      
+      {/* TOAST CONTAINER (Top Right) */}
+      <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
+        <div className="pointer-events-auto">
+             {toasts.map(toast => (
+                <ToastNotification 
+                    key={toast.id} 
+                    id={toast.id} 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={removeToast} 
+                />
+             ))}
+        </div>
+      </div>
+
+      {view === 'login' && (
+        <MainLayout>
+          {renderHeader("Welcome Back", "Login to access your store dashboard.")}
+          <div className="w-full max-w-[420px] mx-auto pb-4">
+              {renderTabs()}
+              <div className="w-full space-y-5">
+                  {renderContactInputs()}
+                  <div>
+                      <PasswordInput 
+                      placeholder="Password" 
+                      name="password"
+                      value={formData.password} 
+                      onChange={handleChange} 
+                      />
+                  </div>
+                  <div className="flex justify-end pt-1">
+                      <button onClick={() => setView('forgot-request')} className="text-[13px] text-gray-500 font-medium hover:text-primary-dark transition-colors px-2 py-1 cursor-pointer">
+                      Forgot Password?
+                      </button>
+                  </div>
+              </div>
+          </div>
+          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
+            <button onClick={handleLogin} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+            <p className="text-center text-[14px] text-gray-500 mt-6 font-sans font-medium">
+              Don't have an account? <span onClick={() => navigate('/register')} className="text-primary-dark font-bold cursor-pointer hover:underline">Sign Up</span>
+            </p>
+          </div>
+        </MainLayout>
+      )}
+
+      {view === 'forgot-request' && (
+        <MainLayout>
+          {renderHeader("Forgot Password", "Enter your details to receive a reset code.")}
+          <div className="w-full max-w-[420px] mx-auto pb-4">
+             {renderTabs()}
+             {renderContactInputs()}
+          </div>
+          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
+            <button onClick={handleForgotRequest} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+              {loading ? 'Sending Code...' : 'Send OTP'}
+            </button>
+            <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Cancel</button>
+          </div>
+        </MainLayout>
+      )}
+
+      {view === 'forgot-reset' && (
+        <MainLayout>
+          {renderHeader("Reset Password", `Enter the code sent to your ${loginType}.`)}
+          <div className="w-full max-w-[420px] mx-auto pb-4 space-y-6">
+            <div>
+              <InputField placeholder="Enter 6-digit OTP" name="otp" value={formData.otp} onChange={handleChange} className="text-center text-lg tracking-widest"/>
             </div>
-        </div>
-        <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-          <button onClick={handleLogin} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-          <p className="text-center text-[14px] text-gray-500 mt-6 font-sans font-medium">
-            Don't have an account? <span onClick={() => navigate('/register')} className="text-primary-dark font-bold cursor-pointer hover:underline">Sign Up</span>
-          </p>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (view === 'forgot-request') {
-    return (
-      <MainLayout>
-        {renderHeader("Forgot Password", "Enter your details to receive a reset code.")}
-        <div className="w-full max-w-[420px] mx-auto pb-4">
-           {renderTabs()}
-           {renderContactInputs()}
-        </div>
-        <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-          <button onClick={handleForgotRequest} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
-            {loading ? 'Sending Code...' : 'Send OTP'}
-          </button>
-          <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Cancel</button>
-        </div>
-      </MainLayout>
-    );
-  }
-
-  if (view === 'forgot-reset') {
-    return (
-      <MainLayout>
-        {renderHeader("Reset Password", `Enter the code sent to your ${loginType}.`)}
-        <div className="w-full max-w-[420px] mx-auto pb-4 space-y-6">
-          <div>
-            <InputField placeholder="Enter 6-digit OTP" name="otp" value={formData.otp} onChange={handleChange} className="text-center text-lg tracking-widest"/>
+            <div>
+               <PasswordInput placeholder="New Password (Min 8 chars)" name="newPassword" value={formData.newPassword} onChange={handleChange} />
+            </div>
           </div>
-          <div>
-             <PasswordInput placeholder="New Password (Min 8 chars)" name="newPassword" value={formData.newPassword} onChange={handleChange} />
+          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
+            <button onClick={handleResetPassword} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+              {loading ? 'Resetting...' : 'Reset Password'}
+            </button>
+             <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Back to Login</button>
           </div>
-        </div>
-        <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-          <button onClick={handleResetPassword} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-           <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Back to Login</button>
-        </div>
-      </MainLayout>
-    );
-  }
-  return null;
+        </MainLayout>
+      )}
+    </>
+  );
 };
