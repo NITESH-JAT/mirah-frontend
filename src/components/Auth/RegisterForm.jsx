@@ -1,14 +1,30 @@
+// RegisterForm.jsx
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// GLOBAL STYLES (Scrollbar Hiding)
-const scrollbarHideStyles = `
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-`;
+// GLOBAL STYLES (Improved Small Scrollbar)
+const customScrollbarStyles = `
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
 
-// SHARED UI COMPONENTS
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+    margin-block: 8rem;
+  }
+ 
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+`;
 
 function useClickOutside(ref, handler) {
   useEffect(() => {
@@ -95,6 +111,7 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
   );
 };
 
+// CUSTOM SELECT
 const CustomSelect = ({ options, placeholder, value, onChange, disabled, className }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -104,9 +121,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   useClickOutside(wrapperRef, () => setIsOpen(false));
 
   useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
+    if (isOpen && searchInputRef.current) searchInputRef.current.focus();
     if (!isOpen) setSearchTerm(''); 
   }, [isOpen]);
 
@@ -116,13 +131,25 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   };
 
   const filteredOptions = useMemo(() => {
+    if (!searchTerm) return options;
+    const lowerTerm = searchTerm.toLowerCase();
+    
     return options.filter(opt => {
+      // Search across provided searchData if available
+      if (opt.searchData) {
+        return Object.values(opt.searchData).some(val => 
+          String(val).toLowerCase().includes(lowerTerm)
+        );
+      }
+      // Fallback
       const label = opt.label || opt;
-      return String(label).toLowerCase().includes(searchTerm.toLowerCase());
+      const val = opt.value || opt;
+      return String(label).toLowerCase().includes(lowerTerm) || String(val).toLowerCase().includes(lowerTerm);
     });
   }, [options, searchTerm]);
 
-  const selectedLabel = options.find(o => (o.value || o) === value)?.label || value || placeholder;
+  const selectedOption = options.find(o => (o.value || o) === value);
+  const selectedLabel = selectedOption ? (selectedOption.label || selectedOption.value) : (value || placeholder);
   const isPlaceholder = !value;
 
   return (
@@ -154,7 +181,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
               onClick={(e) => e.stopPropagation()}
             />
           </div>
-          <ul className="max-h-[140px] overflow-y-auto custom-scrollbar">
+          <ul className="max-h-[160px] overflow-y-auto custom-scrollbar">
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt, idx) => {
                 const val = opt.value || opt;
@@ -181,40 +208,11 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   );
 };
 
-// --- Terms & Condition ---
-const TermsModal = ({ onClose, onAgree }) => (
-  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary-dark/30 backdrop-blur-sm animate-fade-in">
-    <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl relative flex flex-col max-h-[80vh]">
-      <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
-        <h2 className="text-xl font-serif font-bold text-primary-dark">Terms of Service</h2>
-        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors cursor-pointer">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-        </button>
-      </div>
-      <div className="overflow-y-auto text-sm text-gray-600 font-sans space-y-4 pr-2 custom-scrollbar flex-1">
-        <p>1. <strong>Acceptance:</strong> By using our services, you agree to these terms.</p>
-        <p>2. <strong>Verification:</strong> You must verify your phone and email to access the platform.</p>
-        <p>3. <strong>Data:</strong> Your data is stored securely and never shared.</p>
-        <p className="text-xs text-gray-400 mt-4">Updated: Feb 2026</p>
-      </div>
-      <div className="mt-6 pt-2 border-t border-gray-100">
-        <button 
-          onClick={() => { onAgree(); }} 
-          className="w-full bg-primary-dark text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-900/10 hover:bg-primary-dark/90 transition-all cursor-pointer"
-        >
-          I Understand & Agree
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-//  REGISTER FORM 
+// --- REGISTER FORM ---
 export const RegisterForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
-  const [countryCodes, setCountryCodes] = useState([]);
+  const [countryData, setCountryData] = useState([]); 
   
   const [errors, setErrors] = useState({});
   const [isValid, setIsValid] = useState(false);
@@ -226,56 +224,75 @@ export const RegisterForm = () => {
   });
 
   useEffect(() => {
-    const loadData = async () => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'termsAcceptedSignal') {
+        setFormData(prev => {
+          const updated = { ...prev, termsAccepted: true };
+          validateForm(updated);
+          return updated;
+        });
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  //  Load Country Codes & Detect Location
+  useEffect(() => {
+    const initData = async () => {
       try {
+        // Fetch supported codes from backend
         const response = await authService.getCountryCodes();
         const data = response.data || response;
-
-        const validCodes = Array.isArray(data) ? data.map(c => ({
+        
+        const validCountries = Array.isArray(data) ? data.map(c => ({
           dial_code: c.phoneCode,
-          code: c.countryCode,
+          code: c.countryCode, 
           name: c.countryName
         })) : [];
 
-        setCountryCodes(validCodes);
-        if(validCodes.length > 0) {
-           setFormData(prev => ({ ...prev, countryCode: validCodes[0].dial_code, country: validCodes[0].name }));
+        setCountryData(validCountries);
+
+        // Detect User Location via IP API
+        try {
+          const geoRes = await fetch('https://ipapi.co/json/');
+          const geoInfo = await geoRes.json();
+          
+          if (geoInfo && validCountries.length > 0) {
+
+            const matchedCode = validCountries.find(c => c.code === geoInfo.country_code);
+            const matchedName = validCountries.find(c => c.name === geoInfo.country_name) || matchedCode;
+
+            setFormData(prev => ({
+              ...prev,
+              countryCode: matchedCode ? matchedCode.dial_code : validCountries[0]?.dial_code,
+              country: matchedName ? matchedName.name : validCountries[0]?.name
+            }));
+          }
+        } catch (geoErr) {
+          if (validCountries.length > 0) {
+            setFormData(prev => ({ 
+              ...prev, 
+              countryCode: validCountries[0].dial_code, 
+              country: validCountries[0].name 
+            }));
+          }
         }
+
       } catch (e) {
-        setCountryCodes([]);
+        setCountryData([]);
       }
     };
-    loadData();
+    initData();
   }, []);
-
-  const handleCountryCodeChange = (code) => {
-    const selected = countryCodes.find(c => c.dial_code === code);
-    setFormData({ 
-      ...formData, 
-      countryCode: code, 
-      country: selected ? selected.name : '' 
-    });
-  };
-
-  const handleTermsAgree = () => {
-    setFormData(prev => ({ ...prev, termsAccepted: true }));
-    setShowTerms(false);
-    const updatedData = { ...formData, termsAccepted: true };
-    validateForm(updatedData);
-  };
 
   const handleChange = (e) => {
     const { name, value, checked, type } = e.target;
     let val = type === 'checkbox' ? checked : value;
 
-
-    if (name === 'phone') {
-        val = val.replace(/\D/g, ''); 
-    }
-
-    if (name === 'password' || name === 'confirmPassword') {
-        if (val.length > 15) return; 
-    }
+    if (name === 'phone') val = val.replace(/\D/g, ''); 
+    if ((name === 'password' || name === 'confirmPassword') && val.length > 15) return; 
 
     setFormData(prev => {
       const updated = { ...prev, [name]: val };
@@ -296,26 +313,15 @@ export const RegisterForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
     if (!data.firstName) newErrors.firstName = "Required";
-    
-    if (!data.email) {
-        newErrors.email = "Required";
-    } else if (!emailRegex.test(data.email)) {
-        newErrors.email = "Invalid email format";
-    }
+    if (!data.email) newErrors.email = "Required";
+    else if (!emailRegex.test(data.email)) newErrors.email = "Invalid email format";
 
     if (!data.phone) newErrors.phone = "Required";
     
-    // Password Rules
-    if (!data.password) {
-      newErrors.password = "Required";
-    } else if (data.password.length < 8) {
-      newErrors.password = "Must be at least 8 characters"; 
-    }
+    if (!data.password) newErrors.password = "Required";
+    else if (data.password.length < 8) newErrors.password = "Must be at least 8 characters"; 
 
-    if (data.confirmPassword !== data.password) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
+    if (data.confirmPassword !== data.password) newErrors.confirmPassword = "Passwords do not match";
     if (!data.termsAccepted) newErrors.termsAccepted = "Must accept terms";
 
     setErrors(newErrors);
@@ -324,7 +330,6 @@ export const RegisterForm = () => {
 
   const handleSubmit = async () => {
     if (!isValid) return; 
-
     setLoading(true);
     
     const payload = {
@@ -332,9 +337,9 @@ export const RegisterForm = () => {
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        countryCode: formData.countryCode,
+        countryCode: formData.countryCode, 
         phone: formData.phone,
-        country: formData.country,
+        country: formData.country,         
         state: formData.state,
         pinCode: formData.pinCode,
         userType: formData.userType,
@@ -352,63 +357,81 @@ export const RegisterForm = () => {
     }
   };
 
+  const codeOptions = useMemo(() => {
+    return countryData.map(c => ({
+      value: c.dial_code,
+      label: `${c.code} ${c.dial_code}`,
+      searchData: { code: c.code, dial: c.dial_code, name: c.name } 
+    }));
+  }, [countryData]);
+
+  const countryNameOptions = useMemo(() => {
+    return countryData.map(c => ({
+      value: c.name,
+      label: c.name,
+      searchData: { name: c.name }
+    }));
+  }, [countryData]);
+
   return (
-    <div className="w-full flex flex-col h-[calc(100dvh-140px)] lg:h-[82vh] pt-4">
-      <style>{scrollbarHideStyles}</style>
-      
-      {showTerms && <TermsModal onClose={() => setShowTerms(false)} onAgree={handleTermsAgree} />}
+    <div className="w-full h-[calc(100dvh-140px)] lg:h-[84vh] overflow-y-auto custom-scrollbar pt-4 pb-4 px-1">
+      <style>{customScrollbarStyles}</style>
 
       {/* HEADER */}
-      <div className="shrink-0 text-center mb-2 lg:mb-1 px-1">
+      <div className="shrink-0 text-center mb-6 lg:mb-4">
         <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-primary-dark mb-1">Create Your Account</h1>
         <p className="font-sans text-gray-400 text-[14px] lg:text-[11px] tracking-wide mb-2 lg:mb-1">Join our community of jewelry lovers.</p>
         
         {/* Role Switcher */}
-        <div className="bg-gray-100 p-1.5 lg:p-0.5 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto mb-2">
+        <div className="bg-gray-100 p-1.5 lg:p-0.5 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
           <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a User</button>
           <button onClick={() => setFormData({...formData, userType: 'jeweller'})} className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans ${formData.userType === 'jeweller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
         </div>
       </div>
 
-      {/*  FORM BODY */}
-      <div className="flex-1 overflow-y-auto no-scrollbar px-1 pb-2">
-        <div className="flex flex-col gap-4 lg:gap-3">
-          <div className="flex gap-4 lg:gap-2.5">
-            <InputField required name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
-            <InputField name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} />
-          </div>
-          
-          <InputField required name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
-          
-          <div className="flex gap-4 lg:gap-2.5">
-            <div className="w-[120px] lg:w-[100px] shrink-0">
-               <CustomSelect
+      {/* FORM BODY */}
+      <div className="flex flex-col gap-4 lg:gap-3 mb-6">
+        <div className="flex gap-4 lg:gap-2.5">
+          <InputField required name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
+          <InputField name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} />
+        </div>
+        
+        <InputField required name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
+        
+        <div className="flex gap-4 lg:gap-2.5">
+          {/* Country Code Select */}
+          <div className="w-[120px] lg:w-[100px] shrink-0">
+             <CustomSelect
                 placeholder="Code"
                 value={formData.countryCode}
-                onChange={(e) => handleCountryCodeChange(e.target.value)}
-                options={countryCodes.map(c => ({ value: c.dial_code, label: `${c.code} ${c.dial_code}` }))}
-               />
-            </div>
-            <InputField required name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
+                onChange={(e) => setFormData(p => ({...p, countryCode: e.target.value}))}
+                options={codeOptions}
+             />
           </div>
+          <InputField required name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
+        </div>
 
-          <InputField name="country" placeholder="Country" value={formData.country} readOnly className="bg-gray-50" />
+        {/* Independent Country Select */}
+        <CustomSelect
+            placeholder="Select Country"
+            value={formData.country}
+            onChange={(e) => setFormData(p => ({...p, country: e.target.value}))}
+            options={countryNameOptions}
+        />
 
-          <div className="flex gap-4 lg:gap-2.5">
-            <InputField name="state" placeholder="State" value={formData.state} onChange={handleChange} />
-            <InputField name="pinCode" placeholder="Zip Code" value={formData.pinCode} onChange={handleChange} />
-          </div>
+        <div className="flex gap-4 lg:gap-2.5">
+          <InputField name="state" placeholder="State" value={formData.state} onChange={handleChange} />
+          <InputField name="pinCode" placeholder="Zip Code" value={formData.pinCode} onChange={handleChange} />
+        </div>
 
-          <div className="flex flex-col gap-4 lg:gap-2.5 mt-2">
-             <PasswordInput required name="password" placeholder="Password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
-             <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
-          </div>
+        <div className="flex flex-col gap-4 lg:gap-2.5 mt-2">
+            <PasswordInput required name="password" placeholder="Password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
+            <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
         </div>
       </div>
 
-
-      <div className="shrink-0 pt-2 pb-1 lg:pb-0.5">
-        {/* Terms Checkbox */}
+      {/* FOOTER */}
+      <div className="shrink-0">
         <div className="flex items-center gap-2 mb-5 lg:mb-2 px-1">
           <input 
             type="checkbox" 
@@ -418,7 +441,16 @@ export const RegisterForm = () => {
             className={`w-4 h-4 rounded border-gray-300 focus:ring-primary-dark cursor-pointer ${errors.termsAccepted ? 'ring-2 ring-red-500' : 'text-primary-dark'}`}
           />
           <label className={`text-[12px] font-sans ${errors.termsAccepted ? 'text-red-500' : 'text-gray-500'}`}>
-              I agree to the <span onClick={() => setShowTerms(true)} className="text-primary-dark font-bold cursor-pointer hover:underline">Terms & Conditions</span> <span className="text-red-500">*</span>
+              I agree to the 
+              <a 
+                href="/terms" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="text-primary-dark font-bold cursor-pointer hover:underline mx-1"
+              >
+                Terms & Conditions
+              </a> 
+              <span className="text-red-500">*</span>
           </label>
         </div>
 
