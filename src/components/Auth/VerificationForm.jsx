@@ -55,31 +55,47 @@ const VerificationTab = ({ type, label, isActive, isVerified, onClick }) => {
       className={`
         flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[12px] border transition-all duration-300 font-sans cursor-pointer
         ${isActive 
-          ? 'border-primary-dark/30 bg-white shadow-lg shadow-blue-900/5' 
-          : 'border-gray-100 bg-gray-50/50 text-gray-400 hover:bg-white hover:border-gray-200'
+          ? 'border-primary-dark bg-white shadow-md shadow-blue-900/5 scale-105' 
+          : 'border-gray-100 bg-gray-50 text-gray-400 hover:bg-white hover:border-gray-200'
         }
       `}
     >
-      <div className={`
+       <div className={`
+
         w-5 h-5 rounded-full flex items-center justify-center border transition-colors
-        ${isVerified 
-          ? 'bg-green-500 border-green-500' 
-          : isActive ? 'bg-primary-dark border-primary-dark' : 'bg-transparent border-gray-300'
+
+        ${isVerified
+
+          ? 'bg-primary-dark border-primary-dark'
+
+          : 'bg-transparent border-gray-300'
+
         }
+
       `}>
-        {isVerified ? (
+
+        {isVerified && (
+
           <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
+
             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+
           </svg>
-        ) : isActive && (
-           <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+
         )}
+
       </div>
-      <span className={`text-[14px] font-semibold ${isActive ? 'text-primary-dark' : 'text-gray-400'}`}>
+
+      <span className={`text-[14px] font-bold ${isActive || isVerified ? 'text-primary-dark' : 'text-gray-400'}`}>
+
         {label}
+
       </span>
+
     </button>
+
   );
+
 };
 
 const OtpInputGroup = ({ value, onChange, onEnter }) => {
