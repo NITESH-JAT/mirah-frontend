@@ -1,5 +1,3 @@
-// RegisterForm.jsx
-
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
@@ -7,11 +5,10 @@ import { authService } from '../../services/authService';
 // --- GLOBAL STYLES ---
 const globalStyles = `
   /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar { width: 7px; }
+  .custom-scrollbar::-webkit-scrollbar { width: 8px; }
   .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin-block: 8rem; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
   .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
 `;
 
 // --- HELPER COMPONENTS ---
@@ -49,7 +46,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      relative w-[300px] sm:w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
       ${isError ? 'border-red-500' : 'border-green-500'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -95,7 +92,7 @@ const InputField = ({ label, className, type="text", readOnly, required, error, 
       readOnly={readOnly}
       onBlur={onBlur}
       {...props}
-      className={`w-full px-5 py-4 lg:px-3 lg:py-2.5 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[13px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans 
+      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans 
         ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}
         ${error 
           ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
@@ -122,7 +119,7 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
           value={value}
           onChange={onChange}
           onBlur={onBlur}
-          className={`w-full px-5 py-4 lg:px-3 lg:py-2.5 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[13px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans pr-10
+          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans pr-10
             ${error 
               ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
               : 'border-gray-200 focus:border-primary-dark focus:ring-primary-dark/10'
@@ -195,7 +192,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
     <div className={`relative w-full ${className}`} ref={wrapperRef}>
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-5 py-4 lg:px-3 lg:py-2.5 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-gray-200 text-[15px] lg:text-[13px] font-medium bg-white focus:outline-none focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 transition-all cursor-pointer flex items-center
+        className={`w-full px-5 py-4 lg:px-4 lg:py-3 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-gray-200 text-[15px] lg:text-[14px] font-medium bg-white focus:outline-none focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 transition-all cursor-pointer flex items-center
           ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-gray-300'}
           ${isPlaceholder ? 'text-gray-400' : 'text-gray-700'}
         `}
@@ -229,7 +226,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
                   <li 
                     key={idx}
                     onClick={() => handleSelect(val)}
-                    className={`px-5 py-3 lg:px-3 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0
+                    className={`px-5 py-3 lg:px-4 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0
                       ${val === value ? 'bg-primary-dark/5 text-primary-dark font-semibold' : ''}
                     `}
                   >
@@ -238,7 +235,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
                 );
               })
             ) : (
-              <li className="px-5 py-3 lg:px-3 lg:py-2.5 text-[13px] text-gray-400 italic text-center">No results found</li>
+              <li className="px-5 py-3 lg:px-4 lg:py-2.5 text-[13px] text-gray-400 italic text-center">No results found</li>
             )}
           </ul>
         </div>
@@ -252,7 +249,7 @@ export const RegisterForm = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [countryData, setCountryData] = useState([]); 
-  const [toasts, setToasts] = useState([]); // Store notifications
+  const [toasts, setToasts] = useState([]);
   
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
@@ -303,7 +300,6 @@ export const RegisterForm = () => {
              throw new Error("Geo failed");
           }
         } catch (geoErr) {
-          // FALLBACK: Hardcode India (+91)
           if (validCountries.length > 0) {
             const india = validCountries.find(c => c.name === "India" || c.code === "IN" || c.dial_code === "+91");
             const fallback = india || validCountries[0];
@@ -328,7 +324,6 @@ export const RegisterForm = () => {
     const handleStorageChange = (e) => {
       if (e.key === 'termsAcceptedSignal') {
         setFormData(prev => {
-           // Clear terms error if it exists
            setErrors(errs => {
              const newErrs = { ...errs };
              delete newErrs.termsAccepted;
@@ -351,10 +346,8 @@ export const RegisterForm = () => {
     if (name === 'phone') val = val.replace(/\D/g, ''); 
     if ((name === 'password' || name === 'confirmPassword') && val.length > 15) return; 
 
-    // Update form
     setFormData(prev => ({ ...prev, [name]: val }));
 
-    // CLEAR ERROR for this specific field immediately
     if (errors[name]) {
         setErrors(prev => {
             const newErrs = { ...prev };
@@ -367,7 +360,6 @@ export const RegisterForm = () => {
   const handleBlur = (e) => {
     const { name, value } = e.target;
     
-    // Only simple checks on blur (optional)
     if ((name === 'password' || name === 'confirmPassword') && value.length > 0 && value.length < 8) {
       setErrors(prev => ({ ...prev, [name]: "Must be at least 8 characters" }));
     }
@@ -395,7 +387,6 @@ export const RegisterForm = () => {
     // 2. If Errors, Show them and stop
     if (Object.keys(newErrors).length > 0) {
         setErrors(newErrors);
-        // Optional: Show a toast summarizing that there are errors
         addToast("Please fill in all required fields correctly.", "error");
         return;
     }
@@ -445,49 +436,47 @@ export const RegisterForm = () => {
   }, [countryData]);
 
   return (
-    <div className="w-full h-[calc(100dvh-140px)] lg:h-[82vh] overflow-y-auto custom-scrollbar pt-4 pb-4 px-1 relative">
+    <div className="w-full relative pb-20 lg:pb-0 overflow-x-hidden pt-2">
       <style>{globalStyles}</style>
 
-      {/* NOTIFICATION CONTAINER (Fixed Top Right) */}
       <div className="fixed top-6 right-6 z-50 flex flex-col items-end pointer-events-none">
-        {/* Child elements enable pointer events */}
         <div className="pointer-events-auto">
              {toasts.map(toast => (
                 <ToastNotification 
-                    key={toast.id} 
-                    id={toast.id} 
-                    message={toast.message} 
-                    type={toast.type} 
-                    onClose={removeToast} 
+                   key={toast.id} 
+                   id={toast.id} 
+                   message={toast.message} 
+                   type={toast.type} 
+                   onClose={removeToast} 
                 />
              ))}
         </div>
       </div>
 
       {/* HEADER */}
-      <div className="shrink-0 text-center mb-6 lg:mb-4">
-        <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-primary-dark mb-1">Create Your Account</h1>
-        <p className="font-sans text-gray-400 text-[14px] lg:text-[11px] tracking-wide mb-2 lg:mb-1">Join our community of jewelry lovers.</p>
+      <div className="shrink-0 text-center mb-6 lg:mb-6">
+        <h1 className="font-serif text-[30px] lg:text-[28px] font-bold text-primary-dark mb-1">Create Your Account</h1>
+        <p className="font-sans text-gray-400 text-[14px] lg:text-[13px] tracking-wide mb-4 lg:mb-4">Join our community of jewelry lovers.</p>
         
         {/* Role Switcher */}
-        <div className="bg-gray-100 p-1.5 lg:p-0.5 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
-          <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a User</button>
-          <button onClick={() => setFormData({...formData, userType: 'jeweller'})} className={`cursor-pointer flex-1 py-3 lg:py-1.5 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[11px] font-semibold transition-all font-sans ${formData.userType === 'jeweller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
+        <div className="bg-gray-100 p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
+          <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a User</button>
+          <button onClick={() => setFormData({...formData, userType: 'jeweller'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'jeweller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
         </div>
       </div>
 
       {/* FORM BODY */}
-      <div className="flex flex-col gap-4 lg:gap-3 mb-6">
-        <div className="flex gap-4 lg:gap-2.5">
+      <div className="flex flex-col gap-4 lg:gap-4 mb-6">
+        <div className="flex gap-4 lg:gap-3">
           <InputField required name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
           <InputField required name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
         </div>
         
         <InputField required name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
         
-        <div className="flex gap-4 lg:gap-2.5">
+        <div className="flex gap-4 lg:gap-3">
           {/* Country Code Select */}
-          <div className="w-[120px] lg:w-[100px] shrink-0">
+          <div className="w-[120px] lg:w-[110px] shrink-0">
              <CustomSelect
                 placeholder="Code"
                 value={formData.countryCode}
@@ -498,7 +487,6 @@ export const RegisterForm = () => {
           <InputField required name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
         </div>
 
-        {/* Independent Country Select */}
         <CustomSelect
             placeholder="Select Country"
             value={formData.country}
@@ -506,12 +494,12 @@ export const RegisterForm = () => {
             options={countryNameOptions}
         />
 
-        <div className="flex gap-4 lg:gap-2.5">
+        <div className="flex gap-4 lg:gap-3">
           <InputField name="state" placeholder="State" value={formData.state} onChange={handleChange} />
           <InputField name="pinCode" placeholder="Zip Code" value={formData.pinCode} onChange={handleChange} />
         </div>
 
-        <div className="flex flex-col gap-4 lg:gap-2.5 mt-2">
+        <div className="flex flex-col gap-4 lg:gap-3 mt-2">
             <PasswordInput required name="password" placeholder="Password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
             <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
         </div>
@@ -519,7 +507,7 @@ export const RegisterForm = () => {
 
       {/* FOOTER */}
       <div className="shrink-0">
-        <div className="flex items-center gap-2 mb-5 lg:mb-2 px-1">
+        <div className="flex items-center gap-2 mb-5 lg:mb-4 px-1">
           <input 
             type="checkbox" 
             name="termsAccepted"
@@ -544,12 +532,12 @@ export const RegisterForm = () => {
         <button 
           onClick={handleSubmit} 
           disabled={loading} 
-          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[14px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating...' : 'Next'}
         </button>
 
-        <p className="text-center text-[13px] lg:text-[14px] text-gray-500 mt-5 lg:mt-2 font-sans font-medium">
+        <p className="text-center text-[13px] lg:text-[14px] text-gray-500 mt-5 lg:mt-4 font-sans font-medium">
           Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
         </p>
       </div>

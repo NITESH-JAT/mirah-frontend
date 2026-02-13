@@ -7,12 +7,12 @@ export default function AuthLayout() {
   return (
     <div className="flex h-screen w-full bg-white overflow-hidden font-sans">
       
-      {/* Left Panel - Form Side */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white overflow-y-auto lg:overflow-hidden">
+      {/* Left Panel */}
+      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">
         
-        {/* Logo */}
-        <div className="w-full p-6 pb-0 lg:absolute lg:top-6 lg:left-8 lg:p-0 z-10 flex items-center gap-2 shrink-0">
-          <div className="w-10 h-10  rounded-lg flex items-center justify-center shadow-sm shadow-blue-900/20 overflow-hidden">
+        {/* FIXED NAVBAR */}
+        <div className="w-full px-6 py-5 lg:px-8 lg:py-2 flex items-center gap-2 shrink-0 z-20 bg-white border-b border-transparent">
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm shadow-blue-900/20 overflow-hidden">
             <img 
               src={logo} 
               alt="Mirah Logo" 
@@ -22,14 +22,15 @@ export default function AuthLayout() {
           <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
         </div>
 
-        <div className="flex-1 w-full lg:h-full flex flex-col justify-start lg:justify-center items-center px-5 sm:px-8 pt-8 pb-8 lg:pt-16 lg:pb-4">
-          <div className="w-full max-w-[420px] lg:max-w-[440px]"> 
+        {/* SCROLLABLE CONTENT AREA */}
+        <div className="flex-1 w-full lg:w-[calc(100%-16px)] lg:mx-auto overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col items-center">
+          <div className="w-full max-w-[420px] lg:max-w-[440px] px-5 sm:px-8 py-2 lg:py-2 my-auto"> 
             <Outlet />
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Carousel */}
+      {/* Right Panel - Carousel (Hidden on Mobile) */}
       <div className="hidden lg:block w-1/2 h-full p-4 pl-0">
          <div className="h-full w-full">
             <CarouselPanel />
