@@ -360,8 +360,14 @@ export const RegisterForm = () => {
   const handleBlur = (e) => {
     const { name, value } = e.target;
     
+    // Check length
     if ((name === 'password' || name === 'confirmPassword') && value.length > 0 && value.length < 8) {
       setErrors(prev => ({ ...prev, [name]: "Must be at least 8 characters" }));
+    }
+
+    // Check matching on blur of confirmPassword
+    if (name === 'confirmPassword' && value && value !== formData.password) {
+        setErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }));
     }
   };
 
@@ -461,7 +467,7 @@ export const RegisterForm = () => {
         {/* Role Switcher */}
         <div className="bg-gray-100 p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
           <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a User</button>
-          <button onClick={() => setFormData({...formData, userType: 'jeweller'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'jeweller' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
+          <button onClick={() => setFormData({...formData, userType: 'vendor'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'vendor' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
         </div>
       </div>
 
