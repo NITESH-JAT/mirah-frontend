@@ -40,6 +40,9 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   
+  // Custom Confirmation State for Deletion
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
   // Data State for Editing
   const [editForm, setEditForm] = useState({});
 
@@ -57,7 +60,7 @@ export default function Profile() {
         lastName: data.lastName || '',
         phone: data.phone || '',
         countryCode: data.countryCode || '',
-        email: data.email || '', // Readonly mostly
+        email: data.email || '', 
         address: data.address || '',
         city: data.city || '',
         state: data.state || '',
@@ -88,15 +91,14 @@ export default function Profile() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-      try {
-        await authService.deleteProfile();
-        addToast("Account deleted.", "success");
-        navigate('/login');
-      } catch (err) {
-        addToast(err.message || "Delete failed", "error");
-      }
+  const confirmDeleteAccount = async () => {
+    try {
+      await authService.deleteProfile();
+      addToast("Account deleted successfully.", "success");
+      navigate('/login');
+    } catch (err) {
+      addToast(err.message || "Delete failed", "error");
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -113,7 +115,42 @@ export default function Profile() {
   return (
     <div className="w-full pb-10 animate-fade-in">
       
-      {/* 1. BASIC INFO CARD */}
+      {/* 1. VENDOR KYC BANNER (Shown only to jewellers without APPROVED status) */}
+      {isJeweller && profile.kycStatus !== 'APPROVED' && (
+        <div className={`mb-6 rounded-2xl p-5 md:p-6 border flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-sm transition-all
+          ${profile.kycStatus === 'IN_REVIEW' ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'}
+        `}>
+          <div className="flex items-center gap-4">
+            <div className={`p-3 shrink-0 rounded-full ${profile.kycStatus === 'IN_REVIEW' ? 'bg-yellow-100 text-yellow-600' : 'bg-red-100 text-red-600'}`}>
+              {profile.kycStatus === 'IN_REVIEW' ? (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              ) : (
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+              )}
+            </div>
+            <div>
+              <h3 className={`font-bold text-[15px] ${profile.kycStatus === 'IN_REVIEW' ? 'text-yellow-800' : 'text-red-800'}`}>
+                {profile.kycStatus === 'IN_REVIEW' ? 'KYC Under Review' : 'KYC Pending'}
+              </h3>
+              <p className={`text-[13px] mt-0.5 leading-snug ${profile.kycStatus === 'IN_REVIEW' ? 'text-yellow-700' : 'text-red-600/90'}`}>
+                {profile.kycStatus === 'IN_REVIEW' 
+                  ? 'Your documents are being verified by our team. We will notify you once approved.' 
+                  : 'You must complete your KYC verification to start accepting orders and listing products.'}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => navigate('/kyc')}
+            className={`w-full md:w-auto px-6 py-2.5 rounded-full text-[13px] font-bold shadow-sm transition-all whitespace-nowrap cursor-pointer
+              ${profile.kycStatus === 'IN_REVIEW' ? 'bg-yellow-600 text-white hover:bg-yellow-700' : 'bg-red-600 text-white hover:bg-red-700'}
+            `}
+          >
+            {profile.kycStatus === 'IN_REVIEW' ? 'View Status' : 'Complete KYC'}
+          </button>
+        </div>
+      )}
+
+      {/* 2. BASIC INFO CARD */}
       <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
         <div className="flex items-center justify-between mb-6 lg:mb-8">
           <h2 className="font-sans text-lg font-bold text-gray-800">Basic Information</h2>
@@ -134,14 +171,11 @@ export default function Profile() {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
-          {/* Avatar Section */}
           <div className="w-full lg:w-auto flex flex-col items-center gap-3">
-            <div className="w-24 h-24 rounded-full p-1 border border-gray-100 relative group">
-              <img 
-                src={`https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&background=0D8ABC&color=fff&size=128`} 
-                className="w-full h-full rounded-full object-cover" 
-                alt="Profile" 
-              />
+            <div className="w-24 h-24 rounded-full bg-blue-50 border-2 border-primary-dark/10 flex items-center justify-center text-primary-dark shadow-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-12 h-12">
+                <path fillRule="evenodd" d="M7.5 6a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM3.751 20.105a8.25 8.25 0 0116.498 0 .75.75 0 01-.437.695A18.683 18.683 0 0112 22.5c-2.786 0-5.433-.608-7.812-1.7a.75.75 0 01-.437-.695z" clipRule="evenodd" />
+              </svg>
             </div>
             <div className="text-center">
               <h3 className="font-bold text-gray-800 text-lg">{profile.firstName} {profile.lastName}</h3>
@@ -169,7 +203,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 2. ACTIONS GRID */}
+      {/* 3. ACTIONS GRID */}
       <h3 className="text-sm font-bold text-gray-800 mb-4 px-1">Account Actions</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         
@@ -226,26 +260,45 @@ export default function Profile() {
         />
       </div>
 
-      {/* 3. DANGER ZONE */}
+      {/* 4. DANGER ZONE */}
       <div className="bg-red-50/50 rounded-2xl p-5 border border-red-100 flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
             <h4 className="text-sm font-bold text-red-800">Danger Zone</h4>
             <p className="text-[12px] text-red-600/80">Delete account or Logout securely</p>
         </div>
-        <div className="flex gap-3">
-            <button 
-                onClick={handleLogout}
-                className="px-5 py-2.5 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-xl shadow-sm hover:bg-red-50 transition-colors cursor-pointer"
-            >
-                Log Out
-            </button>
-            <button 
-                onClick={handleDeleteAccount}
-                className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-red-700 transition-colors cursor-pointer"
-            >
-                Delete Account
-            </button>
-        </div>
+        
+        {showDeleteConfirm ? (
+            <div className="flex items-center gap-3 bg-red-100/50 p-1.5 rounded-xl border border-red-200">
+                <span className="text-[12px] text-red-800 font-bold px-2">Are you sure?</span>
+                <button 
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-4 py-2 bg-white text-gray-600 text-xs font-bold rounded-lg shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                    Cancel
+                </button>
+                <button 
+                    onClick={confirmDeleteAccount}
+                    className="px-4 py-2 bg-red-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-red-700 transition-colors cursor-pointer"
+                >
+                    Yes, Delete
+                </button>
+            </div>
+        ) : (
+            <div className="flex gap-3">
+                <button 
+                    onClick={handleLogout}
+                    className="px-5 py-2.5 bg-white border border-red-200 text-red-600 text-xs font-bold rounded-xl shadow-sm hover:bg-red-50 transition-colors cursor-pointer"
+                >
+                    Log Out
+                </button>
+                <button 
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-red-700 transition-colors cursor-pointer"
+                >
+                    Delete Account
+                </button>
+            </div>
+        )}
       </div>
 
     </div>
