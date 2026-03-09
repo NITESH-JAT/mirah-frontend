@@ -1,22 +1,29 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
-import BottomNav from './BottomNav';
-import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
+import { notificationService } from '../../services/notificationService';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); 
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleClose = () => {
     setIsExiting(true);
     setTimeout(() => onClose(id), 400); 
   };
+
+  useEffect(() => {
+    let closeTimer = null;
+    const timer = setTimeout(() => {
+      setIsExiting(true);
+      closeTimer = setTimeout(() => onClose(id), 400);
+    }, 10000);
+    return () => {
+      clearTimeout(timer);
+      if (closeTimer) clearTimeout(closeTimer);
+    };
+  }, [id, onClose]);
 
   const isError = type === 'error';
 
@@ -49,39 +56,110 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const isProfilePage = location.pathname.includes('profile');
+  const { user: currentUser, setUser: setCurrentUser, logout } = useAuth();
+  const path = location.pathname;
+  const isProfilePage = path.includes('profile');
+  const isMessagesPage = path.includes('messages');
+  const isKycPage = path.includes('/vendor/kyc');
   
   const [toasts, setToasts] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifications, setNotifications] = useState([]);
   const userMenuRef = useRef(null);
+  const notifMenuRef = useRef(null);
 
   // --- NOTIFICATION HANDLER ---
-  const addToast = (message, type = 'success') => {
+  const addToast = useCallback((message, type = 'success') => {
+    const raw = typeof message === 'string' ? message : (message?.message || String(message || ''));
+    const cleaned = raw.replace(/\s+/g, ' ').trim();
+
+    // Avoid leaking raw axios errors like: "Request failed with status code 403"
+    const isAxiosStatusLine = /^Request failed with status code \d+$/i.test(cleaned);
+    const finalMessage = isAxiosStatusLine ? 'Request failed, try again later' : cleaned;
+
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
+    setToasts(prev => [...prev, { id, message: finalMessage, type }]);
+  }, []);
 
-  const removeToast = (id) => {
+  const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
-  // --- LOAD USER & CLICK OUTSIDE ---
+  const outletContext = useMemo(
+    () => ({ addToast, currentUser, setCurrentUser }),
+    [addToast, currentUser, setCurrentUser]
+  );
+
+  const refreshUnreadCount = useCallback(async () => {
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(Number(count) || 0);
+    } catch {
+      // ignore badge failures
+    }
+  }, []);
+
+  const loadNotifications = useCallback(async () => {
+    setNotifLoading(true);
+    try {
+      const items = await notificationService.list({ page: 1, limit: 10, unreadOnly: false });
+      setNotifications(items);
+    } catch (e) {
+      addToast(e?.message || 'Failed to load notifications', 'error');
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [addToast]);
+
+  const markAllAsRead = useCallback(async () => {
+    try {
+      setNotifLoading(true);
+      await notificationService.markAllRead();
+      await refreshUnreadCount();
+      await loadNotifications();
+    } catch (e) {
+      addToast(e?.message || 'Failed to mark all as read', 'error');
+    } finally {
+      setNotifLoading(false);
+    }
+  }, [addToast, loadNotifications, refreshUnreadCount]);
+
+  // --- CLICK OUTSIDE ---
   useEffect(() => {
-    const user = authService.getCurrentUser();
-    if(user) setCurrentUser(user);
-    
     const handleClickOutside = (event) => {
-        if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
-            setShowUserMenu(false);
-        }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+      if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [location.pathname]);
 
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    // On app start and periodically (PRD)
+    refreshUnreadCount();
+    const t = setInterval(refreshUnreadCount, 30000);
+    return () => clearInterval(t);
+  }, [refreshUnreadCount]);
+
+  useEffect(() => {
+    if (!showNotifications) return;
+    loadNotifications().then(refreshUnreadCount);
+  }, [showNotifications, loadNotifications, refreshUnreadCount]);
+
   const handleLogout = async () => {
-    await authService.logout();
+    await logout();
     navigate('/login');
   };
 
@@ -110,55 +188,129 @@ export default function DashboardLayout() {
          ))}
       </div>
       
-      <Sidebar />
+      {/* Mobile backdrop */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 flex flex-col h-full w-full lg:ml-[240px] relative">
-        
-        {/* MOBILE HEADER */}
-        <div className="lg:hidden fixed top-0 left-0 w-full z-50 pointer-events-none">
-           <div 
-             className="w-full absolute top-0 left-0"
-             style={{
-               height: isProfilePage ? '85px' : '130px', 
-               background: isProfilePage 
-                 ? 'linear-gradient(180deg, #0D2E4E 50%, rgba(13, 46, 78, 0) 100%)' 
-                 : 'linear-gradient(180deg, #0D2E4E 45%, rgba(13, 46, 78, 0) 100%)'
-             }}
-           />
-           <div className="relative w-full pointer-events-auto">
-              <div className="px-5 pt-4 pb-1 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-white/10 backdrop-blur-md rounded-lg flex items-center justify-center border border-white/10 shadow-sm">
-                      <div className="w-3.5 h-3.5 border-2 border-white rotate-45"></div>
-                    </div>
-                    <span className="font-serif text-[20px] text-white font-bold italic tracking-wide">Mirah</span>
-                  </div>
-                  
-                  {/* Mobile Logout Button */}
-                  <button onClick={handleLogout} className="text-white/80 hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                  </button>
-              </div>
+      <div className="flex-1 flex flex-col h-full w-full lg:ml-[240px] ml-0 relative">
 
-              {!isProfilePage && (
-                <div className="px-5 pt-3 pb-2 w-full">
-                   <div className="bg-white rounded-xl flex items-center px-4 py-2.5 shadow-[0_4px_15px_rgba(0,0,0,0.1)]">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0D2E4E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="opacity-60"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                     <span className="ml-3 text-gray-400 text-[13px] font-medium">Search "Jewellers"</span>
-                   </div>
+        {/* HEADER */}
+        <div className="flex h-16 bg-white border-b border-gray-100 px-4 sm:px-8 items-center justify-between shrink-0 sticky top-0 z-40">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setIsSidebarOpen(true)}
+              className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+              aria-label="Open menu"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
+            </button>
+            <h1 className="font-serif text-xl font-bold text-gray-800">
+              {isProfilePage ? 'My Profile' : isMessagesPage ? 'Messages' : isKycPage ? 'KYC' : ''}
+            </h1>
+          </div>
+          
+          <div className="flex items-center gap-3 relative">
+            {/* NOTIFICATIONS */}
+            <div className="relative" ref={notifMenuRef}>
+              <button
+                type="button"
+                onClick={() => setShowNotifications((v) => !v)}
+                className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                aria-label="Notifications"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7"/>
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                </svg>
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                )}
+              </button>
+
+              {showNotifications && (
+                <div
+                  className="fixed left-4 right-4 top-[72px] w-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[60]
+                             sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[360px] sm:max-w-[90vw]"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
+                    <p className="text-[13px] font-bold text-gray-800">Notifications</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-[11px] text-gray-400">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
+                      <button
+                        type="button"
+                        onClick={markAllAsRead}
+                        disabled={notifLoading || unreadCount === 0}
+                        className="text-[11px] font-bold text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        Mark all as read
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-[min(420px,calc(100vh-120px))] overflow-y-auto">
+                    {notifLoading ? (
+                      <div className="p-4 text-[13px] text-gray-400">Loading…</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-4 text-[13px] text-gray-400">No notifications</div>
+                    ) : (
+                      notifications.map((n) => {
+                        const id = n.id ?? n._id;
+                        const title = n.title ?? n.subject ?? n.type ?? 'Notification';
+                        const message = n.message ?? n.body ?? n.text ?? '';
+                        const isRead = Boolean(n.isRead ?? n.read ?? n.readAt);
+                        return (
+                          <div
+                            key={String(id)}
+                            className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                          >
+                            <div className="flex gap-3 items-start">
+                              <div className={`mt-1 w-2 h-2 rounded-full ${isRead ? 'bg-transparent' : 'bg-red-500'}`} />
+                              <div className="flex-1">
+                                <p className="text-[13px] font-bold text-gray-800">{title}</p>
+                                {message && (
+                                  <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{message}</p>
+                                )}
+                              </div>
+                              {!isRead && id && (
+                                <button
+                                  type="button"
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      await notificationService.markRead(id);
+                                      await refreshUnreadCount();
+                                      await loadNotifications();
+                                    } catch (err) {
+                                      addToast(err?.message || 'Failed to mark as read', 'error');
+                                    }
+                                  }}
+                                  className="shrink-0 text-[11px] font-bold text-primary-dark hover:underline cursor-pointer"
+                                >
+                                  Mark as read
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
               )}
-           </div>
-        </div>
+            </div>
 
-        {/* DESKTOP HEADER */}
-        <div className="hidden lg:flex h-16 bg-white border-b border-gray-100 px-8 items-center justify-between shrink-0 sticky top-0 z-40">
-          <h1 className="font-serif text-xl font-bold text-gray-800">
-            {isProfilePage ? 'My Profile' : 'Overview'}
-          </h1>
-          
-          <div className="flex items-center gap-4 relative" ref={userMenuRef}>
+            {/* USER MENU */}
+            <div className="relative" ref={userMenuRef}>
              <div 
                 className="flex items-center gap-3 cursor-pointer p-1 rounded-lg hover:bg-gray-50 transition-colors"
                 onClick={() => setShowUserMenu(!showUserMenu)}
@@ -169,7 +321,10 @@ export default function DashboardLayout() {
                  </div>
                  <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden border border-gray-100 shadow-sm">
                     <img 
-                        src={`https://ui-avatars.com/api/?name=${currentUser?.firstName || 'U'}&background=0D8ABC&color=fff`} 
+                        src={
+                          currentUser?.profileImageUrl ||
+                          `https://ui-avatars.com/api/?name=${currentUser?.firstName || 'U'}&background=0D8ABC&color=fff`
+                        } 
                         alt="User" 
                     />
                  </div>
@@ -187,22 +342,19 @@ export default function DashboardLayout() {
                     </button>
                 </div>
              )}
+            </div>
           </div>
         </div>
 
         {/* CONTENT */}
-        <div className={`flex-1 overflow-y-auto p-4 lg:p-8 pb-24 lg:pb-8 scroll-smooth custom-scrollbar 
-            ${isProfilePage ? 'pt-[100px]' : 'pt-[145px]'} lg:pt-8`}
-        >
-          <div className="max-w-5xl mx-auto">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar">
+          <div className={`${isMessagesPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
             {/* PASS CONTEXT TO CHILDREN */}
-            <Outlet context={{ addToast, currentUser, setCurrentUser }} /> 
+            <Outlet context={outletContext} /> 
           </div>
         </div>
 
       </div>
-
-      <BottomNav />
       
     </div>
   );

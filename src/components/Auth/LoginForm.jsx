@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 const globalStyles = `
   @keyframes slideIn {
@@ -18,15 +19,15 @@ const globalStyles = `
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleClose = () => {
     setIsExiting(true);
     setTimeout(() => onClose(id), 400); 
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleClose(), 10000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const isError = type === 'error';
 
@@ -221,6 +222,7 @@ const VerificationTab = ({ label, isActive, onClick }) => (
 
 export const LoginForm = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
    
   const [view, setView] = useState('login'); 
   const [loginType, setLoginType] = useState('phone'); 
@@ -273,7 +275,7 @@ export const LoginForm = () => {
             } else {
                throw new Error("Geo match failed");
             }
-        } catch (geoError) {
+        } catch {
             if (validCodes.length > 0 && !formData.countryCode) {
                 const india = validCodes.find(c => c.countryName === "India" || c.code === "IN" || c.value === "+91");
                 const fallback = india || validCodes[0];
@@ -308,7 +310,9 @@ export const LoginForm = () => {
 
       if (isVerified) {
         localStorage.setItem('mirah_session_user', JSON.stringify(userData));
-        navigate('/dashboard/store');
+        setUser(userData);
+        const isVendor = userData?.userType === 'vendor' || userData?.userType === 'jeweller';
+        navigate(isVendor ? '/vendor/kyc' : '/dashboard/profile');
         addToast("Welcome back!", "success");
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));

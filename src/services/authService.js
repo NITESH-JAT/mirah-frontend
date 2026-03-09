@@ -1,13 +1,4 @@
-import axios from 'axios';
-
-const API_URL = "https://mira-backend-production-0a62.up.railway.app";
-
-const api = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+import { apiClient as api } from './apiClient';
 
 // --- HELPER ---
 const saveSession = (key, data) => {
@@ -45,29 +36,22 @@ const saveSession = (key, data) => {
     }
 };
 
-// --- INTERCEPTOR ---
-api.interceptors.request.use(
-  (config) => {
-    const userStr = localStorage.getItem('mirah_session_user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      if (user.token) {
-        config.headers.Authorization = `Bearer ${user.token}`;
-      } else {
-          console.warn("[Auth] Interceptor: User session found but NO TOKEN.");
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
 export const authService = {
+  me: async () => {
+    try {
+      const response = await api.get('/api/user/auth/me');
+      const saved = saveSession('mirah_session_user', response.data);
+      return saved;
+    } catch (error) {
+      throw error.response?.data || { message: "Failed to hydrate session" };
+    }
+  },
+
   getCountryCodes: async () => {
     try {
       const response = await api.get('/api/public/country-codes');
       return response.data || [];
-    } catch (error) {
+    } catch {
       return [];
     }
   },
@@ -197,10 +181,38 @@ export const authService = {
     }
   },
 
+  uploadProfilePicture: async (file) => {
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const response = await api.post('/api/user/profile/profile-picture', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      const data = response.data?.data || response.data || {};
+      const profileImageUrl = data?.profileImageUrl;
+      if (!profileImageUrl) return authService.getCurrentUser();
+
+      const existing = authService.getCurrentUser() || {};
+      const merged = { ...existing, profileImageUrl };
+      return saveSession('mirah_session_user', merged);
+    } catch (error) {
+      throw error.response?.data || { message: "Failed to upload profile picture" };
+    }
+  },
+
   changePassword: async (data) => {
     try {
-        const response = await api.put('/api/user/profile/change-password', data);
-        return response.data;
+        try {
+          const response = await api.post('/api/user/profile/change-password', data);
+          return response.data;
+        } catch (postError) {
+          const status = postError?.response?.status;
+          if (status === 404 || status === 405) {
+            const response = await api.put('/api/user/profile/change-password', data);
+            return response.data;
+          }
+          throw postError;
+        }
     } catch (error) {
         throw error.response?.data || { message: "Failed to change password" };
     }

@@ -1,12 +1,15 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 const GuestGuard = ({ children }) => {
-  const user = authService.getCurrentUser();
+  const { user, loading } = useAuth();
+
+  if (loading) return null;
 
   if (user) {
-    return <Navigate to="/dashboard/profile" replace />;
+    const isVendor = user.userType === 'vendor' || user.userType === 'jeweller';
+    return <Navigate to={isVendor ? "/vendor/kyc" : "/dashboard/profile"} replace />;
   }
 
   return children;
