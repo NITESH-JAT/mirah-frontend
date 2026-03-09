@@ -14,9 +14,7 @@ const LoginForm = lazy(() => import('../components/Auth/LoginForm').then(m => ({
 const RegisterForm = lazy(() => import('../components/Auth/RegisterForm').then(m => ({ default: m.RegisterForm })));
 const TermsPage = lazy(() => import('../components/Auth/TermsPage').then(m => ({ default: m.TermsPage })));
 const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
-const VendorKYC = lazy(() => import('../components/kyc/VendorKYC'));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
-
 
 const Placeholder = ({ title }) => (
   <div className="text-center mt-20 text-gray-400 font-sans">{title} Coming Soon</div>
@@ -40,16 +38,6 @@ export const routes = [
     ]
   },
   
-  // --- KYC ROUTE ---
-  {
-    path: '/kyc',
-    element: (
-      <AuthGuard>
-        <VendorKYC />
-      </AuthGuard>
-    )
-  },
-
   // --- DASHBOARD ROUTES---
   {
     path: '/dashboard',

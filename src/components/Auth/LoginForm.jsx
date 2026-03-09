@@ -13,30 +13,7 @@ const globalStyles = `
   }
   .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
   .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
-  
-  /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin-block: 8rem; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 `;
-
-// --- HELPER COMPONENTS ---
-
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const listener = (event) => {
-      if (!ref.current || ref.current.contains(event.target)) return;
-      handler(event);
-    };
-    document.addEventListener("mousedown", listener);
-    document.addEventListener("touchstart", listener);
-    return () => {
-      document.removeEventListener("mousedown", listener);
-      document.removeEventListener("touchstart", listener);
-    };
-  }, [ref, handler]);
-}
 
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
@@ -55,7 +32,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[300px] sm:w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
       ${isError ? 'border-red-500' : 'border-green-500'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -80,6 +57,21 @@ const ToastNotification = ({ id, message, type, onClose }) => {
     </div>
   );
 };
+
+function useClickOutside(ref, handler) {
+  useEffect(() => {
+    const listener = (event) => {
+      if (!ref.current || ref.current.contains(event.target)) return;
+      handler(event);
+    };
+    document.addEventListener("mousedown", listener);
+    document.addEventListener("touchstart", listener);
+    return () => {
+      document.removeEventListener("mousedown", listener);
+      document.removeEventListener("touchstart", listener);
+    };
+  }, [ref, handler]);
+}
 
 const MainLayout = ({ children }) => (
     <div className="w-full flex flex-col relative">
@@ -229,14 +221,14 @@ const VerificationTab = ({ label, isActive, onClick }) => (
 
 export const LoginForm = () => {
   const navigate = useNavigate();
-    
+   
   const [view, setView] = useState('login'); 
   const [loginType, setLoginType] = useState('phone'); 
-    
+   
   const [loading, setLoading] = useState(false);
   const [countryCodes, setCountryCodes] = useState([]);
   const [toasts, setToasts] = useState([]);
-    
+   
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
@@ -310,39 +302,15 @@ export const LoginForm = () => {
         password: formData.password
       };
 
-      // 1. Get user data and tokens from backend
       const userData = await authService.login(payload);
 
-      // 2. Check basic email/phone verification
       const isVerified = userData?.isVerified === true || (userData?.phoneVerified && userData?.emailVerified);
 
       if (isVerified) {
-        // Save the verified session
         localStorage.setItem('mirah_session_user', JSON.stringify(userData));
-        
-        // --- ADDED: VENDOR KYC CHECK LOGIC ---
-        // Verify user role to see if they need KYC routing
-        const userRole = (userData.userType || userData.role || '').toLowerCase();
-        const isVendor = userRole === 'vendor' || userRole === 'jeweller';
-
-        if (isVendor) {
-            // Vendors MUST have kycStatus 'APPROVED' to access the dashboard
-            if (userData.kycStatus === 'APPROVED') {
-                navigate('/dashboard/store');
-                addToast("Welcome back!", "success");
-            } else {
-                // If 'PENDING', 'IN_REVIEW', 'REJECTED', or undefined -> route to KYC
-                navigate('/kyc');
-                addToast("Please complete your KYC.", "success");
-            }
-        } else {
-            // Customers (non-vendors) go straight to their dashboard/store
-            navigate('/dashboard/store');
-            addToast("Welcome back!", "success");
-        }
-
+        navigate('/dashboard/store');
+        addToast("Welcome back!", "success");
       } else {
-        // Not verified yet, save to temp storage and route to OTP verification
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));
         navigate('/verification');
         addToast("Please verify your account.", "error");
@@ -352,24 +320,25 @@ export const LoginForm = () => {
       const errorMsg = (err.message || "").toLowerCase();
       
       if (errorMsg.includes('verify') || errorMsg.includes('otp') || errorMsg.includes('not verified')) {
+         
          const backendData = err.data || (err.response?.data?.data);
-         if(backendData) {
-             const tempUser = {
-                ...backendData,
-                email: backendData.email || (loginType === 'email' ? formData.email : undefined),
-                phone: backendData.phone || (loginType === 'phone' ? formData.phone : undefined),
-                countryCode: backendData.countryCode || (loginType === 'phone' ? formData.countryCode : undefined)
-             };
-             localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
-             setTimeout(() => navigate('/verification'), 1500);
-             addToast("Please verify your account.", "error");
-         } else {
-             addToast(err.message, "error");
-         }
-      } else {
-         addToast(err.message || "Login failed", "error");
-      }
-    } finally {
+       if(backendData) {
+           const tempUser = {
+              ...backendData,
+              email: backendData.email || (loginType === 'email' ? formData.email : undefined),
+              phone: backendData.phone || (loginType === 'phone' ? formData.phone : undefined),
+              countryCode: backendData.countryCode || (loginType === 'phone' ? formData.countryCode : undefined)
+           };
+           localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
+           setTimeout(() => navigate('/verification'), 1500);
+           addToast("Please verify your account.", "error");
+       } else {
+           addToast(err.message, "error");
+       }
+    } else {
+       addToast(err.message || "Login failed", "error");
+    }
+  } finally {
       setLoading(false);
     }
   };
@@ -475,11 +444,11 @@ export const LoginForm = () => {
         <div className="pointer-events-auto">
              {toasts.map(toast => (
                 <ToastNotification 
-                   key={toast.id} 
-                   id={toast.id} 
-                   message={toast.message} 
-                   type={toast.type} 
-                   onClose={removeToast} 
+                    key={toast.id} 
+                    id={toast.id} 
+                    message={toast.message} 
+                    type={toast.type} 
+                    onClose={removeToast} 
                 />
              ))}
         </div>
