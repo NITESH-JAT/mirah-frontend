@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-const InputField = ({ label, value, onChange, name, readOnly, placeholder }) => (
+const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text" }) => (
   <div className="space-y-1.5">
     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">{label}</label>
     <input
-      type="text"
+      type={type}
       name={name}
       value={value || ''}
       onChange={onChange}
@@ -19,16 +19,23 @@ const InputField = ({ label, value, onChange, name, readOnly, placeholder }) => 
   </div>
 );
 
-const ActionCard = ({ icon, title, desc, onClick, colorClass = "bg-gray-50 text-gray-600" }) => (
-  <div onClick={onClick} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:shadow-md transition-all active:scale-[0.98]">
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${colorClass}`}>
-      {icon}
+const MobileNumberField = ({ countryCode, phone }) => (
+  <div className="space-y-1.5">
+    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Mobile Number</label>
+    <div className="flex gap-3">
+      <input
+        type="text"
+        value={countryCode || ''}
+        readOnly
+        className="w-[110px] px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-[#F8F9FA] border-gray-100 text-gray-500"
+      />
+      <input
+        type="text"
+        value={phone || ''}
+        readOnly
+        className="flex-1 px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-[#F8F9FA] border-gray-100 text-gray-500"
+      />
     </div>
-    <div className="flex-1">
-      <h4 className="text-[14px] font-bold text-gray-800">{title}</h4>
-      <p className="text-[11px] text-gray-400">{desc}</p>
-    </div>
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300"><path d="m9 18 6-6-6-6"/></svg>
   </div>
 );
 
@@ -39,13 +46,17 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pictureUploading, setPictureUploading] = useState(false);
   
   // Data State for Editing
   const [editForm, setEditForm] = useState({});
 
-  useEffect(() => {
-    loadProfile();
-  }, []);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -71,9 +82,19 @@ export default function Profile() {
     }
   };
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadProfile();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handlePasswordChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleUpdate = async () => {
@@ -85,6 +106,24 @@ export default function Profile() {
       addToast("Profile updated successfully!", "success");
     } catch (err) {
       addToast(err.message || "Update failed", "error");
+    }
+  };
+
+  const handleProfilePictureChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPictureUploading(true);
+    try {
+      const savedUser = await authService.uploadProfilePicture(file);
+      setCurrentUser(savedUser);
+      setProfile((prev) => ({ ...(prev || {}), profileImageUrl: savedUser?.profileImageUrl }));
+      addToast("Profile picture updated!", "success");
+    } catch (err) {
+      addToast(err.message || "Failed to upload profile picture", "error");
+    } finally {
+      setPictureUploading(false);
+      // reset input so selecting same file works
+      e.target.value = '';
     }
   };
 
@@ -103,6 +142,35 @@ export default function Profile() {
   const handleLogout = async () => {
     await authService.logout();
     navigate('/login');
+  };
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.currentPassword) {
+      addToast("Please enter your current password.", "error");
+      return;
+    }
+    if (!passwordForm.newPassword || passwordForm.newPassword.length < 8) {
+      addToast("New password must be at least 8 characters.", "error");
+      return;
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmNewPassword) {
+      addToast("New password and confirmation do not match.", "error");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      await authService.changePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword
+      });
+      addToast("Password changed successfully.", "success");
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+    } catch (err) {
+      addToast(err.message || "Failed to change password.", "error");
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   if (loading) return <div className="p-8 text-center text-gray-400 text-sm">Loading Profile...</div>;
@@ -138,11 +206,29 @@ export default function Profile() {
           <div className="w-full lg:w-auto flex flex-col items-center gap-3">
             <div className="w-24 h-24 rounded-full p-1 border border-gray-100 relative group">
               <img 
-                src={`https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&background=0D8ABC&color=fff&size=128`} 
+                src={
+                  profile?.profileImageUrl ||
+                  `https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&background=0D8ABC&color=fff&size=128`
+                } 
                 className="w-full h-full rounded-full object-cover" 
                 alt="Profile" 
               />
             </div>
+            <input
+              type="file"
+              accept="image/*"
+              id="profile_picture_input"
+              className="hidden"
+              onChange={handleProfilePictureChange}
+            />
+            <button
+              type="button"
+              onClick={() => document.getElementById('profile_picture_input')?.click()}
+              disabled={pictureUploading}
+              className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {pictureUploading ? 'Uploading…' : 'Change Photo'}
+            </button>
             <div className="text-center">
               <h3 className="font-bold text-gray-800 text-lg">{profile.firstName} {profile.lastName}</h3>
               <p className="text-xs text-gray-400 capitalize">{isJeweller ? 'Jeweller' : 'Customer'}</p>
@@ -155,7 +241,7 @@ export default function Profile() {
             <InputField label="Last Name" name="lastName" value={editForm.lastName} onChange={handleInputChange} readOnly={!isEditing} />
             
             <InputField label="Email Address" name="email" value={editForm.email} readOnly={true} />
-            <InputField label="Phone Number" name="phone" value={`${editForm.countryCode || ''} ${editForm.phone}`} readOnly={true} />
+            <MobileNumberField countryCode={editForm.countryCode} phone={editForm.phone} />
 
             <div className="md:col-span-2">
                 <InputField label="Address" name="address" value={editForm.address} onChange={handleInputChange} readOnly={!isEditing} placeholder="Enter your full address" />
@@ -169,61 +255,57 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* 2. ACTIONS GRID */}
-      <h3 className="text-sm font-bold text-gray-800 mb-4 px-1">Account Actions</h3>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        
-        {/* Conditional: Customer vs Jeweller */}
-        {!isJeweller ? (
-            <>
-                <ActionCard 
-                    title="My Orders" desc="Track, return, or buy things again" 
-                    icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>}
-                    colorClass="bg-blue-50 text-blue-600"
-                    onClick={() => addToast("Orders page coming soon!", "success")}
-                />
-                <ActionCard 
-                    title="Wishlist" desc="Your saved items" 
-                    icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>}
-                    colorClass="bg-red-50 text-red-500"
-                    onClick={() => addToast("Wishlist coming soon!", "success")}
-                />
-                <ActionCard 
-                    title="Coupons" desc="Your available discounts" 
-                    icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3.6 3.6c-.4.4-.6.9-.6 1.4v14c0 .5.2 1 .6 1.4.4.4.9.6 1.4.6h14c.5 0 1-.2 1.4-.6.4-.4.6-.9.6-1.4V5c0-.5-.2-1-.6-1.4-.4-.4-.9-.6-1.4-.6H5c-.5 0-1 .2-1.4.6z"/><path d="M6 12h12"/></svg>}
-                    colorClass="bg-green-50 text-green-600"
-                    onClick={() => addToast("No coupons available yet.", "error")}
-                />
-            </>
-        ) : (
-            <ActionCard 
-                title="Manage Orders" desc="View orders received from customers" 
-                icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 7v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>}
-                colorClass="bg-indigo-50 text-indigo-600"
-                onClick={() => addToast("Opening Order Manager...", "success")}
-            />
-        )}
+      {/* 2. CHANGE PASSWORD */}
+      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="font-sans text-lg font-bold text-gray-800">Change Password</h3>
+        </div>
 
-        <ActionCard 
-            title="Help Center" desc="Need help? Contact us" 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>}
-            onClick={() => addToast("Support is currently offline.", "error")}
-        />
-        
-        <ActionCard 
-            title="Change Password" desc="Update your security credentials" 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
-            onClick={() => {
-                const newPass = prompt("Enter new password (min 8 chars):");
-                if(newPass && newPass.length >= 8) {
-                    authService.changePassword({ newPassword: newPass })
-                        .then(() => addToast("Password changed successfully", "success"))
-                        .catch(e => addToast(e.message, "error"));
-                } else if (newPass) {
-                    addToast("Password too short", "error");
-                }
-            }}
-        />
+        <div className="flex flex-col lg:flex-row gap-8 items-start">
+          {/* Left gutter (align with Basic Info avatar column on desktop) */}
+          <div className="hidden lg:block w-[168px]" />
+
+          <div className="flex-1 w-full grid grid-cols-1 gap-5">
+            <InputField
+              label="Current Password"
+              name="currentPassword"
+              type="password"
+              value={passwordForm.currentPassword}
+              onChange={handlePasswordChange}
+              placeholder="Enter current password"
+              readOnly={false}
+            />
+
+            <InputField
+              label="New Password"
+              name="newPassword"
+              type="password"
+              value={passwordForm.newPassword}
+              onChange={handlePasswordChange}
+              placeholder="Min 8 characters"
+              readOnly={false}
+            />
+            <InputField
+              label="Confirm New Password"
+              name="confirmNewPassword"
+              type="password"
+              value={passwordForm.confirmNewPassword}
+              onChange={handlePasswordChange}
+              placeholder="Re-enter new password"
+              readOnly={false}
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleChangePassword}
+            disabled={passwordLoading}
+            className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {passwordLoading ? 'Saving...' : 'Update Password'}
+          </button>
+        </div>
       </div>
 
       {/* 3. DANGER ZONE */}

@@ -32,15 +32,15 @@ function useClickOutside(ref, handler) {
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); // 10 seconds auto-dismiss
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleClose = () => {
     setIsExiting(true);
     setTimeout(() => onClose(id), 400);
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleClose(), 10000); // 10 seconds auto-dismiss
+    return () => clearTimeout(timer);
+  }, []);
 
   const isError = type === 'error';
 
@@ -156,16 +156,20 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   const wrapperRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  useClickOutside(wrapperRef, () => setIsOpen(false));
+  const close = () => {
+    setIsOpen(false);
+    setSearchTerm('');
+  };
+
+  useClickOutside(wrapperRef, close);
 
   useEffect(() => {
     if (isOpen && searchInputRef.current) searchInputRef.current.focus();
-    if (!isOpen) setSearchTerm(''); 
   }, [isOpen]);
 
   const handleSelect = (optionValue) => {
     onChange({ target: { value: optionValue } });
-    setIsOpen(false);
+    close();
   };
 
   const filteredOptions = useMemo(() => {
@@ -299,7 +303,7 @@ export const RegisterForm = () => {
           } else {
              throw new Error("Geo failed");
           }
-        } catch (geoErr) {
+        } catch {
           if (validCountries.length > 0) {
             const india = validCountries.find(c => c.name === "India" || c.code === "IN" || c.dial_code === "+91");
             const fallback = india || validCountries[0];
@@ -312,7 +316,7 @@ export const RegisterForm = () => {
           }
         }
 
-      } catch (e) {
+      } catch {
         setCountryData([]);
       }
     };

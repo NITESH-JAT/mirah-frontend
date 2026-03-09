@@ -1,20 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 // --- TOAST COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); 
-    return () => clearTimeout(timer);
-  }, []);
-
   const handleClose = () => {
     setIsExiting(true);
     setTimeout(() => onClose(id), 400); 
   };
+
+  useEffect(() => {
+    const timer = setTimeout(() => handleClose(), 10000); 
+    return () => clearTimeout(timer);
+  }, []);
 
   const isError = type === 'error';
 
@@ -48,7 +49,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
 // --- UI COMPONENTS ---
 
-const VerificationTab = ({ type, label, isActive, isVerified, onClick }) => {
+const VerificationTab = ({ label, isActive, isVerified, onClick }) => {
   return (
     <button
       onClick={onClick}
@@ -152,6 +153,7 @@ const OtpInputGroup = ({ value, onChange, onEnter }) => {
 
 export const VerificationForm = () => {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   
   const [toasts, setToasts] = useState([]);
   const addToast = (message, type = 'error') => {
@@ -193,7 +195,7 @@ export const VerificationForm = () => {
          setActiveTab('email');
       }
 
-    } catch (e) {
+    } catch {
       navigate('/register');
     }
   }, [navigate]);
@@ -277,8 +279,10 @@ export const VerificationForm = () => {
       if (finalUser.token) {
           localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
           localStorage.removeItem('mirah_temp_user');
+          setUser(finalUser);
           addToast("Registration Complete!", "success");
-          setTimeout(() => navigate('/dashboard/profile'), 500);
+          const isVendor = finalUser.userType === 'vendor' || finalUser.userType === 'jeweller';
+          setTimeout(() => navigate(isVendor ? '/vendor/kyc' : '/dashboard/profile'), 500);
       } else {
           // Token missing (backend didn't send it during verify). Force login.
           localStorage.removeItem('mirah_temp_user');
