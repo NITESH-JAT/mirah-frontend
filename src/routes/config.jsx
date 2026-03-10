@@ -16,6 +16,9 @@ const RegisterForm = lazy(() => import('../components/Auth/RegisterForm').then(m
 const TermsPage = lazy(() => import('../components/Auth/TermsPage').then(m => ({ default: m.TermsPage })));
 const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
+const Shopping = lazy(() => import('../pages/dashboard/Shopping'));
+const Cart = lazy(() => import('../pages/dashboard/Cart'));
+const Checkout = lazy(() => import('../pages/dashboard/Checkout'));
 const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
 const VendorShop = lazy(() => import('../pages/vendor/Shop'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
@@ -49,7 +52,9 @@ export const routes = [
     children: [
       { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
     
-      { path: 'shopping', element: <Placeholder title="Shopping" /> },
+      { path: 'shopping', element: <Shopping /> },
+      { path: 'cart', element: <Cart /> },
+      { path: 'checkout', element: <Checkout /> },
 
       { 
         path: 'profile', 

@@ -37,6 +37,46 @@ export const productService = {
     return unwrap(res);
   },
 
+  listCustomerProducts: async ({
+    page = 1,
+    limit = 20,
+    category,
+    brand,
+    minPrice,
+    maxPrice,
+    featured,
+    search,
+    sortBy,
+    sortOrder,
+    signal,
+  } = {}) => {
+    const params = { page, limit };
+    if (category) params.category = category;
+    if (brand) params.brand = brand;
+    if (minPrice != null && !Number.isNaN(Number(minPrice))) params.minPrice = Number(minPrice);
+    if (maxPrice != null && !Number.isNaN(Number(maxPrice))) params.maxPrice = Number(maxPrice);
+    if (featured != null) params.featured = Boolean(featured);
+    if (search) params.search = search;
+    if (sortBy) params.sortBy = sortBy;
+    if (sortOrder) params.sortOrder = sortOrder;
+
+    const res = await api.get('/api/user/product/customer', { params, signal });
+    const data = unwrap(res);
+    const items = data?.products ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const list = Array.isArray(items) ? items : [];
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages =
+      Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total =
+      metaRaw?.total ??
+      metaRaw?.totalItems ??
+      metaRaw?.count ??
+      data?.total ??
+      null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items: list, meta: { page: currentPage, totalPages, total } };
+  },
+
   uploadVendorImage: async (file) => {
     const form = new FormData();
     // Backend expects multipart field: `file`

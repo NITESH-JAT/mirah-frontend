@@ -78,6 +78,8 @@ export default function DashboardLayout() {
   const isMessagesPage = path.includes('messages');
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
+  const isShoppingPage = path.includes('/dashboard/shopping');
+  const isCartPage = path.includes('/dashboard/cart');
   
   const [toasts, setToasts] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -230,7 +232,19 @@ export default function DashboardLayout() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
             <h1 className="font-serif text-xl font-bold text-gray-800">
-              {isProfilePage ? 'My Profile' : isMessagesPage ? 'Messages' : isKycPage ? 'KYC' : isShopPage ? 'Shop' : ''}
+              {isProfilePage
+                ? 'My Profile'
+                : isMessagesPage
+                  ? 'Messages'
+                  : isKycPage
+                    ? 'KYC'
+                    : isShopPage
+                      ? 'Shop'
+                      : isCartPage
+                        ? 'Cart'
+                        : isShoppingPage
+                          ? 'Shop'
+                          : ''}
             </h1>
           </div>
           
@@ -369,7 +383,7 @@ export default function DashboardLayout() {
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar">
-          <div className={`${isMessagesPage || isShopPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
+          <div className={`${isMessagesPage || isShopPage || isShoppingPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 
           </div>
