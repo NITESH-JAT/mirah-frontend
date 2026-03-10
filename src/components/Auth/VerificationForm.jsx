@@ -286,7 +286,7 @@ export const VerificationForm = () => {
           const isVendor = hydrated.userType === 'vendor' || hydrated.userType === 'jeweller';
           const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
           const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
-          setTimeout(() => navigate(isVendor ? vendorLanding : '/dashboard/profile'), 500);
+          setTimeout(() => navigate(isVendor ? vendorLanding : '/dashboard/shopping'), 500);
       } else {
           // Token missing (backend didn't send it during verify). Force login.
           localStorage.removeItem('mirah_temp_user');

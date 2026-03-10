@@ -91,6 +91,7 @@ export default function DashboardLayout() {
   const isCartPage = path.includes('/dashboard/cart');
   const isCheckoutPage = path.includes('/dashboard/checkout');
   const isOrdersPage = path.includes('/dashboard/orders');
+  const isProjectsPage = path.includes('/dashboard/projects');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
   
   const [toasts, setToasts] = useState([]);
@@ -461,7 +462,11 @@ export default function DashboardLayout() {
             isShoppingListPage ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0' : 'p-4 lg:p-8'
           }`}
         >
-          <div className={`${isMessagesPage || isShopPage || isShoppingPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
+          <div
+            className={`${
+              isMessagesPage || isShopPage || isShoppingPage || isProjectsPage ? 'max-w-none' : 'max-w-5xl'
+            } mx-auto`}
+          >
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 
           </div>

@@ -1513,90 +1513,93 @@ export default function VendorShop() {
                     )}
                   </div>
                 ) : activeTab === 'list' ? (
-                  productsLoading ? (
-                    <div className="text-[13px] text-gray-400">Loading products…</div>
-                  ) : products.length === 0 ? (
-                    <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-                      No products yet. Create your first product.
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {products.map((p) => (
-                        <div
-                          key={String(p.id ?? p._id)}
-                          className="rounded-2xl border border-gray-100 bg-white overflow-hidden"
-                        >
-                          <div className="flex flex-col md:flex-row">
-                            <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                              {Array.isArray(p.images) && p.images[0] ? (
-                                <img
-                                  src={p.images[0]}
-                                  alt=""
-                                  loading="lazy"
-                                  className="w-full h-full object-contain p-2"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="flex-1 min-w-0 p-4 md:p-5">
-                              <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">{p.name}</p>
-                              <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">
-                                {p.description || p.category || '—'}
-                              </p>
-
-                              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 gap-2">
-                                <InfoBox label="Price" value={`₹ ${formatMoney(p.price)}`} />
-                                <InfoBox label="Stock" value={String(p.stock ?? '—')} />
-                                <InfoBox label="Status" value={toTitleCase(p.status || 'draft')} />
+                  <div className="h-full min-h-0 overflow-y-auto pr-1">
+                    {productsLoading ? (
+                      <div className="text-[13px] text-gray-400">Loading products…</div>
+                    ) : products.length === 0 ? (
+                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                        No products yet. Create your first product.
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {products.map((p) => (
+                          <div
+                            key={String(p.id ?? p._id)}
+                            className="rounded-2xl border border-gray-100 bg-white overflow-hidden"
+                          >
+                            <div className="flex flex-col md:flex-row">
+                              <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                                {Array.isArray(p.images) && p.images[0] ? (
+                                  <img
+                                    src={p.images[0]}
+                                    alt=""
+                                    loading="lazy"
+                                    className="w-full h-full object-contain p-2"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                  </div>
+                                )}
                               </div>
 
-                              <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
-                                <button
-                                  type="button"
-                                  onClick={() => startEdit(p)}
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleSubmitForApproval(p)}
-                                  disabled={
-                                    isActionLoading(p?.id ?? p?._id, 'submit') ||
-                                    String(p?.approvalStatus || '').toLowerCase() === 'pending' ||
-                                    String(p?.approvalStatus || '').toLowerCase() === 'approved'
-                                  }
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(p?.id ?? p?._id, 'submit')
-                                    ? 'Submitting…'
-                                    : String(p?.approvalStatus || '').toLowerCase() === 'pending'
-                                      ? 'Approval Awaiting'
-                                    : String(p?.approvalStatus || '').toLowerCase() === 'approved'
-                                      ? 'Approved'
-                                      : 'Submit For Approval'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteProduct(p)}
-                                  disabled={isActionLoading(p?.id ?? p?._id, 'delete')}
-                                  className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(p?.id ?? p?._id, 'delete') ? 'Deleting…' : 'Delete'}
-                                </button>
+                              <div className="flex-1 min-w-0 p-4 md:p-5">
+                                <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">{p.name}</p>
+                                <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">
+                                  {p.description || p.category || '—'}
+                                </p>
+
+                                <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                                  <InfoBox label="Category" value={String(p.category ?? p.productCategory ?? '—') || '—'} />
+                                  <InfoBox label="Price" value={`₹ ${formatMoney(p.price)}`} />
+                                  <InfoBox label="Stock" value={String(p.stock ?? '—')} />
+                                  <InfoBox label="Status" value={toTitleCase(p.status || 'draft')} />
+                                </div>
+
+                                <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(p)}
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSubmitForApproval(p)}
+                                    disabled={
+                                      isActionLoading(p?.id ?? p?._id, 'submit') ||
+                                      String(p?.approvalStatus || '').toLowerCase() === 'pending' ||
+                                      String(p?.approvalStatus || '').toLowerCase() === 'approved'
+                                    }
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(p?.id ?? p?._id, 'submit')
+                                      ? 'Submitting…'
+                                      : String(p?.approvalStatus || '').toLowerCase() === 'pending'
+                                        ? 'Approval Awaiting'
+                                      : String(p?.approvalStatus || '').toLowerCase() === 'approved'
+                                        ? 'Approved'
+                                        : 'Submit For Approval'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteProduct(p)}
+                                    disabled={isActionLoading(p?.id ?? p?._id, 'delete')}
+                                    className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(p?.id ?? p?._id, 'delete') ? 'Deleting…' : 'Delete'}
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  )
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <div className="w-full">
+                  <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
                     <div className="mb-4 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[13px] font-bold text-gray-800">
@@ -1913,7 +1916,7 @@ export default function VendorShop() {
                       )}
                     </div>
 
-                    <div className="mt-6 flex gap-3">
+                    <div className="mt-6 flex gap-3 justify-end">
                       <button
                         type="button"
                         onClick={handleSave}
@@ -1951,7 +1954,7 @@ export default function VendorShop() {
                         Reset
                       </button>
                     </div>
-                    <p className="mt-3 text-[11px] text-gray-400">
+                    <p className="mt-3 text-[11px] text-gray-400 text-center md:text-right">
                       Note: Products are created as <span className="font-semibold">draft</span>. Submit when ready for admin approval.
                     </p>
                   </div>
