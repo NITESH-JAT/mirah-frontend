@@ -131,6 +131,21 @@ export const productService = {
     return { items: list.filter(Boolean), meta: { page: currentPage, totalPages, total }, summary };
   },
 
+  listVendorProductReviews: async ({ page = 1, limit = 10, productId, signal } = {}) => {
+    const params = { page, limit };
+    if (productId != null && productId !== '') params.productId = productId;
+    const res = await api.get('/api/user/reviews/vendor', { params, signal });
+    const data = unwrap(res);
+    const summary = data?.summary ?? data?.data?.summary ?? null;
+    const itemsRaw = data?.reviews ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const list = Array.isArray(itemsRaw) ? itemsRaw : coerceArray(itemsRaw);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items: list.filter(Boolean), meta: { page: currentPage, totalPages, total }, summary };
+  },
+
   submitProductReview: async ({ productId, rating, comment, isAnonymous } = {}) => {
     const res = await api.post('/api/user/reviews', { productId, rating, comment, isAnonymous: Boolean(isAnonymous) });
     return unwrap(res);

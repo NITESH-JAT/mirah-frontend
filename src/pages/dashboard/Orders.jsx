@@ -106,6 +106,11 @@ export default function Orders() {
   const [page, setPage] = useState(1);
   const [actingId, setActingId] = useState(null);
 
+  // Filters
+  const [filterDraft, setFilterDraft] = useState({ status: '', from: '', to: '', productName: '' });
+  const [filters, setFilters] = useState({ status: '', from: '', to: '', productName: '' });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsOrder, setDetailsOrder] = useState(null);
@@ -117,15 +122,37 @@ export default function Orders() {
   const abortRef = useRef(null);
   const abortDetailsRef = useRef(null);
 
-  const load = async ({ nextPage = 1, append = false } = {}) => {
+  const load = async ({ nextPage = 1, append = false, filterParams = filters } = {}) => {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     if (append) setMoreLoading(true);
     else setLoading(true);
     try {
-      const res = await orderService.list({ page: nextPage, limit: 10, signal: ctrl.signal });
-      const incoming = (res?.items || []).map(normalizeOrder);
+      const statusKey = String(filterParams?.status || '').trim().toLowerCase();
+      const apiStatus =
+        statusKey === 'pending' || statusKey === 'failed'
+          ? 'pending_payment'
+          : statusKey === 'will_pay_offline'
+            ? 'offline_due'
+            : statusKey || undefined;
+      const res = await orderService.list({
+        page: nextPage,
+        limit: 10,
+        status: apiStatus,
+        from: filterParams?.from || undefined,
+        to: filterParams?.to || undefined,
+        productName: filterParams?.productName || undefined,
+        signal: ctrl.signal,
+      });
+      const incomingRaw = (res?.items || []).map(normalizeOrder);
+      const incoming = (() => {
+        if (!statusKey) return incomingRaw;
+        if (statusKey === 'failed') return incomingRaw.filter((o) => paidLabel(o) === 'Failed');
+        if (statusKey === 'pending') return incomingRaw.filter((o) => paidLabel(o) === 'Pending');
+        if (statusKey === 'will_pay_offline') return incomingRaw.filter((o) => paidLabel(o) === 'Will Pay Offline');
+        return incomingRaw;
+      })();
       setItems((prev) => {
         if (!append) return incoming;
         const base = Array.isArray(prev) ? prev : [];
@@ -325,6 +352,24 @@ export default function Orders() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const applyFilters = async () => {
+    const next = {
+      status: String(filterDraft?.status || '').trim(),
+      from: String(filterDraft?.from || '').trim(),
+      to: String(filterDraft?.to || '').trim(),
+      productName: String(filterDraft?.productName || '').trim(),
+    };
+    setFilters(next);
+    await load({ nextPage: 1, append: false, filterParams: next });
+  };
+
+  const clearFilters = async () => {
+    const empty = { status: '', from: '', to: '', productName: '' };
+    setFilterDraft(empty);
+    setFilters(empty);
+    await load({ nextPage: 1, append: false, filterParams: empty });
+  };
+
   const totalPages = Number(meta?.totalPages || 1) || 1;
   const canLoadMore = page < totalPages;
 
@@ -332,7 +377,10 @@ export default function Orders() {
 
   const cancelAllowed = (o) => {
     const s = String(o?.status ?? '').toLowerCase();
-    return !['cancelled', 'delivered', 'completed'].includes(s);
+    if (['cancelled', 'delivered', 'completed'].includes(s)) return false;
+    const pay = paidLabel(o);
+    if (pay === 'Failed') return false;
+    return true;
   };
 
   const onCancel = async (o) => {
@@ -396,7 +444,103 @@ export default function Orders() {
         {headerRight}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+      <div className="bg-white rounded-2xl border border-gray-100 h-[calc(100dvh-190px)] lg:h-[calc(100vh-250px)] flex flex-col overflow-hidden">
+        <div className="shrink-0 sticky top-0 z-10 bg-white border-b border-gray-100 p-4">
+          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+            <div className="md:hidden">
+              <button
+                type="button"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+              >
+                <span className="truncate">Filters</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+            </div>
+
+            <div className={`${filtersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
+                  <select
+                    value={filterDraft.status}
+                    onChange={(e) =>
+                      setFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                  >
+                    <option value="">All</option>
+                    <option value="paid">Paid</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="pending">Pending</option>
+                    <option value="failed">Failed</option>
+                    <option value="will_pay_offline">Will pay offline</option>
+                  </select>
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold text-gray-600 mb-1">From</p>
+                  <input
+                    type="date"
+                    value={filterDraft.from}
+                    onChange={(e) =>
+                      setFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold text-gray-600 mb-1">To</p>
+                  <input
+                    type="date"
+                    value={filterDraft.to}
+                    onChange={(e) =>
+                      setFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))
+                    }
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                  />
+                </div>
+
+                <div>
+                  <p className="text-[11px] font-bold text-gray-600 mb-1">Product name</p>
+                  <input
+                    value={filterDraft.productName}
+                    onChange={(e) =>
+                      setFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))
+                    }
+                    placeholder="Type product name…"
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  disabled={loading || moreLoading}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Clear
+                </button>
+                <button
+                  type="button"
+                  onClick={applyFilters}
+                  disabled={loading || moreLoading}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
         {loading ? (
           <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
             <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -413,7 +557,11 @@ export default function Orders() {
                 </svg>
               </div>
               <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
-              <p className="mt-1 text-[12px] text-gray-500">Shop products and place an order to see it here.</p>
+              <p className="mt-1 text-[12px] text-gray-500">
+                {filters?.status || filters?.from || filters?.to || filters?.productName
+                  ? 'No orders match your filters.'
+                  : 'Shop products and place an order to see it here.'}
+              </p>
               <button
                 type="button"
                 onClick={() => navigate('/dashboard/shopping')}
@@ -539,6 +687,7 @@ export default function Orders() {
             ) : null}
           </div>
         )}
+        </div>
       </div>
 
       {/* Order details modal */}

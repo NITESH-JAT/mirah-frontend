@@ -92,6 +92,10 @@ export default function Profile() {
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
 
+  // Delete account modal
+  const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
+  const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+
   // --- Addresses (customers only) ---
   const [addressTab, setAddressTab] = useState('billing'); // 'billing' | 'shipping'
   const [addressesByType, setAddressesByType] = useState({ billing: [], shipping: [] });
@@ -216,14 +220,16 @@ export default function Profile() {
   };
 
   const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-      try {
-        await authService.deleteProfile();
-        addToast("Account deleted.", "success");
-        navigate('/login');
-      } catch (err) {
-        addToast(err.message || "Delete failed", "error");
-      }
+    setDeleteAccountLoading(true);
+    try {
+      await authService.deleteProfile();
+      addToast("Account deleted.", "success");
+      setDeleteAccountModalOpen(false);
+      navigate('/login');
+    } catch (err) {
+      addToast(err.message || "Delete failed", "error");
+    } finally {
+      setDeleteAccountLoading(false);
     }
   };
 
@@ -791,13 +797,56 @@ export default function Profile() {
                 Log Out
             </button>
             <button 
-                onClick={handleDeleteAccount}
+                onClick={() => setDeleteAccountModalOpen(true)}
                 className="px-5 py-2.5 bg-red-600 text-white text-xs font-bold rounded-xl shadow-sm hover:bg-red-700 transition-colors cursor-pointer"
             >
                 Delete Account
             </button>
         </div>
       </div>
+
+      {/* Delete Account Modal */}
+      {deleteAccountModalOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-center justify-center px-3 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => !deleteAccountLoading && setDeleteAccountModalOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">Delete Account</p>
+              <p className="mt-1 text-[12px] text-gray-400">This action cannot be undone</p>
+            </div>
+
+            <div className="px-5 py-4">
+              <p className="text-[13px] text-gray-700">
+                Are you sure you want to delete your account? This will permanently remove all your data, addresses, and orders.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-50 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleteAccountModalOpen(false)}
+                disabled={deleteAccountLoading}
+                className="flex-1 px-4 py-3 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteAccountLoading}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-600 text-white text-[12px] font-bold hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteAccountLoading ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
     </div>
   );

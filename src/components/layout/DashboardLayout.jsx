@@ -288,7 +288,7 @@ export default function DashboardLayout() {
                   : isKycPage
                     ? 'KYC'
                     : isShopPage
-                      ? 'Shop'
+                      ? 'Store'
                       : isCartPage
                         ? 'Cart'
                         : isCheckoutPage

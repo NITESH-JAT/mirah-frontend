@@ -315,7 +315,7 @@ export const LoginForm = () => {
         const isVendor = hydrated?.userType === 'vendor' || hydrated?.userType === 'jeweller';
         const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
         const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
-        navigate(isVendor ? vendorLanding : '/dashboard/profile');
+        navigate(isVendor ? vendorLanding : '/dashboard/shopping');
         addToast("Welcome back!", "success");
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));

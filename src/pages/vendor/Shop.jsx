@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { productService } from '../../services/productService';
+import { orderService } from '../../services/orderService';
 
 function toTitleCase(text) {
   return String(text || '')
@@ -104,6 +105,119 @@ function buildExtraFieldsPayload(extraFieldRows) {
   return { schema, values };
 }
 
+function localOrderIdOf(o) {
+  return o?.localOrderId ?? o?.local_order_id ?? o?.id ?? o?._id ?? o?.order_id ?? null;
+}
+
+function orderCodeOf(o) {
+  const code =
+    o?.orderCode ??
+    o?.order_code ??
+    o?.code ??
+    o?.orderNumber ??
+    o?.order_number ??
+    o?.orderNo ??
+    o?.order_no ??
+    null;
+  if (!code) return null;
+  if (typeof code === 'string' && code.startsWith('order_')) return null;
+  return code;
+}
+
+function statusText(o) {
+  const s = String(o?.status ?? o?.orderStatus ?? o?.order_status ?? '').trim();
+  if (!s) return '—';
+  const cleaned = s.replace(/[_-]+/g, ' ').trim();
+  return cleaned
+    .split(/\s+/g)
+    .map((w) => (w ? `${w[0].toUpperCase()}${w.slice(1).toLowerCase()}` : w))
+    .join(' ');
+}
+
+function paidLabel(o) {
+  const due = o?.amountDue ?? o?.amount_due ?? o?.dueAmount ?? o?.due_amount ?? null;
+  if (due == null) return null;
+  const n = Number(due);
+  if (Number.isNaN(n)) return null;
+  const method = String(o?.paymentMethod ?? o?.payment_method ?? '').trim().toLowerCase();
+  const statusRaw = String(o?.status ?? o?.orderStatus ?? o?.order_status ?? '').trim().toLowerCase();
+  const hasOnlinePayment = Boolean(
+    o?.razorpayPaymentId ??
+      o?.razorpay_payment_id ??
+      o?.razorpayPayment?.id ??
+      o?.razorpay?.paymentId ??
+      o?.paymentId ??
+      o?.payment_id ??
+      null
+  );
+
+  if (n > 0 && statusRaw === 'pending_payment' && method !== 'offline' && !hasOnlinePayment) {
+    const whenRaw = o?.createdAt ?? o?.created_at ?? o?.date ?? null;
+    const when = whenRaw ? new Date(whenRaw) : null;
+    const ageMs = when && !Number.isNaN(when.getTime()) ? Date.now() - when.getTime() : 0;
+    if (ageMs > 24 * 60 * 60 * 1000) return 'Failed';
+  }
+  if (n > 0 && statusRaw === 'pending_payment' && method !== 'offline' && !hasOnlinePayment) return 'Pending';
+  if (method === 'offline' && n > 0) return 'Will Pay Offline';
+  if (method === 'partial' && n > 0 && (hasOnlinePayment || statusRaw === 'offline_due' || statusRaw === 'partial_due')) {
+    return 'Partial Paid';
+  }
+  return n <= 0 ? 'Paid' : 'Unpaid';
+}
+
+function adminCommissionOf(o) {
+  const v =
+    o?.adminCommissionAmount ??
+    o?.admin_commission_amount ??
+    o?.commissionAmount ??
+    o?.commission_amount ??
+    null;
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+function payableToVendorOf(o) {
+  const v =
+    o?.totalPayableToVendorAfterDeduction ??
+    o?.total_payable_to_vendor_after_deduction ??
+    o?.vendorPayable ??
+    o?.vendor_payable ??
+    null;
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+function extractOrderItems(order) {
+  const raw =
+    order?.items ??
+    order?.orderItems ??
+    order?.order_items ??
+    order?.products ??
+    order?.lines ??
+    order?.data ??
+    [];
+  return Array.isArray(raw) ? raw.filter(Boolean) : raw ? [raw] : [];
+}
+
+function itemName(it) {
+  const p = it?.product ?? it?.productDetails ?? it?.productSnapshot ?? it?.item ?? null;
+  return p?.name ?? it?.productName ?? it?.name ?? it?.title ?? 'Product';
+}
+
+function itemQty(it) {
+  const q = it?.quantity ?? it?.qty ?? it?.count ?? 1;
+  const n = Number(q);
+  return Number.isNaN(n) ? 1 : n || 1;
+}
+
+function itemUnitPrice(it) {
+  const p = it?.unitPrice ?? it?.price ?? it?.product?.price ?? it?.productSnapshot?.price ?? 0;
+  const n = Number(p);
+  return Number.isNaN(n) ? 0 : n || 0;
+}
+
 export default function VendorShop() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
@@ -136,12 +250,6 @@ export default function VendorShop() {
     };
   }, [requestStatus, canRaise, sellingRequest?.createdAt, sellingRequest?.reviewedAt]);
 
-  const gateTitle = useMemo(() => {
-    if (!kycAccepted) return 'Complete KYC to access Shop';
-    if (canSell) return 'Shop';
-    return 'Selling disabled';
-  }, [kycAccepted, canSell]);
-
   const handleRaise = async () => {
     if (submitting) return;
     setSubmitting(true);
@@ -163,6 +271,45 @@ export default function VendorShop() {
   const [imageUploading, setImageUploading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [actionLoadingById, setActionLoadingById] = useState({});
+
+  // ----- Vendor product reviews -----
+  const [reviewProductOpen, setReviewProductOpen] = useState(false);
+  const [reviewProductQuery, setReviewProductQuery] = useState('');
+  const [reviewProduct, setReviewProduct] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsMoreLoading, setReviewsMoreLoading] = useState(false);
+  const [reviewItems, setReviewItems] = useState([]);
+  const [reviewMeta, setReviewMeta] = useState({ page: 1, totalPages: 1, total: null });
+  const reviewAbortRef = useRef(null);
+
+  // ----- Vendor orders -----
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersMoreLoading, setOrdersMoreLoading] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [ordersMeta, setOrdersMeta] = useState({ page: 1, totalPages: 1, total: null });
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersActingId, setOrdersActingId] = useState(null);
+  const ordersAbortRef = useRef(null);
+  const [ordersFiltersOpen, setOrdersFiltersOpen] = useState(false);
+
+  const [orderFilterDraft, setOrderFilterDraft] = useState({
+    status: '',
+    from: '',
+    to: '',
+    productName: '',
+  });
+  const [orderFilters, setOrderFilters] = useState({
+    status: '',
+    from: '',
+    to: '',
+    productName: '',
+  });
+
+  const [orderDetailsOpen, setOrderDetailsOpen] = useState(false);
+  const [orderDetailsLoading, setOrderDetailsLoading] = useState(false);
+  const [orderDetails, setOrderDetails] = useState(null);
+  const [orderDetailsFor, setOrderDetailsFor] = useState({ internalId: null, displayId: null });
+  const orderDetailsAbortRef = useRef(null);
 
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
@@ -238,10 +385,203 @@ export default function VendorShop() {
 
   useEffect(() => {
     if (!kycAccepted || !canSell) return;
-    if (activeTab !== 'list') return;
+    if (activeTab !== 'list' && activeTab !== 'reviews') return;
+    // Ensure vendor products are loaded for product reviews dropdown as well.
+    if (products.length > 0) return;
     loadProducts();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, kycAccepted, canSell]);
+
+  const filteredReviewProducts = useMemo(() => {
+    const q = String(reviewProductQuery || '').trim().toLowerCase();
+    const list = Array.isArray(products) ? products : [];
+    if (!q) return list;
+    return list.filter((p) => {
+      const name = String(p?.name ?? '').toLowerCase();
+      return name.includes(q);
+    });
+  }, [products, reviewProductQuery]);
+
+  const fetchVendorReviews = async ({ nextPage = 1, append = false } = {}) => {
+    const pid = reviewProduct?.id ?? reviewProduct?._id ?? null;
+    if (!pid) return;
+    if (reviewAbortRef.current) reviewAbortRef.current.abort();
+    const ctrl = new AbortController();
+    reviewAbortRef.current = ctrl;
+    if (append) setReviewsMoreLoading(true);
+    else setReviewsLoading(true);
+    try {
+      const res = await productService.listVendorProductReviews({
+        page: nextPage,
+        limit: 10,
+        productId: pid,
+        signal: ctrl.signal,
+      });
+      const incoming = Array.isArray(res?.items) ? res.items : [];
+      setReviewItems((prev) => {
+        if (!append) return incoming;
+        const base = Array.isArray(prev) ? prev : [];
+        const seen = new Set(base.map((x) => String(x?.id ?? x?._id ?? '')));
+        const merged = [...base];
+        for (const it of incoming) {
+          const key = String(it?.id ?? it?._id ?? '');
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(it);
+        }
+        return merged;
+      });
+      setReviewMeta(res?.meta ?? { page: nextPage, totalPages: 1, total: null });
+    } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
+      addToast(e?.message || 'Failed to load product reviews', 'error');
+      if (!append) setReviewItems([]);
+    } finally {
+      if (append) setReviewsMoreLoading(false);
+      else setReviewsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'reviews') return;
+    // Reset list when switching product or tab.
+    setReviewItems([]);
+    setReviewMeta({ page: 1, totalPages: 1, total: null });
+    if (!reviewProduct) return;
+    fetchVendorReviews({ nextPage: 1, append: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, reviewProduct?.id, reviewProduct?._id]);
+
+  const loadVendorOrders = async ({ nextPage = 1, append = false, filters = orderFilters } = {}) => {
+    if (ordersAbortRef.current) ordersAbortRef.current.abort();
+    const ctrl = new AbortController();
+    ordersAbortRef.current = ctrl;
+    if (append) setOrdersMoreLoading(true);
+    else setOrdersLoading(true);
+    try {
+      const statusKey = String(filters?.status || '').trim().toLowerCase();
+      const apiStatus =
+        statusKey === 'pending' || statusKey === 'failed'
+          ? 'pending_payment'
+          : statusKey === 'will_pay_offline'
+            ? 'offline_due'
+            : statusKey || undefined;
+      const res = await orderService.listVendor({
+        page: nextPage,
+        limit: 10,
+        status: apiStatus,
+        from: filters?.from || undefined,
+        to: filters?.to || undefined,
+        productName: filters?.productName || undefined,
+        signal: ctrl.signal,
+      });
+      const incomingRaw = Array.isArray(res?.items) ? res.items : [];
+      const incoming = (() => {
+        if (!statusKey) return incomingRaw;
+        if (statusKey === 'failed') return incomingRaw.filter((o) => paidLabel(o) === 'Failed');
+        if (statusKey === 'pending') return incomingRaw.filter((o) => paidLabel(o) === 'Pending');
+        if (statusKey === 'will_pay_offline') return incomingRaw.filter((o) => paidLabel(o) === 'Will Pay Offline');
+        return incomingRaw;
+      })();
+      setOrders((prev) => {
+        if (!append) return incoming;
+        const base = Array.isArray(prev) ? prev : [];
+        const seen = new Set(base.map((x) => String(localOrderIdOf(x) ?? orderCodeOf(x) ?? '')));
+        const merged = [...base];
+        for (const it of incoming) {
+          const key = String(localOrderIdOf(it) ?? orderCodeOf(it) ?? '');
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(it);
+        }
+        return merged;
+      });
+      setOrdersMeta(res?.meta ?? { page: nextPage, totalPages: 1, total: null });
+      setOrdersPage(nextPage);
+    } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
+      addToast(e?.message || 'Failed to load orders', 'error');
+      if (!append) setOrders([]);
+    } finally {
+      if (append) setOrdersMoreLoading(false);
+      else setOrdersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!kycAccepted || !canSell) return;
+    if (activeTab !== 'orders') return;
+    loadVendorOrders({ nextPage: 1, append: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, kycAccepted, canSell]);
+
+  const applyOrderFilters = async () => {
+    const next = {
+      status: String(orderFilterDraft?.status || '').trim(),
+      from: String(orderFilterDraft?.from || '').trim(),
+      to: String(orderFilterDraft?.to || '').trim(),
+      productName: String(orderFilterDraft?.productName || '').trim(),
+    };
+    setOrderFilters(next);
+    await loadVendorOrders({ nextPage: 1, append: false, filters: next });
+  };
+
+  const clearOrderFilters = async () => {
+    const empty = { status: '', from: '', to: '', productName: '' };
+    setOrderFilterDraft(empty);
+    setOrderFilters(empty);
+    await loadVendorOrders({ nextPage: 1, append: false, filters: empty });
+  };
+
+  const vendorCancelAllowed = (o) => {
+    const s = String(o?.status ?? '').toLowerCase();
+    if (['cancelled', 'delivered', 'completed'].includes(s)) return false;
+    const pay = paidLabel(o);
+    if (pay === 'Failed') return false;
+    return true;
+  };
+
+  const onVendorCancel = async (o) => {
+    const id = localOrderIdOf(o);
+    if (!id) return;
+    setOrdersActingId(String(id));
+    try {
+      await orderService.vendorCancel(id);
+      addToast('Order cancelled', 'success');
+      await loadVendorOrders({ nextPage: 1, append: false });
+    } catch (e) {
+      addToast(e?.message || 'Failed to cancel order', 'error');
+    } finally {
+      setOrdersActingId(null);
+    }
+  };
+
+  const openVendorOrderDetails = async ({ internalId, displayId, fallbackOrder }) => {
+    if (!internalId) {
+      addToast('Order details not available for this order.', 'error');
+      return;
+    }
+    if (orderDetailsAbortRef.current) orderDetailsAbortRef.current.abort();
+    const ctrl = new AbortController();
+    orderDetailsAbortRef.current = ctrl;
+    setOrderDetailsFor({ internalId, displayId });
+    setOrderDetails(fallbackOrder || null);
+    setOrderDetailsOpen(true);
+    setOrderDetailsLoading(true);
+    try {
+      const res = await orderService.getById(internalId, { signal: ctrl.signal });
+      if (res) setOrderDetails(res);
+    } catch {
+      // keep fallback if any
+    } finally {
+      setOrderDetailsLoading(false);
+    }
+  };
+
+  const closeVendorOrderDetails = () => {
+    if (orderDetailsLoading) return;
+    setOrderDetailsOpen(false);
+  };
 
   const handleUploadImages = async (files) => {
     const list = Array.isArray(files) ? files : [];
@@ -552,30 +892,134 @@ export default function VendorShop() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-          <div>
-            <h2 className="font-sans text-lg font-bold text-gray-800">{gateTitle}</h2>
-            {kycAccepted ? (
-              <p className="text-[12px] text-gray-400">
-                Status:{' '}
-                <span className="font-semibold text-gray-600">
-                  {canSell ? 'Enabled' : 'Disabled'}
-                </span>
-              </p>
-            ) : (
-              <p className="text-[12px] text-gray-400">
-                Your KYC must be accepted before you can sell products.
-              </p>
-            )}
+      {/* Vendor order details modal */}
+      {orderDetailsOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={closeVendorOrderDetails}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[min(86vh,720px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">Order details</p>
+                {orderDetailsFor?.displayId ? (
+                  <p className="mt-1 text-[12px] text-gray-400 truncate">Order #{String(orderDetailsFor.displayId)}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={closeVendorOrderDetails}
+                disabled={orderDetailsLoading}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+              {orderDetailsLoading ? (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              ) : !orderDetails ? (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+                  Unable to load order details.
+                </div>
+              ) : (
+                <>
+                  <div className="rounded-2xl border border-gray-100 p-4">
+                    <p className="text-[12px] font-extrabold text-gray-900">Items</p>
+                    <div className="mt-3 space-y-3">
+                      {extractOrderItems(orderDetails).map((it, idx) => {
+                        const qty = itemQty(it);
+                        const price = itemUnitPrice(it);
+                        const lineTotal = qty * price;
+                        return (
+                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[12px] font-bold text-gray-900 truncate">{itemName(it)}</p>
+                                <p className="mt-1 text-[11px] text-gray-400">
+                                  Qty: <span className="font-semibold text-gray-600">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-[12px] font-extrabold text-gray-900">₹{formatMoney(lineTotal)}</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-gray-100 p-4">
+                    <p className="text-[12px] font-extrabold text-gray-900">Totals</p>
+                    <div className="mt-3 space-y-2 text-[12px]">
+                      {payableToVendorOf(orderDetails) != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Payable to you (after commission)</span>
+                          <span className="font-extrabold text-gray-900">₹{formatMoney(payableToVendorOf(orderDetails))}</span>
+                        </div>
+                      ) : null}
+                      {adminCommissionOf(orderDetails) != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Platform commission</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(adminCommissionOf(orderDetails))}</span>
+                        </div>
+                      ) : null}
+                      {orderDetails?.totalAmount != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Total</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.totalAmount)}</span>
+                        </div>
+                      ) : null}
+                      {orderDetails?.onlineAmount != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Online amount</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.onlineAmount)}</span>
+                        </div>
+                      ) : null}
+                      {orderDetails?.offlineAmount != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Offline amount</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.offlineAmount)}</span>
+                        </div>
+                      ) : null}
+                      {orderDetails?.amountPaid != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Amount paid</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.amountPaid)}</span>
+                        </div>
+                      ) : null}
+                      {orderDetails?.amountDue != null ? (
+                        <div className="flex items-center justify-between text-gray-600">
+                          <span>Amount due</span>
+                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.amountDue)}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
+      ) : null}
 
-        {!kycAccepted ? (
+      {!kycAccepted ? (
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
             <div className="font-semibold text-gray-800 mb-1">KYC not accepted yet</div>
             <div className="text-gray-600">
-              Please complete your KYC. Once it’s accepted, you’ll be able to access the Shop module.
+              Please complete your KYC. Once it’s accepted, you’ll be able to access the Store module.
             </div>
             <div className="mt-4">
               <button
@@ -588,12 +1032,12 @@ export default function VendorShop() {
             </div>
           </div>
         ) : canSell ? (
-          <div className="w-full h-[calc(100dvh-240px)] lg:h-[calc(100vh-250px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
             {/* Menu */}
             <div className={`w-full md:w-[320px] shrink-0 border-r border-gray-100 ${mobileView === 'content' ? 'hidden md:flex' : 'flex'} flex-col`}>
               <div className="px-5 pt-5 pb-3">
-                <h3 className="font-serif text-[18px] font-bold text-gray-800">Shop</h3>
-                <p className="text-[12px] text-gray-400 mt-1">Manage your products and orders.</p>
+                <p className="text-[16px] font-extrabold text-gray-900">Store</p>
+                <p className="mt-1 text-[12px] text-gray-400">Manage your products and orders.</p>
               </div>
               <div className="px-5 pb-5 space-y-2">
                 <MenuItem
@@ -604,12 +1048,36 @@ export default function VendorShop() {
                 <MenuItem
                   id="list"
                   label="List Products"
-                  icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>}
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z" />
+                      <path d="M3.3 7 12 12l8.7-5" />
+                      <path d="M12 22V12" />
+                    </svg>
+                  }
                 />
                 <MenuItem
                   id="orders"
                   label="Manage Orders"
-                  icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 8H7"/><path d="M21 12H7"/><path d="M21 16H7"/><path d="M3 8h.01"/><path d="M3 12h.01"/><path d="M3 16h.01"/></svg>}
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
+                      <path d="M9 5a3 3 0 0 0 6 0" />
+                      <path d="M9 5h6" />
+                      <path d="M9 12h6" />
+                      <path d="M9 16h6" />
+                    </svg>
+                  }
+                />
+                <MenuItem
+                  id="reviews"
+                  label="Product Reviews"
+                  icon={
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                      <path d="M12 7.5l.9 1.82 2.01.29-1.45 1.41.34 2-1.8-.95-1.8.95.34-2-1.45-1.41 2.01-.29.9-1.82z" />
+                    </svg>
+                  }
                 />
               </div>
             </div>
@@ -626,7 +1094,15 @@ export default function VendorShop() {
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
                   </button>
-                  <p className="text-[13px] font-bold text-gray-800">{activeTab === 'create' ? 'Create Product' : activeTab === 'list' ? 'Products' : 'Orders'}</p>
+                  <p className="text-[13px] font-bold text-gray-800">
+                    {activeTab === 'create'
+                      ? 'Create Product'
+                      : activeTab === 'list'
+                        ? 'Products'
+                        : activeTab === 'reviews'
+                          ? 'Product Reviews'
+                          : 'Manage Orders'}
+                  </p>
                 </div>
                 {activeTab === 'list' ? (
                   <button
@@ -637,13 +1113,404 @@ export default function VendorShop() {
                   >
                     {productsLoading ? 'Refreshing…' : 'Refresh'}
                   </button>
+                ) : activeTab === 'reviews' ? (
+                  null
                 ) : null}
               </div>
 
-              <div className="flex-1 overflow-y-auto p-5 bg-white">
+            <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
                 {activeTab === 'orders' ? (
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-                    Manage orders UI will be added next.
+                  <div className="h-full min-h-0 flex flex-col">
+                    <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                        <div className="md:hidden">
+                          <button
+                            type="button"
+                            onClick={() => setOrdersFiltersOpen((v) => !v)}
+                            className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+                          >
+                            <span className="truncate">Filters</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="m6 9 6 6 6-6" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className={`${ordersFiltersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
+                              <select
+                                value={orderFilterDraft.status}
+                                onChange={(e) =>
+                                  setOrderFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                              >
+                                <option value="">All</option>
+                                <option value="paid">Paid</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="pending">Pending</option>
+                                <option value="failed">Failed</option>
+                                <option value="will_pay_offline">Will pay offline</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">From</p>
+                              <input
+                                type="date"
+                                value={orderFilterDraft.from}
+                                onChange={(e) =>
+                                  setOrderFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">To</p>
+                              <input
+                                type="date"
+                                value={orderFilterDraft.to}
+                                onChange={(e) =>
+                                  setOrderFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Product name</p>
+                              <input
+                                value={orderFilterDraft.productName}
+                                onChange={(e) =>
+                                  setOrderFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))
+                                }
+                                placeholder="Type product name…"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={clearOrderFilters}
+                              disabled={ordersLoading || ordersMoreLoading}
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={applyOrderFilters}
+                              disabled={ordersLoading || ordersMoreLoading}
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+                      {ordersLoading ? (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
+                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    ) : orders.length === 0 ? (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                            </svg>
+                          </div>
+                          <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
+                          <p className="mt-1 text-[12px] text-gray-500">
+                            {orderFilters?.status || orderFilters?.from || orderFilters?.to || orderFilters?.productName
+                              ? 'No orders match your filters.'
+                              : 'Customer orders for your products will appear here.'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {orders.map((o) => {
+                          const internalId = localOrderIdOf(o);
+                          const displayId = orderCodeOf(o);
+                          const idLabel = displayId ?? internalId ?? '';
+                          const total = o?.totalAmount ?? o?.total ?? o?.amount ?? o?.grandTotal ?? null;
+                          const whenRaw = o?.createdAt ?? o?.created_at ?? o?.date ?? null;
+                          const when = whenRaw ? new Date(whenRaw) : null;
+                          const whenText = when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : '';
+                          const pay = paidLabel(o);
+                          const st = statusText(o);
+                          const statusRaw = String(o?.status ?? o?.orderStatus ?? o?.order_status ?? '').trim().toLowerCase();
+                          const showStatusChip = (() => {
+                            if (!st || st === '—') return false;
+                            const stLower = String(st).trim().toLowerCase();
+                            if (['pending payment', 'offline due', 'partial due', 'paid'].includes(stLower)) return false;
+                            if (!pay) return true;
+                            return stLower !== String(pay).trim().toLowerCase();
+                          })();
+                          const statusChipClass =
+                            statusRaw === 'cancelled'
+                              ? 'bg-red-50 border-red-100 text-red-600'
+                              : 'bg-gray-50 border-gray-100 text-gray-600';
+                          const busy = ordersActingId != null && String(ordersActingId) === String(internalId);
+                          return (
+                            <div key={String(internalId ?? idLabel ?? Math.random())} className="rounded-2xl border border-gray-100 p-4">
+                              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                                      Order #{String(idLabel)}
+                                    </p>
+                                    {pay ? (
+                                      <span
+                                        className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                          pay === 'Paid'
+                                            ? 'bg-green-50 border-green-100 text-green-700'
+                                            : pay === 'Failed'
+                                              ? 'bg-red-50 border-red-100 text-red-700'
+                                              : pay === 'Pending'
+                                                ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                                : 'bg-amber-50 border-amber-100 text-amber-700'
+                                        }`}
+                                      >
+                                        {pay}
+                                      </span>
+                                    ) : null}
+                                    {showStatusChip ? (
+                                      <span className={`px-2 py-1 rounded-lg border text-[10px] font-bold ${statusChipClass}`}>
+                                        {st}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  {whenText ? <p className="mt-1 text-[12px] text-gray-400">{whenText}</p> : null}
+                                  {total != null ? (
+                                    <p className="mt-2 text-[14px] font-extrabold text-gray-900">₹{formatMoney(total)}</p>
+                                  ) : null}
+                                </div>
+                                <div className="w-full sm:w-auto shrink-0 flex flex-wrap justify-end gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      openVendorOrderDetails({
+                                        internalId,
+                                        displayId: idLabel,
+                                        fallbackOrder: o,
+                                      })
+                                    }
+                                    disabled={busy}
+                                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                  >
+                                    View details
+                                  </button>
+                                  {vendorCancelAllowed(o) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => onVendorCancel(o)}
+                                      disabled={busy}
+                                      className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      Cancel
+                                    </button>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {Number(ordersMeta?.page || 1) < Number(ordersMeta?.totalPages || 1) ? (
+                          <button
+                            type="button"
+                            onClick={() => loadVendorOrders({ nextPage: ordersPage + 1, append: true })}
+                            disabled={ordersMoreLoading}
+                            className="mt-2 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {ordersMoreLoading ? 'Loading…' : 'Load more'}
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                    </div>
+                  </div>
+                ) : activeTab === 'reviews' ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4">
+                      <p className="text-[13px] font-bold text-gray-900">Product reviews</p>
+                      <p className="mt-1 text-[12px] text-gray-400">Select a product to view its customer reviews.</p>
+
+                      <div className="mt-4 relative">
+                        <button
+                          type="button"
+                          onClick={() => setReviewProductOpen((v) => !v)}
+                          className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-left text-[13px] font-semibold text-gray-800 flex items-center justify-between gap-3 hover:bg-gray-50"
+                        >
+                          <span className="truncate">
+                            {reviewProduct?.name ? reviewProduct.name : productsLoading ? 'Loading products…' : 'Select product'}
+                          </span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="m6 9 6 6 6-6" />
+                          </svg>
+                        </button>
+
+                        {reviewProductOpen ? (
+                          <div className="absolute z-50 mt-2 w-full rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden">
+                            <div className="p-3 border-b border-gray-50">
+                              <input
+                                value={reviewProductQuery}
+                                onChange={(e) => setReviewProductQuery(e.target.value)}
+                                placeholder="Type product name…"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+                            <div className="max-h-[280px] overflow-y-auto">
+                              {productsLoading ? (
+                                <div className="p-4 text-[12px] text-gray-400">Loading products…</div>
+                              ) : filteredReviewProducts.length === 0 ? (
+                                <div className="p-6 text-center">
+                                  <div className="mx-auto w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="11" cy="11" r="8" />
+                                      <path d="m21 21-4.3-4.3" />
+                                    </svg>
+                                  </div>
+                                  <p className="mt-3 text-[13px] font-bold text-gray-900">No products found</p>
+                                  <p className="mt-1 text-[12px] text-gray-500">Try a different name.</p>
+                                </div>
+                              ) : (
+                                filteredReviewProducts.map((p) => {
+                                  const pid = p?.id ?? p?._id ?? null;
+                                  return (
+                                    <button
+                                      key={String(pid)}
+                                      type="button"
+                                      onClick={() => {
+                                        setReviewProduct(p);
+                                        setReviewProductOpen(false);
+                                        setReviewProductQuery('');
+                                      }}
+                                      className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                                    >
+                                      <p className="text-[13px] font-semibold text-gray-900 truncate">{p?.name || 'Product'}</p>
+                                      <p className="text-[11px] text-gray-400 mt-0.5 truncate">{p?.category || '\u00A0'}</p>
+                                    </button>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {!reviewProduct ? (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                            </svg>
+                          </div>
+                          <p className="mt-4 text-[14px] font-bold text-gray-900">Select a product</p>
+                          <p className="mt-1 text-[12px] text-gray-500">Choose a product to view its reviews.</p>
+                        </div>
+                      </div>
+                    ) : reviewsLoading ? (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </svg>
+                      </div>
+                    ) : reviewItems.length === 0 ? (
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                          </div>
+                          <p className="mt-4 text-[14px] font-bold text-gray-900">No reviews yet</p>
+                          <p className="mt-1 text-[12px] text-gray-500">This product has no customer reviews.</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {reviewItems.map((r, idx) => {
+                          const id = r?.id ?? r?._id ?? idx;
+                          const rating = Number(r?.rating ?? r?.review?.rating ?? 0) || 0;
+                          const comment = String(r?.comment ?? r?.review?.comment ?? '').trim();
+                          const customer = r?.customer ?? r?.user ?? r?.reviewer ?? null;
+                          let name = r?.customerName ?? r?.name ?? null;
+                          if (!name && customer) {
+                            name = `${customer?.firstName ?? ''} ${customer?.lastName ?? ''}`.trim();
+                          }
+                          if (!name) name = 'Customer';
+                          const whenRaw = r?.createdAt ?? r?.created_at ?? r?.review?.createdAt ?? null;
+                          const when = whenRaw ? new Date(whenRaw) : null;
+                          const whenText = when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : '';
+                          return (
+                            <div key={String(id)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-extrabold text-gray-900 truncate">{name}</p>
+                                  {whenText ? <p className="mt-1 text-[11px] text-gray-400">{whenText}</p> : null}
+                                </div>
+                                <div className="shrink-0 inline-flex items-center gap-1">
+                                  {Array.from({ length: 5 }).map((_, i) => {
+                                    const filled = i + 1 <= rating;
+                                    return (
+                                      <svg
+                                        key={String(i)}
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="14"
+                                        height="14"
+                                        viewBox="0 0 24 24"
+                                        fill={filled ? 'currentColor' : 'none'}
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        className={filled ? 'text-amber-400' : 'text-gray-200'}
+                                      >
+                                        <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                                      </svg>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              {comment ? (
+                                <p className="mt-3 text-[12px] text-gray-700 leading-relaxed whitespace-pre-line">{comment}</p>
+                              ) : (
+                                <p className="mt-3 text-[12px] text-gray-400">No comment.</p>
+                              )}
+                            </div>
+                          );
+                        })}
+
+                        {Number(reviewMeta?.page || 1) < Number(reviewMeta?.totalPages || 1) ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              fetchVendorReviews({ nextPage: Number(reviewMeta?.page || 1) + 1, append: true })
+                            }
+                            disabled={reviewsMoreLoading}
+                            className="w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {reviewsMoreLoading ? 'Loading…' : 'Load more'}
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 ) : activeTab === 'list' ? (
                   productsLoading ? (
@@ -1160,7 +2027,6 @@ export default function VendorShop() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

@@ -26,8 +26,31 @@ function parseFilenameFromDisposition(disposition) {
 }
 
 export const orderService = {
-  list: async ({ page = 1, limit = 10, signal } = {}) => {
-    const res = await api.get('/api/user/orders', { params: { page, limit }, signal });
+  list: async ({ page = 1, limit = 10, status, from, to, productName, signal } = {}) => {
+    const params = { page, limit };
+    if (status) params.status = status;
+    if (from) params.from = from;
+    if (to) params.to = to;
+    if (productName) params.productName = productName;
+    const res = await api.get('/api/user/orders', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.orders ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total } };
+  },
+
+  listVendor: async ({ page = 1, limit = 10, status, from, to, productName, orderId, signal } = {}) => {
+    const params = { page, limit };
+    if (status) params.status = status;
+    if (from) params.from = from;
+    if (to) params.to = to;
+    if (productName) params.productName = productName;
+    if (orderId) params.orderId = orderId;
+    const res = await api.get('/api/user/orders/vendor', { params, signal });
     const data = unwrap(res) || {};
     const itemsRaw = data?.orders ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
     const items = coerceArray(itemsRaw).filter(Boolean);
@@ -48,6 +71,12 @@ export const orderService = {
   cancel: async (orderId) => {
     if (!orderId) return null;
     const res = await api.post(`/api/user/cart/orders/${orderId}/cancel`);
+    return unwrap(res);
+  },
+
+  vendorCancel: async (orderId) => {
+    if (!orderId) return null;
+    const res = await api.post(`/api/user/orders/${orderId}/vendor-cancel`);
     return unwrap(res);
   },
 
