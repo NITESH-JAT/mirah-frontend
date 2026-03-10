@@ -22,7 +22,15 @@ export const cartService = {
 
   addItem: async ({ productId, quantity = 1 } = {}) => {
     const res = await api.post('/api/user/cart', { productId, quantity });
-    return unwrap(res);
+    const data = unwrap(res);
+    // Mark cart as "updated" so UI can show a red dot on Cart icon.
+    try {
+      localStorage.setItem('mirah_cart_has_new', '1');
+      window.dispatchEvent(new Event('mirah_cart_updated'));
+    } catch {
+      // ignore storage/event failures
+    }
+    return data;
   },
 
   updateQuantity: async ({ productId, quantity } = {}) => {
@@ -42,6 +50,30 @@ export const cartService = {
 
   checkout: async ({ paymentMethod = 'razorpay', currency = 'INR', productIds = [] } = {}) => {
     const res = await api.post('/api/user/cart/checkout', { paymentMethod, currency, productIds });
+    return unwrap(res);
+  },
+
+  calculatePartialPayment: async ({ currency = 'INR', productIds = [] } = {}) => {
+    const res = await api.post('/api/user/cart/partial-payment/calculate', { currency, productIds });
+    return unwrap(res);
+  },
+
+  verifyPayment: async ({
+    localOrderId,
+    razorpayPaymentId,
+    razorpayOrderId,
+    razorpaySignature,
+  } = {}) => {
+    const res = await api.post('/api/user/cart/payment/verify', {
+      localOrderId,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature,
+      // Also send snake_case keys for compatibility with some backends/PRDs.
+      razorpay_payment_id: razorpayPaymentId,
+      razorpay_order_id: razorpayOrderId,
+      razorpay_signature: razorpaySignature,
+    });
     return unwrap(res);
   },
 };

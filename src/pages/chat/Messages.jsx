@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
@@ -116,6 +116,8 @@ function normalizeMessage(m) {
 export default function Messages() {
   const { addToast } = useOutletContext();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const [mobileView, setMobileView] = useState('list'); // 'list' | 'thread'
   const [showEmoji, setShowEmoji] = useState(false);
@@ -149,6 +151,7 @@ export default function Messages() {
   const loadSeqRef = useRef(0);
   const msgInFlightRef = useRef(false);
   const conversationsRef = useRef([]);
+  const prefillAppliedRef = useRef(false);
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
@@ -243,6 +246,25 @@ export default function Messages() {
     };
     load();
   }, [addToast]);
+
+  // Allow other pages to open Support chat with a prefilled draft message.
+  useEffect(() => {
+    const state = location?.state || null;
+    const prefill = state?.supportPrefill ?? state?.prefill ?? null;
+    const openSupport = Boolean(state?.openSupport);
+    if (!openSupport || !prefill || prefillAppliedRef.current) return;
+
+    prefillAppliedRef.current = true;
+    setActiveConvoId('support');
+    setMobileView('thread');
+    setComposer(String(prefill));
+    setShowEmoji(false);
+    setTimeout(() => composerRef.current?.focus?.(), 50);
+
+    // Clear route state to avoid reapplying on back/refresh.
+    navigate('/dashboard/messages', { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state]);
 
   const loadMessagesFor = async (convo) => {
     if (!convo) return;

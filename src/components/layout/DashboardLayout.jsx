@@ -89,6 +89,9 @@ export default function DashboardLayout() {
   const isShoppingPage = path.includes('/dashboard/shopping');
   const isShoppingListPage = path === '/dashboard/shopping';
   const isCartPage = path.includes('/dashboard/cart');
+  const isCheckoutPage = path.includes('/dashboard/checkout');
+  const isOrdersPage = path.includes('/dashboard/orders');
+  const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
   
   const [toasts, setToasts] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -97,6 +100,7 @@ export default function DashboardLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const [cartHasNew, setCartHasNew] = useState(false);
   const userMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
 
@@ -186,6 +190,42 @@ export default function DashboardLayout() {
     loadNotifications().then(refreshUnreadCount);
   }, [showNotifications, loadNotifications, refreshUnreadCount]);
 
+  // Cart red-dot indicator (set when items added; cleared when cart page opened)
+  useEffect(() => {
+    try {
+      setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
+    } catch {
+      setCartHasNew(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onUpdated = () => {
+      try {
+        setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
+      } catch {
+        setCartHasNew(false);
+      }
+    };
+    window.addEventListener('mirah_cart_updated', onUpdated);
+    window.addEventListener('storage', onUpdated);
+    return () => {
+      window.removeEventListener('mirah_cart_updated', onUpdated);
+      window.removeEventListener('storage', onUpdated);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isCartPage) return;
+    try {
+      localStorage.removeItem('mirah_cart_has_new');
+      window.dispatchEvent(new Event('mirah_cart_updated'));
+    } catch {
+      // ignore
+    }
+    setCartHasNew(false);
+  }, [isCartPage]);
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -251,6 +291,10 @@ export default function DashboardLayout() {
                       ? 'Shop'
                       : isCartPage
                         ? 'Cart'
+                        : isCheckoutPage
+                          ? 'Checkout'
+                          : isOrdersPage
+                            ? 'My Orders'
                         : isShoppingPage
                           ? 'Shop'
                           : ''}
@@ -258,6 +302,25 @@ export default function DashboardLayout() {
           </div>
           
           <div className="flex items-center gap-3 relative">
+            {/* Mobile cart icon */}
+            {!isVendor ? (
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/cart')}
+                className="sm:hidden relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                aria-label="Cart"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="9" cy="21" r="1" />
+                  <circle cx="20" cy="21" r="1" />
+                  <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+                </svg>
+                {cartHasNew ? (
+                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                ) : null}
+              </button>
+            ) : null}
+
             {/* NOTIFICATIONS */}
             <div className="relative" ref={notifMenuRef}>
               <button

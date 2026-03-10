@@ -45,6 +45,23 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error?.response?.status;
+
+    // Prefer backend-provided messages over generic axios status lines
+    // so UI toasts show actionable errors (e.g. stock exceeded).
+    try {
+      const data = error?.response?.data ?? null;
+      const serverMessage =
+        data?.message ??
+        data?.error ??
+        data?.data?.message ??
+        null;
+      if (serverMessage) {
+        error.message = String(serverMessage).trim();
+      }
+    } catch {
+      // ignore normalization errors
+    }
+
     if (status === 401) {
       localStorage.removeItem('mirah_session_user');
       localStorage.removeItem('mirah_temp_user');

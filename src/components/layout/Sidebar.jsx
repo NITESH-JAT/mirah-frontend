@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
@@ -32,6 +32,45 @@ export default function Sidebar({ isOpen = false, onClose }) {
     user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? ''
   ).toLowerCase();
   const isVendorKycAccepted = vendorKycStatus === 'accepted';
+
+  const [cartHasNew, setCartHasNew] = useState(false);
+
+  useEffect(() => {
+    try {
+      setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
+    } catch {
+      setCartHasNew(false);
+    }
+  }, []);
+
+  // Keep badge in sync when cart updates in the app.
+  useEffect(() => {
+    const onUpdated = () => {
+      try {
+        setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
+      } catch {
+        setCartHasNew(false);
+      }
+    };
+    window.addEventListener('mirah_cart_updated', onUpdated);
+    window.addEventListener('storage', onUpdated);
+    return () => {
+      window.removeEventListener('mirah_cart_updated', onUpdated);
+      window.removeEventListener('storage', onUpdated);
+    };
+  }, []);
+
+  // When user opens Cart page, clear the red dot.
+  useEffect(() => {
+    if (location.pathname !== '/dashboard/cart') return;
+    try {
+      localStorage.removeItem('mirah_cart_has_new');
+      window.dispatchEvent(new Event('mirah_cart_updated'));
+    } catch {
+      // ignore
+    }
+    setCartHasNew(false);
+  }, [location.pathname]);
 
   return (
     <div
@@ -103,7 +142,24 @@ export default function Sidebar({ isOpen = false, onClose }) {
               active={location.pathname === '/dashboard/cart'}
               path="/dashboard/cart"
               label="Cart" 
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6"/></svg>}
+              icon={
+                <div className="relative">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="21" r="1" />
+                    <circle cx="20" cy="21" r="1" />
+                    <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+                  </svg>
+                  {cartHasNew ? (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                  ) : null}
+                </div>
+              }
+            />
+            <NavItem 
+              active={location.pathname === '/dashboard/orders'}
+              path="/dashboard/orders"
+              label="My Orders" 
+              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>}
             />
             <NavItem 
               active={location.pathname === '/dashboard/projects'}

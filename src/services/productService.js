@@ -131,6 +131,19 @@ export const productService = {
     return { items: list.filter(Boolean), meta: { page: currentPage, totalPages, total }, summary };
   },
 
+  submitProductReview: async ({ productId, rating, comment, isAnonymous } = {}) => {
+    const res = await api.post('/api/user/reviews', { productId, rating, comment, isAnonymous: Boolean(isAnonymous) });
+    return unwrap(res);
+  },
+
+  getOrderReviews: async (orderId, { signal } = {}) => {
+    if (!orderId) return [];
+    const res = await api.get(`/api/user/reviews/order/${orderId}`, { signal });
+    const data = unwrap(res) || {};
+    const items = data?.items ?? data?.data?.items ?? data?.results ?? data?.reviews ?? data ?? [];
+    return coerceArray(items).filter(Boolean);
+  },
+
   uploadVendorImage: async (file) => {
     const form = new FormData();
     // Backend expects multipart field: `file`

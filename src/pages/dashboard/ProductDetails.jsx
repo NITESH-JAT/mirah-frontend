@@ -102,7 +102,6 @@ export default function ProductDetails() {
   const [cartAdding, setCartAdding] = useState(false);
 
   const [reviews, setReviews] = useState([]);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [reviewsMoreLoading, setReviewsMoreLoading] = useState(false);
   const [reviewsMeta, setReviewsMeta] = useState({ page: 1, totalPages: 1, total: 0 });
   const [reviewsSummary, setReviewsSummary] = useState(null);
@@ -166,7 +165,6 @@ export default function ProductDetails() {
     const ctrl = new AbortController();
     abortReviewsRef.current = ctrl;
     if (append) setReviewsMoreLoading(true);
-    else setReviewsLoading(true);
     try {
       const res = await productService.listProductReviews({
         productId: id,
@@ -195,7 +193,6 @@ export default function ProductDetails() {
       addToast(e?.message || 'Failed to load reviews', 'error');
     } finally {
       if (append) setReviewsMoreLoading(false);
-      else setReviewsLoading(false);
     }
   };
 
@@ -342,6 +339,16 @@ export default function ProductDetails() {
       return name || 'Customer';
     };
 
+    const initialsFor = (name) => {
+      const s = String(name || '').trim();
+      if (!s) return 'C';
+      const parts = s.split(/\s+/g).filter(Boolean);
+      const a = parts[0]?.[0] || '';
+      const b = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[1]) || '';
+      const out = `${a}${b}`.toUpperCase();
+      return out || 'C';
+    };
+
     const fmtDate = (d) => {
       const dt = d ? new Date(d) : null;
       if (!dt || Number.isNaN(dt.getTime())) return null;
@@ -364,15 +371,22 @@ export default function ProductDetails() {
           {list.map((rev) => {
             const comment = String(rev?.comment ?? '').trim();
             const when = fmtDate(rev?.createdAt ?? rev?.updatedAt ?? null);
+            const name = reviewerName(rev);
+            const initials = initialsFor(name);
             return (
               <div
                 key={String(rev?.id ?? rev?._id ?? `${rev?.customerId ?? 'c'}-${rev?.createdAt ?? Math.random()}`)}
                 className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[12px] font-bold text-gray-800 truncate">{reviewerName(rev)}</p>
-                    {when ? <p className="text-[11px] text-gray-400 mt-0.5">{when}</p> : null}
+                  <div className="min-w-0 flex items-start gap-2">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-primary-dark text-white flex items-center justify-center text-[11px] font-extrabold overflow-hidden border border-white shadow-sm">
+                      <span>{initials}</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-bold text-gray-800 truncate">{name}</p>
+                      {when ? <p className="text-[11px] text-gray-400 mt-0.5">{when}</p> : null}
+                    </div>
                   </div>
                   <div className="shrink-0">
                     <Stars rating={rev?.rating} />
