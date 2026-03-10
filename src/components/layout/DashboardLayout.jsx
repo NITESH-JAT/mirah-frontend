@@ -69,6 +69,14 @@ function formatNoticeDateTime(n) {
   return d.toLocaleString();
 }
 
+function truncateName(name, max = 10) {
+  const s = String(name ?? '').trim();
+  if (!s) return '';
+  if (s.length <= max) return s;
+  if (max <= 1) return s.slice(0, max);
+  return `${s.slice(0, max - 1)}…`;
+}
+
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,6 +87,7 @@ export default function DashboardLayout() {
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
   const isShoppingPage = path.includes('/dashboard/shopping');
+  const isShoppingListPage = path === '/dashboard/shopping';
   const isCartPage = path.includes('/dashboard/cart');
   
   const [toasts, setToasts] = useState([]);
@@ -351,7 +360,9 @@ export default function DashboardLayout() {
                 onClick={() => setShowUserMenu(!showUserMenu)}
              >
                  <div className="text-right leading-tight">
-                    <p className="text-[13px] font-bold text-gray-800">{currentUser?.firstName || 'User'}</p>
+                    <p className="text-[13px] font-bold text-gray-800">
+                      {truncateName(currentUser?.firstName || 'User', 10)}
+                    </p>
                     <p className="text-[11px] text-gray-400 capitalize">{currentUser?.userType || 'Guest'}</p>
                  </div>
                  <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden border border-gray-100 shadow-sm">
@@ -382,7 +393,11 @@ export default function DashboardLayout() {
         </div>
 
         {/* CONTENT */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar">
+        <div
+          className={`flex-1 overflow-y-auto scroll-smooth custom-scrollbar ${
+            isShoppingListPage ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0' : 'p-4 lg:p-8'
+          }`}
+        >
           <div className={`${isMessagesPage || isShopPage || isShoppingPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 

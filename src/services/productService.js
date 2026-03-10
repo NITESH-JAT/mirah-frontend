@@ -4,6 +4,12 @@ function unwrap(response) {
   return response?.data?.data ?? response?.data;
 }
 
+function coerceArray(maybe) {
+  if (Array.isArray(maybe)) return maybe;
+  if (!maybe) return [];
+  return [maybe];
+}
+
 export const productService = {
   listVendorProducts: async ({ page = 1, limit = 20 } = {}) => {
     const res = await api.get('/api/user/product/vendor', { params: { page, limit } });
@@ -75,6 +81,54 @@ export const productService = {
       null;
     const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
     return { items: list, meta: { page: currentPage, totalPages, total } };
+  },
+
+  listCustomerBrands: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/product/customer/brands', { signal });
+    const data = unwrap(res) || {};
+    const items = data?.brands ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    return coerceArray(items)
+      .map((x) => (typeof x === 'string' ? x : x?.name ?? x?.label ?? ''))
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+  },
+
+  listCustomerCategories: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/product/customer/categories', { signal });
+    const data = unwrap(res) || {};
+    const items = data?.categories ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    return coerceArray(items)
+      .map((x) => (typeof x === 'string' ? x : x?.name ?? x?.label ?? ''))
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+  },
+
+  getCustomerProduct: async (id, { signal } = {}) => {
+    const res = await api.get(`/api/user/product/customer/${id}`, { signal });
+    const data = unwrap(res);
+    return (
+      data?.product ??
+      data?.item ??
+      data?.data ??
+      data
+    );
+  },
+
+  listProductReviews: async ({ productId, page = 1, limit = 5, signal } = {}) => {
+    if (!productId) return { items: [], meta: { page: 1, totalPages: 1, total: 0 }, summary: null };
+    const res = await api.get(`/api/user/reviews/product/${productId}`, {
+      params: { page, limit },
+      signal,
+    });
+    const data = unwrap(res);
+    const summary = data?.summary ?? data?.data?.summary ?? null;
+    const itemsRaw = data?.reviews ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const list = Array.isArray(itemsRaw) ? itemsRaw : coerceArray(itemsRaw);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items: list.filter(Boolean), meta: { page: currentPage, totalPages, total }, summary };
   },
 
   uploadVendorImage: async (file) => {

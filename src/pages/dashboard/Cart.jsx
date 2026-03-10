@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { cartService } from '../../services/cartService';
+import { vendorSourceText } from '../../utils/productSource';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -216,6 +217,11 @@ export default function Cart() {
     navigate('/dashboard/checkout', { state: { productIds: selectedIds.map((x) => Number(x) || x) } });
   };
 
+  const openProduct = (productId) => {
+    if (!productId) return;
+    navigate(`/dashboard/shopping/${productId}`);
+  };
+
   return (
     <div className="w-full h-[calc(100dvh-96px)] lg:h-[calc(100dvh-128px)] flex flex-col">
       {/* Top header card (title + select all) */}
@@ -264,7 +270,24 @@ export default function Cart() {
       <div className="flex-1 min-h-0 flex flex-col pb-[96px] md:pb-0">
         <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
           {loading ? (
-            <div className="p-6 text-[13px] text-gray-400">Loading cart…</div>
+            <div className="p-10 md:p-14 bg-gray-50 flex-1 flex items-center justify-center">
+              <svg
+                className="animate-spin text-primary-dark"
+                xmlns="http://www.w3.org/2000/svg"
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                <path
+                  d="M22 12a10 10 0 0 0-10-10"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
           ) : items.length === 0 ? (
             <div className="p-10 md:p-14 bg-gray-50 flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -293,6 +316,12 @@ export default function Cart() {
             <div className="flex-1 min-h-0 overflow-y-auto">
               {items.map((it) => {
                 const p = it.product || {};
+                const vendorText = vendorSourceText({
+                  ...p,
+                  vendorId: p?.vendorId ?? it?.raw?.vendorId ?? it?.raw?.vendor_id ?? null,
+                  vendor: p?.vendor ?? it?.raw?.vendor ?? it?.raw?.vendorDetails ?? null,
+                  vendorName: p?.vendorName ?? it?.raw?.vendorName ?? it?.raw?.vendor_name ?? null,
+                });
                 const img = firstImageUrl(p);
                 const unit = p?.unit ?? p?.stockUnit ?? 'pcs';
                 const linePrice = Number(p?.price || 0) * Number(it.quantity || 1);
@@ -313,7 +342,16 @@ export default function Cart() {
                       aria-label="Select item"
                     />
 
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-gray-100 shrink-0">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openProduct(id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') openProduct(id);
+                      }}
+                      className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-gray-100 shrink-0 cursor-pointer"
+                      aria-label="Open product"
+                    >
                       {img ? (
                         <img
                           src={img}
@@ -328,10 +366,22 @@ export default function Cart() {
                       )}
                     </div>
 
-                    <div className="flex-1 min-w-0">
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => openProduct(id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') openProduct(id);
+                      }}
+                      className="flex-1 min-w-0 cursor-pointer"
+                      aria-label="Open product"
+                    >
                       <p className="text-[13px] md:text-[14px] font-bold text-gray-900 truncate">
                         {p?.name || 'Product'}
                       </p>
+                      {vendorText ? (
+                        <p className="mt-0.5 text-[11px] text-gray-400 font-medium line-clamp-1">{vendorText}</p>
+                      ) : null}
                       <p className="text-[12px] text-gray-500 mt-0.5">
                         {it.quantity} {unitLabel(unit)}
                       </p>

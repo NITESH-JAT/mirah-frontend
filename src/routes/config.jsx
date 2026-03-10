@@ -19,6 +19,8 @@ const Profile = lazy(() => import('../pages/dashboard/Profile'));
 const Shopping = lazy(() => import('../pages/dashboard/Shopping'));
 const Cart = lazy(() => import('../pages/dashboard/Cart'));
 const Checkout = lazy(() => import('../pages/dashboard/Checkout'));
+const ProductDetails = lazy(() => import('../pages/dashboard/ProductDetails'));
+const SimilarProducts = lazy(() => import('../pages/dashboard/SimilarProducts'));
 const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
 const VendorShop = lazy(() => import('../pages/vendor/Shop'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
@@ -53,6 +55,8 @@ export const routes = [
       { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
     
       { path: 'shopping', element: <Shopping /> },
+      { path: 'shopping/:id', element: <ProductDetails /> },
+      { path: 'shopping/:id/similar', element: <SimilarProducts /> },
       { path: 'cart', element: <Cart /> },
       { path: 'checkout', element: <Checkout /> },
 
