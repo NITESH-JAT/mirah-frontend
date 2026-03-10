@@ -423,28 +423,21 @@ export default function Orders() {
   }, [meta?.total]);
 
   return (
-    <div className="w-full pb-10 animate-fade-in">
-      <div className="flex items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
-            aria-label="Back"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
+    <div className="w-full h-[calc(100dvh-60px)] lg:h-[calc(100dvh-128px)] flex flex-col">
+      {/* Top header card (title + count) */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+        <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[16px] font-bold text-gray-900">My Orders</p>
+            <p className="text-[16px] md:text-[18px] font-bold text-gray-900">My Orders</p>
             <p className="text-[12px] text-gray-400 mt-1">Track status, cancel, and download invoices.</p>
           </div>
+          {headerRight}
         </div>
-        {headerRight}
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-100 h-[calc(100dvh-190px)] lg:h-[calc(100vh-250px)] flex flex-col overflow-hidden">
+      {/* Orders container */}
+      <div className="flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
+        <div className="mt-3 bg-white rounded-2xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
         <div className="shrink-0 sticky top-0 z-10 bg-white border-b border-gray-100 p-4">
           <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
             <div className="md:hidden">
@@ -688,6 +681,7 @@ export default function Orders() {
           </div>
         )}
         </div>
+      </div>
       </div>
 
       {/* Order details modal */}
