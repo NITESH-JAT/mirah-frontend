@@ -70,6 +70,19 @@ export default function Shopping() {
   const [cartQty, setCartQty] = useState(1);
   const [cartAdding, setCartAdding] = useState(false);
 
+  const featuredFirstItems = useMemo(() => {
+    const arr = Array.isArray(items) ? items : [];
+    return arr
+      .map((p, idx) => ({ p, idx }))
+      .sort((a, b) => {
+        const af = a?.p?.isFeatured === true || a?.p?.isFeatured === 1 || String(a?.p?.isFeatured).toLowerCase() === 'true';
+        const bf = b?.p?.isFeatured === true || b?.p?.isFeatured === 1 || String(b?.p?.isFeatured).toLowerCase() === 'true';
+        if (af === bf) return a.idx - b.idx;
+        return af ? -1 : 1;
+      })
+      .map((x) => x.p);
+  }, [items]);
+
   const abortRef = useRef(null);
   const debounceRef = useRef(null);
   const filterMetaAbortRef = useRef(null);
@@ -203,6 +216,8 @@ export default function Shopping() {
     const img = firstImageUrl(p);
     const off = discountPercent({ price: p?.price, compareAtPrice: p?.compareAtPrice });
     const sourceText = sourceBadgeText(p);
+    const isFeatured =
+      p?.isFeatured === true || p?.isFeatured === 1 || String(p?.isFeatured).toLowerCase() === 'true';
     const desc = String(p?.description ?? p?.shortDescription ?? p?.desc ?? '').trim();
     return (
       <div className="group">
@@ -227,6 +242,15 @@ export default function Shopping() {
             <div className="absolute top-2 right-2 max-w-[78%]">
               <span className="block px-2 py-1 rounded-lg bg-white/95 backdrop-blur border border-gray-100 text-[10px] font-bold text-gray-600 shadow-sm line-clamp-1">
                 {sourceText}
+              </span>
+            </div>
+          ) : null}
+          {isFeatured ? (
+            <div className="absolute top-2 left-2 z-20 pointer-events-none">
+              <span className="w-7 h-7 rounded-full bg-amber-50 border border-amber-100 shadow-sm flex items-center justify-center text-amber-500">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                </svg>
               </span>
             </div>
           ) : null}
@@ -522,7 +546,7 @@ export default function Shopping() {
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
-            {items.map((p) => (
+            {featuredFirstItems.map((p) => (
               <ProductCard key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())} p={p} />
             ))}
           </div>

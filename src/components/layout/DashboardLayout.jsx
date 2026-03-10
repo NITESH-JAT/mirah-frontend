@@ -280,7 +280,7 @@ export default function DashboardLayout() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
-            <h1 className="font-serif text-xl font-bold text-gray-800">
+            <h1 className="hidden sm:block font-serif text-xl font-bold text-gray-800">
               {isProfilePage
                 ? 'My Profile'
                 : isMessagesPage
