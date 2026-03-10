@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
+import { chatService } from '../../services/chatService';
 
 function toTitleCase(text) {
   return String(text || '')
@@ -131,11 +132,104 @@ function projectStatusCardLabel(p) {
     return latestBidWindowId == null ? 'Not in Project Bid' : 'In Project Bid';
   }
 
+  // If project is running but operational status progressed (in_progress/qc/etc),
+  // show the projectStatus instead of just "Running".
+  if (status === 'running' && projectStatus && projectStatus !== 'started') {
+    return toTitleCase(projectStatus);
+  }
+
   return toTitleCase(status || 'draft');
+}
+
+function bidWindowsOf(p) {
+  const bidModel = p?.bidModel ?? p?.bid_model ?? null;
+  const windows =
+    bidModel?.bidWindows ??
+    bidModel?.bid_windows ??
+    p?.bidWindows ??
+    p?.bid_windows ??
+    [];
+  return Array.isArray(windows) ? windows.filter(Boolean) : windows ? [windows] : [];
+}
+
+function isBidWindowActive(w) {
+  const active = w?.isActive ?? w?.is_active ?? false;
+  if (typeof active === 'boolean') return active;
+  return String(active).trim().toLowerCase() === 'true';
+}
+
+function bidWindowFinishingAt(w) {
+  return (
+    w?.finishingTimestamp ??
+    w?.finishingAt ??
+    w?.finishing_at ??
+    w?.finishing_timestamp ??
+    null
+  );
+}
+
+function bidWindowFinishedAt(w) {
+  return w?.finishedAt ?? w?.finished_at ?? null;
+}
+
+function activeBidWindowOf(p) {
+  const windows = bidWindowsOf(p);
+  return windows.find((w) => isBidWindowActive(w) && !bidWindowFinishedAt(w)) || null;
+}
+
+function latestFinishedBidAtOf(p) {
+  const windows = bidWindowsOf(p);
+  let best = null;
+  for (const w of windows) {
+    const ts = bidWindowFinishedAt(w);
+    if (!ts) continue;
+    const d = new Date(ts);
+    if (Number.isNaN(d.getTime())) continue;
+    if (!best || d.getTime() > best.getTime()) best = d;
+  }
+  return best ? best.toISOString() : null;
+}
+
+function allBidWindowsFinished(p) {
+  const windows = bidWindowsOf(p);
+  if (!windows.length) return false;
+  return windows.every((w) => !isBidWindowActive(w) && Boolean(bidWindowFinishedAt(w)));
+}
+
+function coerceAssignments(input) {
+  const asg = input ?? [];
+  return Array.isArray(asg) ? asg.filter(Boolean) : asg ? [asg] : [];
+}
+
+function assignmentVendorIdOf(a) {
+  return a?.vendorId ?? a?.vendor_id ?? a?.vendor?.id ?? a?.vendor?._id ?? null;
+}
+
+function isAssignmentActive(a) {
+  const active = a?.isActive ?? a?.is_active ?? false;
+  if (typeof active === 'boolean') return active;
+  return String(active).trim().toLowerCase() === 'true';
+}
+
+function assignmentStatusText(a) {
+  const raw = a?.status ?? a?.assignmentStatus ?? a?.assignment_status ?? '';
+  return String(raw || '').trim().toLowerCase();
+}
+
+function isAssignmentOverridden(a) {
+  const replacedBy = a?.replacedById ?? a?.replaced_by_id ?? null;
+  return !isAssignmentActive(a) && replacedBy != null;
+}
+
+function isProjectFinishedLike(p) {
+  const status = String(p?.status ?? '').trim().toLowerCase();
+  const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+  return Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed';
 }
 
 export default function Projects() {
   const { addToast } = useOutletContext();
+  const navigate = useNavigate();
 
   const [mobileView, setMobileView] = useState('menu'); // 'menu' | 'content'
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
@@ -166,6 +260,34 @@ export default function Projects() {
     attachments: [],
     metaFields: [],
   });
+
+  // Bidding / assignment UI
+  const [startBidOpen, setStartBidOpen] = useState(false);
+  const [startBidFor, setStartBidFor] = useState({ id: null, title: '' });
+  const [startBidDays, setStartBidDays] = useState('3');
+
+  const [forceStopOpen, setForceStopOpen] = useState(false);
+  const [forceStopFor, setForceStopFor] = useState({ id: null, title: '' });
+
+  const [bidsOpen, setBidsOpen] = useState(false);
+  const [bidsLoading, setBidsLoading] = useState(false);
+  const [bidsItems, setBidsItems] = useState([]);
+  const [bidsFor, setBidsFor] = useState({ id: null, title: '' });
+  const [bidsWindow, setBidsWindow] = useState(null);
+  const [bidsAssignments, setBidsAssignments] = useState([]);
+  const [bidsProjectFinished, setBidsProjectFinished] = useState(false);
+
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideFor, setOverrideFor] = useState(null); // { projectId, vendorName, bidEntryId, amount, noOfDays }
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [assignFor, setAssignFor] = useState({ id: null, title: '' });
+  const [assignQuery, setAssignQuery] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignResults, setAssignResults] = useState([]);
+  const [assignSelected, setAssignSelected] = useState(null);
+  const [assignAmount, setAssignAmount] = useState('');
+  const [assignDays, setAssignDays] = useState('');
 
   const attachmentInputRef = useRef(null);
   const listAbortRef = useRef(null);
@@ -370,11 +492,255 @@ export default function Projects() {
     }
   };
 
+  const refreshList = useCallback(async () => {
+    await loadProjects({ nextPage: 1, append: false });
+  }, [loadProjects]);
+
+  const onStartProject = async (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    setActionLoading(id, 'start', true);
+    try {
+      await projectService.start(id);
+      addToast('Project started.', 'success');
+      await refreshList();
+    } catch (e) {
+      addToast(e?.message || 'Failed to start project', 'error');
+    } finally {
+      setActionLoading(id, 'start', false);
+    }
+  };
+
+  const openStartBid = (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    const windows = bidWindowsOf(p);
+    const guess = windows?.[0]?.noOfDays ?? windows?.[0]?.no_of_days ?? 3;
+    setStartBidFor({ id, title: String(p?.title ?? '') });
+    setStartBidDays(String(Number(guess) || 3));
+    setStartBidOpen(true);
+  };
+
+  const confirmStartBid = async () => {
+    const id = startBidFor?.id;
+    if (!id) return;
+    const days = Math.max(1, Number(startBidDays) || 0);
+    setActionLoading(id, 'startBid', true);
+    try {
+      await projectService.startBid(id, { noOfDays: days });
+      addToast('Auction started.', 'success');
+      setStartBidOpen(false);
+      await refreshList();
+    } catch (e) {
+      addToast(e?.message || 'Failed to start auction', 'error');
+    } finally {
+      setActionLoading(id, 'startBid', false);
+    }
+  };
+
+  const openForceStop = (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    setForceStopFor({ id, title: String(p?.title ?? '') });
+    setForceStopOpen(true);
+  };
+
+  const confirmForceStop = async () => {
+    const id = forceStopFor?.id;
+    if (!id) return;
+    setActionLoading(id, 'forceStop', true);
+    try {
+      await projectService.manualEndBid(id);
+      addToast('Auction stopped.', 'success');
+      setForceStopOpen(false);
+      await refreshList();
+    } catch (e) {
+      addToast(e?.message || 'Failed to stop auction', 'error');
+    } finally {
+      setActionLoading(id, 'forceStop', false);
+    }
+  };
+
+  const openBids = async (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    const windows = bidWindowsOf(p);
+    // PRD: bidWindows are latest-first, so use the first as the current/most recent window.
+    setBidsWindow(windows?.[0] ?? null);
+    setBidsAssignments(coerceAssignments(p?.assignments ?? p?.assignmentRequests ?? p?.projectAssignments ?? []));
+    setBidsProjectFinished(isProjectFinishedLike(p));
+    setBidsFor({ id, title: String(p?.title ?? '') });
+    setBidsItems([]);
+    setBidsOpen(true);
+    setBidsLoading(true);
+    try {
+      const items = await projectService.listBids(id);
+      setBidsItems(Array.isArray(items) ? items : []);
+    } catch (e) {
+      addToast(e?.message || 'Failed to load bids', 'error');
+      setBidsItems([]);
+    } finally {
+      setBidsLoading(false);
+    }
+  };
+
+  const openOverride = (projectId, bid) => {
+    if (!projectId) return;
+    const vendor = bid?.vendor ?? bid?.vendorDetails ?? bid?.user ?? bid?.vendorUser ?? null;
+    const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+    const vendorName = vendor?.fullName ?? (vendorJoined || vendor?.name || vendor?.username || 'Vendor');
+
+    const amount = Number(bid?.amount ?? bid?.price ?? bid?.bidAmount ?? bid?.bid_price ?? NaN);
+    const noOfDays = Number(bid?.noOfDays ?? bid?.daysToComplete ?? bid?.days_to_complete ?? bid?.no_of_days ?? NaN);
+    const bidEntryId = bid?.bidEntryId ?? bid?.bid_entry_id ?? bid?.id ?? bid?._id ?? null;
+
+    if (!bidEntryId) {
+      addToast('Unable to override (missing bid id).', 'error');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      addToast('Unable to override (missing bid amount).', 'error');
+      return;
+    }
+    if (!Number.isFinite(noOfDays) || noOfDays <= 0) {
+      addToast('Unable to override (missing days).', 'error');
+      return;
+    }
+
+    setOverrideFor({ projectId, vendorName, bidEntryId, amount, noOfDays });
+    setOverrideOpen(true);
+  };
+
+  const confirmOverride = async () => {
+    const projectId = overrideFor?.projectId;
+    if (!projectId) return;
+    const payload = {
+      bidEntryId: overrideFor?.bidEntryId,
+      amount: overrideFor?.amount,
+      noOfDays: overrideFor?.noOfDays,
+    };
+    setActionLoading(projectId, 'override', true);
+    try {
+      const hasActive = coerceAssignments(bidsAssignments).some((a) => isAssignmentActive(a));
+      if (hasActive) {
+        await projectService.reassignWinner(projectId, payload);
+        addToast('Assignment overridden.', 'success');
+      } else {
+        await projectService.selectWinner(projectId, payload);
+        addToast('Assignment sent to vendor.', 'success');
+      }
+
+      setOverrideOpen(false);
+      setOverrideFor(null);
+      await refreshList();
+      try {
+        const updated = await projectService.getById(projectId);
+        setBidsAssignments(
+          coerceAssignments(updated?.assignments ?? updated?.assignmentRequests ?? updated?.projectAssignments ?? []),
+        );
+      } catch {
+        // ignore
+      }
+    } catch (e) {
+      addToast(e?.message || 'Failed to override assignment', 'error');
+    } finally {
+      setActionLoading(projectId, 'override', false);
+    }
+  };
+
+  const openAssign = (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    const minAmount = Number(p?.amountRange?.min ?? p?.amount_range?.min ?? 0) || 0;
+    const timeline = Number(p?.timelineExpected ?? p?.timeline_expected ?? 0) || 0;
+    setAssignFor({ id, title: String(p?.title ?? '') });
+    setAssignQuery('');
+    setAssignResults([]);
+    setAssignSelected(null);
+    setAssignAmount(minAmount ? String(minAmount) : '');
+    setAssignDays(timeline ? String(timeline) : '');
+    setAssignOpen(true);
+  };
+
+  useEffect(() => {
+    if (!assignOpen) return;
+    const q = String(assignQuery || '').trim();
+    const t = setTimeout(async () => {
+      if (!assignOpen) return;
+      if (!q) {
+        setAssignResults([]);
+        return;
+      }
+      setAssignLoading(true);
+      try {
+        const users = await chatService.searchUsers({ type: 'vendor', search: q, page: 1, limit: 20 });
+        setAssignResults(Array.isArray(users) ? users : []);
+      } catch {
+        setAssignResults([]);
+      } finally {
+        setAssignLoading(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [assignOpen, assignQuery]);
+
+  const confirmAssign = async () => {
+    const id = assignFor?.id;
+    const vendorId = assignSelected?.id ?? assignSelected?._id ?? null;
+    const amount = Number(assignAmount || 0);
+    const noOfDays = Number(assignDays || 0);
+    if (!id) return;
+    if (!vendorId) {
+      addToast('Please select a vendor.', 'error');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      addToast('Please enter an amount.', 'error');
+      return;
+    }
+    if (!Number.isFinite(noOfDays) || noOfDays <= 0) {
+      addToast('Please enter days to complete.', 'error');
+      return;
+    }
+    setActionLoading(id, 'assign', true);
+    try {
+      await projectService.selectWinner(id, { vendorId, amount, noOfDays });
+      addToast('Assignment sent to vendor.', 'success');
+      setAssignOpen(false);
+      await refreshList();
+    } catch (e) {
+      addToast(e?.message || 'Failed to assign vendor', 'error');
+    } finally {
+      setActionLoading(id, 'assign', false);
+    }
+  };
+
   const canLoadMore = listPage < Number(listMeta?.totalPages || 1);
   const empty = !listLoading && (projects || []).length === 0;
 
+  const assignmentRows = useMemo(() => {
+    const list = Array.isArray(projects) ? projects : [];
+    const rows = [];
+    for (const p of list) {
+      const pid = localProjectIdOf(p);
+      const asg = p?.assignments ?? p?.assignmentRequests ?? p?.projectAssignments ?? [];
+      const arr = Array.isArray(asg) ? asg : asg ? [asg] : [];
+      for (const a of arr) {
+        rows.push({ project: p, projectId: pid, assignment: a });
+      }
+    }
+    // Latest first
+    rows.sort((ra, rb) => {
+      const ta = new Date(ra?.assignment?.updatedAt ?? ra?.assignment?.updated_at ?? ra?.assignment?.assignedAt ?? 0).getTime() || 0;
+      const tb = new Date(rb?.assignment?.updatedAt ?? rb?.assignment?.updated_at ?? rb?.assignment?.assignedAt ?? 0).getTime() || 0;
+      return tb - ta;
+    });
+    return rows;
+  }, [projects]);
+
   const headerTitle = useMemo(() => {
     if (activeTab === 'create') return editingId ? 'Update Project' : 'Create Project';
+    if (activeTab === 'assignments') return 'Assignments';
     return 'My Projects';
   }, [activeTab, editingId]);
 
@@ -413,6 +779,17 @@ export default function Projects() {
                 </svg>
               }
             />
+            <MenuItem
+              id="assignments"
+              label="Assignments"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 12h6" />
+                  <path d="M12 9v6" />
+                  <path d="M7 2h10a2 2 0 0 1 2 2v18l-7-3-7 3V4a2 2 0 0 1 2-2z" />
+                </svg>
+              }
+            />
           </div>
         </div>
 
@@ -433,7 +810,7 @@ export default function Projects() {
               <p className="text-[13px] font-bold text-gray-800">{headerTitle}</p>
             </div>
 
-            {activeTab === 'list' ? (
+            {activeTab === 'list' || activeTab === 'assignments' ? (
               <button
                 type="button"
                 onClick={() => loadProjects({ nextPage: 1, append: false })}
@@ -467,13 +844,30 @@ export default function Projects() {
                     const id = localProjectIdOf(p);
                     const attachments = coerceUrlArray(p?.attachments);
                     const preview = pickPreviewUrl(attachments);
+                    const statusKey = String(p?.status ?? '').trim().toLowerCase();
+                    const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+                    const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
+                    const windows = bidWindowsOf(p);
+                    const activeWindow = activeBidWindowOf(p);
+                    const biddingRunning = Boolean(activeWindow);
+                    const biddingEndsAt = activeWindow ? bidWindowFinishingAt(activeWindow) : null;
+                    const allWindowsFinished = allBidWindowsFinished(p);
+                    const latestFinishedAt = latestFinishedBidAtOf(p);
+                    const hasBidHistory = Boolean(latestBidWindowId != null) || windows.length > 0;
+                    const startedDirect =
+                      statusKey === 'running' &&
+                      projectStatusKey === 'started' &&
+                      latestBidWindowId == null &&
+                      windows.length === 0;
+                    const notStarted = statusKey === 'draft' && projectStatusKey === 'started';
+                    const runningStarted = statusKey === 'running' && projectStatusKey === 'started';
+                    const statusLabel = projectStatusCardLabel(p);
                     const minAmount =
                       Number(p?.amountRange?.min ?? p?.amount_range?.min ?? p?.minAmount ?? p?.min_amount ?? 0) || 0;
                     const maxAmount =
                       Number(p?.amountRange?.max ?? p?.amount_range?.max ?? p?.maxAmount ?? p?.max_amount ?? 0) || 0;
                     const timeline = p?.timelineExpected ?? p?.timeline_expected ?? '—';
                     const updatedAt = p?.updatedAt ?? p?.updated_at ?? null;
-                    const statusLabel = projectStatusCardLabel(p);
                     return (
                       <div key={String(id ?? Math.random())} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
                         <div className="flex flex-col md:flex-row">
@@ -505,6 +899,25 @@ export default function Projects() {
                             <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">{p?.title || 'Project'}</p>
                             <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">{p?.description || '—'}</p>
 
+                            {runningStarted && (biddingRunning || allWindowsFinished) ? (
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {biddingRunning ? (
+                                  <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
+                                    {biddingEndsAt ? `Bidding ends: ${formatDateTime(biddingEndsAt)}` : 'Bidding running'}
+                                  </span>
+                                ) : allWindowsFinished ? (
+                                  <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-gray-50 border-gray-100 text-gray-600">
+                                    {latestFinishedAt ? `Last bidding ended: ${formatDateTime(latestFinishedAt)}` : 'Bidding ended'}
+                                  </span>
+                                ) : null}
+                                {hasBidHistory && !startedDirect ? (
+                                  <span className="text-[11px] text-gray-400">
+                                    Winner auto-assign happens when auction ends.
+                                  </span>
+                                ) : null}
+                              </div>
+                            ) : null}
+
                             <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2">
                               <InfoBox
                                 label="Budget"
@@ -520,6 +933,77 @@ export default function Projects() {
                             </div>
 
                             <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
+                              {notStarted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onStartProject(p)}
+                                  disabled={isActionLoading(id, 'start')}
+                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  {isActionLoading(id, 'start') ? 'Starting…' : 'Start without auction'}
+                                </button>
+                              ) : null}
+
+                              {notStarted || runningStarted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openStartBid(p)}
+                                  disabled={
+                                    isActionLoading(id, 'startBid') ||
+                                    biddingRunning ||
+                                    startedDirect ||
+                                    (runningStarted && !hasBidHistory) ||
+                                    (runningStarted && hasBidHistory && !allWindowsFinished)
+                                  }
+                                  title={
+                                    startedDirect
+                                      ? 'Project started without bidding'
+                                      : biddingRunning
+                                        ? 'Auction already running'
+                                        : runningStarted && hasBidHistory && !allWindowsFinished
+                                          ? 'Wait until current auction completes'
+                                          : undefined
+                                  }
+                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  {isActionLoading(id, 'startBid') ? 'Starting…' : 'Start Auction'}
+                                </button>
+                              ) : null}
+
+                              {biddingRunning ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openForceStop(p)}
+                                  disabled={isActionLoading(id, 'forceStop')}
+                                  className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  {isActionLoading(id, 'forceStop') ? 'Stopping…' : 'Force Stop Auction'}
+                                </button>
+                              ) : null}
+
+                              {hasBidHistory ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openBids(p)}
+                                  disabled={bidsLoading && bidsFor?.id === id}
+                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  View bids
+                                </button>
+                              ) : null}
+
+                              {runningStarted ? (
+                                <button
+                                  type="button"
+                                  onClick={() => openAssign(p)}
+                                  disabled={biddingRunning || isActionLoading(id, 'assign')}
+                                  title={biddingRunning ? 'Wait until auction ends' : undefined}
+                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  Manual assignment
+                                </button>
+                              ) : null}
+
                               <button
                                 type="button"
                                 onClick={() => startEdit(p)}
@@ -554,6 +1038,70 @@ export default function Projects() {
                   ) : null}
                 </div>
               )
+            ) : activeTab === 'assignments' ? (
+              <div className="h-full min-h-0 overflow-y-auto space-y-3 pr-1">
+                {assignmentRows.length === 0 ? (
+                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                    No assignment requests yet.
+                  </div>
+                ) : (
+                  assignmentRows.map((row, idx) => {
+                    const p = row?.project || {};
+                    const a = row?.assignment || {};
+                    const pid = row?.projectId ?? localProjectIdOf(p);
+                    const status = String(a?.status ?? '').trim().toLowerCase() || 'pending';
+                    const when = a?.updatedAt ?? a?.updated_at ?? a?.assignedAt ?? a?.assigned_at ?? null;
+                    const vendorJoined = `${a?.vendor?.firstName ?? ''} ${a?.vendor?.lastName ?? ''}`.trim();
+                    const vendorName =
+                      a?.vendorName ??
+                      a?.vendor_name ??
+                      a?.vendor?.fullName ??
+                      (vendorJoined || null);
+                    const vendorUsername = a?.vendorUsername ?? a?.vendor_username ?? a?.vendor?.username ?? null;
+                    const vendorLabel = vendorName || (vendorUsername ? `Vendor (${vendorUsername})` : 'Vendor');
+                    const statusClass =
+                      status === 'accepted'
+                        ? 'bg-green-50 border-green-100 text-green-700'
+                        : status === 'rejected'
+                          ? 'bg-red-50 border-red-100 text-red-700'
+                          : 'bg-amber-50 border-amber-100 text-amber-700';
+                    return (
+                      <div key={String(a?.id ?? a?._id ?? `${pid}-${idx}`)} className="rounded-2xl border border-gray-100 p-4 bg-white">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                                {p?.title || 'Project'}
+                              </p>
+                              <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${statusClass}`}>
+                                {toTitleCase(status)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12px] text-gray-400">
+                              {status === 'pending' ? 'Pending with' : status === 'accepted' ? 'Accepted by' : 'Rejected by'}{' '}
+                              <span className="font-semibold text-gray-600">{vendorLabel}</span>
+                              {vendorUsername ? <span className="text-gray-400"> ({String(vendorUsername)})</span> : null}
+                            </p>
+                            {when ? <p className="mt-1 text-[12px] text-gray-400">{formatDateTime(when)}</p> : null}
+                          </div>
+
+                          <div className="shrink-0 flex flex-wrap justify-end gap-2">
+                            {status === 'accepted' && pid ? (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/dashboard/projects/${pid}`)}
+                                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-primary-dark hover:bg-gray-50"
+                              >
+                                Track
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             ) : (
               <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
                 <div className="mb-4 flex items-center justify-between gap-3">
@@ -840,6 +1388,522 @@ export default function Projects() {
           </div>
         </div>
       </div>
+
+      {/* Start auction modal */}
+      {startBidOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setStartBidOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">Start Auction</p>
+                {startBidFor?.title ? (
+                  <p className="mt-1 text-[12px] text-gray-400 truncate">{startBidFor.title}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setStartBidOpen(false)}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-5 py-5">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">No of days *</label>
+              <input
+                type="number"
+                min={1}
+                value={startBidDays}
+                onChange={(e) => setStartBidDays(e.target.value)}
+                className="mt-2 w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                placeholder="3"
+              />
+              <p className="mt-2 text-[12px] text-gray-400">
+                Auction will run until the finishing timestamp based on these days.
+              </p>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <button
+                type="button"
+                onClick={() => setStartBidOpen(false)}
+                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmStartBid}
+                disabled={Boolean(startBidFor?.id) && isActionLoading(startBidFor.id, 'startBid')}
+                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {Boolean(startBidFor?.id) && isActionLoading(startBidFor.id, 'startBid') ? 'Starting…' : 'Start'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Force stop auction modal */}
+      {forceStopOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setForceStopOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">Force Stop Auction</p>
+                {forceStopFor?.title ? (
+                  <p className="mt-1 text-[12px] text-gray-400 truncate">{forceStopFor.title}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setForceStopOpen(false)}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="px-5 py-5 text-[13px] text-gray-700">
+              This will stop the auction <span className="font-bold">now</span> (not at the original finishing time).
+              Do you want to continue?
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <button
+                type="button"
+                onClick={() => setForceStopOpen(false)}
+                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmForceStop}
+                disabled={Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop')}
+                className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop') ? 'Stopping…' : 'Stop now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* View bids modal */}
+      {bidsOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setBidsOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">Project bids</p>
+                {bidsFor?.title ? <p className="mt-1 text-[12px] text-gray-400 truncate">{bidsFor.title}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setBidsOpen(false)}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+              {bidsWindow ? (
+                (() => {
+                  const startedAt =
+                    bidsWindow?.startedAt ??
+                    bidsWindow?.started_at ??
+                    bidsWindow?.createdAt ??
+                    bidsWindow?.created_at ??
+                    null;
+                  const finishingAt = bidWindowFinishingAt(bidsWindow);
+                  const finishedAt = bidWindowFinishedAt(bidsWindow);
+                  const finishingMs = finishingAt ? new Date(finishingAt).getTime() : NaN;
+                  const finishedMs = finishedAt ? new Date(finishedAt).getTime() : NaN;
+                  const manuallyFinished =
+                    Number.isFinite(finishingMs) &&
+                    Number.isFinite(finishedMs) &&
+                    Math.abs(finishedMs - finishingMs) > 60_000; // 1 min tolerance
+                  const active = isBidWindowActive(bidsWindow) && !finishedAt;
+                  return (
+                    <div className="mb-3 rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-extrabold text-gray-900">Bid window</p>
+                          <p className="mt-1 text-[12px] text-gray-500 truncate">
+                            {bidsWindow ? `Window started: ${formatDateTime(startedAt)}` : '—'}
+                          </p>
+                        </div>
+                        <div className="shrink-0 flex items-center gap-2">
+                          {active ? (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-blue-50 border-blue-100 text-blue-700">
+                              Active
+                            </span>
+                          ) : null}
+                          {manuallyFinished ? (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
+                              Finished manually
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide opacity-70 text-gray-700">Started</p>
+                          <p className="text-[12px] font-semibold mt-0.5 truncate text-gray-800">{formatDateTime(startedAt)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide opacity-70 text-gray-700">Finishing</p>
+                          <p className="text-[12px] font-semibold mt-0.5 truncate text-gray-800">{formatDateTime(finishingAt)}</p>
+                        </div>
+                        <div className="rounded-xl border border-gray-100 bg-white px-3 py-2">
+                          <p className="text-[10px] font-bold uppercase tracking-wide opacity-70 text-gray-700">Finished</p>
+                          <p className="text-[12px] font-semibold mt-0.5 truncate text-gray-800">{formatDateTime(finishedAt)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()
+              ) : null}
+              {bidsLoading ? (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              ) : bidsItems.length === 0 ? (
+                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+                  No bids found.
+                </div>
+              ) : (
+                (() => {
+                  const amountOf = (b) => Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+                  const ended = bidsWindow
+                    ? Boolean(bidWindowFinishedAt(bidsWindow)) || !isBidWindowActive(bidsWindow)
+                    : true;
+                  const assignments = coerceAssignments(bidsAssignments);
+                  const activeAssignment = assignments.find((a) => isAssignmentActive(a)) || null;
+                  const assignedVendorId = assignmentVendorIdOf(activeAssignment);
+                  const best = bidsItems.reduce(
+                    (acc, b) => {
+                      const a = amountOf(b);
+                      if (!Number.isFinite(a)) return acc;
+                      if (acc == null || a < acc.amount) return { amount: a, id: b?.id ?? b?._id ?? null };
+                      return acc;
+                    },
+                    null
+                  );
+                  return (
+                    <div className="space-y-3">
+                      {bidsItems.map((b, idx) => {
+                        const bidId = b?.id ?? b?._id ?? idx;
+                        const vendor = b?.vendor ?? b?.vendorDetails ?? b?.user ?? b?.vendorUser ?? null;
+                        const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                        const vendorName = vendor?.fullName ?? (vendorJoined || vendor?.name || vendor?.username || 'Vendor');
+                        const vendorId = vendor?.id ?? vendor?._id ?? b?.vendorId ?? b?.vendor_id ?? null;
+                        const amount = amountOf(b);
+                        const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
+                        const isWinning = best?.id != null && String(best.id) === String(b?.id ?? b?._id ?? '');
+                        const vendorAssignments = vendorId
+                          ? assignments
+                              .filter((a) => String(assignmentVendorIdOf(a) ?? '') === String(vendorId))
+                              .sort((aa, bb) => {
+                                const ta =
+                                  new Date(
+                                    aa?.updatedAt ?? aa?.updated_at ?? aa?.assignedAt ?? aa?.assigned_at ?? aa?.createdAt ?? 0,
+                                  ).getTime() || 0;
+                                const tb =
+                                  new Date(
+                                    bb?.updatedAt ?? bb?.updated_at ?? bb?.assignedAt ?? bb?.assigned_at ?? bb?.createdAt ?? 0,
+                                  ).getTime() || 0;
+                                return tb - ta;
+                              })
+                          : [];
+                        const latestAsg = vendorAssignments?.[0] ?? null;
+                        const activeAsg = vendorAssignments.find((a) => isAssignmentActive(a)) || null;
+                        const overridden = vendorAssignments.some((a) => isAssignmentOverridden(a));
+                        const asgStatus = assignmentStatusText(activeAsg || latestAsg);
+                        const isCurrentlyAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                        const canOverride = ended && !bidsProjectFinished && Boolean(bidsFor?.id) && Boolean(vendorId);
+                        return (
+                          <div key={String(bidId)} className="rounded-2xl border border-gray-100 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-[13px] font-bold text-gray-900 truncate">{vendorName || 'Vendor'}</p>
+                                  {isWinning ? (
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-100 text-green-700">
+                                      Winning
+                                    </span>
+                                  ) : null}
+                                  {isCurrentlyAssigned ? (
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                                      Assigned
+                                    </span>
+                                  ) : null}
+                                  {!isCurrentlyAssigned && overridden ? (
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
+                                      Overridden
+                                    </span>
+                                  ) : null}
+                                  {asgStatus ? (
+                                    <span
+                                      className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                        asgStatus === 'accepted'
+                                          ? 'bg-green-50 border-green-100 text-green-700'
+                                          : asgStatus === 'rejected'
+                                            ? 'bg-red-50 border-red-100 text-red-700'
+                                            : 'bg-gray-50 border-gray-100 text-gray-700'
+                                      }`}
+                                    >
+                                      {toTitleCase(asgStatus)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="mt-1 text-[12px] text-gray-400">
+                                  {Number.isFinite(days) ? `${days} days` : '—'}
+                                </p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <div className="text-[14px] font-extrabold text-gray-900">
+                                  {Number.isFinite(amount) ? `₹ ${formatMoney(amount)}` : '—'}
+                                </div>
+                                {canOverride ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openOverride(bidsFor?.id, b)}
+                                    disabled={isActionLoading(bidsFor?.id, 'override') || isCurrentlyAssigned}
+                                    title={isCurrentlyAssigned ? 'Already assigned to this vendor' : undefined}
+                                    className="mt-2 px-3 py-1.5 rounded-xl border border-gray-100 text-[11px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {isActionLoading(bidsFor?.id, 'override')
+                                      ? 'Updating…'
+                                      : activeAssignment
+                                        ? 'Override'
+                                        : 'Assign'}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Override assignment modal */}
+      {overrideOpen ? (
+        <div
+          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => {
+            setOverrideOpen(false);
+            setOverrideFor(null);
+          }}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">Override assignment</p>
+              <p className="mt-1 text-[12px] text-gray-500">
+                Assign project to <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'vendor'}</span>?
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-[12px] text-gray-700 space-y-1">
+                <p>
+                  Amount: <span className="font-semibold">₹ {formatMoney(overrideFor?.amount)}</span>
+                </p>
+                <p>
+                  Timeline: <span className="font-semibold">{overrideFor?.noOfDays ? `${overrideFor.noOfDays} days` : '—'}</span>
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOverrideOpen(false);
+                    setOverrideFor(null);
+                  }}
+                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmOverride}
+                  disabled={!overrideFor?.projectId || isActionLoading(overrideFor?.projectId, 'override')}
+                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {overrideFor?.projectId && isActionLoading(overrideFor.projectId, 'override') ? 'Updating…' : 'Confirm'}
+                </button>
+              </div>
+              <p className="mt-3 text-[11px] text-gray-400">
+                Note: This will override the current assignment if one exists.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Manual assignment modal */}
+      {assignOpen ? (
+        <div
+          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setAssignOpen(false)}
+        >
+          <div
+            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">Manual assignment</p>
+                {assignFor?.title ? <p className="mt-1 text-[12px] text-gray-400 truncate">{assignFor.title}</p> : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setAssignOpen(false)}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Search vendor *</label>
+                  <input
+                    value={assignQuery}
+                    onChange={(e) => setAssignQuery(e.target.value)}
+                    className="mt-2 w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                    placeholder="Type vendor name…"
+                  />
+                  {assignLoading ? <p className="mt-2 text-[12px] text-gray-400">Searching…</p> : null}
+                </div>
+
+                <div className="md:col-span-2">
+                  <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="max-h-[260px] overflow-y-auto">
+                      {assignResults.length === 0 ? (
+                        <div className="p-4 text-[12px] text-gray-400">No vendors.</div>
+                      ) : (
+                        assignResults.map((u) => {
+                          const uid = u?.id ?? u?._id;
+                          const joined = `${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim();
+                          const name = u?.fullName ?? (joined || u?.name || (u?.username ? `Vendor (${u.username})` : 'Vendor'));
+                          const active = assignSelected && String(assignSelected?.id ?? assignSelected?._id) === String(uid);
+                          return (
+                            <button
+                              key={String(uid)}
+                              type="button"
+                              onClick={() => setAssignSelected(u)}
+                              className={`w-full text-left px-4 py-3 border-b border-gray-50 last:border-b-0 hover:bg-gray-50 ${
+                                active ? 'bg-gray-50' : 'bg-white'
+                              }`}
+                            >
+                              <p className="text-[13px] font-bold text-gray-800 truncate">{name}</p>
+                              <p className="text-[11px] text-gray-400 mt-0.5">
+                                Username: <span className="font-semibold text-gray-600">{String(u?.username ?? '—')}</span>
+                              </p>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Amount *</label>
+                  <input
+                    type="number"
+                    value={assignAmount}
+                    onChange={(e) => setAssignAmount(e.target.value)}
+                    className="mt-2 w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                    placeholder="50000"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Days to complete *</label>
+                  <input
+                    type="number"
+                    value={assignDays}
+                    onChange={(e) => setAssignDays(e.target.value)}
+                    className="mt-2 w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                    placeholder="10"
+                  />
+                </div>
+
+              </div>
+            </div>
+
+            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <button
+                type="button"
+                onClick={() => setAssignOpen(false)}
+                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={confirmAssign}
+                disabled={Boolean(assignFor?.id) && isActionLoading(assignFor.id, 'assign')}
+                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {Boolean(assignFor?.id) && isActionLoading(assignFor.id, 'assign') ? 'Sending…' : 'Send assignment'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

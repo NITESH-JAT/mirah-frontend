@@ -10,6 +10,21 @@ function coerceArray(maybe) {
   return [maybe];
 }
 
+function parseFilenameFromDisposition(disposition) {
+  const raw = String(disposition || '');
+  // RFC 5987 (filename*=UTF-8''...)
+  const m5987 = raw.match(/filename\*\s*=\s*([^']*)''([^;]+)/i);
+  if (m5987 && m5987[2]) {
+    try {
+      return decodeURIComponent(m5987[2].trim());
+    } catch {
+      return m5987[2].trim();
+    }
+  }
+  const m = raw.match(/filename\s*=\s*"?([^"]+)"?/i);
+  return m?.[1]?.trim() || null;
+}
+
 export const projectService = {
   list: async ({ page = 1, limit = 10, status, signal } = {}) => {
     const params = { page, limit };
@@ -77,5 +92,82 @@ export const projectService = {
     if (!projectId) return null;
     const res = await api.post(`/api/user/projects/${projectId}/complete`, {}, { signal });
     return unwrap(res);
+  },
+
+  startBid: async (projectId, { noOfDays = 3 } = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const payload = { noOfDays: Number(noOfDays) || 0 };
+    const res = await api.post(`/api/user/projects/${projectId}/start-bid`, payload, { signal });
+    return unwrap(res);
+  },
+
+  manualEndBid: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/manual-end`, {}, { signal });
+    return unwrap(res);
+  },
+
+  listBids: async (projectId, { signal } = {}) => {
+    if (!projectId) return [];
+    const res = await api.get(`/api/user/projects/${projectId}/bids`, { signal });
+    const data = unwrap(res);
+    const items = data?.bids ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    return Array.isArray(items) ? items : items ? [items] : [];
+  },
+
+  listActiveBids: async (projectId, { signal } = {}) => {
+    if (!projectId) return [];
+    const res = await api.get(`/api/user/projects/${projectId}/bids/active`, { signal });
+    const data = unwrap(res);
+    const items = data?.bids ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    return Array.isArray(items) ? items : items ? [items] : [];
+  },
+
+  selectWinner: async (projectId, payload, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/select-winner`, payload, { signal });
+    return unwrap(res);
+  },
+
+  reassignWinner: async (projectId, payload, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/reassign-winner`, payload, { signal });
+    return unwrap(res);
+  },
+
+  getDetails: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.get(`/api/user/projects/${projectId}`, { signal });
+    return unwrap(res);
+  },
+
+  createPaymentOrder: async (projectId, { type } = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/payments/razorpay/create-order`, { type }, { signal });
+    return unwrap(res);
+  },
+
+  verifyPayment: async (projectId, payload, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/payments/razorpay/verify`, payload, { signal });
+    return unwrap(res);
+  },
+
+  downloadInvoice: async (projectId) => {
+    if (!projectId) return;
+    const res = await api.get(`/api/user/projects/${projectId}/invoice`, { responseType: 'blob' });
+    const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
+    const filename =
+      parseFilenameFromDisposition(res?.headers?.['content-disposition']) ||
+      `project-${projectId}-invoice.pdf`;
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   },
 };

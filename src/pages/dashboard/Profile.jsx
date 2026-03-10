@@ -143,20 +143,31 @@ export default function Profile() {
     const run = async () => {
       try {
         const data = await authService.getProfile();
+        let username = data?.username ?? null;
+        if (!username) {
+          try {
+            const meRaw = await authService.me();
+            const meData = meRaw?.data?.data ?? meRaw?.data ?? meRaw;
+            username = meData?.username ?? meData?.user?.username ?? meData?.data?.username ?? null;
+          } catch {
+            // ignore
+          }
+        }
+        const merged = username ? { ...(data || {}), username } : data;
         if (cancelled) return;
-        setProfile(data);
+        setProfile(merged);
         // Initialize edit form with data
         setEditForm({
-          firstName: data.firstName || '',
-          lastName: data.lastName || '',
-          phone: data.phone || '',
-          countryCode: data.countryCode || '',
-          email: data.email || '', // Readonly mostly
-          address: data.address || '',
-          city: data.city || '',
-          state: data.state || '',
-          country: data.country || '',
-          pinCode: data.pinCode || '',
+          firstName: merged?.firstName || '',
+          lastName: merged?.lastName || '',
+          phone: merged?.phone || '',
+          countryCode: merged?.countryCode || '',
+          email: merged?.email || '', // Readonly mostly
+          address: merged?.address || '',
+          city: merged?.city || '',
+          state: merged?.state || '',
+          country: merged?.country || '',
+          pinCode: merged?.pinCode || '',
         });
         setLoading(false);
       } catch (err) {
@@ -439,6 +450,8 @@ export default function Profile() {
           <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-5">
             <InputField label="First Name" name="firstName" value={editForm.firstName} onChange={handleInputChange} readOnly={!isEditing} />
             <InputField label="Last Name" name="lastName" value={editForm.lastName} onChange={handleInputChange} readOnly={!isEditing} />
+
+            <InputField label="Username" name="username" value={profile?.username || ''} readOnly={true} />
             
             <InputField label="Email Address" name="email" value={editForm.email} readOnly={true} />
             <MobileNumberField countryCode={editForm.countryCode} phone={editForm.phone} />
