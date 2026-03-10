@@ -17,6 +17,7 @@ const TermsPage = lazy(() => import('../components/Auth/TermsPage').then(m => ({
 const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
 const Profile = lazy(() => import('../pages/dashboard/Profile'));
 const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
+const VendorShop = lazy(() => import('../pages/vendor/Shop'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 
 export const routes = [
@@ -74,7 +75,8 @@ export const routes = [
       </AuthGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/vendor/kyc" replace /> },
+      { index: true, element: <Navigate to="/vendor/shop" replace /> },
+      { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },
       { path: 'messages', element: <Messages /> }

@@ -36,6 +36,15 @@ function timeAgoLabel(ts) {
   return `${day}d`;
 }
 
+function formatMessageDateTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '';
+  const date = d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+  const time = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return `${date} • ${time}`;
+}
+
 function filenameFromUrl(url) {
   if (!url) return '';
   const s = String(url);
@@ -44,9 +53,17 @@ function filenameFromUrl(url) {
   return parts[parts.length - 1] || s;
 }
 
+function getEntityId(x) {
+  if (!x) return null;
+  return x.id ?? x._id ?? x.userId ?? x.recipientId ?? null;
+}
+
 function normalizeConversation(c) {
   const id = c?.id ?? c?._id;
-  const admin = c?.admin ?? null;
+  const admin =
+    c?.admin && (c.admin?.id || c.admin?._id || Object.keys(c.admin || {}).length > 0)
+      ? c.admin
+      : null;
   const otherUser = c?.otherUser ?? c?.user ?? c?.recipient ?? null;
   const unreadCount = Number(c?.unreadCount ?? c?.unread ?? 0) || 0;
   const lastMessage = c?.lastMessage ?? c?.last ?? null;
@@ -121,13 +138,17 @@ export default function Messages() {
   const composerRef = useRef(null);
   const attachmentInputRef = useRef(null);
   const emojiMenuRef = useRef(null);
-  const convoPollTimerRef = useRef(null);
   const msgPollTimerRef = useRef(null);
-  const convoBackoffMsRef = useRef(0);
+  const convoAbortRef = useRef(null);
+  const msgLoadAbortRef = useRef(null);
+  const msgPollAbortRef = useRef(null);
   const msgBackoffMsRef = useRef(0);
-  const msgFastUntilRef = useRef(0);
-  const msgNoNewCountRef = useRef(0);
   const lastSeenRef = useRef({ ts: 0, id: null });
+  const lastConversationIdRef = useRef(0);
+  const activeConvoIdRef = useRef(null);
+  const loadSeqRef = useRef(0);
+  const msgInFlightRef = useRef(false);
+  const conversationsRef = useRef([]);
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
@@ -164,6 +185,33 @@ export default function Messages() {
   }, [sortedConvos, activeConvoId]);
 
   const activeHeaderUser = activeConvo?.admin || activeConvo?.otherUser;
+
+  useEffect(() => {
+    activeConvoIdRef.current = activeConvoId;
+  }, [activeConvoId]);
+
+  useEffect(() => {
+    conversationsRef.current = Array.isArray(conversations) ? conversations : [];
+
+    // Track lastConversationId for PRD poll endpoint (best-effort max numeric ID)
+    let maxId = 0;
+    for (const c of conversationsRef.current) {
+      const id = getEntityId(c);
+      const n = Number(id);
+      if (!Number.isNaN(n) && n > maxId) maxId = n;
+    }
+    lastConversationIdRef.current = maxId;
+  }, [conversations]);
+
+  const applyConversationList = React.useCallback((items) => {
+    const arr = Array.isArray(items) ? items : [];
+    const activeId = activeConvoId ? String(activeConvoId) : null;
+    if (!activeId) return arr;
+    const hasActive = arr.some((c) => String(c?.id ?? c?._id) === activeId);
+    if (hasActive) return arr;
+    const prevActive = (conversationsRef.current || []).find((c) => String(c?.id ?? c?._id) === activeId);
+    return prevActive ? [prevActive, ...arr] : arr;
+  }, [activeConvoId]);
 
   const computeNewestKey = (msgs) => {
     let maxTs = 0;
@@ -204,15 +252,22 @@ export default function Messages() {
       return;
     }
     if (!convo.id) return;
+    const seq = ++loadSeqRef.current;
     setLoadingMessages(true);
+    setMessages([]);
+    setShowEmoji(false);
+
+    // cancel any in-flight initial-load request when switching
+    if (msgLoadAbortRef.current) msgLoadAbortRef.current.abort();
+    const ac = new AbortController();
+    msgLoadAbortRef.current = ac;
     try {
-      const res = await chatService.getMessages({ conversationId: convo.id, page: 1, limit: 50 });
+      const res = await chatService.getMessages({ conversationId: convo.id, page: 1, limit: 50, signal: ac.signal });
+      if (seq !== loadSeqRef.current) return; // stale response after a fast switch
       const items = res?.messages ?? [];
       const normalized = items.map(normalizeMessage);
       setMessages(normalized);
       lastSeenRef.current = computeNewestKey(normalized);
-      msgFastUntilRef.current = Date.now() + 30_000;
-      msgNoNewCountRef.current = 0;
       msgBackoffMsRef.current = 0;
 
       // Merge updated conversation (includes online flags) into list
@@ -245,9 +300,10 @@ export default function Messages() {
         }
       }
     } catch (e) {
+      if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return;
       addToast(e?.message || 'Failed to load messages', 'error');
     } finally {
-      setLoadingMessages(false);
+      if (seq === loadSeqRef.current) setLoadingMessages(false);
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
     }
   };
@@ -313,7 +369,7 @@ export default function Messages() {
   };
 
   const handleSelectSearchUser = async (u) => {
-    const recipientId = u?.id;
+    const recipientId = getEntityId(u);
     if (!recipientId) return;
     setSearch('');
     setSearchResults([]);
@@ -321,86 +377,51 @@ export default function Messages() {
       const res = await chatService.createOrFindConversation({ recipientId });
       // backend may return {conversation} or full convo
       const convo = res?.conversation ?? res;
-      if (convo) {
-        // refresh list and select
-        const items = await chatService.listConversations();
-        setConversations(items);
-        const normalized = items.map(normalizeConversation);
-        const found = normalized.find((c) => String(c.otherUser?.id) === String(recipientId));
-        setActiveConvoId(found?.id ?? convo.id);
-        if (window.innerWidth < 768) setMobileView('thread');
+      const convoId = getEntityId(convo);
+      if (convoId) setActiveConvoId(convoId);
+
+      // Optimistically keep the convo so header doesn't fall back to Support
+      if (convoId) {
+        setConversations((prev) => {
+          const list = Array.isArray(prev) ? [...prev] : [];
+          const idx = list.findIndex((c) => String(c?.id ?? c?._id) === String(convoId));
+          if (idx === -1) return [convo, ...list];
+          const existing = list[idx] || {};
+          list[idx] = {
+            ...existing,
+            ...convo,
+            otherUser: { ...(existing.otherUser || {}), ...(convo?.otherUser || {}) },
+            admin: { ...(existing.admin || {}), ...(convo?.admin || {}) },
+          };
+          return list;
+        });
       }
+
+      // refresh list and select (server source of truth)
+      const items = await chatService.listConversations();
+      const normalized = (Array.isArray(items) ? items : []).map(normalizeConversation);
+      const found = normalized.find((c) => String(getEntityId(c.otherUser)) === String(recipientId));
+      const foundId = getEntityId(found) ?? convoId;
+      if (foundId) setActiveConvoId(foundId);
+      setConversations(applyConversationList(items));
+      if (window.innerWidth < 768) setMobileView('thread');
     } catch (e) {
       addToast(e?.message || 'Unable to start conversation', 'error');
     }
   };
 
   const refreshConversations = React.useCallback(async () => {
-    const items = await chatService.listConversations();
-    setConversations(items);
+    if (convoAbortRef.current) convoAbortRef.current.abort();
+    const ac = new AbortController();
+    convoAbortRef.current = ac;
+    const items = await chatService.listConversations({ signal: ac.signal });
+    setConversations(applyConversationList(items));
     return items;
-  }, []);
+  }, [applyConversationList]);
 
-  // Poll conversation list (for ordering + unread badges)
+  // PRD poll endpoint: works even with no active thread
   useEffect(() => {
     let cancelled = false;
-
-    const schedule = (ms) => {
-      if (cancelled) return;
-      if (convoPollTimerRef.current) clearTimeout(convoPollTimerRef.current);
-      convoPollTimerRef.current = setTimeout(tick, ms);
-    };
-
-    const tick = async () => {
-      if (cancelled) return;
-      const hidden = document.hidden;
-
-      // Slow down / pause in background
-      if (hidden) {
-        schedule(90_000);
-        return;
-      }
-
-      try {
-        await refreshConversations();
-        convoBackoffMsRef.current = 0;
-        schedule(12_000);
-      } catch (e) {
-        const status = e?.response?.status;
-        if (status === 401) return; // apiClient interceptor will handle re-auth redirect
-        const prev = convoBackoffMsRef.current || 0;
-        const next = prev === 0 ? 2000 : Math.min(Math.round(prev * 2.5), 30_000);
-        convoBackoffMsRef.current = next;
-        schedule(next);
-      }
-    };
-
-    const onVis = () => {
-      if (!document.hidden) tick();
-    };
-
-    tick();
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      cancelled = true;
-      if (convoPollTimerRef.current) clearTimeout(convoPollTimerRef.current);
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, [refreshConversations]);
-
-  // Poll active conversation messages
-  useEffect(() => {
-    let cancelled = false;
-
-    const isPollingConvo =
-      activeConvoId &&
-      String(activeConvoId) !== 'support' &&
-      !(activeConvo?.isPlaceholder);
-
-    if (!isPollingConvo) {
-      if (msgPollTimerRef.current) clearTimeout(msgPollTimerRef.current);
-      return undefined;
-    }
 
     const schedule = (ms) => {
       if (cancelled) return;
@@ -412,7 +433,7 @@ export default function Messages() {
       if (!conversation) return;
       setConversations((prev) => {
         const next = Array.isArray(prev) ? [...prev] : [];
-        const convoKey = String(conversation?.id ?? conversation?._id ?? activeConvoId);
+        const convoKey = String(conversation?.id ?? conversation?._id ?? activeConvoIdRef.current);
         const idx = next.findIndex((c) => String(c?.id ?? c?._id) === convoKey);
         if (idx === -1) return prev;
         const existing = next[idx] || {};
@@ -428,62 +449,96 @@ export default function Messages() {
 
     const tick = async () => {
       if (cancelled) return;
+      if (msgInFlightRef.current) {
+        schedule(1500);
+        return;
+      }
 
       if (document.hidden) {
         // pause while hidden
-        schedule(5000);
+        schedule(60_000);
         return;
       }
 
       try {
-        const res = await chatService.getMessages({
-          conversationId: activeConvoId,
-          page: 1,
-          limit: 50,
-        });
-        mergeConversationFromMessagesResponse(res?.conversation);
+        msgInFlightRef.current = true;
+        if (msgPollAbortRef.current) msgPollAbortRef.current.abort();
+        const ac = new AbortController();
+        msgPollAbortRef.current = ac;
 
-        const normalized = (res?.messages ?? []).map(normalizeMessage);
-        const newest = computeNewestKey(normalized);
-        const lastSeen = lastSeenRef.current || { ts: 0, id: null };
+        const activeId = activeConvoIdRef.current;
+        const shouldPollThread =
+          Boolean(activeId) &&
+          String(activeId) !== 'support' &&
+          !(activeConvo?.isPlaceholder);
 
-        const newer = normalized.filter((m) => {
-          const t = m?.createdAt ? new Date(m.createdAt).getTime() : 0;
-          if (!Number.isNaN(t) && lastSeen.ts) return t > lastSeen.ts;
-          if (!Number.isNaN(t) && !lastSeen.ts) return false; // avoid duplicates before initial load establishes baseline
-          const idNum = typeof m?.id === 'number' ? m.id : Number(m?.id);
-          if (!Number.isNaN(idNum) && lastSeen.id != null) return idNum > lastSeen.id;
-          return false;
-        });
+        const pollParams = {
+          lastConversationId: lastConversationIdRef.current || 0,
+          signal: ac.signal,
+        };
+        if (shouldPollThread) {
+          pollParams.conversationId = activeId;
+          pollParams.lastMessageId = lastSeenRef.current?.id ?? 0;
+        }
 
-        if (newer.length > 0) {
-          setMessages((prev) => {
-            const prevArr = Array.isArray(prev) ? prev : [];
-            const seen = new Set(prevArr.map((p) => String(p.id)));
-            const toAdd = newer.filter((m) => !seen.has(String(m.id)));
-            return toAdd.length ? [...prevArr, ...toAdd] : prevArr;
+        const poll = await chatService.poll(pollParams);
+
+        // PRD: hasNewConversation OR hasAnyNewMessage => refetch conversations list
+        if (poll?.hasNewConversation || poll?.hasAnyNewMessage) {
+          refreshConversations().catch(() => {});
+        }
+
+        if (poll?.hasNewMessage && shouldPollThread) {
+          const convoIdAtStart = activeId;
+          const res = await chatService.getMessages({
+            conversationId: convoIdAtStart,
+            page: 1,
+            limit: 50,
+            signal: ac.signal,
           });
-          lastSeenRef.current = newest;
-          msgFastUntilRef.current = Date.now() + 30_000;
-          msgNoNewCountRef.current = 0;
-          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-        } else {
-          msgNoNewCountRef.current = (msgNoNewCountRef.current || 0) + 1;
+          if (String(activeConvoIdRef.current) !== String(convoIdAtStart)) return; // switched mid-flight
+          mergeConversationFromMessagesResponse(res?.conversation);
+
+          const normalized = (res?.messages ?? []).map(normalizeMessage);
+          const newest = computeNewestKey(normalized);
+          const lastSeen = lastSeenRef.current || { ts: 0, id: null };
+
+          const newer = normalized.filter((m) => {
+            const t = m?.createdAt ? new Date(m.createdAt).getTime() : 0;
+            if (!Number.isNaN(t) && lastSeen.ts) return t > lastSeen.ts;
+            if (!Number.isNaN(t) && !lastSeen.ts) return false; // avoid duplicates before initial load establishes baseline
+            const idNum = typeof m?.id === 'number' ? m.id : Number(m?.id);
+            if (!Number.isNaN(idNum) && lastSeen.id != null) return idNum > lastSeen.id;
+            return false;
+          });
+
+          if (newer.length > 0) {
+            setMessages((prev) => {
+              const prevArr = Array.isArray(prev) ? prev : [];
+              const seen = new Set(prevArr.map((p) => String(p.id)));
+              const toAdd = newer.filter((m) => !seen.has(String(m.id)));
+              return toAdd.length ? [...prevArr, ...toAdd] : prevArr;
+            });
+            lastSeenRef.current = newest;
+            setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+          }
+
+          // Refresh list when new messages arrive (unread/order)
+          refreshConversations().catch(() => {});
         }
 
         msgBackoffMsRef.current = 0;
-
-        const now = Date.now();
-        const fast = now < (msgFastUntilRef.current || 0);
-        const interval = fast ? 2500 : 8000;
-        schedule(interval);
+        schedule(30_000);
       } catch (e) {
+        if (e?.code === 'ERR_CANCELED' || e?.name === 'CanceledError') return;
         const status = e?.response?.status;
         if (status === 401) return; // interceptor handles
         const prev = msgBackoffMsRef.current || 0;
         const next = prev === 0 ? 2000 : prev <= 5000 ? 5000 : prev <= 10_000 ? 10_000 : 30_000;
         msgBackoffMsRef.current = next;
         schedule(next);
+      } finally {
+        msgInFlightRef.current = false;
       }
     };
 
@@ -492,8 +547,6 @@ export default function Messages() {
     };
 
     // Kick off with a fast window when user opens a convo
-    msgFastUntilRef.current = Date.now() + 30_000;
-    msgNoNewCountRef.current = 0;
     msgBackoffMsRef.current = 0;
     tick();
     document.addEventListener('visibilitychange', onVis);
@@ -501,6 +554,7 @@ export default function Messages() {
     return () => {
       cancelled = true;
       if (msgPollTimerRef.current) clearTimeout(msgPollTimerRef.current);
+      if (msgPollAbortRef.current) msgPollAbortRef.current.abort();
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [activeConvoId, activeConvo?.isPlaceholder, refreshConversations]);
@@ -615,7 +669,7 @@ export default function Messages() {
               ) : (
                 searchResults.map((u) => (
                   <button
-                    key={u.id}
+                    key={String(getEntityId(u) ?? u.email ?? fullName(u))}
                     type="button"
                     onClick={() => handleSelectSearchUser(u)}
                     className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer"
@@ -650,6 +704,8 @@ export default function Messages() {
                   type="button"
                   onClick={() => {
                     setActiveConvoId(c.id);
+                    setLoadingMessages(true);
+                    setMessages([]);
                     if (window.innerWidth < 768) setMobileView('thread');
                   }}
                   className={`w-full px-6 py-4 flex items-start gap-3 text-left border-b border-gray-50 cursor-pointer transition-colors
@@ -722,69 +778,86 @@ export default function Messages() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-5 py-6 space-y-3 bg-white">
-              {loadingMessages ? (
-                <div className="text-[13px] text-gray-400">Loading messages…</div>
-              ) : messages.length === 0 ? (
-                <div className="text-[13px] text-gray-400">No messages yet.</div>
-              ) : (
-                messages.map((m) => {
-                  const mine = String(m.senderId) === String(user?.id) && m.senderType !== 'admin';
-                  const hasAttachment = Boolean(m.attachmentUrl);
-                  const isImage =
-                    m.messageType === 'image' ||
-                    (hasAttachment && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(String(m.attachmentUrl)));
-                  const senderForAvatar = mine
-                    ? user
-                    : m.senderType === 'admin'
-                      ? { firstName: 'Support', lastName: '' }
-                      : (m.sender || activeHeaderUser);
-                  return (
-                    <div key={String(m.id)} className={`w-full flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
-                        <img
-                          src={avatarUrlFor(senderForAvatar)}
-                          alt=""
-                          className="w-7 h-7 rounded-full shrink-0"
-                        />
-                        <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
-                          ${mine ? 'bg-primary-dark text-white rounded-br-md' : 'bg-gray-100 text-gray-700 rounded-bl-md'}
-                        `}>
-                          {hasAttachment && isImage ? (
-                            <div className="space-y-2">
-                              <a href={m.attachmentUrl} target="_blank" rel="noreferrer" className="block">
-                                <img
-                                  src={m.attachmentUrl}
-                                  alt="Attachment"
-                                  className="max-h-[220px] w-auto rounded-xl"
-                                />
-                              </a>
-                              {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
-                            </div>
-                          ) : hasAttachment ? (
-                            <div className="space-y-2">
-                              <a
-                                href={m.attachmentUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className={`${mine ? 'text-white/90' : 'text-gray-700'} underline break-all`}
-                              >
-                                {filenameFromUrl(m.attachmentUrl) || 'Attachment'}
-                              </a>
-                              {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
-                            </div>
-                          ) : m.content ? (
-                            m.content
-                          ) : (
-                            ''
-                          )}
+            <div className="flex-1 relative bg-white">
+              <div className="absolute inset-0 overflow-y-auto px-5 py-6 space-y-3 relative z-10">
+                {loadingMessages ? (
+                  <div className="text-[13px] text-gray-400">Loading messages…</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-[13px] text-gray-400">No messages yet.</div>
+                ) : (
+                  messages.map((m) => {
+                    const mine = String(m.senderId) === String(user?.id) && m.senderType !== 'admin';
+                    const hasAttachment = Boolean(m.attachmentUrl);
+                    const isImage =
+                      m.messageType === 'image' ||
+                      (hasAttachment && /\.(png|jpe?g|webp|gif)(\?.*)?$/i.test(String(m.attachmentUrl)));
+                    const when = formatMessageDateTime(m.createdAt);
+                    const senderForAvatar = mine
+                      ? user
+                      : m.senderType === 'admin'
+                        ? { firstName: 'Support', lastName: '' }
+                        : (m.sender || activeHeaderUser);
+                    return (
+                      <div key={String(m.id)} className={`w-full flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
+                          <img
+                            src={avatarUrlFor(senderForAvatar)}
+                            alt=""
+                            className="w-7 h-7 rounded-full shrink-0"
+                          />
+                          <div className={`max-w-[92%] md:max-w-[84%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
+                            ${mine ? 'bg-primary-dark text-white rounded-br-md' : 'bg-gray-100 text-gray-700 rounded-bl-md'}
+                          `}>
+                            {hasAttachment && isImage ? (
+                              <div className="space-y-2">
+                                <a href={m.attachmentUrl} target="_blank" rel="noreferrer" className="block">
+                                  <img
+                                    src={m.attachmentUrl}
+                                    alt="Attachment"
+                                    className="max-h-[220px] w-auto rounded-xl"
+                                  />
+                                </a>
+                                {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
+                              </div>
+                            ) : hasAttachment ? (
+                              <div className="space-y-2">
+                                <a
+                                  href={m.attachmentUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className={`${mine ? 'text-white/90' : 'text-gray-700'} underline break-all`}
+                                >
+                                  {filenameFromUrl(m.attachmentUrl) || 'Attachment'}
+                                </a>
+                                {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
+                              </div>
+                            ) : m.content ? (
+                              m.content
+                            ) : (
+                              ''
+                            )}
+                            {when ? (
+                            <div
+                              className={`mt-1 text-[10px] ${mine ? 'text-white/70' : 'text-gray-500'} text-right whitespace-nowrap`}
+                            >
+                                {when}
+                              </div>
+                            ) : null}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
-              )}
-              <div ref={messagesEndRef} />
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 z-0 w-[min(520px,calc(100%-40px))]">
+                <div className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-2.5 text-[12px] text-red-700 shadow-sm text-center">
+                  <span className="font-semibold">For safety, keep all communication in Mirah Chat.</span>{' '}
+                  Messages are visible to Admin.
+                </div>
+              </div>
             </div>
 
             <div className="border-t border-gray-100 p-4">
@@ -812,7 +885,6 @@ export default function Messages() {
                     value={composer}
                 onChange={(e) => {
                   setComposer(e.target.value);
-                  msgFastUntilRef.current = Date.now() + 30_000;
                 }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
@@ -875,10 +947,6 @@ export default function Messages() {
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.6 21 12 3.4 3.4 3 10l12 2-12 2z"/></svg>
                   </button>
                 </div>
-              </div>
-              <div className="mt-3 bg-red-50 border border-red-100 text-red-600 text-[11px] rounded-xl px-3 py-2 text-center leading-snug">
-                <div>*For safety, keep all communication in Mirah chat.</div>
-                <div>Message visible to Admin</div>
               </div>
             </div>
           </>

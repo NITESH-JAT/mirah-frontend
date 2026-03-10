@@ -263,7 +263,7 @@ export const VerificationForm = () => {
     }
   };
 
-  const handleFinalSubmit = () => {
+  const handleFinalSubmit = async () => {
 
       const storedTemp = JSON.parse(localStorage.getItem('mirah_temp_user') || '{}');
       
@@ -279,10 +279,14 @@ export const VerificationForm = () => {
       if (finalUser.token) {
           localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
           localStorage.removeItem('mirah_temp_user');
-          setUser(finalUser);
+          // Hydrate via /me so we have kyc + canSell flags before routing
+          const hydrated = await authService.me().catch(() => finalUser);
+          setUser(hydrated);
           addToast("Registration Complete!", "success");
-          const isVendor = finalUser.userType === 'vendor' || finalUser.userType === 'jeweller';
-          setTimeout(() => navigate(isVendor ? '/vendor/kyc' : '/dashboard/profile'), 500);
+          const isVendor = hydrated.userType === 'vendor' || hydrated.userType === 'jeweller';
+          const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
+          const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
+          setTimeout(() => navigate(isVendor ? vendorLanding : '/dashboard/profile'), 500);
       } else {
           // Token missing (backend didn't send it during verify). Force login.
           localStorage.removeItem('mirah_temp_user');

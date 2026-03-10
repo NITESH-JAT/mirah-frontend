@@ -5,22 +5,40 @@ function unwrap(response) {
 }
 
 export const chatService = {
-  listConversations: async () => {
-    const res = await api.get('/api/user/chat/conversations');
+  listConversations: async (opts = {}) => {
+    const res = await api.get('/api/user/chat/conversations', { signal: opts?.signal });
     const data = unwrap(res);
     const items = data?.conversations ?? data?.items ?? data ?? [];
     return Array.isArray(items) ? items : [];
   },
 
-  getMessages: async ({ conversationId, page = 1, limit = 50 }) => {
+  getMessages: async ({ conversationId, page = 1, limit = 50, signal }) => {
     const res = await api.get(`/api/user/chat/conversations/${conversationId}/messages`, {
-      params: { page, limit },
+      // Avoid cached 304 responses (no body) which breaks thread re-render
+      params: { page, limit, _ts: Date.now() },
+      signal,
     });
     const data = unwrap(res);
     const items = data?.messages ?? data?.items ?? [];
     const messages = Array.isArray(items) ? items : (Array.isArray(data) ? data : []);
     const conversation = data?.conversation ?? null;
     return { messages, conversation };
+  },
+
+  poll: async ({ lastConversationId, conversationId, lastMessageId, signal } = {}) => {
+    const params = {};
+    if (lastConversationId != null) params.lastConversationId = lastConversationId;
+    if (conversationId != null) params.conversationId = conversationId;
+    if (lastMessageId != null) params.lastMessageId = lastMessageId;
+    params.time = new Date().toISOString();
+    const res = await api.get('/api/user/chat/poll', { params, signal });
+    const data = unwrap(res) || {};
+    return {
+      hasNewConversation: Boolean(data?.hasNewConversation),
+      hasAnyNewMessage: Boolean(data?.hasAnyNewMessage),
+      hasNewMessage: Boolean(data?.hasNewMessage),
+      raw: data,
+    };
   },
 
   createOrFindConversation: async ({ recipientId }) => {

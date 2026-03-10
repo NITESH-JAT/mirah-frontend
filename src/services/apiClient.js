@@ -10,6 +10,21 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
+    // If we're sending FormData, let the browser set the multipart boundary.
+    // Our axios instance has a default JSON Content-Type, which breaks file uploads otherwise.
+    try {
+      if (typeof FormData !== 'undefined' && config?.data instanceof FormData) {
+        if (config.headers?.delete) {
+          config.headers.delete('Content-Type');
+        } else if (config.headers) {
+          delete config.headers['Content-Type'];
+          delete config.headers['content-type'];
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     const userStr = localStorage.getItem('mirah_session_user');
     if (userStr) {
       try {

@@ -6,7 +6,9 @@ function unwrap(response) {
 
 export const notificationService = {
   getUnreadCount: async () => {
-    const res = await api.get('/api/user/notifications/unread-count');
+    const res = await api.get('/api/user/notifications/unread-count', {
+      params: { time: new Date().toISOString() },
+    });
     const data = unwrap(res);
     // support shapes: {count}, {unreadCount}, {data:{count}}
     return (

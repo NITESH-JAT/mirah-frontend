@@ -200,6 +200,17 @@ export const authService = {
     }
   },
 
+  createSellingRequest: async () => {
+    try {
+      await api.post('/api/user/profile/selling-request');
+      // PRD: rehydrate via /me to get sellingRequest + canSellProducts updates
+      const hydrated = await authService.me();
+      return hydrated;
+    } catch (error) {
+      throw error.response?.data || { message: "Failed to create selling request" };
+    }
+  },
+
   changePassword: async (data) => {
     try {
         try {

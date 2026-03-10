@@ -28,6 +28,10 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const location = useLocation();
   const { user } = useAuth();
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
+  const vendorKycStatus = String(
+    user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? ''
+  ).toLowerCase();
+  const isVendorKycAccepted = vendorKycStatus === 'accepted';
 
   return (
     <div
@@ -58,12 +62,22 @@ export default function Sidebar({ isOpen = false, onClose }) {
       <div className="flex-1 py-2">
         {isVendor ? (
           <>
-            <NavItem
-              active={location.pathname.startsWith('/vendor/kyc')}
-              path="/vendor/kyc"
-              label="KYC"
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>}
-            />
+            {!isVendorKycAccepted && (
+              <NavItem
+                active={location.pathname.startsWith('/vendor/kyc')}
+                path="/vendor/kyc"
+                label="KYC"
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>}
+              />
+            )}
+            {isVendorKycAccepted && (
+              <NavItem
+                active={location.pathname.startsWith('/vendor/shop')}
+                path="/vendor/shop"
+                label="Shop"
+                icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2l1 4h10l1-4"/><path d="M3 6h18l-2 16H5L3 6z"/><path d="M9 10v8"/><path d="M15 10v8"/></svg>}
+              />
+            )}
             <NavItem
               active={location.pathname.startsWith('/vendor/messages')}
               path="/vendor/messages"

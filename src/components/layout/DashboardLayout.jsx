@@ -53,6 +53,22 @@ const ToastNotification = ({ id, message, type, onClose }) => {
   );
 };
 
+function formatNoticeDateTime(n) {
+  const raw =
+    n?.createdAt ??
+    n?.created_at ??
+    n?.timestamp ??
+    n?.time ??
+    n?.date ??
+    n?.updatedAt ??
+    n?.updated_at ??
+    null;
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString();
+}
+
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -61,6 +77,7 @@ export default function DashboardLayout() {
   const isProfilePage = path.includes('profile');
   const isMessagesPage = path.includes('messages');
   const isKycPage = path.includes('/vendor/kyc');
+  const isShopPage = path.includes('/vendor/shop');
   
   const [toasts, setToasts] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -149,7 +166,7 @@ export default function DashboardLayout() {
   useEffect(() => {
     // On app start and periodically (PRD)
     refreshUnreadCount();
-    const t = setInterval(refreshUnreadCount, 30000);
+    const t = setInterval(refreshUnreadCount, 60000);
     return () => clearInterval(t);
   }, [refreshUnreadCount]);
 
@@ -213,7 +230,7 @@ export default function DashboardLayout() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
             <h1 className="font-serif text-xl font-bold text-gray-800">
-              {isProfilePage ? 'My Profile' : isMessagesPage ? 'Messages' : isKycPage ? 'KYC' : ''}
+              {isProfilePage ? 'My Profile' : isMessagesPage ? 'Messages' : isKycPage ? 'KYC' : isShopPage ? 'Shop' : ''}
             </h1>
           </div>
           
@@ -268,6 +285,7 @@ export default function DashboardLayout() {
                         const title = n.title ?? n.subject ?? n.type ?? 'Notification';
                         const message = n.message ?? n.body ?? n.text ?? '';
                         const isRead = Boolean(n.isRead ?? n.read ?? n.readAt);
+                        const when = formatNoticeDateTime(n);
                         return (
                           <div
                             key={String(id)}
@@ -280,6 +298,9 @@ export default function DashboardLayout() {
                                 {message && (
                                   <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{message}</p>
                                 )}
+                                {when ? (
+                                  <p className="text-[11px] text-gray-400 mt-1">{when}</p>
+                                ) : null}
                               </div>
                               {!isRead && id && (
                                 <button
@@ -348,7 +369,7 @@ export default function DashboardLayout() {
 
         {/* CONTENT */}
         <div className="flex-1 overflow-y-auto p-4 lg:p-8 scroll-smooth custom-scrollbar">
-          <div className={`${isMessagesPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
+          <div className={`${isMessagesPage || isShopPage ? 'max-w-none' : 'max-w-5xl'} mx-auto`}>
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 
           </div>

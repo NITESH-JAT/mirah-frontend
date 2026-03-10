@@ -165,7 +165,7 @@ export default function Kyc() {
 
   const activeSection = sections[activeSectionIdx];
   const isLocked =
-    ['submitted', 'in_review', 'in-review', 'inreview'].includes(
+    ['submitted', 'in_review', 'in-review', 'inreview', 'accepted'].includes(
       String(kycStatus?.status || '').toLowerCase()
     );
 
@@ -311,7 +311,9 @@ export default function Kyc() {
 
         {isLocked && (
           <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-            Your KYC is submitted and currently under review. Editing is locked until the status changes.
+            {status === 'accepted'
+              ? 'Your KYC is accepted. Editing is disabled.'
+              : 'Your KYC is submitted and currently under review. Editing is locked until the status changes.'}
           </div>
         )}
 

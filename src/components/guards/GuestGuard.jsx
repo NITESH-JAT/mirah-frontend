@@ -9,7 +9,9 @@ const GuestGuard = ({ children }) => {
 
   if (user) {
     const isVendor = user.userType === 'vendor' || user.userType === 'jeweller';
-    return <Navigate to={isVendor ? "/vendor/kyc" : "/dashboard/profile"} replace />;
+    const kycStatus = String(user?.kyc?.status || '').toLowerCase();
+    const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
+    return <Navigate to={isVendor ? vendorLanding : "/dashboard/profile"} replace />;
   }
 
   return children;

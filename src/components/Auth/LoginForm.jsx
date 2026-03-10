@@ -309,10 +309,13 @@ export const LoginForm = () => {
       const isVerified = userData?.isVerified === true || (userData?.phoneVerified && userData?.emailVerified);
 
       if (isVerified) {
-        localStorage.setItem('mirah_session_user', JSON.stringify(userData));
-        setUser(userData);
-        const isVendor = userData?.userType === 'vendor' || userData?.userType === 'jeweller';
-        navigate(isVendor ? '/vendor/kyc' : '/dashboard/profile');
+        // authService.login already persisted session; hydrate via /me for accurate kyc/canSell flags
+        const hydrated = await authService.me().catch(() => userData);
+        setUser(hydrated);
+        const isVendor = hydrated?.userType === 'vendor' || hydrated?.userType === 'jeweller';
+        const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
+        const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
+        navigate(isVendor ? vendorLanding : '/dashboard/profile');
         addToast("Welcome back!", "success");
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));
