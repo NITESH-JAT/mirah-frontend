@@ -389,164 +389,163 @@ export default function ProjectDetails() {
           </div>
         </div>
       ) : null}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
-        <div className="relative flex flex-col gap-3">
-          {/* Mobile actions */}
-          <div className="shrink-0 flex items-center gap-2 w-full justify-between md:hidden">
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/projects')}
-              className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-            >
-              Back
-            </button>
-            <span className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap">
-              {statusPillText}
-            </span>
-          </div>
-
-          {/* Desktop actions */}
-          <button
-            type="button"
-            onClick={() => navigate('/dashboard/projects')}
-            className="hidden md:inline-flex md:absolute md:left-6 md:top-6 px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-          >
-            Back
-          </button>
-          <span className="hidden md:inline-flex md:absolute md:right-6 md:top-6 px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap">
-            {statusPillText}
-          </span>
-
-          <div className="min-w-0 flex flex-col items-center text-center md:px-32">
-            <p className="text-[13px] text-gray-500 font-semibold break-words line-clamp-2 max-w-[860px]">
-              {project?.title || 'Project'}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-              <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
-                Bid amount:{' '}
-                <span className="font-bold">
-                  {assignedAmount != null && Number.isFinite(Number(assignedAmount)) ? `₹ ${formatMoney(assignedAmount)}` : '—'}
-                </span>
-              </span>
-              <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
-                Duration:{' '}
-                <span className="font-bold">
-                  {assignedDays != null && Number.isFinite(Number(assignedDays)) ? `${Number(assignedDays)} days` : '—'}
-                </span>
+      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row md:items-start gap-4">
+        {/* Left column: header + overview/object */}
+        <div className="w-full md:w-[420px] lg:w-[460px] shrink-0 md:self-start">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/projects')}
+                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+              >
+                Back
+              </button>
+              <span className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap">
+                {statusPillText}
               </span>
             </div>
-            {vendorFullName ? (
-              <p className="mt-2 text-[12px] font-semibold text-gray-500">
-                Vendor:{' '}
-                <span className="font-extrabold text-gray-800">
-                  {vendorLoading ? 'Loading…' : vendorFullName}
-                </span>
-              </p>
-            ) : vendorId ? (
-              <p className="mt-2 text-[12px] font-semibold text-gray-500">
-                Vendor:{' '}
-                <span className="font-extrabold text-gray-800">
-                  {vendorLoading ? 'Loading…' : `#${vendorId}`}
-                </span>
-              </p>
-            ) : null}
-            <div className="mt-2 flex items-center justify-center gap-3 flex-wrap">
-              <p className="text-[20px] md:text-[22px] font-extrabold text-gray-900">Tracking</p>
-            </div>
+
+            {loading ? (
+              <div className="mt-8 flex items-center justify-center">
+                <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+            ) : !project ? (
+              <div className="mt-6 text-[13px] text-gray-600">Unable to load project.</div>
+            ) : (
+              <div className="mt-4">
+                <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
+                  {project?.title || 'Project'}
+                </p>
+                <p className="mt-2 text-[12px] text-gray-500 leading-relaxed whitespace-pre-line line-clamp-5">
+                  {project?.description || '—'}
+                </p>
+
+                <div className="mt-4 space-y-1.5">
+                  <p className="text-[12px] text-gray-500">
+                    Bid amount:{' '}
+                    <span className="font-extrabold text-gray-900">
+                      {assignedAmount != null && Number.isFinite(Number(assignedAmount)) ? `₹ ${formatMoney(assignedAmount)}` : '—'}
+                    </span>
+                  </p>
+                  <p className="text-[12px] text-gray-500">
+                    Duration:{' '}
+                    <span className="font-extrabold text-gray-900">
+                      {assignedDays != null && Number.isFinite(Number(assignedDays)) ? `${Number(assignedDays)} days` : '—'}
+                    </span>
+                  </p>
+                  {vendorFullName ? (
+                    <p className="text-[12px] text-gray-500">
+                      Vendor:{' '}
+                      <span className="font-extrabold text-gray-900">
+                        {vendorLoading ? 'Loading…' : vendorFullName}
+                      </span>
+                    </p>
+                  ) : vendorId ? (
+                    <p className="text-[12px] text-gray-500">
+                      Vendor:{' '}
+                      <span className="font-extrabold text-gray-900">
+                        {vendorLoading ? 'Loading…' : `#${vendorId}`}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+
+                {activeBidWindow ? (
+                  <div className="mt-4 text-[12px] text-gray-500">
+                    Active auction ends at:{' '}
+                    <span className="font-semibold text-gray-700">
+                      {formatDateTime(activeBidWindow?.finishingTimestamp ?? activeBidWindow?.finishingAt ?? activeBidWindow?.finishing_at)}
+                    </span>
+                  </div>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center">
-            <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-            </svg>
-          </div>
-        ) : !project ? (
-          <div className="p-8 text-[13px] text-gray-600">Unable to load project.</div>
-        ) : (
-          <div className="p-4 md:p-6 space-y-4">
-            <div className="rounded-2xl border border-gray-100 p-4">
-              <p className="text-[12px] font-extrabold text-gray-900">Overview</p>
-              <p className="mt-2 text-[13px] text-gray-700 whitespace-pre-line">{project?.description || '—'}</p>
-              {activeBidWindow ? (
-                <div className="mt-3 text-[12px] text-gray-500">
-                  Active auction ends at:{' '}
-                  <span className="font-semibold text-gray-700">
-                    {formatDateTime(activeBidWindow?.finishingTimestamp ?? activeBidWindow?.finishingAt ?? activeBidWindow?.finishing_at)}
-                  </span>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="rounded-2xl border border-gray-100 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[12px] font-extrabold text-gray-900">Payments</p>
-                <button
-                  type="button"
-                  onClick={downloadInvoice}
-                  disabled={invoiceLoading || !projectId}
-                  className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {invoiceLoading ? 'Downloading…' : 'Download invoice'}
-                </button>
+        {/* Right column: payments */}
+        <div className="flex-1 md:self-start">
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            {loading ? (
+              <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
+                <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-gray-100 p-4">
-                  <p className="text-[12px] font-bold text-gray-800">Advance</p>
-                  <p className="mt-1 text-[12px] text-gray-500">
-                    Status:{' '}
-                    <span className="font-semibold text-gray-700">{toTitleCase(advanceStatus)}</span>
-                  </p>
-                  {advancePayment?.suggestedAmount != null ? (
-                    <p className="mt-1 text-[12px] text-gray-500">
-                      Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
-                    </p>
-                  ) : null}
-                  {advanceStatus === 'due' ? (
-                    <button
-                      type="button"
-                      onClick={() => pay('advance')}
-                      disabled={payLoading}
-                      className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {payLoading ? 'Processing…' : 'Pay Advance'}
-                    </button>
-                  ) : null}
+            ) : !project ? (
+              <div className="p-8 text-[13px] text-gray-600">Unable to load project.</div>
+            ) : (
+              <div className="p-4 md:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12px] font-extrabold text-gray-900">Payments</p>
+                  <button
+                    type="button"
+                    onClick={downloadInvoice}
+                    disabled={invoiceLoading || !projectId}
+                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {invoiceLoading ? 'Downloading…' : 'Download invoice'}
+                  </button>
                 </div>
+                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="rounded-2xl border border-gray-100 p-4">
+                    <p className="text-[12px] font-bold text-gray-800">Advance</p>
+                    <p className="mt-1 text-[12px] text-gray-500">
+                      Status:{' '}
+                      <span className="font-semibold text-gray-700">{toTitleCase(advanceStatus)}</span>
+                    </p>
+                    {advancePayment?.suggestedAmount != null ? (
+                      <p className="mt-1 text-[12px] text-gray-500">
+                        Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                      </p>
+                    ) : null}
+                    {advanceStatus === 'due' ? (
+                      <button
+                        type="button"
+                        onClick={() => pay('advance')}
+                        disabled={payLoading}
+                        className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {payLoading ? 'Processing…' : 'Pay Advance'}
+                      </button>
+                    ) : null}
+                  </div>
 
-                <div className="rounded-2xl border border-gray-100 p-4">
-                  <p className="text-[12px] font-bold text-gray-800">Final</p>
-                  <p className="mt-1 text-[12px] text-gray-500">
-                    Status:{' '}
-                    <span className="font-semibold text-gray-700">{toTitleCase(finalStatus)}</span>
-                  </p>
-                  {finalPayment?.suggestedAmount != null ? (
+                  <div className="rounded-2xl border border-gray-100 p-4">
+                    <p className="text-[12px] font-bold text-gray-800">Final</p>
                     <p className="mt-1 text-[12px] text-gray-500">
-                      Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
+                      Status:{' '}
+                      <span className="font-semibold text-gray-700">{toTitleCase(finalStatus)}</span>
                     </p>
-                  ) : null}
-                  {finalStatus === 'due' ? (
-                    <button
-                      type="button"
-                      onClick={() => pay('final')}
-                      disabled={payLoading}
-                      className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {payLoading ? 'Processing…' : 'Pay Final'}
-                    </button>
-                  ) : null}
+                    {finalPayment?.suggestedAmount != null ? (
+                      <p className="mt-1 text-[12px] text-gray-500">
+                        Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
+                      </p>
+                    ) : null}
+                    {finalStatus === 'due' ? (
+                      <button
+                        type="button"
+                        onClick={() => pay('final')}
+                        disabled={payLoading}
+                        className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {payLoading ? 'Processing…' : 'Pay Final'}
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
+                <p className="mt-3 text-[11px] text-gray-400">
+                  Note: Advance payment is required to start the project. Final payment can be paid after project completion.
+                </p>
               </div>
-              <p className="mt-3 text-[11px] text-gray-400">
-                Note: Advance payment is required to start the project. Final payment can be paid after project completion.
-              </p>
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

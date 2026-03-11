@@ -89,6 +89,7 @@ export default function ProjectBids() {
   const [selectedBidId, setSelectedBidId] = useState(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('amount_asc'); // amount_asc | amount_desc | delivery_asc | delivery_desc
+  const [projectCardOpen, setProjectCardOpen] = useState(true);
   const cardsWrapRef = useRef(null);
   const actionBarRef = useRef(null);
 
@@ -152,11 +153,11 @@ export default function ProjectBids() {
     }
   }, [addToast, projectId]);
 
-  const loadBids = useCallback(async () => {
+  const loadBids = useCallback(async ({ activeOnly } = {}) => {
     if (!projectId) return;
     setBidsLoading(true);
     try {
-      const items = await projectService.listBids(projectId);
+      const items = activeOnly ? await projectService.listActiveBids(projectId) : await projectService.listBids(projectId);
       const list = Array.isArray(items) ? items : [];
       setBids(list);
     } catch (e) {
@@ -169,11 +170,11 @@ export default function ProjectBids() {
 
   useEffect(() => {
     load();
-    loadBids();
+    loadBids({ activeOnly: hasActiveWindow });
     return () => {
       if (abortRef.current) abortRef.current.abort();
     };
-  }, [load, loadBids]);
+  }, [hasActiveWindow, load, loadBids]);
 
   useEffect(() => {
     if (!hasActiveWindow || !finishesMs) return;
@@ -351,7 +352,7 @@ export default function ProjectBids() {
       addToast('Bidding ended.', 'success');
       setEndOpen(false);
       await load();
-      await loadBids();
+      await loadBids({ activeOnly: false });
     } catch (e) {
       addToast(e?.message || 'Failed to end bidding', 'error');
     } finally {
@@ -361,12 +362,11 @@ export default function ProjectBids() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col gap-4">
-        {/* Fixed header card */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
-          <div className="relative flex flex-col gap-3">
-            {/* Mobile actions */}
-            <div className="shrink-0 flex items-center gap-2 order-1 w-full justify-between md:hidden">
+      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row gap-4">
+        {/* Left column: project details */}
+        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={() => navigate('/dashboard/projects')}
@@ -374,157 +374,182 @@ export default function ProjectBids() {
               >
                 Back
               </button>
-              {canEndBid ? (
+              <div className="flex items-center gap-2">
+                {canEndBid ? (
+                  <button
+                    type="button"
+                    onClick={() => setEndOpen(true)}
+                    className="px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
+                  >
+                    Force End
+                  </button>
+                ) : null}
                 <button
                   type="button"
-                  onClick={() => setEndOpen(true)}
-                  className="px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
+                  onClick={() => setProjectCardOpen((v) => !v)}
+                  className="md:hidden p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+                  aria-label={projectCardOpen ? 'Collapse project details' : 'Expand project details'}
                 >
-                  Force End
+                  {projectCardOpen ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m18 15-6-6-6 6" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  )}
                 </button>
-              ) : null}
+              </div>
             </div>
 
-            {/* Desktop actions */}
-            <button
-              type="button"
-              onClick={() => navigate('/dashboard/projects')}
-              className="hidden md:inline-flex md:absolute md:left-6 md:top-6 px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
-            >
-              Back
-            </button>
-            {canEndBid ? (
-              <button
-                type="button"
-                onClick={() => setEndOpen(true)}
-                className="hidden md:inline-flex md:absolute md:right-6 md:top-6 px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
-              >
-                Force End
-              </button>
-            ) : null}
-
-            <div className="min-w-0 order-2 md:order-1 flex flex-col items-center text-center md:px-32">
-              <p className="text-[13px] text-gray-500 font-semibold break-words line-clamp-2 max-w-[860px]">
+            {projectCardOpen || window?.matchMedia?.('(min-width: 768px)')?.matches ? (
+            <div className="mt-4">
+              <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
                 {project?.title || location?.state?.projectTitle || 'Project'}
               </p>
-              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
-                <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
-                  Budget: <span className="font-bold">{budgetText}</span>
-                </span>
-                <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
-                  Duration: <span className="font-bold">{durationText}</span>
-                </span>
+              <p className="mt-2 text-[12px] text-gray-500 leading-relaxed line-clamp-4">
+                {project?.description || '—'}
+              </p>
+
+              <div className="mt-4 space-y-1.5">
+                <p className="text-[12px] text-gray-500">
+                  Budget: <span className="font-extrabold text-gray-900">{budgetText}</span>
+                </p>
+                <p className="text-[12px] text-gray-500">
+                  Duration: <span className="font-extrabold text-gray-900">{durationText}</span>
+                </p>
               </div>
-              <div className="mt-2 flex items-center justify-center gap-3 flex-wrap">
-                <p className="text-[20px] md:text-[22px] font-extrabold text-gray-900">Biddings</p>
+
+              <div className="mt-4 flex justify-start">
                 {hasActiveWindow && finishesMs ? (
                   <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
                     {formatCountdown(timeLeftMs)}
                   </span>
                 ) : (
-                  <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-[12px] font-extrabold">
-                    Ended
+                  <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold">
+                    Bid Ended
                   </span>
                 )}
               </div>
             </div>
+            ) : null}
           </div>
         </div>
 
-        {/* Fixed search/sort card */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="relative">
+        {/* Right column: 3 cards (search/sort, bids, override/assign) */}
+        <div className="flex-1 min-h-0 flex flex-col gap-4">
+          {/* Search/sort */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
+            <div className="flex items-center justify-between gap-3">
+              <div className="relative flex-1 min-w-0">
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder='Search "Jewellers"'
-                  className="w-[260px] max-w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
                 />
               </div>
-            </div>
-            <div className="flex items-center gap-2 justify-end">
-              <div className="relative">
+              <div className="flex items-center gap-2 justify-end shrink-0">
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setSortOpen((v) => !v)}
+                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                  >
+                    Sort
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+
+                  {sortOpen ? (
+                    <div
+                      className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('amount_asc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                          sortBy === 'amount_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        Low amount
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('amount_desc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                          sortBy === 'amount_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        High amount
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('delivery_asc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                          sortBy === 'delivery_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        Low delivery duration
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('delivery_desc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                          sortBy === 'delivery_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                        }`}
+                      >
+                        High delivery duration
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
                 <button
                   type="button"
-                  onClick={() => setSortOpen((v) => !v)}
-                  className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                  onClick={() => loadBids({ activeOnly: hasActiveWindow })}
+                  disabled={bidsLoading || loading}
+                  title="Reload bids"
+                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Sort
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
+                  {bidsLoading || loading ? (
+                    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
+                  )}
                 </button>
-
-                {sortOpen ? (
-                  <div
-                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('amount_asc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
-                        sortBy === 'amount_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      Low amount
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('amount_desc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
-                        sortBy === 'amount_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      High amount
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('delivery_asc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
-                        sortBy === 'delivery_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      Low delivery duration
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('delivery_desc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
-                        sortBy === 'delivery_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
-                      }`}
-                    >
-                      High delivery duration
-                    </button>
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Scrollable bids list */}
-        <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
-          <div
-            className="p-4 md:p-6 h-full min-h-0 overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
-            style={{ scrollbarGutter: 'stable' }}
-          >
+          {/* Bids list */}
+          <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
+            <div
+              className="p-4 md:p-6 h-full min-h-0 overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
+              style={{ scrollbarGutter: 'stable' }}
+            >
             {loading || bidsLoading ? (
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-12 flex items-center justify-center">
+              <div className="h-full min-h-[240px] flex items-center justify-center">
                 <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                   <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -599,31 +624,6 @@ export default function ProjectBids() {
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
                               <p className="text-[13px] font-extrabold text-gray-900 truncate">{vendorName}</p>
-                              {isLowest ? (
-                                <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
-                                  Lowest Bid
-                                </span>
-                              ) : null}
-                              {isAssigned ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
-                                Assigned
-                              </span>
-                              ) : null}
-                            {badge ? (
-                              <span
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
-                                  badge.tone === 'success'
-                                    ? 'bg-green-50 border-green-100 text-green-700'
-                                    : badge.tone === 'danger'
-                                      ? 'bg-red-50 border-red-100 text-red-700'
-                                      : badge.tone === 'warn'
-                                        ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                        : 'bg-gray-50 border-gray-100 text-gray-700'
-                                }`}
-                              >
-                                {badge.text}
-                              </span>
-                            ) : null}
                             </div>
                             <div className="mt-1 text-[12px] text-gray-500 space-y-1">
                               <span className="flex items-center gap-1">
@@ -651,26 +651,57 @@ export default function ProjectBids() {
                         </div>
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openVendorProfile(b);
-                          }}
-                          className="text-[12px] font-extrabold text-primary-dark hover:underline"
-                        >
-                          View Profile →
-                        </button>
+                      <div className="mt-3 flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openVendorProfile(b);
+                            }}
+                            className="text-[12px] font-extrabold text-primary-dark hover:underline"
+                          >
+                            View Profile →
+                          </button>
+
+                          <div className="mt-2 flex flex-wrap items-center gap-2 min-h-[22px]">
+                            {isLowest ? (
+                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                Lowest Bid
+                              </span>
+                            ) : null}
+                            {isAssigned ? (
+                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                                Assigned
+                              </span>
+                            ) : null}
+                            {badge ? (
+                              <span
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                  badge.tone === 'success'
+                                    ? 'bg-green-50 border-green-100 text-green-700'
+                                    : badge.tone === 'danger'
+                                      ? 'bg-red-50 border-red-100 text-red-700'
+                                      : badge.tone === 'warn'
+                                        ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                        : 'bg-gray-50 border-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {badge.text}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+
                         {canSelectBids ? (
                           selected ? (
-                            <div className="w-5 h-5 rounded-md border flex items-center justify-center border-primary-dark bg-primary-dark">
+                            <div className="w-5 h-5 rounded-md border flex items-center justify-center border-primary-dark bg-primary-dark mt-0.5">
                               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
                                 <path d="M20 6 9 17l-5-5" />
                               </svg>
                             </div>
                           ) : (
-                            <div className="w-5 h-5" />
+                            <div className="w-5 h-5 mt-0.5" />
                           )
                         ) : null}
                       </div>
@@ -682,43 +713,44 @@ export default function ProjectBids() {
           </div>
         </div>
 
-        {/* Fixed bottom action bar */}
-        {ended && !finishedProject && !overrideLocked ? (
-          <div
-            ref={actionBarRef}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 shrink-0 flex items-center justify-end"
-          >
-            {(() => {
-              const canProceed = Boolean(selectedBidId) && !Boolean(actionLoading?.override);
-              return (
-            <button
-              type="button"
-              onClick={() => {
-                if (!selectedBidId || Boolean(actionLoading?.override)) return;
-                const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
-                if (!bid) return;
-                const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
-                const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                if (assignmentPending && isAssigned) {
-                  addToast('Assignment is pending. Please wait for vendor response before overriding.', 'error');
-                  return;
-                }
-                openOverride(bid);
-              }}
+          {/* Override/Assign */}
+          {ended && !finishedProject && !overrideLocked ? (
+            <div
+              ref={actionBarRef}
               onMouseDown={(e) => e.stopPropagation()}
-              disabled={!canProceed}
-              title={!selectedBidId ? 'Select a bid to continue' : undefined}
-              className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
-                canProceed ? 'bg-primary-dark text-white hover:opacity-90' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              }`}
+              className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 shrink-0 flex items-center justify-end"
             >
-              {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
-            </button>
-              );
-            })()}
-          </div>
-        ) : null}
+              {(() => {
+                const canProceed = Boolean(selectedBidId) && !Boolean(actionLoading?.override);
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selectedBidId || Boolean(actionLoading?.override)) return;
+                      const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
+                      if (!bid) return;
+                      const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
+                      const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                      if (assignmentPending && isAssigned) {
+                        addToast('Assignment is pending. Please wait for vendor response before overriding.', 'error');
+                        return;
+                      }
+                      openOverride(bid);
+                    }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    disabled={!canProceed}
+                    title={!selectedBidId ? 'Select a bid to continue' : undefined}
+                    className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
+                      canProceed ? 'bg-primary-dark text-white hover:opacity-90' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
+                  </button>
+                );
+              })()}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Manual end modal */}
