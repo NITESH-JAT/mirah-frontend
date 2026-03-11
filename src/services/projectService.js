@@ -122,6 +122,40 @@ export const projectService = {
     return Array.isArray(items) ? items : items ? [items] : [];
   },
 
+  // Vendor marketplace: running projects list for bidding
+  listRunning: async ({ page = 1, limit = 12, signal } = {}) => {
+    const params = { page, limit };
+    const res = await api.get('/api/user/projects/running', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.projects ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total } };
+  },
+
+  // Vendor bid actions
+  placeBid: async (projectId, { price, daysToComplete } = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const payload = { price, daysToComplete };
+    const res = await api.post(`/api/user/projects/${projectId}/bid`, payload, { signal });
+    return unwrap(res);
+  },
+
+  withdrawLatestBid: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.delete(`/api/user/projects/${projectId}/bid/latest`, { signal });
+    return unwrap(res);
+  },
+
+  withdrawAllBids: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/withdraw`, {}, { signal });
+    return unwrap(res);
+  },
+
   selectWinner: async (projectId, payload, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.post(`/api/user/projects/${projectId}/select-winner`, payload, { signal });

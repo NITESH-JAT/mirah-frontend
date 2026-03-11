@@ -804,9 +804,16 @@ export default function Checkout() {
                               Phone *
                             </label>
                             <input
+                            type="tel"
                               value={x.form.phone}
-                              onChange={(e) => x.setForm((p) => ({ ...p, phone: e.target.value }))}
-                              inputMode="tel"
+                            onChange={(e) =>
+                              x.setForm((p) => {
+                                const raw = e.target.value || '';
+                                const digits = raw.replace(/\D/g, '');
+                                return { ...p, phone: digits };
+                              })
+                            }
+                            inputMode="numeric"
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
                                 x.valid.missing.phone ? 'border-amber-300' : 'border-gray-100'
                               }`}

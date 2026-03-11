@@ -314,7 +314,8 @@ export const LoginForm = () => {
         setUser(hydrated);
         const isVendor = hydrated?.userType === 'vendor' || hydrated?.userType === 'jeweller';
         const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
-        const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
+        // If vendor and KYC verified, land on Explore page; otherwise use KYC flow
+        const vendorLanding = kycStatus === 'accepted' ? '/vendor/explore' : '/vendor/kyc';
         navigate(isVendor ? vendorLanding : '/dashboard/shopping');
         addToast("Welcome back!", "success");
       } else {

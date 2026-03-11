@@ -86,6 +86,7 @@ export default function DashboardLayout() {
   const isMessagesPage = path.includes('messages');
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
+  const isVendorExplorePage = path.includes('/vendor/explore');
   const isShoppingPage = path.includes('/dashboard/shopping');
   const isShoppingListPage = path === '/dashboard/shopping';
   const isCartPage = path.includes('/dashboard/cart');
@@ -464,7 +465,7 @@ export default function DashboardLayout() {
         >
           <div
             className={`${
-              isMessagesPage || isShopPage || isShoppingPage || isProjectsPage ? 'max-w-none' : 'max-w-5xl'
+              isMessagesPage || isShopPage || isVendorExplorePage || isShoppingPage || isProjectsPage ? 'max-w-none' : 'max-w-5xl'
             } mx-auto`}
           >
             {/* PASS CONTEXT TO CHILDREN */}

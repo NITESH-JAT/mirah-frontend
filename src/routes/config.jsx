@@ -29,6 +29,8 @@ const ProductDetails = lazy(() => import('../pages/dashboard/ProductDetails'));
 const SimilarProducts = lazy(() => import('../pages/dashboard/SimilarProducts'));
 const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
 const VendorShop = lazy(() => import('../pages/vendor/Shop'));
+const VendorExplore = lazy(() => import('../pages/vendor/Explore'));
+const VendorExploreProject = lazy(() => import('../pages/vendor/ExploreProject'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 
 export const routes = [
@@ -105,6 +107,8 @@ export const routes = [
     ),
     children: [
       { index: true, element: <Navigate to="/vendor/shop" replace /> },
+      { path: 'explore', element: <VendorExplore /> },
+      { path: 'explore/:id', element: <VendorExploreProject /> },
       { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },

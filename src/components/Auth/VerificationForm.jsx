@@ -285,7 +285,7 @@ export const VerificationForm = () => {
           addToast("Registration Complete!", "success");
           const isVendor = hydrated.userType === 'vendor' || hydrated.userType === 'jeweller';
           const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
-          const vendorLanding = kycStatus === 'accepted' ? '/vendor/shop' : '/vendor/kyc';
+          const vendorLanding = kycStatus === 'accepted' ? '/vendor/explore' : '/vendor/kyc';
           setTimeout(() => navigate(isVendor ? vendorLanding : '/dashboard/shopping'), 500);
       } else {
           // Token missing (backend didn't send it during verify). Force login.

@@ -3,7 +3,7 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { addressService } from '../../services/addressService';
 
-const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text" }) => (
+const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text", inputMode }) => (
   <div className="space-y-1.5">
     <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">{label}</label>
     <input
@@ -13,6 +13,7 @@ const InputField = ({ label, value, onChange, name, readOnly, placeholder, type 
       onChange={onChange}
       readOnly={readOnly}
       placeholder={placeholder}
+      inputMode={inputMode}
       className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 transition-all
         ${readOnly ? 'bg-[#F8F9FA] border-gray-100 text-gray-500' : 'bg-white border-gray-200 focus:border-primary-dark'}
       `}
@@ -279,15 +280,15 @@ export default function Profile() {
     setAddressEditingId(null);
     setAddressForm({
       type: t,
-      name: `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim(),
-      countryCode: profile?.countryCode || '',
-      phone: profile?.phone || '',
+      name: '',
+      countryCode: '',
+      phone: '',
       address: '',
       addressLine2: '',
-      city: profile?.city || '',
-      state: profile?.state || '',
-      country: profile?.country || '',
-      pinCode: profile?.pinCode || '',
+      city: '',
+      state: '',
+      country: '',
+      pinCode: '',
       isDefault: false,
     });
     setAddressModalOpen(true);
@@ -314,7 +315,7 @@ export default function Profile() {
   const saveAddress = async () => {
     if (addressSaving) return;
     const payload = {
-      type: addressForm.type,
+      addressType: addressForm.type,
       name: String(addressForm.name || '').trim() || undefined,
       countryCode: String(addressForm.countryCode || '').trim() || undefined,
       phone: String(addressForm.phone || '').trim() || undefined,
@@ -326,7 +327,7 @@ export default function Profile() {
       pinCode: String(addressForm.pinCode || '').trim() || undefined,
       isDefault: Boolean(addressForm.isDefault),
     };
-    if (!payload.type) {
+    if (!payload.addressType) {
       addToast('Address type is required.', 'error');
       return;
     }
@@ -345,7 +346,7 @@ export default function Profile() {
       }
       setAddressModalOpen(false);
       setAddressEditingId(null);
-      await loadAddresses(payload.type);
+      await loadAddresses(addressForm.type);
     } catch (err) {
       addToast(err?.message || 'Failed to save address', 'error');
     } finally {
@@ -692,9 +693,17 @@ export default function Profile() {
                     label="Phone"
                     name="phone"
                     value={addressForm.phone}
-                    onChange={(e) => setAddressForm((p) => ({ ...p, phone: e.target.value }))}
+                    onChange={(e) =>
+                      setAddressForm((p) => {
+                        const raw = e.target.value || '';
+                        const digits = raw.replace(/\D/g, '');
+                        return { ...p, phone: digits };
+                      })
+                    }
                     readOnly={false}
                     placeholder="Phone"
+                    type="tel"
+                    inputMode="numeric"
                   />
                   <div className="md:col-span-2">
                     <InputField
