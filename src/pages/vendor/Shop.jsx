@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { productService } from '../../services/productService';
@@ -221,10 +221,10 @@ function itemUnitPrice(it) {
 
 export default function VendorShop() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { addToast } = useOutletContext();
   const { user, refresh } = useAuth();
 
-  const [mobileView, setMobileView] = useState('menu'); // 'menu' | 'content'
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create' | 'orders'
 
   const [submitting, setSubmitting] = useState(false);
@@ -232,6 +232,39 @@ export default function VendorShop() {
   const kycStatus = String(user?.kyc?.status || '').toLowerCase();
   const kycAccepted = kycStatus === 'accepted';
   const canSell = Boolean(user?.canSellProducts);
+
+  const STORE_TAB_KEY = 'mirah_vendor_store_last_tab';
+  const urlTab = useMemo(() => {
+    try {
+      const raw = new URLSearchParams(location.search || '').get('tab');
+      const t = String(raw || '').trim().toLowerCase();
+      return t === 'list' || t === 'create' || t === 'orders' || t === 'reviews' ? t : null;
+    } catch {
+      return null;
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!urlTab) return;
+    setActiveTab(urlTab);
+    try {
+      sessionStorage.setItem(STORE_TAB_KEY, urlTab);
+    } catch {
+      // ignore
+    }
+  }, [urlTab]);
+
+  const goStoreTab = (tab, { toContent = false } = {}) => {
+    const t = String(tab || '').trim().toLowerCase();
+    const next = t === 'list' || t === 'create' || t === 'orders' || t === 'reviews' ? t : 'list';
+    setActiveTab(next);
+    try {
+      sessionStorage.setItem(STORE_TAB_KEY, next);
+    } catch {
+      // ignore
+    }
+    navigate(`/vendor/shop?tab=${encodeURIComponent(next)}`);
+  };
 
   const sellingRequest = user?.sellingRequest || null;
   const requestStatus = String(sellingRequest?.status || '').toLowerCase();
@@ -706,8 +739,7 @@ export default function VendorShop() {
         videos: [],
         extraFields: [],
       });
-      setActiveTab('list');
-      if (window.innerWidth < 768) setMobileView('content');
+      goStoreTab('list', { toContent: true });
       await loadProducts();
     } catch (e) {
       addToast(e?.message || 'Failed to create product', 'error');
@@ -736,16 +768,14 @@ export default function VendorShop() {
       videos: [],
       extraFields: [],
     });
-    setActiveTab('create');
-    if (window.innerWidth < 768) setMobileView('content');
+    goStoreTab('create', { toContent: true });
   };
 
   const startEdit = async (product) => {
     const id = product?.id ?? product?._id;
     if (!id) return;
     setEditingId(id);
-    setActiveTab('create');
-    if (window.innerWidth < 768) setMobileView('content');
+    goStoreTab('create', { toContent: true });
     setCreateLoading(true);
     try {
       const res = await productService.getVendorProduct(id);
@@ -777,7 +807,7 @@ export default function VendorShop() {
     } catch (e) {
       addToast(e?.message || 'Failed to load product', 'error');
       setEditingId(null);
-      setActiveTab('list');
+      goStoreTab('list', { toContent: true });
     } finally {
       setCreateLoading(false);
     }
@@ -848,32 +878,13 @@ export default function VendorShop() {
       await productService.updateVendorProduct({ id: editingId, payload });
       addToast('Product updated.', 'success');
       setEditingId(null);
-      setActiveTab('list');
+      goStoreTab('list', { toContent: true });
       await loadProducts();
     } catch (e) {
       addToast(e?.message || 'Failed to update product', 'error');
     } finally {
       setCreateLoading(false);
     }
-  };
-
-  const MenuItem = ({ id, label, icon }) => {
-    const isActive = activeTab === id;
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setActiveTab(id);
-          if (window.innerWidth < 768) setMobileView('content');
-        }}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left border transition-colors cursor-pointer
-          ${isActive ? 'bg-primary-dark text-white border-primary-dark' : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50'}
-        `}
-      >
-        <span className={`${isActive ? 'text-white' : 'text-gray-400'}`}>{icon}</span>
-        <span className="text-[13px] font-semibold">{label}</span>
-      </button>
-    );
   };
 
   const InfoBox = ({ label, value, tone = 'default' }) => {
@@ -1033,91 +1044,28 @@ export default function VendorShop() {
             </div>
           </div>
         ) : canSell ? (
-          <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            {/* Menu */}
-            <div className={`w-full md:w-[320px] shrink-0 border-r border-gray-100 ${mobileView === 'content' ? 'hidden md:flex' : 'flex'} flex-col`}>
-              <div className="px-5 pt-5 pb-3">
-                <p className="text-[16px] font-extrabold text-gray-900">Store</p>
-                <p className="mt-1 text-[12px] text-gray-400">Manage your products and orders.</p>
-              </div>
-              <div className="px-5 pb-5 space-y-2">
-                <MenuItem
-                  id="create"
-                  label="Create Product"
-                  icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>}
-                />
-                <MenuItem
-                  id="list"
-                  label="List Products"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z" />
-                      <path d="M3.3 7 12 12l8.7-5" />
-                      <path d="M12 22V12" />
-                    </svg>
-                  }
-                />
-                <MenuItem
-                  id="orders"
-                  label="Manage Orders"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                      <path d="M9 5a3 3 0 0 0 6 0" />
-                      <path d="M9 5h6" />
-                      <path d="M9 12h6" />
-                      <path d="M9 16h6" />
-                    </svg>
-                  }
-                />
-                <MenuItem
-                  id="reviews"
-                  label="Product Reviews"
-                  icon={
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-                      <path d="M12 7.5l.9 1.82 2.01.29-1.45 1.41.34 2-1.8-.95-1.8.95.34-2-1.45-1.41 2.01-.29.9-1.82z" />
-                    </svg>
-                  }
-                />
-              </div>
+          <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
+            <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
+              <p className="text-[13px] font-bold text-gray-800">
+                {activeTab === 'create'
+                  ? 'Create Product'
+                  : activeTab === 'list'
+                    ? 'Products'
+                    : activeTab === 'reviews'
+                      ? 'Product Reviews'
+                      : 'Manage Orders'}
+              </p>
+              {activeTab === 'list' ? (
+                <button
+                  type="button"
+                  onClick={loadProducts}
+                  disabled={productsLoading}
+                  className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {productsLoading ? 'Refreshing…' : 'Refresh'}
+                </button>
+              ) : null}
             </div>
-
-            {/* Main */}
-            <div className={`flex-1 ${mobileView === 'menu' ? 'hidden md:flex' : 'flex'} flex-col`}>
-              <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setMobileView('menu')}
-                    className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
-                    aria-label="Back"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
-                  </button>
-                  <p className="text-[13px] font-bold text-gray-800">
-                    {activeTab === 'create'
-                      ? 'Create Product'
-                      : activeTab === 'list'
-                        ? 'Products'
-                        : activeTab === 'reviews'
-                          ? 'Product Reviews'
-                          : 'Manage Orders'}
-                  </p>
-                </div>
-                {activeTab === 'list' ? (
-                  <button
-                    type="button"
-                    onClick={loadProducts}
-                    disabled={productsLoading}
-                    className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {productsLoading ? 'Refreshing…' : 'Refresh'}
-                  </button>
-                ) : activeTab === 'reviews' ? (
-                  null
-                ) : null}
-              </div>
 
             <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
                 {activeTab === 'orders' ? (
@@ -1346,8 +1294,8 @@ export default function VendorShop() {
                     </div>
                   </div>
                 ) : activeTab === 'reviews' ? (
-                  <div className="space-y-4">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-4">
+                  <div className="h-full min-h-0 flex flex-col gap-4">
+                    <div className="shrink-0 rounded-2xl border border-gray-100 bg-white p-4">
                       <p className="text-[13px] font-bold text-gray-900">Product reviews</p>
                       <p className="mt-1 text-[12px] text-gray-400">Select a product to view its customer reviews.</p>
 
@@ -1409,14 +1357,14 @@ export default function VendorShop() {
                                   );
                                 })
                               )}
-                            </div>
-                          </div>
+            </div>
+          </div>
                         ) : null}
                       </div>
                     </div>
 
                     {!reviewProduct ? (
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
                         <div className="text-center">
                           <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1428,14 +1376,14 @@ export default function VendorShop() {
                         </div>
                       </div>
                     ) : reviewsLoading ? (
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
                         <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                         </svg>
                       </div>
                     ) : reviewItems.length === 0 ? (
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
                         <div className="text-center">
                           <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1447,7 +1395,7 @@ export default function VendorShop() {
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1">
                         {reviewItems.map((r, idx) => {
                           const id = r?.id ?? r?._id ?? idx;
                           const rating = Number(r?.rating ?? r?.review?.rating ?? 0) || 0;
@@ -1957,7 +1905,6 @@ export default function VendorShop() {
                 )}
               </div>
             </div>
-          </div>
         ) : (
           <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-[13px] text-red-700">
             <div className="font-semibold text-red-800 mb-1">Selling is disabled for your account</div>
