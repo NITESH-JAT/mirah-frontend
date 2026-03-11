@@ -12,14 +12,10 @@ function formatMoney(v) {
 
 function formatCountdown(ms) {
   const t = Math.max(0, Math.floor(ms / 1000));
-  const dd = Math.floor(t / (24 * 3600));
-  const hh = Math.floor((t % (24 * 3600)) / 3600);
-  const mm = Math.floor((t % 3600) / 60);
-  const ss = t % 60;
-  if (dd > 0) return `${dd}d ${hh}h`;
-  if (hh > 0) return `${hh}h ${mm}m`;
-  if (mm > 0) return `${mm}m ${ss}s`;
-  return `${ss}s`;
+  const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
 }
 
 function toTitleCase(text) {
@@ -260,7 +256,6 @@ export default function VendorExploreProject() {
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
-  const winningVendorId = useMemo(() => bidVendorIdOf(winningBid), [winningBid]);
 
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
@@ -355,11 +350,7 @@ export default function VendorExploreProject() {
           </div>
         </div>
 
-        <span className="shrink-0 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700 inline-flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 6v6l4 2" />
-          </svg>
+        <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary-dark text-white text-[11px] font-extrabold inline-flex items-center tabular-nums">
           {timeLeftMs == null ? '—' : bidEnded ? 'Bid Ended' : formatCountdown(timeLeftMs)}
         </span>
       </div>
@@ -523,13 +514,6 @@ export default function VendorExploreProject() {
                       </svg>
                     )}
                   </button>
-
-                  {winningVendorId != null ? (
-                    <span className="px-3 py-1.5 rounded-full bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
-                      Winning:{' '}
-                      {String(winningVendorId) === String(myVendorId) ? 'You' : bidVendorNameOf(winningBid) || `#${winningVendorId}`}
-                    </span>
-                  ) : null}
                 </div>
               </div>
 
@@ -578,7 +562,7 @@ export default function VendorExploreProject() {
                             </p>
                           </div>
                           {isWinning ? (
-                            <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary-dark/10 text-primary-dark border border-primary-dark/20 text-[11px] font-extrabold">
+                            <span className="shrink-0 px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200 text-[11px] font-extrabold">
                               Winning
                             </span>
                           ) : null}
