@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { cartService } from '../../services/cartService';
 import { addressService } from '../../services/addressService';
 import { getVendorId, getVendorDisplayName } from '../../utils/productSource';
+import SafeImage from '../../components/SafeImage';
 
 export default function Checkout() {
   const { addToast, currentUser } = useOutletContext();
@@ -714,7 +715,7 @@ export default function Checkout() {
                     return (
                       <div key={String(pickProductId(it) ?? Math.random())} className="flex items-center gap-3">
                         <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
-                          {img ? <img src={img} alt="" className="w-full h-full object-contain p-1 bg-white" /> : null}
+                          <SafeImage src={img} alt="" className="w-full h-full object-contain p-1 bg-white" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[12px] font-bold text-gray-900 truncate">{p?.name || 'Product'}</p>

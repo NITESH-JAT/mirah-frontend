@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
-import { sourceBadgeText, vendorSourceText } from '../../utils/productSource';
+import { getVendorId, sourceBadgeText, vendorSourceText } from '../../utils/productSource';
+import SafeImage from '../../components/SafeImage';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -128,6 +129,7 @@ export default function ProductDetails() {
 
   const media = useMemo(() => extractMedia(product), [product]);
   const vendorText = useMemo(() => vendorSourceText(product), [product]);
+  const vendorId = useMemo(() => getVendorId(product), [product]);
   const isFeatured = useMemo(
     () => product?.isFeatured === true || product?.isFeatured === 1 || String(product?.isFeatured).toLowerCase() === 'true',
     [product]
@@ -451,7 +453,7 @@ export default function ProductDetails() {
           className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 cursor-pointer"
         >
           {img ? (
-            <img src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
+            <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -553,7 +555,7 @@ export default function ProductDetails() {
                     poster={activeImage || undefined}
                   />
                 ) : activeImage ? (
-                  <img src={activeImage} alt="" className="w-full h-full object-contain p-3 bg-white" />
+                  <SafeImage src={activeImage} alt="" className="w-full h-full object-contain p-3 bg-white" />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -727,7 +729,18 @@ export default function ProductDetails() {
               ) : null}
               <p className="text-[16px] md:text-[18px] font-bold text-gray-900">{product?.name || 'Product'}</p>
               {vendorText ? (
-                <p className="mt-1 text-[12px] md:text-[13px] text-gray-500 font-medium">{vendorText}</p>
+                <div className="mt-1 flex items-center gap-2 flex-wrap">
+                  <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">{vendorText}</p>
+                  {vendorId != null ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/vendors/${vendorId}`)}
+                      className="text-[12px] md:text-[13px] font-extrabold text-primary-dark hover:underline"
+                    >
+                      View vendor profile →
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
 
               <div className="mt-2 flex items-center flex-wrap gap-2">

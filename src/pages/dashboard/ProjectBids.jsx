@@ -1,0 +1,797 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { projectService } from '../../services/projectService';
+
+function formatMoney(v) {
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v ?? '');
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatCountdown(ms) {
+  const t = Math.max(0, Math.floor(ms / 1000));
+  const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+  const mm = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
+  const ss = String(t % 60).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+function formatDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
+function toTitleCase(text) {
+  return String(text || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function coerceAssignments(input) {
+  const asg = input ?? [];
+  return Array.isArray(asg) ? asg.filter(Boolean) : asg ? [asg] : [];
+}
+
+function assignmentVendorIdOf(a) {
+  return a?.vendorId ?? a?.vendor_id ?? a?.vendor?.id ?? a?.vendor?._id ?? null;
+}
+
+function isAssignmentActive(a) {
+  const active = a?.isActive ?? a?.is_active ?? false;
+  if (typeof active === 'boolean') return active;
+  return String(active).trim().toLowerCase() === 'true';
+}
+
+function assignmentStatusText(a) {
+  const raw = a?.status ?? a?.assignmentStatus ?? a?.assignment_status ?? '';
+  return String(raw || '').trim().toLowerCase();
+}
+
+function isPaymentPaid(block) {
+  const s = String(block?.status ?? '').trim().toLowerCase();
+  return s === 'paid';
+}
+
+function isProjectFinishedLike(p) {
+  const status = String(p?.status ?? '').trim().toLowerCase();
+  const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+  return Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed';
+}
+
+function avatarUrlFor(name) {
+  const safe = name || 'Vendor';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
+}
+
+function daysLabel(days) {
+  const d = Number(days);
+  if (!Number.isFinite(d) || d <= 0) return '—';
+  return `${d} days`;
+}
+
+export default function ProjectBids() {
+  const { addToast } = useOutletContext();
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const projectId = id;
+  const [loading, setLoading] = useState(false);
+  const [details, setDetails] = useState(null);
+  const [bidsLoading, setBidsLoading] = useState(false);
+  const [bids, setBids] = useState([]);
+
+  const [search, setSearch] = useState('');
+  const [selectedBidId, setSelectedBidId] = useState(null);
+  const [sortOpen, setSortOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('amount_asc'); // amount_asc | amount_desc | delivery_asc | delivery_desc
+  const cardsWrapRef = useRef(null);
+  const actionBarRef = useRef(null);
+
+  const [endOpen, setEndOpen] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideFor, setOverrideFor] = useState(null); // { vendorName, bidEntryId, amount, noOfDays }
+  const [actionLoading, setActionLoading] = useState({});
+
+  const [nowTs, setNowTs] = useState(Date.now());
+  const abortRef = useRef(null);
+
+  const project = details?.project ?? details?.data?.project ?? details?.item ?? details?.data ?? details ?? null;
+  const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
+  const finishingAt =
+    activeBidWindow?.finishingTimestamp ??
+    activeBidWindow?.finishingAt ??
+    activeBidWindow?.finishing_at ??
+    null;
+  const hasActiveWindow = Boolean(activeBidWindow);
+  const finishesMs = finishingAt ? new Date(finishingAt).getTime() : null;
+  const timeLeftMs = finishesMs != null ? Math.max(0, finishesMs - nowTs) : 0;
+
+  const assignments = useMemo(
+    () => coerceAssignments(project?.assignments ?? project?.assignmentRequests ?? project?.projectAssignments ?? []),
+    [project],
+  );
+  const activeAssignment = useMemo(() => assignments.find((a) => isAssignmentActive(a)) || null, [assignments]);
+  const assignedVendorId = useMemo(() => assignmentVendorIdOf(activeAssignment), [activeAssignment]);
+  const assignedStatus = useMemo(() => assignmentStatusText(activeAssignment), [activeAssignment]);
+  const assignmentPending = useMemo(() => assignedStatus === 'pending', [assignedStatus]);
+  const assignmentAccepted = useMemo(() => assignedStatus === 'accepted', [assignedStatus]);
+  const finishedProject = useMemo(() => isProjectFinishedLike(project), [project]);
+  const advancePayment = project?.advancePayment ?? project?.advance_payment ?? project?.payments?.advance ?? null;
+  const advancePaid = useMemo(() => isPaymentPaid(advancePayment), [advancePayment]);
+  const budgetText = useMemo(() => {
+    const min = Number(project?.amountRange?.min ?? project?.amount_range?.min ?? project?.minAmount ?? project?.min_amount ?? NaN);
+    const max = Number(project?.amountRange?.max ?? project?.amount_range?.max ?? project?.maxAmount ?? project?.max_amount ?? NaN);
+    if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
+    return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
+  }, [project]);
+  const durationText = useMemo(() => {
+    const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? NaN);
+    if (!Number.isFinite(t) || t <= 0) return '—';
+    return `${t} days`;
+  }, [project]);
+
+  const load = useCallback(async () => {
+    if (!projectId) return;
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    try {
+      const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      setDetails(res || null);
+    } catch (e) {
+      addToast(e?.message || 'Failed to load project', 'error');
+      setDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, projectId]);
+
+  const loadBids = useCallback(async () => {
+    if (!projectId) return;
+    setBidsLoading(true);
+    try {
+      const items = await projectService.listBids(projectId);
+      const list = Array.isArray(items) ? items : [];
+      setBids(list);
+    } catch (e) {
+      addToast(e?.message || 'Failed to load bids', 'error');
+      setBids([]);
+    } finally {
+      setBidsLoading(false);
+    }
+  }, [addToast, projectId]);
+
+  useEffect(() => {
+    load();
+    loadBids();
+    return () => {
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, [load, loadBids]);
+
+  useEffect(() => {
+    if (!hasActiveWindow || !finishesMs) return;
+    const t = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [finishesMs, hasActiveWindow]);
+
+  const lowest = useMemo(() => {
+    const amountOf = (b) => Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+    let best = null;
+    for (const b of bids) {
+      const a = amountOf(b);
+      if (!Number.isFinite(a)) continue;
+      const key = b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? null;
+      if (!key) continue;
+      if (!best || a < best.amount) best = { id: String(key), amount: a };
+    }
+    return best;
+  }, [bids]);
+
+  const filteredBids = useMemo(() => {
+    const q = String(search || '').trim().toLowerCase();
+    if (!q) return bids;
+    return bids.filter((b) => {
+      const vendorName = String(b?.vendorName ?? b?.vendor_name ?? '').toLowerCase();
+      const vendor = b?.vendor ?? null;
+      const joined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim().toLowerCase();
+      return vendorName.includes(q) || joined.includes(q);
+    });
+  }, [bids, search]);
+
+  const visibleBids = useMemo(() => {
+    const list = Array.isArray(filteredBids) ? [...filteredBids] : [];
+    const amountOf = (b) => Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+    const daysOf = (b) => Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
+
+    list.sort((a, b) => {
+      if (sortBy === 'delivery_asc' || sortBy === 'delivery_desc') {
+        const dir = sortBy === 'delivery_desc' ? -1 : 1;
+        const da = daysOf(a);
+        const db = daysOf(b);
+        if (Number.isFinite(da) && Number.isFinite(db)) return (da - db) * dir;
+        if (Number.isFinite(da)) return -1;
+        if (Number.isFinite(db)) return 1;
+        return 0;
+      }
+      const dir = sortBy === 'amount_desc' ? -1 : 1;
+      const aa = amountOf(a);
+      const ab = amountOf(b);
+      if (Number.isFinite(aa) && Number.isFinite(ab)) return (aa - ab) * dir;
+      if (Number.isFinite(aa)) return -1;
+      if (Number.isFinite(ab)) return 1;
+      return 0;
+    });
+
+    return list;
+  }, [filteredBids, sortBy]);
+
+  const canEndBid = hasActiveWindow && !finishedProject;
+  const ended = !hasActiveWindow;
+  const overrideLocked = Boolean(assignmentAccepted && advancePaid);
+  const canSelectBids = ended && !finishedProject && !overrideLocked;
+
+  const assignmentForVendor = useCallback(
+    (vendorId) => {
+      if (!vendorId) return null;
+      const list = Array.isArray(assignments) ? assignments : [];
+      const matches = list.filter((a) => String(assignmentVendorIdOf(a) ?? '') === String(vendorId));
+      if (matches.length === 0) return null;
+      // latest first by updatedAt/assignedAt
+      matches.sort((a, b) => {
+        const ta = new Date(a?.updatedAt ?? a?.updated_at ?? a?.assignedAt ?? a?.assigned_at ?? 0).getTime() || 0;
+        const tb = new Date(b?.updatedAt ?? b?.updated_at ?? b?.assignedAt ?? b?.assigned_at ?? 0).getTime() || 0;
+        return tb - ta;
+      });
+      return matches[0] ?? null;
+    },
+    [assignments],
+  );
+
+  const assignmentBadge = useCallback(
+    (a) => {
+      if (!a) return null;
+      const status = assignmentStatusText(a);
+      const replacedById = a?.replacedById ?? a?.replaced_by_id ?? null;
+      if (!isAssignmentActive(a) && replacedById != null) return { text: 'Overridden', tone: 'muted' };
+      if (status === 'pending') return { text: 'Pending', tone: 'warn' };
+      if (status === 'accepted') return { text: 'Accepted', tone: 'success' };
+      if (status === 'rejected') return { text: 'Rejected', tone: 'danger' };
+      if (status === 'reassigned' || status === 'replaced' || status === 'overridden') return { text: 'Overridden', tone: 'muted' };
+      if (!status) return null;
+      return { text: toTitleCase(status), tone: 'muted' };
+    },
+    [],
+  );
+
+  // Close sort menu when clicking outside
+  useEffect(() => {
+    if (!sortOpen) return;
+    const onDown = () => setSortOpen(false);
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [sortOpen]);
+
+  useEffect(() => {
+    if (!canSelectBids && selectedBidId != null) setSelectedBidId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canSelectBids]);
+
+  // Clear selection when clicking outside bid cards (ended only)
+  useEffect(() => {
+    if (!canSelectBids) return;
+    if (!selectedBidId) return;
+    if (endOpen || overrideOpen) return;
+    const onDown = (e) => {
+      const actionBar = actionBarRef.current;
+      if (actionBar && actionBar.contains(e.target)) return;
+      const card = e?.target?.closest?.('[data-bid-card="1"]');
+      if (card) return;
+      setSelectedBidId(null);
+    };
+    window.addEventListener('mousedown', onDown);
+    return () => window.removeEventListener('mousedown', onDown);
+  }, [canSelectBids, endOpen, overrideOpen, selectedBidId]);
+
+  const openVendorProfile = (bid) => {
+    const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
+    if (!vendorId) return;
+    navigate(`/dashboard/vendors/${vendorId}`, {
+      state: { fromProjectId: projectId, fromProjectTitle: project?.title ?? location?.state?.projectTitle ?? null },
+    });
+  };
+
+  const openOverride = (bid) => {
+    const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Vendor';
+    const amount = Number(bid?.amount ?? bid?.price ?? bid?.bidAmount ?? bid?.bid_price ?? NaN);
+    const noOfDays = Number(bid?.noOfDays ?? bid?.daysToComplete ?? bid?.days_to_complete ?? bid?.no_of_days ?? NaN);
+    const bidEntryId = bid?.bidEntryId ?? bid?.bid_entry_id ?? bid?.id ?? bid?._id ?? null;
+    if (!bidEntryId || !Number.isFinite(amount) || amount <= 0 || !Number.isFinite(noOfDays) || noOfDays <= 0) {
+      addToast('Unable to assign (missing bid details).', 'error');
+      return;
+    }
+    setOverrideFor({ vendorName, bidEntryId, amount, noOfDays });
+    setOverrideOpen(true);
+  };
+
+  const confirmOverride = async () => {
+    if (!projectId || !overrideFor?.bidEntryId) return;
+    setActionLoading((p) => ({ ...(p || {}), override: true }));
+    try {
+      const payload = { bidEntryId: overrideFor.bidEntryId, amount: overrideFor.amount, noOfDays: overrideFor.noOfDays };
+      if (activeAssignment) {
+        await projectService.reassignWinner(projectId, payload);
+        addToast('Assignment overridden.', 'success');
+      } else {
+        await projectService.selectWinner(projectId, payload);
+        addToast('Assignment sent to vendor.', 'success');
+      }
+      setOverrideOpen(false);
+      setOverrideFor(null);
+      await load();
+      await loadBids();
+    } catch (e) {
+      addToast(e?.message || 'Failed to assign vendor', 'error');
+    } finally {
+      setActionLoading((p) => ({ ...(p || {}), override: false }));
+    }
+  };
+
+  const confirmManualEnd = async () => {
+    if (!projectId) return;
+    setActionLoading((p) => ({ ...(p || {}), end: true }));
+    try {
+      await projectService.manualEndBid(projectId);
+      addToast('Bidding ended.', 'success');
+      setEndOpen(false);
+      await load();
+      await loadBids();
+    } catch (e) {
+      addToast(e?.message || 'Failed to end bidding', 'error');
+    } finally {
+      setActionLoading((p) => ({ ...(p || {}), end: false }));
+    }
+  };
+
+  return (
+    <div className="w-full pb-10 animate-fade-in">
+      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col gap-4">
+        {/* Fixed header card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
+          <div className="relative flex flex-col gap-3">
+            {/* Mobile actions */}
+            <div className="shrink-0 flex items-center gap-2 order-1 w-full justify-between md:hidden">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/projects')}
+                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+              >
+                Back
+              </button>
+              {canEndBid ? (
+                <button
+                  type="button"
+                  onClick={() => setEndOpen(true)}
+                  className="px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
+                >
+                  Force End
+                </button>
+              ) : null}
+            </div>
+
+            {/* Desktop actions */}
+            <button
+              type="button"
+              onClick={() => navigate('/dashboard/projects')}
+              className="hidden md:inline-flex md:absolute md:left-6 md:top-6 px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+            >
+              Back
+            </button>
+            {canEndBid ? (
+              <button
+                type="button"
+                onClick={() => setEndOpen(true)}
+                className="hidden md:inline-flex md:absolute md:right-6 md:top-6 px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
+              >
+                Force End
+              </button>
+            ) : null}
+
+            <div className="min-w-0 order-2 md:order-1 flex flex-col items-center text-center md:px-32">
+              <p className="text-[13px] text-gray-500 font-semibold break-words line-clamp-2 max-w-[860px]">
+                {project?.title || location?.state?.projectTitle || 'Project'}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
+                  Budget: <span className="font-bold">{budgetText}</span>
+                </span>
+                <span className="px-3 py-1.5 rounded-xl bg-gray-50 border border-gray-100 text-[11px] font-extrabold text-gray-700">
+                  Duration: <span className="font-bold">{durationText}</span>
+                </span>
+              </div>
+              <div className="mt-2 flex items-center justify-center gap-3 flex-wrap">
+                <p className="text-[20px] md:text-[22px] font-extrabold text-gray-900">Biddings</p>
+                {hasActiveWindow && finishesMs ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
+                    {formatCountdown(timeLeftMs)}
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 text-[12px] font-extrabold">
+                    Ended
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed search/sort card */}
+        <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="relative">
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder='Search "Jewellers"'
+                  className="w-[260px] max-w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSortOpen((v) => !v)}
+                  className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                >
+                  Sort
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+
+                {sortOpen ? (
+                  <div
+                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('amount_asc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                        sortBy === 'amount_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                      }`}
+                    >
+                      Low amount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('amount_desc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                        sortBy === 'amount_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                      }`}
+                    >
+                      High amount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('delivery_asc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                        sortBy === 'delivery_asc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                      }`}
+                    >
+                      Low delivery duration
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('delivery_desc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50 ${
+                        sortBy === 'delivery_desc' ? 'bg-gray-50 text-gray-900' : 'text-gray-700'
+                      }`}
+                    >
+                      High delivery duration
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable bids list */}
+        <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
+          <div
+            className="p-4 md:p-6 h-full min-h-0 overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
+            style={{ scrollbarGutter: 'stable' }}
+          >
+            {loading || bidsLoading ? (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-12 flex items-center justify-center">
+                <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              </div>
+            ) : visibleBids.length === 0 ? (
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">No bids found.</div>
+            ) : (
+              <div ref={cardsWrapRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {visibleBids.map((b) => {
+                  const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
+                  const vendor = b?.vendor ?? null;
+                  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                  const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Vendor'));
+                  const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+                  const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
+                  const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
+                  const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
+                  const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
+                  const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
+                  const badge = assignmentBadge(vendorAsg);
+                  const isAssigned =
+                    vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                  const disableSelect = Boolean(canSelectBids && assignmentPending && isAssigned);
+                  const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
+
+                  return (
+                    <div
+                      key={bidId || vendorId || Math.random()}
+                      data-bid-card="1"
+                      role={canSelectBids && !disableSelect ? 'button' : undefined}
+                      tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
+                      onClick={
+                        canSelectBids && !disableSelect
+                          ? () =>
+                              setSelectedBidId((prev) => {
+                                const next = bidId || null;
+                                if (!next) return null;
+                                return String(prev ?? '') === String(next) ? null : next;
+                              })
+                          : undefined
+                      }
+                      onKeyDown={
+                        canSelectBids && !disableSelect
+                          ? (e) => {
+                              if (e.key !== 'Enter') return;
+                              setSelectedBidId((prev) => {
+                                const next = bidId || null;
+                                if (!next) return null;
+                                return String(prev ?? '') === String(next) ? null : next;
+                              });
+                            }
+                          : undefined
+                      }
+                      className={`rounded-2xl border p-4 bg-white transition-colors ${
+                        canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
+                      } ${
+                        selected
+                          ? 'border-primary-dark'
+                          : isLowest
+                            ? 'border-green-300 bg-green-50/40'
+                            : canSelectBids && !disableSelect
+                              ? 'border-gray-100 hover:bg-gray-50'
+                              : 'border-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-100 bg-white shrink-0">
+                            <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-[13px] font-extrabold text-gray-900 truncate">{vendorName}</p>
+                              {isLowest ? (
+                                <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                  Lowest Bid
+                                </span>
+                              ) : null}
+                              {isAssigned ? (
+                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                                Assigned
+                              </span>
+                              ) : null}
+                            {badge ? (
+                              <span
+                                className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                  badge.tone === 'success'
+                                    ? 'bg-green-50 border-green-100 text-green-700'
+                                    : badge.tone === 'danger'
+                                      ? 'bg-red-50 border-red-100 text-red-700'
+                                      : badge.tone === 'warn'
+                                        ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                        : 'bg-gray-50 border-gray-100 text-gray-700'
+                                }`}
+                              >
+                                {badge.text}
+                              </span>
+                            ) : null}
+                            </div>
+                            <div className="mt-1 text-[12px] text-gray-500 space-y-1">
+                              <span className="flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <path d="M12 6v6l4 2" />
+                                </svg>
+                                Delivery In: {daysLabel(days)}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                                </svg>
+                                Jeweler Rating: {rating != null ? Number(rating).toFixed(1) : '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0 text-right">
+                          <p className="text-[14px] font-extrabold text-gray-900">
+                            {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
+                          </p>
+                          <p className="text-[11px] text-gray-400 font-semibold">Bidding Price</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openVendorProfile(b);
+                          }}
+                          className="text-[12px] font-extrabold text-primary-dark hover:underline"
+                        >
+                          View Profile →
+                        </button>
+                        {canSelectBids ? (
+                          selected ? (
+                            <div className="w-5 h-5 rounded-md border flex items-center justify-center border-primary-dark bg-primary-dark">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
+                                <path d="M20 6 9 17l-5-5" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="w-5 h-5" />
+                          )
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Fixed bottom action bar */}
+        {ended && !finishedProject && !overrideLocked ? (
+          <div
+            ref={actionBarRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 shrink-0 flex items-center justify-end"
+          >
+            {(() => {
+              const canProceed = Boolean(selectedBidId) && !Boolean(actionLoading?.override);
+              return (
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedBidId || Boolean(actionLoading?.override)) return;
+                const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
+                if (!bid) return;
+                const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
+                const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                if (assignmentPending && isAssigned) {
+                  addToast('Assignment is pending. Please wait for vendor response before overriding.', 'error');
+                  return;
+                }
+                openOverride(bid);
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              disabled={!canProceed}
+              title={!selectedBidId ? 'Select a bid to continue' : undefined}
+              className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
+                canProceed ? 'bg-primary-dark text-white hover:opacity-90' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
+            </button>
+              );
+            })()}
+          </div>
+        ) : null}
+      </div>
+
+      {/* Manual end modal */}
+      {endOpen ? (
+        <div className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={() => setEndOpen(false)}>
+          <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">Force End</p>
+              <p className="mt-1 text-[12px] text-gray-500">This will force-end the current bid window now (does not cancel the project).</p>
+            </div>
+            <div className="px-5 py-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setEndOpen(false)} className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50">
+                Keep running
+              </button>
+              <button
+                type="button"
+                onClick={confirmManualEnd}
+                disabled={Boolean(actionLoading?.end)}
+                className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading?.end ? 'Ending…' : 'Force End'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Override modal */}
+      {overrideOpen ? (
+        <div className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={() => setOverrideOpen(false)}>
+          <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">{activeAssignment ? 'Override Assignment' : 'Assign Winner'}</p>
+              <p className="mt-1 text-[12px] text-gray-500">
+                {activeAssignment ? (
+                  <>
+                    This will override the current assignment and assign to{' '}
+                    <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'vendor'}</span>.
+                  </>
+                ) : (
+                  <>
+                    Assign this project to <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'vendor'}</span>?
+                  </>
+                )}
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 text-[12px] text-gray-700 space-y-1">
+                <p>
+                  Amount: <span className="font-semibold">₹ {formatMoney(overrideFor?.amount)}</span>
+                </p>
+                <p>
+                  Timeline: <span className="font-semibold">{overrideFor?.noOfDays ? daysLabel(overrideFor.noOfDays) : '—'}</span>
+                </p>
+              </div>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <button type="button" onClick={() => setOverrideOpen(false)} className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmOverride}
+                  disabled={Boolean(actionLoading?.override)}
+                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Confirm Override' : 'Confirm Assignment'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+

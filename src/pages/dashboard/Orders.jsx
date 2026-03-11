@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderService } from '../../services/orderService';
 import { productService } from '../../services/productService';
+import SafeImage from '../../components/SafeImage';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -792,7 +793,7 @@ export default function Orders() {
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex items-center gap-3">
                                   <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
-                                    {img ? <img src={img} alt="" className="w-full h-full object-contain p-1 bg-white" /> : null}
+                                    <SafeImage src={img} alt="" className="w-full h-full object-contain p-1 bg-white" loading="lazy" />
                                   </div>
                                   <div className="min-w-0">
                                     <p className="text-[12px] font-bold text-gray-900 truncate">{p?.name || 'Product'}</p>

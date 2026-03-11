@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { authService } from '../../services/authService';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
+import SafeImage from '../../components/SafeImage';
 
 function toTitleCase(text) {
   return String(text || '')
@@ -1530,12 +1531,7 @@ export default function VendorShop() {
                             <div className="flex flex-col md:flex-row">
                               <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
                                 {Array.isArray(p.images) && p.images[0] ? (
-                                  <img
-                                    src={p.images[0]}
-                                    alt=""
-                                    loading="lazy"
-                                    className="w-full h-full object-contain p-2"
-                                  />
+                                  <SafeImage src={p.images[0]} alt="" loading="lazy" className="w-full h-full object-contain p-2" />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-gray-300">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
@@ -1847,7 +1843,7 @@ export default function VendorShop() {
                         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                           {createForm.images.map((url, idx) => (
                             <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
-                              <img src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
+                              <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
                               <button
                                 type="button"
                                 onClick={() =>

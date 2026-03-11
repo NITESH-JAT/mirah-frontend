@@ -152,6 +152,7 @@ export default function Messages() {
   const msgInFlightRef = useRef(false);
   const conversationsRef = useRef([]);
   const prefillAppliedRef = useRef(false);
+  const deepLinkAppliedRef = useRef(false);
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
@@ -263,6 +264,33 @@ export default function Messages() {
 
     // Clear route state to avoid reapplying on back/refresh.
     navigate('/dashboard/messages', { replace: true, state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.state]);
+
+  // Allow other pages to open a thread with a specific recipientId (e.g., "Chat Now").
+  useEffect(() => {
+    const state = location?.state || null;
+    const recipientId = state?.openRecipientId ?? state?.recipientId ?? state?.recipient?.id ?? null;
+    if (!recipientId || deepLinkAppliedRef.current) return;
+    deepLinkAppliedRef.current = true;
+
+    (async () => {
+      try {
+        const res = await chatService.createOrFindConversation({ recipientId });
+        const convo = res?.conversation ?? res;
+        const convoId = getEntityId(convo);
+        if (convoId) setActiveConvoId(convoId);
+
+        const items = await chatService.listConversations();
+        setConversations(applyConversationList(items));
+        if (window.innerWidth < 768) setMobileView('thread');
+      } catch (e) {
+        addToast(e?.message || 'Unable to start conversation', 'error');
+      } finally {
+        // Clear route state to avoid reapplying on back/refresh.
+        navigate('/dashboard/messages', { replace: true, state: {} });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.state]);
 

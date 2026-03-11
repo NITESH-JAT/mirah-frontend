@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import { sourceBadgeText } from '../../utils/productSource';
+import SafeImage from '../../components/SafeImage';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -168,7 +169,7 @@ export default function SimilarProducts() {
           className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 cursor-pointer"
         >
           {img ? (
-            <img src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
+            <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

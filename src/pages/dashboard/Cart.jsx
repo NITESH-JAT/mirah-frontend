@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { cartService } from '../../services/cartService';
 import { vendorSourceText } from '../../utils/productSource';
+import SafeImage from '../../components/SafeImage';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -352,18 +353,7 @@ export default function Cart() {
                       className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-gray-100 shrink-0 cursor-pointer"
                       aria-label="Open product"
                     >
-                      {img ? (
-                        <img
-                          src={img}
-                          alt=""
-                          className="w-full h-full object-contain p-2 bg-white"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300 text-[10px] font-bold">
-                          No image
-                        </div>
-                      )}
+                      <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
                     </div>
 
                     <div
