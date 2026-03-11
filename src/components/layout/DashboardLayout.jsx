@@ -177,7 +177,7 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     // On app start and periodically (PRD)

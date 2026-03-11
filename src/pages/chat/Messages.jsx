@@ -692,9 +692,9 @@ export default function Messages() {
   const threadPaneClass = mobileView === 'list' ? 'hidden md:flex' : 'flex';
 
   return (
-    <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+    <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden min-h-0">
       {/* Conversations list */}
-      <div className={`w-full md:w-[340px] shrink-0 border-r border-gray-100 ${listPaneClass} flex-col`}>
+      <div className={`w-full md:w-[340px] shrink-0 border-r border-gray-100 ${listPaneClass} flex-col min-h-0`}>
         <div className="px-6 pt-6 pb-3">
           <h2 className="font-serif text-[18px] font-bold text-gray-800">All messages</h2>
         </div>
@@ -738,7 +738,7 @@ export default function Messages() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {loadingConvos ? (
             <div className="px-6 py-4 text-[13px] text-gray-400">Loading…</div>
           ) : (
@@ -785,7 +785,7 @@ export default function Messages() {
       </div>
 
       {/* Thread */}
-      <div className={`flex-1 ${threadPaneClass} flex-col`}>
+      <div className={`flex-1 ${threadPaneClass} flex-col min-w-0 min-h-0`}>
         {!activeConvoId ? (
           <div className="flex-1 flex items-center justify-center bg-white">
             <div className="text-center px-8 max-w-md">
@@ -828,8 +828,8 @@ export default function Messages() {
               </div>
             </div>
 
-            <div className="flex-1 relative bg-white">
-              <div className="absolute inset-0 overflow-y-auto px-5 py-6 space-y-3 relative z-10">
+            <div className="flex-1 min-h-0 relative bg-white overflow-hidden">
+              <div className="h-full overflow-y-auto px-5 py-6 space-y-3 relative z-10">
                 {loadingMessages ? (
                   <div className="text-[13px] text-gray-400">Loading messages…</div>
                 ) : messages.length === 0 ? (

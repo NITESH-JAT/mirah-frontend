@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import SafeImage from '../../components/SafeImage';
@@ -289,9 +289,28 @@ function canCancelProject(p) {
   const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
   if (Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed' || projectStatus === 'cancelled') return false;
 
+  // Show Cancel only once bidding window exists (active or ended).
+  const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
+  const windows = bidWindowsOf(p);
+  const hasBidHistory = Boolean(latestBidWindowId != null) || (Array.isArray(windows) && windows.length > 0);
+  if (!hasBidHistory) return false;
+
   // PRD: Allowed only if no assignment exists and no successful advance/final payments exist.
   const assignments = coerceAssignments(p?.assignments ?? p?.assignmentRequests ?? p?.projectAssignments ?? []);
-  if (assignments.length > 0) return false;
+  // Backend may include assignment history (reassigned/rejected) even when there's no current assignment.
+  // Allow cancel as long as there is no active/pending/accepted assignment.
+  const hasBlockingAssignment = assignments.some((a) => {
+    const s = String(a?.status ?? '').trim().toLowerCase();
+    const active = a?.isActive ?? a?.is_active ?? false;
+    const isActive = typeof active === 'boolean' ? active : String(active).trim().toLowerCase() === 'true';
+    if (isActive) return true;
+    if (s !== 'pending' && s !== 'accepted') return false;
+    // If this assignment was replaced, it shouldn't block cancel.
+    const replacedBy = a?.replacedById ?? a?.replaced_by_id ?? null;
+    if (replacedBy != null && replacedBy !== '') return false;
+    return true;
+  });
+  if (hasBlockingAssignment) return false;
 
   const advancePayment = p?.advancePayment ?? p?.advance_payment ?? null;
   const finalPayment = p?.finalPayment ?? p?.final_payment ?? null;
@@ -303,9 +322,24 @@ function canCancelProject(p) {
 export default function Projects() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [mobileView, setMobileView] = useState('menu'); // 'menu' | 'content'
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
+
+  const urlTab = useMemo(() => {
+    try {
+      const t = new URLSearchParams(location.search || '').get('tab');
+      return String(t || '').trim().toLowerCase() || null;
+    } catch {
+      return null;
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (!urlTab) return;
+    if (urlTab !== 'list' && urlTab !== 'create' && urlTab !== 'assignments') return;
+    setActiveTab(urlTab);
+  }, [urlTab]);
 
   const [listLoading, setListLoading] = useState(false);
   const [listMoreLoading, setListMoreLoading] = useState(false);
@@ -406,25 +440,6 @@ export default function Projects() {
     };
   }, [loadProjects]);
 
-  const MenuItem = ({ id, label, icon }) => {
-    const isActive = activeTab === id;
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setActiveTab(id);
-          if (window.innerWidth < 768) setMobileView('content');
-        }}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left border transition-colors cursor-pointer
-          ${isActive ? 'bg-primary-dark text-white border-primary-dark' : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50'}
-        `}
-      >
-        <span className={`${isActive ? 'text-white' : 'text-gray-400'}`}>{icon}</span>
-        <span className="text-[13px] font-semibold">{label}</span>
-      </button>
-    );
-  };
-
   const InfoBox = ({ label, value, tone = 'default' }) => {
     const toneClass =
       tone === 'danger'
@@ -452,7 +467,7 @@ export default function Projects() {
       metaFields: [],
     });
     setActiveTab('create');
-    if (window.innerWidth < 768) setMobileView('content');
+    navigate('/dashboard/projects?tab=create');
   };
 
   const startEdit = (p) => {
@@ -469,7 +484,7 @@ export default function Projects() {
       metaFields: extraFieldsToArray(p?.meta),
     });
     setActiveTab('create');
-    if (window.innerWidth < 768) setMobileView('content');
+    navigate('/dashboard/projects?tab=create');
   };
 
   const handleUploadAttachments = async (files) => {
@@ -538,6 +553,7 @@ export default function Projects() {
       }
       setEditingId(null);
       setActiveTab('list');
+      navigate('/dashboard/projects?tab=list');
       await loadProjects({ nextPage: 1, append: false });
     } catch (e) {
       addToast(e?.message || 'Failed to save project', 'error');
@@ -809,68 +825,11 @@ export default function Projects() {
   return (
     <div className="w-full pb-10 animate-fade-in">
       <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        {/* Menu */}
-        <div
-          className={`w-full md:w-[320px] shrink-0 border-r border-gray-100 ${
-            mobileView === 'content' ? 'hidden md:flex' : 'flex'
-          } flex-col`}
-        >
-          <div className="px-5 pt-5 pb-3">
-            <p className="text-[16px] font-extrabold text-gray-900">My Projects</p>
-            <p className="mt-1 text-[12px] text-gray-400">Create and manage your projects.</p>
-          </div>
-          <div className="px-5 pb-5 space-y-2">
-            <MenuItem
-              id="create"
-              label="Create Project"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 5v14" />
-                  <path d="M5 12h14" />
-                </svg>
-              }
-            />
-            <MenuItem
-              id="list"
-              label="List Projects"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z" />
-                  <path d="M3.3 7 12 12l8.7-5" />
-                  <path d="M12 22V12" />
-                </svg>
-              }
-            />
-            <MenuItem
-              id="assignments"
-              label="Assignments"
-              icon={
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 12h6" />
-                  <path d="M12 9v6" />
-                  <path d="M7 2h10a2 2 0 0 1 2 2v18l-7-3-7 3V4a2 2 0 0 1 2-2z" />
-                </svg>
-              }
-            />
-          </div>
-        </div>
 
         {/* Main */}
-        <div className={`flex-1 ${mobileView === 'menu' ? 'hidden md:flex' : 'flex'} flex-col`}>
+        <div className="flex-1 flex flex-col">
           <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setMobileView('menu')}
-                className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
-                aria-label="Back"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M15 18l-6-6 6-6" />
-                </svg>
-              </button>
-              <p className="text-[13px] font-bold text-gray-800">{headerTitle}</p>
-            </div>
+            <p className="text-[13px] font-bold text-gray-800">{headerTitle}</p>
 
             {activeTab === 'list' || activeTab === 'assignments' ? (
               <button
@@ -1068,17 +1027,19 @@ export default function Projects() {
                                   onClick={() => goToBids(p)}
                                   className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                 >
-                                  View bids
+                                  View Bids
                                 </button>
                               ) : null}
 
-                              <button
-                                type="button"
-                                onClick={() => startEdit(p)}
-                                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                              >
-                                Edit
-                              </button>
+                              {!completedLike ? (
+                                <button
+                                  type="button"
+                                  onClick={() => startEdit(p)}
+                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  Edit
+                                </button>
+                              ) : null}
                               {canDeleteProject(p) ? (
                                 <button
                                   type="button"
@@ -1183,10 +1144,17 @@ export default function Projects() {
                               {status === 'pending' ? 'Pending with' : status === 'accepted' ? 'Accepted by' : 'Rejected by'}{' '}
                               <span className="font-semibold text-gray-600">{vendorLabel}</span>
                             </p>
-                            {when ? <p className="mt-1 text-[12px] text-gray-400">{formatDateTime(when)}</p> : null}
+                            {/* Mobile timestamp */}
+                            {when ? <p className="mt-1 text-[12px] text-gray-400 sm:hidden">{formatDateTime(when)}</p> : null}
                           </div>
 
-                          <div className="shrink-0 flex flex-wrap justify-end gap-2">
+                          <div className="shrink-0 flex flex-col items-end gap-2">
+                            {/* Desktop timestamp */}
+                            {when ? (
+                              <p className="hidden sm:block text-[12px] text-gray-400 text-right">
+                                {formatDateTime(when)}
+                              </p>
+                            ) : null}
                             {status === 'accepted' && pid ? (
                               <button
                                 type="button"
@@ -1283,7 +1251,7 @@ export default function Projects() {
                 <div className="mt-6 rounded-2xl border border-gray-100 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[13px] font-bold text-gray-800">Meta fields</p>
+                    <p className="text-[13px] font-bold text-gray-800">Extra Fields</p>
                       <p className="text-[12px] text-gray-400">Add custom label/value pairs for this project.</p>
                     </div>
                     <button
@@ -1357,7 +1325,7 @@ export default function Projects() {
                       ))}
                     </div>
                   ) : (
-                    <div className="mt-4 text-[12px] text-gray-400">No meta fields added.</div>
+                    <div className="mt-4 text-[12px] text-gray-400">No extra fields added.</div>
                   )}
                 </div>
 

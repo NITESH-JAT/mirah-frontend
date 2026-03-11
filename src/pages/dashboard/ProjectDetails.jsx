@@ -18,10 +18,234 @@ function formatDateTime(ts) {
   return `${datePart}, ${timePart}`;
 }
 
+function formatDateOnly(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
 function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function normalizeStatusKey(s) {
+  return String(s ?? '')
+    .trim()
+    .toLowerCase();
+}
+
+function statusKeyFromTimelineItem(item) {
+  return normalizeStatusKey(
+    item?.to ??
+      item?.toStatus ??
+      item?.to_status ??
+      item?.status ??
+      item?.projectStatus ??
+      item?.project_status ??
+      item?.operationalStatus ??
+      item?.operational_status ??
+      '',
+  );
+}
+
+function timestampFromTimelineItem(item) {
+  return (
+    item?.changedAt ??
+    item?.changed_at ??
+    item?.createdAt ??
+    item?.created_at ??
+    item?.updatedAt ??
+    item?.updated_at ??
+    item?.timestamp ??
+    item?.ts ??
+    item?.at ??
+    null
+  );
+}
+
+function statusStepsFromStatusModel(statusModel) {
+  const m = statusModel ?? {};
+  const raw =
+    m?.steps ??
+    m?.statuses ??
+    m?.allStatuses ??
+    m?.all_statuses ??
+    m?.statusOrder ??
+    m?.status_order ??
+    m?.sequence ??
+    m?.flow ??
+    null;
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const items = raw
+      .map((x) => {
+        if (typeof x === 'string') {
+          const key = normalizeStatusKey(x);
+          return key ? { key, label: toTitleCase(x) } : null;
+        }
+        const key = normalizeStatusKey(x?.key ?? x?.status ?? x?.code ?? x?.name ?? x?.value ?? '');
+        if (!key) return null;
+        const label = x?.label ?? x?.title ?? x?.name ?? toTitleCase(key);
+        return { key, label: String(label) };
+      })
+      .filter(Boolean);
+
+    const seen = new Set();
+    return items.filter((it) => {
+      if (!it?.key || seen.has(it.key)) return false;
+      seen.add(it.key);
+      return true;
+    });
+  }
+
+  // Fallback to PRD operational status dictionary order (plus cancelled at end if needed)
+  return [
+    { key: 'started', label: 'Started' },
+    { key: 'invoice', label: 'Invoice' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'qc', label: 'QC' },
+    { key: 'in_transit', label: 'In Transit' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ];
+}
+
+function coerceArray(maybe) {
+  if (Array.isArray(maybe)) return maybe;
+  if (!maybe) return [];
+  return [maybe];
+}
+
+function paymentTypeOfLedgerEntry(entry) {
+  return normalizeStatusKey(
+    entry?.paymentType ??
+      entry?.payment_type ??
+      entry?.type ??
+      entry?.meta?.paymentType ??
+      entry?.meta?.payment_type ??
+      entry?.notes?.paymentType ??
+      entry?.notes?.payment_type ??
+      '',
+  );
+}
+
+function paymentStatusOfLedgerEntry(entry) {
+  return normalizeStatusKey(entry?.status ?? entry?.paymentStatus ?? entry?.payment_status ?? entry?.state ?? '');
+}
+
+function paidAtFromPaymentBlock(block) {
+  return (
+    block?.paidAt ??
+    block?.paid_at ??
+    block?.paidOn ??
+    block?.paid_on ??
+    block?.successAt ??
+    block?.success_at ??
+    block?.updatedAt ??
+    block?.updated_at ??
+    null
+  );
+}
+
+function timestampOfLedgerEntry(entry) {
+  return (
+    entry?.paidAt ??
+    entry?.paid_at ??
+    entry?.updatedAt ??
+    entry?.updated_at ??
+    entry?.createdAt ??
+    entry?.created_at ??
+    entry?.timestamp ??
+    entry?.ts ??
+    null
+  );
+}
+
+function coerceUrlArray(input) {
+  const raw = input ?? [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return raw ? [raw] : [];
+}
+
+function filenameFromUrl(url, fallback = 'Attachment') {
+  const raw = String(url || '').trim();
+  if (!raw) return fallback;
+  const noQuery = raw.split('?')[0] || raw;
+  const parts = noQuery.split('/').filter(Boolean);
+  const last = parts[parts.length - 1] || fallback;
+  try {
+    const decoded = decodeURIComponent(last);
+    return decoded || fallback;
+  } catch {
+    return last || fallback;
+  }
+}
+
+function extOfFilename(name) {
+  const n = String(name || '');
+  const base = n.split('?')[0] || n;
+  const i = base.lastIndexOf('.');
+  if (i <= 0) return '';
+  return base.slice(i + 1).toLowerCase();
+}
+
+function attachmentIcon(name) {
+  const ext = extOfFilename(name);
+  const isPdf = ext === 'pdf';
+  const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
+  if (isPdf) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h8" />
+      </svg>
+    );
+  }
+  if (isImg) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="M21 15l-5-5L5 21" />
+      </svg>
+    );
+  }
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M13 2v7h7" />
+    </svg>
+  );
+}
+
+function metaRowsOf(project) {
+  const meta = project?.meta ?? project?.projectMeta ?? null;
+  const values = meta?.values ?? meta?.data ?? null;
+  const schema = meta?.schema ?? meta?.fields ?? null;
+  if (!values || typeof values !== 'object') return [];
+  const rows = [];
+  for (const [k, v] of Object.entries(values)) {
+    if (!k) continue;
+    const label = schema?.[k]?.label ?? toTitleCase(k);
+    let value = v;
+    if (Array.isArray(value)) value = value.filter(Boolean).join(', ');
+    else if (value && typeof value === 'object') {
+      try {
+        value = JSON.stringify(value);
+      } catch {
+        value = String(value);
+      }
+    }
+    rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
+  }
+  return rows;
 }
 
 function isFinishedLike(project) {
@@ -32,8 +256,24 @@ function isFinishedLike(project) {
 
 function normalizePaymentStatus(status, { finishedLike } = {}) {
   const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'not_applicble') return 'not_applicable';
   if (finishedLike && (!s || s === 'not_applicable')) return 'paid';
   return s || '—';
+}
+
+function paymentStatusLabel(s) {
+  const k = String(s ?? '').trim().toLowerCase();
+  if (!k || k === '—') return '—';
+  if (k === 'not_applicable') return 'Not Generated';
+  return toTitleCase(k);
+}
+
+function paymentStatusPillClass(s) {
+  const k = String(s ?? '').trim().toLowerCase();
+  if (k === 'paid') return 'bg-primary-dark/10 text-primary-dark border-primary-dark/20';
+  if (k === 'due') return 'bg-amber-50 text-amber-700 border-amber-200';
+  if (k === 'not_applicable') return 'bg-primary-dark/10 text-primary-dark border-primary-dark/20';
+  return 'bg-gray-50 text-gray-700 border-gray-200';
 }
 
 function coerceAssignments(input) {
@@ -156,11 +396,15 @@ export default function ProjectDetails() {
   const [vendorDetails, setVendorDetails] = useState(null);
   const abortRef = useRef(null);
   const vendorAbortRef = useRef(null);
+  const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
 
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
+  const statusModel = details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
+  const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
+  const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
 
   const projectId = project?.id ?? project?._id ?? id ?? null;
   const finishedLike = useMemo(() => isFinishedLike(project), [project]);
@@ -185,6 +429,143 @@ export default function ProjectDetails() {
     }
     return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
   }, [advanceStatus, finalStatus, project, projectStatusKey]);
+
+  const statusSteps = useMemo(() => {
+    const steps = statusStepsFromStatusModel(statusModel);
+    const currentKey = normalizeStatusKey(
+      statusModel?.projectStatus ?? statusModel?.project_status ?? project?.projectStatus ?? project?.project_status ?? '',
+    );
+    const ensured = Array.isArray(steps) ? steps.slice() : [];
+    if (currentKey && !ensured.some((s) => normalizeStatusKey(s?.key) === currentKey)) {
+      ensured.push({ key: currentKey, label: toTitleCase(currentKey) });
+    }
+    const seen = new Set();
+    const deduped = ensured.filter((s) => {
+      const k = normalizeStatusKey(s?.key);
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    // If cancelled isn't current, hide cancelled to avoid confusing the normal flow.
+    const baseRaw = currentKey !== 'cancelled' ? deduped.filter((s) => normalizeStatusKey(s?.key) !== 'cancelled') : deduped;
+
+    // Always inject payment milestones (some backends don't include `invoice` in steps)
+    const base = baseRaw.filter((s) => !['invoice', 'paid', 'in_transit'].includes(normalizeStatusKey(s?.key)));
+    const out = base.slice();
+
+    const insertAfter = (afterKey, items) => {
+      const idx = out.findIndex((s) => normalizeStatusKey(s?.key) === normalizeStatusKey(afterKey));
+      if (idx < 0) {
+        out.push(...items);
+        return;
+      }
+      out.splice(idx + 1, 0, ...items);
+    };
+
+    const advanceMilestones = [{ key: 'invoice_advance', label: 'Invoice (Advance)' }, { key: 'paid_advance', label: 'Advance Paid' }];
+    const finalMilestones = [{ key: 'invoice_final', label: 'Invoice (Final)' }, { key: 'paid_final', label: 'Final Paid' }];
+
+    // Advance is relevant early; put it after started (or at top if missing).
+    insertAfter('started', advanceMilestones);
+
+    // Final is expected after QC; if QC missing, append near end.
+    insertAfter('qc', finalMilestones);
+
+    // Final dedupe in case steps already included similar keys
+    const seen2 = new Set();
+    return out.filter((s) => {
+      const k = normalizeStatusKey(s?.key);
+      if (!k || seen2.has(k)) return false;
+      seen2.add(k);
+      return true;
+    });
+  }, [project, statusModel]);
+
+  const statusTimelineMulti = useMemo(() => {
+    const list = Array.isArray(statusModel?.timeline) ? statusModel.timeline : [];
+    const map = new Map();
+    for (const item of list) {
+      const k = statusKeyFromTimelineItem(item);
+      if (!k) continue;
+      const ts = timestampFromTimelineItem(item);
+      if (!ts) continue;
+      const arr = map.get(k) ?? [];
+      arr.push(ts);
+      map.set(k, arr);
+    }
+    const startedLike = project?.startedAt ?? project?.started_at ?? project?.createdAt ?? project?.created_at ?? null;
+    if (startedLike && !map.has('started')) map.set('started', [startedLike]);
+    const finishedAt = statusModel?.finishedAt ?? statusModel?.finished_at ?? project?.finishedAt ?? project?.finished_at ?? null;
+    if (finishedAt && !map.has('completed')) map.set('completed', [finishedAt]);
+    // sort each bucket asc
+    for (const [k, arr] of map.entries()) {
+      const sorted = arr
+        .map((x) => ({ raw: x, t: new Date(x).getTime() }))
+        .filter((x) => Number.isFinite(x.t))
+        .sort((a, b) => a.t - b.t)
+        .map((x) => x.raw);
+      map.set(k, sorted);
+    }
+    return map;
+  }, [project, statusModel]);
+
+  const currentOperationalStatusKey = useMemo(
+    () =>
+      normalizeStatusKey(
+        statusModel?.projectStatus ?? statusModel?.project_status ?? project?.projectStatus ?? project?.project_status ?? '',
+      ),
+    [project, statusModel],
+  );
+
+  const advancePaidAt = useMemo(() => {
+    const fromBlock = paidAtFromPaymentBlock(advancePayment);
+    if (fromBlock) return fromBlock;
+    let best = null;
+    for (const e of ledger) {
+      const type = paymentTypeOfLedgerEntry(e);
+      const status = paymentStatusOfLedgerEntry(e);
+      if (type !== 'advance') continue;
+      if (status && status !== 'paid' && status !== 'success' && status !== 'completed') continue;
+      const ts = timestampOfLedgerEntry(e);
+      if (!ts) continue;
+      if (!best) best = ts;
+      else if (new Date(ts).getTime() > new Date(best).getTime()) best = ts;
+    }
+    return best;
+  }, [advancePayment, ledger]);
+
+  const finalPaidAt = useMemo(() => {
+    const fromBlock = paidAtFromPaymentBlock(finalPayment);
+    if (fromBlock) return fromBlock;
+    let best = null;
+    for (const e of ledger) {
+      const type = paymentTypeOfLedgerEntry(e);
+      const status = paymentStatusOfLedgerEntry(e);
+      if (type !== 'final') continue;
+      if (status && status !== 'paid' && status !== 'success' && status !== 'completed') continue;
+      const ts = timestampOfLedgerEntry(e);
+      if (!ts) continue;
+      if (!best) best = ts;
+      else if (new Date(ts).getTime() > new Date(best).getTime()) best = ts;
+    }
+    return best;
+  }, [finalPayment, ledger]);
+
+  const currentStepKey = useMemo(() => {
+    if (currentOperationalStatusKey === 'invoice') {
+      if (advanceStatus === 'due') return 'invoice_advance';
+      if (finalStatus === 'due') return 'invoice_final';
+      if (finalStatus === 'paid') return 'paid_final';
+      if (advanceStatus === 'paid') return 'paid_advance';
+      return 'invoice_advance';
+    }
+    if (currentOperationalStatusKey === 'paid') {
+      if (finalStatus === 'paid') return 'paid_final';
+      if (advanceStatus === 'paid') return 'paid_advance';
+      return 'paid_final';
+    }
+    return currentOperationalStatusKey;
+  }, [advanceStatus, currentOperationalStatusKey, finalStatus]);
 
   const assignmentsRaw =
     project?.assignments ??
@@ -264,6 +645,8 @@ export default function ProjectDetails() {
   }, [primaryAssignment, vendorDetails]);
   const assignedAmount = useMemo(() => assignmentAmountOf(primaryAssignment), [primaryAssignment]);
   const assignedDays = useMemo(() => assignmentDaysOf(primaryAssignment), [primaryAssignment]);
+  const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
+  const metaRows = useMemo(() => metaRowsOf(project), [project]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -301,6 +684,21 @@ export default function ProjectDetails() {
       if (abortRef.current) abortRef.current.abort();
     };
   }, [load]);
+
+  const goBackToProjects = useCallback(() => {
+    try {
+      const raw = sessionStorage.getItem(PROJECTS_TAB_KEY);
+      const t = String(raw || '').trim().toLowerCase();
+      if (t === 'assignments' || t === 'create' || t === 'list') {
+        navigate(`/dashboard/projects?tab=${encodeURIComponent(t)}`);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    // Default: assignments (most common entry to tracking)
+    navigate('/dashboard/projects?tab=assignments');
+  }, [navigate]);
 
   const pay = async (type) => {
     if (!projectId) return;
@@ -396,7 +794,7 @@ export default function ProjectDetails() {
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/projects')}
+                onClick={goBackToProjects}
                 className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
               >
                 Back
@@ -454,6 +852,78 @@ export default function ProjectDetails() {
                   ) : null}
                 </div>
 
+                {vendorId ? (
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/dashboard/vendors/${vendorId}`)}
+                      className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-primary-dark hover:bg-gray-50 inline-flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                      View Vendor Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/dashboard/messages', { state: { openRecipientId: vendorId } })}
+                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 inline-flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      Message Vendor
+                    </button>
+                  </div>
+                ) : null}
+
+                {metaRows.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Extra Fields</p>
+                    <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                      {metaRows.map((r) => (
+                        <div key={r.key} className="space-y-0.5">
+                          <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
+                          <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {attachments.length > 0 ? (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Attachments</p>
+                    <div className="mt-2 space-y-2">
+                      {attachments.map((u, idx) => {
+                        const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+                        return (
+                          <a
+                            key={`${u}-${idx}`}
+                            href={u}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            title="Open attachment"
+                          >
+                            <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
+                              <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                              <span className="truncate">{name}</span>
+                            </span>
+                            <span className="shrink-0 text-gray-400">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M7 17 17 7" />
+                                <path d="M7 7h10v10" />
+                              </svg>
+                            </span>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
+
                 {activeBidWindow ? (
                   <div className="mt-4 text-[12px] text-gray-500">
                     Active auction ends at:{' '}
@@ -469,81 +939,220 @@ export default function ProjectDetails() {
 
         {/* Right column: payments */}
         <div className="flex-1 md:self-start">
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            {loading ? (
-              <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
-                <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              </div>
-            ) : !project ? (
-              <div className="p-8 text-[13px] text-gray-600">Unable to load project.</div>
-            ) : (
-              <div className="p-4 md:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[12px] font-extrabold text-gray-900">Payments</p>
-                  <button
-                    type="button"
-                    onClick={downloadInvoice}
-                    disabled={invoiceLoading || !projectId}
-                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {invoiceLoading ? 'Downloading…' : 'Download invoice'}
-                  </button>
+          <div className="space-y-4">
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {loading ? (
+                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
+                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
                 </div>
-                <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-bold text-gray-800">Advance</p>
-                    <p className="mt-1 text-[12px] text-gray-500">
-                      Status:{' '}
-                      <span className="font-semibold text-gray-700">{toTitleCase(advanceStatus)}</span>
-                    </p>
-                    {advancePayment?.suggestedAmount != null ? (
+              ) : !project ? (
+                <div className="p-8 text-[13px] text-gray-600">Unable to load project.</div>
+              ) : (
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">Payments</p>
+                    <button
+                      type="button"
+                      onClick={downloadInvoice}
+                      disabled={invoiceLoading || !projectId}
+                      className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {invoiceLoading ? 'Downloading…' : 'Download invoice'}
+                    </button>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-gray-100 p-4">
+                      <p className="text-[12px] font-bold text-gray-800">Advance</p>
                       <p className="mt-1 text-[12px] text-gray-500">
-                        Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                        Status:{' '}
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(advanceStatus)}`}>
+                        {paymentStatusLabel(advanceStatus)}
+                      </span>
                       </p>
-                    ) : null}
-                    {advanceStatus === 'due' ? (
-                      <button
-                        type="button"
-                        onClick={() => pay('advance')}
-                        disabled={payLoading}
-                        className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {payLoading ? 'Processing…' : 'Pay Advance'}
-                      </button>
-                    ) : null}
+                      {advancePayment?.suggestedAmount != null ? (
+                        <p className="mt-1 text-[12px] text-gray-500">
+                          Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                        </p>
+                      ) : null}
+                      {advanceStatus === 'due' ? (
+                        <button
+                          type="button"
+                          onClick={() => pay('advance')}
+                          disabled={payLoading}
+                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {payLoading ? 'Processing…' : 'Pay Advance'}
+                        </button>
+                      ) : null}
+                    </div>
+
+                    <div className="rounded-2xl border border-gray-100 p-4">
+                      <p className="text-[12px] font-bold text-gray-800">Final</p>
+                      <p className="mt-1 text-[12px] text-gray-500">
+                        Status:{' '}
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(finalStatus)}`}>
+                        {paymentStatusLabel(finalStatus)}
+                      </span>
+                      </p>
+                      {finalPayment?.suggestedAmount != null ? (
+                        <p className="mt-1 text-[12px] text-gray-500">
+                          Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
+                        </p>
+                      ) : null}
+                      {finalStatus === 'due' ? (
+                        <button
+                          type="button"
+                          onClick={() => pay('final')}
+                          disabled={payLoading}
+                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {payLoading ? 'Processing…' : 'Pay Final'}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-[11px] text-gray-400">
+                    Note: Advance payment is required to start the project. Final payment can be paid after project completion.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {loading ? (
+                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
+                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              ) : !project ? (
+                <div className="p-8 text-[13px] text-gray-600">Unable to load project updates.</div>
+              ) : (
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">Project Updates</p>
                   </div>
 
-                  <div className="rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-bold text-gray-800">Final</p>
-                    <p className="mt-1 text-[12px] text-gray-500">
-                      Status:{' '}
-                      <span className="font-semibold text-gray-700">{toTitleCase(finalStatus)}</span>
-                    </p>
-                    {finalPayment?.suggestedAmount != null ? (
-                      <p className="mt-1 text-[12px] text-gray-500">
-                        Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
-                      </p>
-                    ) : null}
-                    {finalStatus === 'due' ? (
-                      <button
-                        type="button"
-                        onClick={() => pay('final')}
-                        disabled={payLoading}
-                        className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {payLoading ? 'Processing…' : 'Pay Final'}
-                      </button>
-                    ) : null}
+                  <div className="mt-4">
+                    {(() => {
+                      const isPaymentKey = (k) => ['invoice_advance', 'paid_advance', 'invoice_final', 'paid_final'].includes(normalizeStatusKey(k));
+                      const operationalSteps = statusSteps.filter((s) => !isPaymentKey(s?.key));
+                      const currentOperationalIdx = operationalSteps.findIndex(
+                        (s) => normalizeStatusKey(s?.key) === normalizeStatusKey(currentOperationalStatusKey),
+                      );
+                      const qcIdx = operationalSteps.findIndex((s) => normalizeStatusKey(s?.key) === 'qc');
+                      const qcReached = qcIdx >= 0 && (currentOperationalIdx >= qcIdx || (statusTimelineMulti.get('qc') ?? []).length > 0);
+
+                      const currentIdx = statusSteps.findIndex((s) => normalizeStatusKey(s?.key) === normalizeStatusKey(currentStepKey));
+                      return (
+                        <div className="space-y-5">
+                          {statusSteps.map((s, idx) => {
+                            const key = s?.key;
+                            if (!key) return null;
+                            const isLast = idx === statusSteps.length - 1;
+                            const tsCandidate = (() => {
+                              const k = normalizeStatusKey(key);
+                              if (k === 'invoice_advance') {
+                                const arr = statusTimelineMulti.get('invoice') ?? [];
+                                return arr[0] ?? null;
+                              }
+                              if (k === 'invoice_final') {
+                                const arr = statusTimelineMulti.get('invoice') ?? [];
+                                return arr.length > 1 ? arr[arr.length - 1] : null;
+                              }
+                              if (k === 'paid_advance') return advancePaidAt ?? null;
+                              if (k === 'paid_final') return finalPaidAt ?? null;
+                              const arr = statusTimelineMulti.get(k) ?? [];
+                              return arr.length ? arr[arr.length - 1] : null;
+                            })();
+
+                            const kNorm = normalizeStatusKey(key);
+                            const isPayment = isPaymentKey(kNorm);
+                            const completedByIdx = currentIdx >= 0 ? idx < currentIdx : false;
+
+                            const advanceInvoiceReached =
+                              (advanceStatus === 'due' || advanceStatus === 'paid') || (currentOperationalIdx > 0 && advanceStatus !== 'not_applicable');
+                            const advancePaidReached = advanceStatus === 'paid' || Boolean(advancePaidAt);
+
+                            // Final invoice should only be considered reached when project is in invoice state after QC.
+                            const finalInvoiceReached =
+                              normalizeStatusKey(currentOperationalStatusKey) === 'invoice' &&
+                              qcReached &&
+                              (finalStatus === 'due' || finalStatus === 'paid');
+                            const finalPaidReached = finalStatus === 'paid' || Boolean(finalPaidAt);
+
+                            const reachedByRule = (() => {
+                              if (kNorm === 'invoice_advance') return advanceInvoiceReached;
+                              if (kNorm === 'paid_advance') return advancePaidReached;
+                              if (kNorm === 'invoice_final') return finalInvoiceReached;
+                              if (kNorm === 'paid_final') return finalPaidReached;
+                              return false;
+                            })();
+
+                            const ts = reachedByRule || !isPayment ? tsCandidate : null;
+                            const isCurrent = normalizeStatusKey(key) === normalizeStatusKey(currentStepKey);
+                            const isCompleted = isPayment ? Boolean(ts) : Boolean(ts) || completedByIdx;
+                            const state = isCurrent ? 'current' : isCompleted ? 'completed' : 'upcoming';
+
+                            const circleClass =
+                              state === 'completed'
+                                ? 'bg-primary-dark text-white border-primary-dark'
+                                : state === 'current'
+                                  ? 'bg-primary-dark text-white border-primary-dark ring-2 ring-primary-dark/20'
+                                  : 'bg-white text-gray-400 border-gray-200';
+
+                            const lineClass = isCompleted || state === 'current' ? 'bg-primary-dark' : 'bg-gray-200';
+
+                            const labelRaw = (() => {
+                              const k = normalizeStatusKey(key);
+                              if (k === 'invoice_advance') return 'Invoice (Advance)';
+                              if (k === 'invoice_final') return 'Invoice (Final)';
+                              if (k === 'paid_advance') return 'Advance Paid';
+                              if (k === 'paid_final') return 'Final Paid';
+                              if (k === 'qc') return 'Mirah QC Checks';
+                              if (k === 'invoice') return projectStatusLabel;
+                              return s?.label ?? toTitleCase(key);
+                            })();
+                            const label = String(labelRaw ?? key).toUpperCase();
+
+                            const sub =
+                              ts
+                                ? formatDateOnly(ts)
+                                : state === 'upcoming'
+                                  ? 'Upcoming'
+                                  : '—';
+
+                            return (
+                              <div key={`${key}-${idx}`} className="relative pl-10">
+                                {!isLast ? (
+                                  <span className={`absolute left-[12px] top-7 bottom-[-20px] w-[2px] ${lineClass}`} />
+                                ) : null}
+                                <span
+                                  className={`absolute left-[4px] top-0 w-6 h-6 rounded-full border-2 flex items-center justify-center text-[12px] font-extrabold ${circleClass}`}
+                                >
+                                  {idx + 1}
+                                </span>
+
+                                <div className="space-y-0.5">
+                                  <p className={`text-[12px] font-extrabold tracking-wide ${state === 'upcoming' ? 'text-gray-400' : 'text-gray-900'}`}>
+                                    {label}
+                                  </p>
+                                  <p className={`text-[11px] ${state === 'upcoming' ? 'text-gray-400' : 'text-gray-500'}`}>{sub}</p>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
-                <p className="mt-3 text-[11px] text-gray-400">
-                  Note: Advance payment is required to start the project. Final payment can be paid after project completion.
-                </p>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>

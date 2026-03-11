@@ -26,6 +26,7 @@ const NavItem = ({ icon, label, path, active }) => {
 
 export default function Sidebar({ isOpen = false, onClose }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const vendorKycStatus = String(
@@ -34,6 +35,55 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const isVendorKycAccepted = vendorKycStatus === 'accepted';
 
   const [cartHasNew, setCartHasNew] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(false);
+
+  const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
+
+  useEffect(() => {
+    if (isVendor) return;
+    if (location.pathname.startsWith('/dashboard/projects')) {
+      setProjectsOpen(true);
+    }
+  }, [isVendor, location.pathname]);
+
+  const projectsTab = (() => {
+    const normalize = (t) => {
+      const v = String(t || '').trim().toLowerCase();
+      return v === 'list' || v === 'create' || v === 'assignments' ? v : null;
+    };
+    try {
+      const fromUrl = normalize(new URLSearchParams(location.search || '').get('tab'));
+      if (fromUrl) {
+        try {
+          sessionStorage.setItem(PROJECTS_TAB_KEY, fromUrl);
+        } catch {
+          // ignore
+        }
+        return fromUrl;
+      }
+    } catch {
+      // ignore
+    }
+    try {
+      const stored = normalize(sessionStorage.getItem(PROJECTS_TAB_KEY));
+      return stored || 'list';
+    } catch {
+      return 'list';
+    }
+  })();
+
+  const isProjectsRoute = !isVendor && location.pathname.startsWith('/dashboard/projects');
+
+  const goProjectsTab = (tab) => {
+    const t = String(tab || '').trim().toLowerCase();
+    try {
+      sessionStorage.setItem(PROJECTS_TAB_KEY, t);
+    } catch {
+      // ignore
+    }
+    navigate(`/dashboard/projects?tab=${encodeURIComponent(t)}`);
+    onClose?.();
+  };
 
   useEffect(() => {
     try {
@@ -161,12 +211,102 @@ export default function Sidebar({ isOpen = false, onClose }) {
               label="My Orders" 
               icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>}
             />
-            <NavItem 
-              active={location.pathname === '/dashboard/projects'}
-              path="/dashboard/projects"
-              label="My Projects" 
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>}
-            />
+            <div className="mx-4 mb-1">
+              <button
+                type="button"
+                onClick={() => setProjectsOpen((v) => !v)}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all duration-200 font-sans text-[14px] font-medium rounded-lg
+                  ${isProjectsRoute ? 'bg-primary-dark text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'}
+                `}
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`${isProjectsRoute ? 'text-white' : 'text-gray-400'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <path d="M8 13h2"/>
+                      <path d="M8 17h2"/>
+                      <path d="M14 13h2"/>
+                      <path d="M14 17h2"/>
+                    </svg>
+                  </div>
+                  <span className="truncate">My Projects</span>
+                </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className={`shrink-0 transition-transform ${projectsOpen ? 'rotate-180' : ''}`}
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {projectsOpen ? (
+                <div className="mt-1 space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => goProjectsTab('list')}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
+                      ${
+                        isProjectsRoute && projectsTab === 'list'
+                          ? 'bg-primary-dark/10 text-primary-dark'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
+                      }
+                    `}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M9 6h11" />
+                      <path d="M9 12h11" />
+                      <path d="M9 18h11" />
+                      <path d="M4 6h.01" />
+                      <path d="M4 12h.01" />
+                      <path d="M4 18h.01" />
+                    </svg>
+                    <span>List Projects</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => goProjectsTab('create')}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
+                      ${
+                        isProjectsRoute && projectsTab === 'create'
+                          ? 'bg-primary-dark/10 text-primary-dark'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
+                      }
+                    `}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 5v14" />
+                      <path d="M5 12h14" />
+                    </svg>
+                    <span>Create Projects</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => goProjectsTab('assignments')}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
+                      ${
+                        isProjectsRoute && projectsTab === 'assignments'
+                          ? 'bg-primary-dark/10 text-primary-dark'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
+                      }
+                    `}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    <span>Assignments</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <NavItem 
               active={location.pathname === '/dashboard/messages'}
               path="/dashboard/messages"

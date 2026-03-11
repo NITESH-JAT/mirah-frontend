@@ -73,6 +73,88 @@ function daysLabel(days) {
   return `${d} days`;
 }
 
+function coerceUrlArray(input) {
+  const raw = input ?? [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return raw ? [raw] : [];
+}
+
+function filenameFromUrl(url, fallback = 'Attachment') {
+  const raw = String(url || '').trim();
+  if (!raw) return fallback;
+  const noQuery = raw.split('?')[0] || raw;
+  const parts = noQuery.split('/').filter(Boolean);
+  const last = parts[parts.length - 1] || fallback;
+  try {
+    const decoded = decodeURIComponent(last);
+    return decoded || fallback;
+  } catch {
+    return last || fallback;
+  }
+}
+
+function extOfFilename(name) {
+  const n = String(name || '');
+  const base = n.split('?')[0] || n;
+  const i = base.lastIndexOf('.');
+  if (i <= 0) return '';
+  return base.slice(i + 1).toLowerCase();
+}
+
+function metaRowsOf(project) {
+  const meta = project?.meta ?? project?.projectMeta ?? null;
+  const values = meta?.values ?? meta?.data ?? null;
+  const schema = meta?.schema ?? meta?.fields ?? null;
+  if (!values || typeof values !== 'object') return [];
+  const rows = [];
+  for (const [k, v] of Object.entries(values)) {
+    if (!k) continue;
+    const label = schema?.[k]?.label ?? toTitleCase(k);
+    let value = v;
+    if (Array.isArray(value)) value = value.filter(Boolean).join(', ');
+    else if (value && typeof value === 'object') {
+      try {
+        value = JSON.stringify(value);
+      } catch {
+        value = String(value);
+      }
+    }
+    rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
+  }
+  return rows;
+}
+
+function attachmentIcon(name) {
+  const ext = extOfFilename(name);
+  const isPdf = ext === 'pdf';
+  const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
+  if (isPdf) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h8" />
+      </svg>
+    );
+  }
+  if (isImg) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="M21 15l-5-5L5 21" />
+      </svg>
+    );
+  }
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M13 2v7h7" />
+    </svg>
+  );
+}
+
 export default function ProjectBids() {
   const { addToast } = useOutletContext();
   const { id } = useParams();
@@ -135,6 +217,8 @@ export default function ProjectBids() {
     if (!Number.isFinite(t) || t <= 0) return '—';
     return `${t} days`;
   }, [project]);
+  const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
+  const metaRows = useMemo(() => metaRowsOf(project), [project]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -421,6 +505,53 @@ export default function ProjectBids() {
                 </p>
               </div>
 
+              {metaRows.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Extra Fields</p>
+                  <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                    {metaRows.map((r) => (
+                      <div key={r.key} className="space-y-0.5">
+                        <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
+                        <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+            {attachments.length > 0 ? (
+              <div className="mt-4">
+                <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Attachments</p>
+                <div className="mt-2 space-y-2">
+                  {attachments.map((u, idx) => {
+                    const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+                    return (
+                      <a
+                        key={`${u}-${idx}`}
+                        href={u}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        title="Open attachment"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
+                          <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                          <span className="truncate">{name}</span>
+                        </span>
+                        <span className="shrink-0 text-gray-400">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M7 17 17 7" />
+                            <path d="M7 7h10v10" />
+                          </svg>
+                        </span>
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
               <div className="mt-4 flex justify-start">
                 {hasActiveWindow && finishesMs ? (
                   <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
@@ -556,7 +687,19 @@ export default function ProjectBids() {
                 </svg>
               </div>
             ) : visibleBids.length === 0 ? (
-              <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">No bids found.</div>
+              <div className="h-full min-h-[240px] flex items-center justify-center">
+                <div className="text-center">
+                  <div className="mx-auto w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                      <path d="M8 10h8" />
+                      <path d="M8 14h6" />
+                    </svg>
+                  </div>
+                  <p className="mt-3 text-[13px] font-bold text-gray-700">No bids found</p>
+                  <p className="mt-1 text-[12px] text-gray-400">Try adjusting search or sorting.</p>
+                </div>
+              </div>
             ) : (
               <div ref={cardsWrapRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {visibleBids.map((b) => {
