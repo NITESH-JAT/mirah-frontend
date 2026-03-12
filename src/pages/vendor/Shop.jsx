@@ -254,7 +254,7 @@ export default function VendorShop() {
     }
   }, [urlTab]);
 
-  const goStoreTab = (tab, { toContent = false } = {}) => {
+  const goStoreTab = (tab) => {
     const t = String(tab || '').trim().toLowerCase();
     const next = t === 'list' || t === 'create' || t === 'orders' || t === 'reviews' ? t : 'list';
     setActiveTab(next);
@@ -1106,27 +1106,7 @@ export default function VendorShop() {
           </div>
         ) : canSell ? (
           <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
-            <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
-              <p className="text-[13px] font-bold text-gray-800">
-                {activeTab === 'create'
-                  ? 'Create Product'
-                  : activeTab === 'list'
-                    ? 'Products'
-                    : activeTab === 'reviews'
-                      ? 'Product Reviews'
-                      : 'Manage Orders'}
-              </p>
-              {activeTab === 'list' ? (
-                <button
-                  type="button"
-                  onClick={() => loadProducts({ nextPage: 1, append: false })}
-                  disabled={productsLoading}
-                  className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {productsLoading ? 'Refreshing…' : 'Refresh'}
-                </button>
-              ) : null}
-            </div>
+
 
             <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
                 {activeTab === 'orders' ? (
