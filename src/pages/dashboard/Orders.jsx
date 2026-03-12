@@ -535,17 +535,18 @@ export default function Orders() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+        <div className="min-h-[calc(100vh-260px)] flex flex-col">
         {loading ? (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center">
             <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </div>
         ) : empty ? (
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                 </svg>
@@ -682,6 +683,7 @@ export default function Orders() {
           </div>
         )}
         </div>
+      </div>
       </div>
       </div>
 
@@ -864,7 +866,7 @@ export default function Orders() {
                               </div>
                             </div>
                           );
-                          })}
+                        })}
                         </div>
                       )}
                     </div>

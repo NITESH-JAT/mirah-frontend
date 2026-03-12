@@ -4,6 +4,11 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
@@ -270,6 +275,7 @@ export default function VendorExploreProject() {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
       setDetails(res || null);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
     } finally {
@@ -284,6 +290,7 @@ export default function VendorExploreProject() {
       const list = await projectService.listBids(projectId);
       setBids(Array.isArray(list) ? list : []);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load bids', 'error');
       setBids([]);
     } finally {
@@ -423,7 +430,7 @@ export default function VendorExploreProject() {
       </div>
 
       {loading ? (
-        <div className="min-h-[240px] flex items-center justify-center">
+        <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
           <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
@@ -449,7 +456,7 @@ export default function VendorExploreProject() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Chat
+                      Chat With Customer
                     </button>
                   ) : null}
                   <button
@@ -588,7 +595,7 @@ export default function VendorExploreProject() {
           >
             <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Place your bid</p>
+                <p className="text-[14px] font-extrabold text-gray-900">Place Your Bid</p>
                 <p className="mt-1 text-[12px] text-gray-400 truncate">{project?.title ?? 'Project'}</p>
               </div>
               <button

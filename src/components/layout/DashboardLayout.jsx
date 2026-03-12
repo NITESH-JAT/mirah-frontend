@@ -87,13 +87,43 @@ export default function DashboardLayout() {
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
   const isVendorExplorePage = path.includes('/vendor/explore');
+  const isVendorBidsPage = path.includes('/vendor/bids');
   const isShoppingPage = path.includes('/dashboard/shopping');
   const isShoppingListPage = path === '/dashboard/shopping';
   const isCartPage = path.includes('/dashboard/cart');
   const isCheckoutPage = path.includes('/dashboard/checkout');
   const isOrdersPage = path.includes('/dashboard/orders');
   const isProjectsPage = path.includes('/dashboard/projects');
+  const isVendorProfileViewPage = path.startsWith('/dashboard/vendors/');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
+
+  const headerTitle = useMemo(() => {
+    if (isProfilePage) return 'My Profile';
+    if (isMessagesPage) return 'Messages';
+    if (isKycPage) return 'KYC';
+    if (isShopPage) return 'Store';
+    if (isVendorBidsPage) return path.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
+    if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (isCartPage) return 'Cart';
+    if (isCheckoutPage) return 'Checkout';
+    if (isOrdersPage) return 'My Orders';
+    if (isShoppingPage) return 'Shop';
+    if (isProjectsPage) return 'My Projects';
+    return '';
+  }, [
+    isCartPage,
+    isCheckoutPage,
+    isKycPage,
+    isMessagesPage,
+    isOrdersPage,
+    isProfilePage,
+    isProjectsPage,
+    isShopPage,
+    isShoppingPage,
+    isVendorBidsPage,
+    isVendorExplorePage,
+    path,
+  ]);
   
   const [toasts, setToasts] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -113,7 +143,16 @@ export default function DashboardLayout() {
 
     // Avoid leaking raw axios errors like: "Request failed with status code 403"
     const isAxiosStatusLine = /^Request failed with status code \d+$/i.test(cleaned);
-    const finalMessage = isAxiosStatusLine ? 'Request failed, try again later' : cleaned;
+    const isServerErrorText =
+      /internal server error/i.test(cleaned) ||
+      /^request failed with status code 5\d\d$/i.test(cleaned) ||
+      /\b5\d\d\b/.test(cleaned) && /status code/i.test(cleaned);
+    const finalMessage =
+      isServerErrorText
+        ? 'Something went wrong on our side. Please try again.'
+        : isAxiosStatusLine
+          ? 'Request failed, try again later'
+          : cleaned;
 
     const id = Date.now();
     setToasts(prev => [...prev, { id, message: finalMessage, type }]);
@@ -282,25 +321,11 @@ export default function DashboardLayout() {
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
-            <h1 className="hidden sm:block font-serif text-xl font-bold text-gray-800">
-              {isProfilePage
-                ? 'My Profile'
-                : isMessagesPage
-                  ? 'Messages'
-                  : isKycPage
-                    ? 'KYC'
-                    : isShopPage
-                      ? 'Store'
-                      : isCartPage
-                        ? 'Cart'
-                        : isCheckoutPage
-                          ? 'Checkout'
-                          : isOrdersPage
-                            ? 'My Orders'
-                        : isShoppingPage
-                          ? 'Shop'
-                          : ''}
-            </h1>
+            {headerTitle ? (
+              <h1 className="hidden sm:block font-serif text-xl font-bold text-gray-800 truncate max-w-[60vw]">
+                {headerTitle}
+              </h1>
+            ) : null}
           </div>
           
           <div className="flex items-center gap-3 relative">
@@ -465,7 +490,17 @@ export default function DashboardLayout() {
         >
           <div
             className={`${
-              isMessagesPage || isShopPage || isVendorExplorePage || isShoppingPage || isProjectsPage ? 'max-w-none' : 'max-w-5xl'
+              isMessagesPage ||
+              isShopPage ||
+              isVendorExplorePage ||
+              isVendorBidsPage ||
+              isShoppingPage ||
+              isProjectsPage ||
+              isOrdersPage ||
+              isProfilePage ||
+              isVendorProfileViewPage
+                ? 'max-w-none'
+                : 'max-w-5xl'
             } mx-auto`}
           >
             {/* PASS CONTEXT TO CHILDREN */}

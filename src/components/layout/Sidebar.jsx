@@ -224,6 +224,24 @@ export default function Sidebar({ isOpen = false, onClose }) {
                 </svg>
               }
             />
+            {isVendorKycAccepted ? (
+              <NavItem
+                active={location.pathname.startsWith('/vendor/bids')}
+                path="/vendor/bids"
+                label="Bids"
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="18" height="18">
+                    <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                    <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                    <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                    <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                    <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                    <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                    <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                  </svg>
+                }
+              />
+            ) : null}
             {isVendorKycAccepted && (canSell ? (
               <div className="mx-4 mb-1">
                 <button

@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { vendorService } from '../../services/vendorService';
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
 function formatDate(ts) {
   if (!ts) return '';
   const d = new Date(ts);
@@ -49,6 +54,7 @@ export default function VendorProfile() {
       const v = await vendorService.getDetails(vendorId, { signal: ctrl.signal });
       setVendor(v || null);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load vendor', 'error');
       setVendor(null);
     } finally {

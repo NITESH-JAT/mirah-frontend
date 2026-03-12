@@ -122,6 +122,20 @@ export const projectService = {
     return Array.isArray(items) ? items : items ? [items] : [];
   },
 
+  // Vendor bid participation list (projects where vendor has placed at least one bid)
+  listBidParticipation: async ({ page = 1, limit = 24, signal } = {}) => {
+    const params = { page, limit };
+    const res = await api.get('/api/user/projects/bid-participation', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.projects ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const pagination = data?.pagination ?? data?.meta ?? data?.pageInfo ?? {};
+    const totalPages = Number(pagination?.totalPages ?? pagination?.pages ?? pagination?.lastPage ?? 1) || 1;
+    const total = pagination?.total ?? pagination?.totalItems ?? pagination?.count ?? null;
+    const currentPage = Number(pagination?.page ?? pagination?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total }, pagination };
+  },
+
   // Vendor marketplace: running projects list for bidding
   listRunning: async ({ page = 1, limit = 12, signal } = {}) => {
     const params = { page, limit };

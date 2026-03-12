@@ -3,6 +3,11 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
@@ -658,6 +663,7 @@ export default function ProjectDetails() {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
       setDetails(res || null);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
     } finally {

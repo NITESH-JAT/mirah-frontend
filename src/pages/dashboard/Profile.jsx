@@ -269,7 +269,17 @@ export default function Profile() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-gray-400 text-sm">Loading Profile...</div>;
+  if (loading)
+    return (
+      <div className="w-full pb-10 animate-fade-in">
+        <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        </div>
+      </div>
+    );
   if (!profile) return null;
 
   const isJeweller = profile.userType === 'vendor' || profile.userType === 'jeweller';

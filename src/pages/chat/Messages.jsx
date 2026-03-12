@@ -156,6 +156,7 @@ export default function Messages() {
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
+  const messagesRoute = isVendor ? '/vendor/messages' : '/dashboard/messages';
 
   const normalizedConvos = useMemo(
     () => conversations.map(normalizeConversation),
@@ -263,7 +264,7 @@ export default function Messages() {
     setTimeout(() => composerRef.current?.focus?.(), 50);
 
     // Clear route state to avoid reapplying on back/refresh.
-    navigate('/dashboard/messages', { replace: true, state: {} });
+    navigate(messagesRoute, { replace: true, state: {} });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location?.state]);
 
@@ -280,6 +281,11 @@ export default function Messages() {
         const convo = res?.conversation ?? res;
         const convoId = getEntityId(convo);
         if (convoId) setActiveConvoId(convoId);
+        // Fetch messages immediately so thread doesn't appear blank while conversations load.
+        if (convoId) {
+          setMobileView('thread');
+          await loadMessagesFor({ id: convoId });
+        }
 
         const items = await chatService.listConversations();
         setConversations(applyConversationList(items));
@@ -288,7 +294,7 @@ export default function Messages() {
         addToast(e?.message || 'Unable to start conversation', 'error');
       } finally {
         // Clear route state to avoid reapplying on back/refresh.
-        navigate('/dashboard/messages', { replace: true, state: {} });
+        navigate(messagesRoute, { replace: true, state: {} });
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -359,10 +365,11 @@ export default function Messages() {
   };
 
   useEffect(() => {
+    if (!activeConvoId) return;
     if (!activeConvo) return;
     loadMessagesFor(activeConvo);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeConvoId]);
+  }, [activeConvoId, activeConvo?.id]);
 
   useEffect(() => {
     const q = search.trim();

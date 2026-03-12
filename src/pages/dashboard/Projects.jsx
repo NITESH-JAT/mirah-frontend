@@ -854,10 +854,26 @@ export default function Projects() {
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
             {activeTab === 'list' ? (
               listLoading ? (
-                <div className="text-[13px] text-gray-400">Loading projects…</div>
+                <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
               ) : empty ? (
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-                  No projects yet. Create your first project.
+                <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
+                  <div className="text-center">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <path d="M14 2v6h6" />
+                        <path d="M8 13h8" />
+                        <path d="M8 17h8" />
+                      </svg>
+                    </div>
+                    <p className="mt-3 text-[14px] font-bold text-gray-900">No projects yet</p>
+                    <p className="mt-1 text-[12px] text-gray-500">Create your first project to start bidding.</p>
+                  </div>
                 </div>
               ) : (
                 <div className="h-full min-h-0 overflow-y-auto space-y-4 pr-1">
@@ -1070,13 +1086,30 @@ export default function Projects() {
                 </div>
               )
             ) : activeTab === 'assignments' ? (
-              <div className="h-full min-h-0 overflow-y-auto space-y-3 pr-1">
-                {assignmentRows.length === 0 ? (
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-                    No assignment requests yet.
+              <div className="h-full min-h-0">
+                {listLoading ? (
+                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                ) : assignmentRows.length === 0 ? (
+                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
+                    <div className="text-center">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                          <path d="M8 10h8" />
+                          <path d="M8 14h5" />
+                        </svg>
+                      </div>
+                      <p className="mt-3 text-[14px] font-bold text-gray-900">No assignment requests yet</p>
+                      <p className="mt-1 text-[12px] text-gray-500">When you receive assignments, they’ll appear here.</p>
+                    </div>
                   </div>
                 ) : (
-                  <>
+                  <div className="h-full min-h-0 overflow-y-auto space-y-3 pr-1">
                     <div className="sticky top-0 z-10 bg-white pb-3">
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div className="relative w-full sm:w-auto">
@@ -1169,7 +1202,7 @@ export default function Projects() {
                       </div>
                     );
                   })}
-                  </>
+                  </div>
                 )}
               </div>
             ) : (

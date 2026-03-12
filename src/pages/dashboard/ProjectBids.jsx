@@ -2,6 +2,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
@@ -230,6 +235,7 @@ export default function ProjectBids() {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
       setDetails(res || null);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
     } finally {
@@ -245,6 +251,7 @@ export default function ProjectBids() {
       const list = Array.isArray(items) ? items : [];
       setBids(list);
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load bids', 'error');
       setBids([]);
     } finally {

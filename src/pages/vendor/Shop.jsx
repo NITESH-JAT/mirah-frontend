@@ -1165,31 +1165,32 @@ export default function VendorShop() {
                       </div>
                     </div>
 
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+                    <div className="flex-1 min-h-0 overflow-y-auto">
+                      <div className="min-h-[calc(100vh-260px)] flex flex-col">
                       {ordersLoading ? (
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
-                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                        </svg>
-                      </div>
-                    ) : orders.length === 0 ? (
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-                            </svg>
-                          </div>
-                          <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
-                          <p className="mt-1 text-[12px] text-gray-500">
-                            {orderFilters?.status || orderFilters?.from || orderFilters?.to || orderFilters?.productName
-                              ? 'No orders match your filters.'
-                              : 'Customer orders for your products will appear here.'}
-                          </p>
+                        <div className="flex-1 flex items-center justify-center">
+                          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                          </svg>
                         </div>
-                      </div>
-                    ) : (
+                      ) : orders.length === 0 ? (
+                        <div className="flex-1 flex items-center justify-center px-4">
+                          <div className="text-center">
+                            <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                              </svg>
+                            </div>
+                            <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
+                            <p className="mt-1 text-[12px] text-gray-500">
+                              {orderFilters?.status || orderFilters?.from || orderFilters?.to || orderFilters?.productName
+                                ? 'No orders match your filters.'
+                                : 'Customer orders for your products will appear here.'}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
                       <>
                         {orders.map((o) => {
                           const internalId = localOrderIdOf(o);
@@ -1291,6 +1292,7 @@ export default function VendorShop() {
                         ) : null}
                       </>
                     )}
+                    </div>
                     </div>
                   </div>
                 ) : activeTab === 'reviews' ? (
@@ -1464,10 +1466,25 @@ export default function VendorShop() {
                 ) : activeTab === 'list' ? (
                   <div className="h-full min-h-0 overflow-y-auto pr-1">
                     {productsLoading ? (
-                      <div className="text-[13px] text-gray-400">Loading products…</div>
+                      <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                        </svg>
+                      </div>
                     ) : products.length === 0 ? (
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-                        No products yet. Create your first product.
+                      <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
+                        <div className="text-center">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="3" width="18" height="18" rx="2" />
+                              <circle cx="8.5" cy="8.5" r="1.5" />
+                              <path d="M21 15l-5-5L5 21" />
+                            </svg>
+                          </div>
+                          <p className="mt-3 text-[14px] font-bold text-gray-900">No products yet</p>
+                          <p className="mt-1 text-[12px] text-gray-500">Create your first product to start selling.</p>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-4">

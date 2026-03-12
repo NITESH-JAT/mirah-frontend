@@ -510,9 +510,9 @@ export default function Shopping() {
         </div>
       ) : null}
 
-      {loading ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
-          <div className="flex flex-col items-center">
+      <div className="mt-5 min-h-[calc(100vh-260px)] flex flex-col">
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center">
             <svg
               className="animate-spin text-primary-dark"
               xmlns="http://www.w3.org/2000/svg"
@@ -530,29 +530,27 @@ export default function Shopping() {
               />
             </svg>
           </div>
-        </div>
-      ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
+        ) : items.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center px-4">
+            <div className="text-center">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+              <p className="mt-4 text-[14px] font-bold text-gray-900">No products found</p>
+              <p className="mt-1 text-[12px] text-gray-500">Try changing filters or search.</p>
             </div>
-            <p className="mt-4 text-[14px] font-bold text-gray-900">No products found</p>
-            <p className="mt-1 text-[12px] text-gray-500">Try changing filters or search.</p>
           </div>
-        </div>
-      ) : (
-        <>
+        ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
             {featuredFirstItems.map((p) => (
               <ProductCard key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())} p={p} />
             ))}
           </div>
-        </>
-      )}
+        )}
+      </div>
 
       {/* Add-to-cart quantity picker */}
       {cartOpen ? (

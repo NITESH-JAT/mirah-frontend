@@ -31,6 +31,8 @@ const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
 const VendorShop = lazy(() => import('../pages/vendor/Shop'));
 const VendorExplore = lazy(() => import('../pages/vendor/Explore'));
 const VendorExploreProject = lazy(() => import('../pages/vendor/ExploreProject'));
+const VendorBids = lazy(() => import('../pages/vendor/Bids'));
+const VendorBidsView = lazy(() => import('../pages/vendor/BidsView'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 
 export const routes = [
@@ -109,6 +111,8 @@ export const routes = [
       { index: true, element: <Navigate to="/vendor/shop" replace /> },
       { path: 'explore', element: <VendorExplore /> },
       { path: 'explore/:id', element: <VendorExploreProject /> },
+      { path: 'bids', element: <VendorBids /> },
+      { path: 'bids/:id', element: <VendorBidsView /> },
       { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },

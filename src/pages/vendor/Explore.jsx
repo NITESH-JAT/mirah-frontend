@@ -3,6 +3,11 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
@@ -139,6 +144,7 @@ export default function VendorExplore() {
       const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
       setItems(list.map(normalizeExploreItem).filter((x) => x?.id));
     } catch (e) {
+      if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load projects', 'error');
       setItems([]);
     } finally {
@@ -280,22 +286,27 @@ export default function VendorExplore() {
         </div>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-5 min-h-[calc(100vh-260px)] flex flex-col">
         {loading ? (
-          <div className="min-h-[240px] flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center">
             <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
           </div>
         ) : sorted.length === 0 ? (
-          <div className="min-h-[240px] flex items-center justify-center">
+          <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
               <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z" />
-                  <path d="M3.3 7 12 12l8.7-5" />
-                  <path d="M12 22V12" />
+                  <circle cx="12" cy="12" r="10" />
+                  <polygon
+                    points="16.2 7.8 14.1 14.1 7.8 16.2 9.9 9.9 16.2 7.8"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    strokeLinejoin="round"
+                  />
+                  <circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="currentColor" />
                 </svg>
               </div>
               <p className="mt-3 text-[14px] font-bold text-gray-900">No projects found</p>
@@ -332,7 +343,7 @@ export default function VendorExplore() {
 
                   <div className="p-4">
                     <p className="text-[14px] font-extrabold text-gray-900 truncate">{x.title}</p>
-                    <p className="mt-1 text-[12px] text-gray-500 line-clamp-2">{x.description}</p>
+                    <p className="mt-1 text-[12px] text-gray-500 line-clamp-1">{x.description}</p>
 
                     <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
                       {x.customerName ? (
