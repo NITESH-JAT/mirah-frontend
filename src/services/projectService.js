@@ -227,6 +227,13 @@ export const projectService = {
     return unwrap(res);
   },
 
+  updateStatus: async (projectId, projectStatus, { signal } = {}) => {
+    if (!projectId || !projectStatus) return null;
+    const payload = { projectStatus };
+    const res = await api.patch(`/api/user/projects/${projectId}/status`, payload, { signal });
+    return unwrap(res);
+  },
+
   getDetails: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.get(`/api/user/projects/${projectId}`, { signal });
@@ -261,5 +268,26 @@ export const projectService = {
     a.click();
     a.remove();
     window.URL.revokeObjectURL(url);
+  },
+
+  getVendorPaymentDetails: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.get(`/api/user/projects/${projectId}/payment-details`, { signal });
+    const data = unwrap(res) || {};
+    return {
+      projectId: data.projectId ?? data.project_id ?? projectId,
+      vendorId: data.vendorId ?? data.vendor_id ?? null,
+      totalAmount: data.totalAmount ?? data.total_amount ?? null,
+      totalCommission: data.totalCommission ?? data.total_commission ?? null,
+      totalPayableToVendor: data.totalPayableToVendor ?? data.total_payable_to_vendor ?? null,
+      vendorSettlementDone: Boolean(
+        data.vendorSettlementDone ??
+          data.vendor_settlement_done ??
+          data.vendorSettlement ??
+          data.vendor_settlement ??
+          false,
+      ),
+      raw: data,
+    };
   },
 };

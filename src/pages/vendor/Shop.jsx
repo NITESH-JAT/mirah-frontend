@@ -348,6 +348,8 @@ export default function VendorShop() {
   const [imageUploading, setImageUploading] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [actionLoadingById, setActionLoadingById] = useState({});
+  const [deleteProductOpen, setDeleteProductOpen] = useState(false);
+  const [deleteProductFor, setDeleteProductFor] = useState(null); // { id, name }
 
   // ----- Vendor product reviews -----
   const [reviewProductOpen, setReviewProductOpen] = useState(false);
@@ -456,15 +458,29 @@ export default function VendorShop() {
 
   const isActionLoading = (id, key) => Boolean(actionLoadingById?.[`${id}:${key}`]);
 
-  const handleDeleteProduct = async (p) => {
+  const openDeleteProduct = (p) => {
     const id = p?.id ?? p?._id;
     if (!id) return;
-    const ok = window.confirm('Delete this product? This cannot be undone.');
-    if (!ok) return;
+    setDeleteProductFor({ id, name: String(p?.name ?? 'this product') });
+    setDeleteProductOpen(true);
+  };
+
+  const closeDeleteProduct = () => {
+    const id = deleteProductFor?.id;
+    if (id && isActionLoading(id, 'delete')) return;
+    setDeleteProductOpen(false);
+    setDeleteProductFor(null);
+  };
+
+  const confirmDeleteProduct = async () => {
+    const id = deleteProductFor?.id;
+    if (!id) return;
+    if (isActionLoading(id, 'delete')) return;
     setActionLoading(id, 'delete', true);
     try {
       await productService.deleteVendorProduct(id);
       addToast('Product deleted.', 'success');
+      closeDeleteProduct();
       await loadProducts();
     } catch (e) {
       addToast(e?.message || 'Failed to delete product', 'error');
@@ -958,6 +974,47 @@ export default function VendorShop() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
+      {/* Delete product modal */}
+      {deleteProductOpen ? (
+        <div
+          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={closeDeleteProduct}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">Delete product</p>
+              <p className="mt-1 text-[12px] text-gray-500">
+                Delete <span className="font-semibold text-gray-800">{deleteProductFor?.name || 'this product'}</span>?
+                This cannot be undone.
+              </p>
+            </div>
+            <div className="px-5 py-4">
+              <div className="mt-1 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeDeleteProduct}
+                  disabled={Boolean(deleteProductFor?.id) && isActionLoading(deleteProductFor.id, 'delete')}
+                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeleteProduct}
+                  disabled={!deleteProductFor?.id || isActionLoading(deleteProductFor?.id, 'delete')}
+                  className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteProductFor?.id && isActionLoading(deleteProductFor.id, 'delete') ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Vendor order details modal */}
       {orderDetailsOpen ? (
         <div
@@ -1683,7 +1740,7 @@ export default function VendorShop() {
                                   </button>
                                   <button
                                     type="button"
-                                    onClick={() => handleDeleteProduct(p)}
+                                    onClick={() => openDeleteProduct(p)}
                                     disabled={isActionLoading(p?.id ?? p?._id, 'delete')}
                                     className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                   >

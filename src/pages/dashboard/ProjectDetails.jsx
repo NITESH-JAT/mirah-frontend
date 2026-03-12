@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 
@@ -37,9 +38,12 @@ function toTitleCase(text) {
 }
 
 function normalizeStatusKey(s) {
-  return String(s ?? '')
+  const v = String(s ?? '')
     .trim()
     .toLowerCase();
+  // Some backends/older payloads use a typo `in_transist`.
+  if (v === 'in_transist') return 'in_transit';
+  return v;
 }
 
 function statusKeyFromTimelineItem(item) {
@@ -275,9 +279,9 @@ function paymentStatusLabel(s) {
 
 function paymentStatusPillClass(s) {
   const k = String(s ?? '').trim().toLowerCase();
-  if (k === 'paid') return 'bg-primary-dark/10 text-primary-dark border-primary-dark/20';
+  if (k === 'paid') return 'bg-green-50 text-green-700 border-green-200';
   if (k === 'due') return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (k === 'not_applicable') return 'bg-primary-dark/10 text-primary-dark border-primary-dark/20';
+  if (k === 'not_applicable') return 'bg-gray-50 text-gray-700 border-gray-200';
   return 'bg-gray-50 text-gray-700 border-gray-200';
 }
 
@@ -397,6 +401,8 @@ export default function ProjectDetails() {
   const [payLoading, setPayLoading] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [completeLoading, setCompleteLoading] = useState(false);
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [vendorLoading, setVendorLoading] = useState(false);
   const [vendorDetails, setVendorDetails] = useState(null);
   const abortRef = useRef(null);
@@ -455,7 +461,8 @@ export default function ProjectDetails() {
     const baseRaw = currentKey !== 'cancelled' ? deduped.filter((s) => normalizeStatusKey(s?.key) !== 'cancelled') : deduped;
 
     // Always inject payment milestones (some backends don't include `invoice` in steps)
-    const base = baseRaw.filter((s) => !['invoice', 'paid', 'in_transit'].includes(normalizeStatusKey(s?.key)));
+    // Keep `in_transit` as a real step (should appear before delivered).
+    const base = baseRaw.filter((s) => !['invoice', 'paid'].includes(normalizeStatusKey(s?.key)));
     const out = base.slice();
 
     const insertAfter = (afterKey, items) => {
@@ -671,6 +678,32 @@ export default function ProjectDetails() {
     }
   }, [addToast, projectId]);
 
+  const markAsCompleted = useCallback(async () => {
+    if (!projectId) return;
+    if (completeLoading) return;
+    setCompleteLoading(true);
+    try {
+      const res = await projectService.complete(projectId);
+      addToast(res?.message || 'Project marked as completed.', 'success');
+      setCompleteConfirmOpen(false);
+      await load();
+    } catch (e) {
+      addToast(e?.message || 'Failed to mark project as completed', 'error');
+    } finally {
+      setCompleteLoading(false);
+    }
+  }, [addToast, completeLoading, load, projectId]);
+
+  const openCompleteConfirm = useCallback(() => {
+    if (completeLoading) return;
+    setCompleteConfirmOpen(true);
+  }, [completeLoading]);
+
+  const closeCompleteConfirm = useCallback(() => {
+    if (completeLoading) return;
+    setCompleteConfirmOpen(false);
+  }, [completeLoading]);
+
   const downloadInvoice = useCallback(async () => {
     if (!projectId) return;
     if (invoiceLoading) return;
@@ -724,13 +757,21 @@ export default function ProjectDetails() {
       if (!parsed.orderId) throw new Error('Payment init failed (missing Razorpay orderId)');
       if (!parsed.keyId) throw new Error('Payment init failed (missing Razorpay keyId)');
 
+      let handlerInvoked = false;
       const options = {
         key: parsed.keyId,
         order_id: parsed.orderId,
         currency: parsed.currency || 'INR',
         name: 'Mirah',
         description: type === 'advance' ? 'Advance payment' : 'Final payment',
+        modal: {
+          ondismiss: () => {
+            if (handlerInvoked) return;
+            addToast('Payment not completed.', 'error');
+          },
+        },
         handler: async (response) => {
+          handlerInvoked = true;
           try {
             setVerifyingPayment(true);
             await projectService.verifyPayment(projectId, {
@@ -770,6 +811,72 @@ export default function ProjectDetails() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
+      {completeConfirmOpen
+        ? (typeof document !== 'undefined'
+            ? createPortal(
+                <div
+                  className="fixed inset-0 z-[210] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                  onMouseDown={closeCompleteConfirm}
+                >
+                  <div
+                    className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    role="dialog"
+                    aria-modal="true"
+                  >
+                    <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-extrabold text-gray-900">Mark project as completed</p>
+                        <p className="mt-1 text-[12px] text-gray-500">
+                          This will mark the project as completed. You won’t be able to undo this action.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={closeCompleteConfirm}
+                        disabled={completeLoading}
+                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                        aria-label="Close"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                    <div className="px-5 py-4 flex flex-col sm:flex-row sm:justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={closeCompleteConfirm}
+                        disabled={completeLoading}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={markAsCompleted}
+                        disabled={completeLoading}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                      >
+                        {completeLoading ? 'Submitting…' : 'Confirm'}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )
+            : null)
+        : null}
+
       {verifyingPayment ? (
         <div className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-[1px] flex items-center justify-center px-6">
           <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-xl">
@@ -1027,6 +1134,37 @@ export default function ProjectDetails() {
               )}
             </div>
 
+            {!loading && project && currentOperationalStatusKey === 'delivered' ? (
+              <div className="bg-white rounded-2xl border border-emerald-100 bg-emerald-50/40 overflow-hidden">
+                <div className="p-4 md:p-6">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-extrabold text-gray-900">Project Delivered</p>
+                      <p className="mt-1 text-[12px] text-gray-600">
+                        Your project is delivered. Please mark it as completed to finish the project.
+                      </p>
+                    </div>
+                    <div className="shrink-0 w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={openCompleteConfirm}
+                      disabled={completeLoading}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Mark as Completed
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
               {loading ? (
                 <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
@@ -1068,7 +1206,12 @@ export default function ProjectDetails() {
                               }
                               if (k === 'invoice_final') {
                                 const arr = statusTimelineMulti.get('invoice') ?? [];
-                                return arr.length > 1 ? arr[arr.length - 1] : null;
+                                // Some backends only emit a single `invoice` timeline entry.
+                                // If final is already paid, treat Invoice (Final) as reached and
+                                // fall back to the final paid timestamp (or QC timestamp) for display.
+                                if (arr.length > 1) return arr[arr.length - 1] ?? null;
+                                const qcArr = statusTimelineMulti.get('qc') ?? [];
+                                return finalPaidAt ?? (qcArr.length ? qcArr[qcArr.length - 1] : null);
                               }
                               if (k === 'paid_advance') return advancePaidAt ?? null;
                               if (k === 'paid_final') return finalPaidAt ?? null;
@@ -1084,12 +1227,13 @@ export default function ProjectDetails() {
                               (advanceStatus === 'due' || advanceStatus === 'paid') || (currentOperationalIdx > 0 && advanceStatus !== 'not_applicable');
                             const advancePaidReached = advanceStatus === 'paid' || Boolean(advancePaidAt);
 
-                            // Final invoice should only be considered reached when project is in invoice state after QC.
-                            const finalInvoiceReached =
-                              normalizeStatusKey(currentOperationalStatusKey) === 'invoice' &&
-                              qcReached &&
-                              (finalStatus === 'due' || finalStatus === 'paid');
                             const finalPaidReached = finalStatus === 'paid' || Boolean(finalPaidAt);
+                            // Final invoice should be considered reached once QC is reached and final is due/paid.
+                            // (After payment, operational status may move past `invoice`.)
+                            const finalInvoiceReached =
+                              qcReached &&
+                              finalStatus !== 'not_applicable' &&
+                              (finalStatus === 'due' || finalStatus === 'paid' || finalPaidReached);
 
                             const reachedByRule = (() => {
                               if (kNorm === 'invoice_advance') return advanceInvoiceReached;

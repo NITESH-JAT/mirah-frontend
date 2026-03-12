@@ -1,0 +1,1113 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { projectService } from '../../services/projectService';
+import SafeImage from '../../components/SafeImage';
+
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
+function formatMoney(v) {
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v ?? '');
+  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
+  return `${datePart}, ${timePart}`;
+}
+
+function formatDateOnly(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
+function toTitleCase(text) {
+  return String(text || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function normalizeStatusKey(s) {
+  const v = String(s ?? '')
+    .trim()
+    .toLowerCase();
+  // Some backends/older payloads use a typo `in_transist`.
+  if (v === 'in_transist') return 'in_transit';
+  return v;
+}
+
+function statusKeyFromTimelineItem(item) {
+  return normalizeStatusKey(
+    item?.to ??
+      item?.toStatus ??
+      item?.to_status ??
+      item?.status ??
+      item?.projectStatus ??
+      item?.project_status ??
+      item?.operationalStatus ??
+      item?.operational_status ??
+      '',
+  );
+}
+
+function timestampFromTimelineItem(item) {
+  return (
+    item?.changedAt ??
+    item?.changed_at ??
+    item?.createdAt ??
+    item?.created_at ??
+    item?.updatedAt ??
+    item?.updated_at ??
+    item?.timestamp ??
+    item?.ts ??
+    item?.at ??
+    null
+  );
+}
+
+function coerceArray(maybe) {
+  if (Array.isArray(maybe)) return maybe;
+  if (!maybe) return [];
+  return [maybe];
+}
+
+function coerceUrlArray(input) {
+  const raw = input ?? [];
+  if (Array.isArray(raw)) return raw.filter(Boolean);
+  return raw ? [raw] : [];
+}
+
+
+
+function filenameFromUrl(url, fallback = 'Attachment') {
+  const raw = String(url || '').trim();
+  if (!raw) return fallback;
+  const noQuery = raw.split('?')[0] || raw;
+  const parts = noQuery.split('/').filter(Boolean);
+  const last = parts[parts.length - 1] || fallback;
+  try {
+    const decoded = decodeURIComponent(last);
+    return decoded || fallback;
+  } catch {
+    return last || fallback;
+  }
+}
+
+function attachmentIcon(name) {
+  const n = String(name || '');
+  const base = n.split('?')[0] || n;
+  const ext = (base.split('.').pop() || '').toLowerCase();
+  const isPdf = ext === 'pdf';
+  const isImg = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'].includes(ext);
+  if (isPdf) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13h8" />
+        <path d="M8 17h8" />
+      </svg>
+    );
+  }
+  if (isImg) {
+    return (
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="M21 15l-5-5L5 21" />
+      </svg>
+    );
+  }
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+      <path d="M13 2v7h7" />
+    </svg>
+  );
+}
+
+function isFinishedLike(project) {
+  const status = String(project?.status ?? '').trim().toLowerCase();
+  const projectStatus = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
+  return Boolean(project?.isFinished) || status === 'finished' || projectStatus === 'completed';
+}
+
+function normalizePaymentStatus(status, { finishedLike } = {}) {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'not_applicble') return 'not_applicable';
+  if (finishedLike && (!s || s === 'not_applicable')) return 'paid';
+  return s || '—';
+}
+
+function statusStepsFromStatusModel(statusModel) {
+  const m = statusModel ?? {};
+  const raw =
+    m?.steps ??
+    m?.statuses ??
+    m?.allStatuses ??
+    m?.all_statuses ??
+    m?.statusOrder ??
+    m?.status_order ??
+    m?.sequence ??
+    m?.flow ??
+    null;
+
+  if (Array.isArray(raw) && raw.length > 0) {
+    const items = raw
+      .map((x) => {
+        if (typeof x === 'string') {
+          const key = normalizeStatusKey(x);
+          return key ? { key, label: toTitleCase(x) } : null;
+        }
+        const key = normalizeStatusKey(x?.key ?? x?.status ?? x?.code ?? x?.name ?? x?.value ?? '');
+        if (!key) return null;
+        const label = x?.label ?? x?.title ?? x?.name ?? toTitleCase(key);
+        return { key, label: String(label) };
+      })
+      .filter(Boolean);
+
+    const seen = new Set();
+    return items.filter((it) => {
+      if (!it?.key || seen.has(it.key)) return false;
+      seen.add(it.key);
+      return true;
+    });
+  }
+
+  // Fallback to PRD operational status dictionary order (plus cancelled at end if needed)
+  return [
+    { key: 'started', label: 'Started' },
+    { key: 'invoice', label: 'Invoice' },
+    { key: 'in_progress', label: 'In Progress' },
+    { key: 'qc', label: 'QC' },
+    { key: 'in_transit', label: 'In Transit' },
+    { key: 'paid', label: 'Paid' },
+    { key: 'delivered', label: 'Delivered' },
+    { key: 'completed', label: 'Completed' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ];
+}
+
+function paymentTypeOfLedgerEntry(entry) {
+  return normalizeStatusKey(
+    entry?.paymentType ??
+      entry?.payment_type ??
+      entry?.type ??
+      entry?.meta?.paymentType ??
+      entry?.meta?.payment_type ??
+      entry?.notes?.paymentType ??
+      entry?.notes?.payment_type ??
+      '',
+  );
+}
+
+function paymentStatusOfLedgerEntry(entry) {
+  return normalizeStatusKey(entry?.status ?? entry?.paymentStatus ?? entry?.payment_status ?? entry?.state ?? '');
+}
+
+function paidAtFromPaymentBlock(block) {
+  return (
+    block?.paidAt ??
+    block?.paid_at ??
+    block?.paidOn ??
+    block?.paid_on ??
+    block?.successAt ??
+    block?.success_at ??
+    block?.updatedAt ??
+    block?.updated_at ??
+    null
+  );
+}
+
+function timestampOfLedgerEntry(entry) {
+  return (
+    entry?.paidAt ??
+    entry?.paid_at ??
+    entry?.updatedAt ??
+    entry?.updated_at ??
+    entry?.createdAt ??
+    entry?.created_at ??
+    entry?.timestamp ??
+    entry?.ts ??
+    null
+  );
+}
+
+function metaRowsOf(project) {
+  const meta = project?.meta ?? project?.projectMeta ?? null;
+  const values = meta?.values ?? meta?.data ?? null;
+  const schema = meta?.schema ?? meta?.fields ?? null;
+  if (!values || typeof values !== 'object') return [];
+  const rows = [];
+  for (const [k, v] of Object.entries(values)) {
+    if (!k) continue;
+    const label = schema?.[k]?.label ?? toTitleCase(k);
+    let value = v;
+    if (Array.isArray(value)) value = value.filter(Boolean).join(', ');
+    else if (value && typeof value === 'object') {
+      try {
+        value = JSON.stringify(value);
+      } catch {
+        value = String(value);
+      }
+    }
+    rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
+  }
+  return rows;
+}
+
+function customerNameOf(project, root) {
+  const p = project ?? {};
+  const r = root ?? {};
+  const c = p?.customerSummary ?? p?.customer ?? r?.customerSummary ?? r?.customer ?? r?.data?.customerSummary ?? null;
+  const joined = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`.trim();
+  const name = c?.fullName ?? c?.name ?? joined ?? null;
+  const trimmed = typeof name === 'string' ? name.trim() : name;
+  return trimmed || null;
+}
+
+function customerIdOf(project, root) {
+  const p = project ?? {};
+  const r = root ?? {};
+  const c = p?.customerSummary ?? p?.customer ?? r?.customerSummary ?? r?.customer ?? r?.data?.customerSummary ?? null;
+  return c?.id ?? c?._id ?? null;
+}
+
+export default function VendorManageProject() {
+  const { addToast } = useOutletContext();
+  const navigate = useNavigate();
+  const { id } = useParams();
+
+  const [loading, setLoading] = useState(false);
+  const [details, setDetails] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
+  const [paymentDetails, setPaymentDetails] = useState(null);
+  const [statusConfirmType, setStatusConfirmType] = useState(null); // 'in_progress' | 'qc' | null
+  const [statusConfirmSubmitting, setStatusConfirmSubmitting] = useState(false);
+  const abortRef = useRef(null);
+  const paymentAbortRef = useRef(null);
+
+  const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
+  const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
+  const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
+  const statusModel =
+    details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
+  const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
+  const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
+  const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
+
+  const projectId = project?.id ?? project?._id ?? id ?? null;
+  const customerName = customerNameOf(project, details);
+  const customerId = customerIdOf(project, details);
+
+  const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
+  const metaRows = useMemo(() => metaRowsOf(project), [project]);
+
+  const finishedLike = useMemo(() => isFinishedLike(project), [project]);
+  const advanceStatus = useMemo(
+    () => normalizePaymentStatus(advancePayment?.status, { finishedLike }),
+    [advancePayment?.status, finishedLike],
+  );
+  const finalStatus = useMemo(
+    () => normalizePaymentStatus(finalPayment?.status, { finishedLike }),
+    [finalPayment?.status, finishedLike],
+  );
+
+  const projectStatusKey = useMemo(
+    () => String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase(),
+    [project],
+  );
+
+  const projectStatusLabel = useMemo(() => {
+    if (projectStatusKey === 'invoice') {
+      if (advanceStatus === 'due') return 'Invoice (Advance)';
+      if (finalStatus === 'due') return 'Invoice (Final)';
+      return 'Invoice';
+    }
+    if (projectStatusKey === 'qc') {
+      return 'QC';
+    }
+    return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
+  }, [advanceStatus, finalStatus, project, projectStatusKey]);
+
+  const statusSteps = useMemo(() => {
+    const steps = statusStepsFromStatusModel(statusModel);
+    const currentKey = normalizeStatusKey(
+      statusModel?.projectStatus ?? statusModel?.project_status ?? project?.projectStatus ?? project?.project_status ?? '',
+    );
+    const ensured = Array.isArray(steps) ? steps.slice() : [];
+    if (currentKey && !ensured.some((s) => normalizeStatusKey(s?.key) === currentKey)) {
+      ensured.push({ key: currentKey, label: toTitleCase(currentKey) });
+    }
+    const seen = new Set();
+    const deduped = ensured.filter((s) => {
+      const k = normalizeStatusKey(s?.key);
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    // If cancelled isn't current, hide cancelled to avoid confusing the normal flow.
+    const baseRaw =
+      currentKey !== 'cancelled' ? deduped.filter((s) => normalizeStatusKey(s?.key) !== 'cancelled') : deduped;
+
+    // Always inject payment milestones (some backends don't include `invoice` in steps)
+    // Keep `in_transit` as a real step (should appear before delivered).
+    const base = baseRaw.filter((s) => !['invoice', 'paid'].includes(normalizeStatusKey(s?.key)));
+    const out = base.slice();
+
+    const insertAfter = (afterKey, items) => {
+      const idx = out.findIndex((s) => normalizeStatusKey(s?.key) === normalizeStatusKey(afterKey));
+      if (idx < 0) {
+        out.push(...items);
+        return;
+      }
+      out.splice(idx + 1, 0, ...items);
+    };
+
+    const advanceMilestones = [
+      { key: 'invoice_advance', label: 'Invoice (Advance)' },
+      { key: 'paid_advance', label: 'Advance Paid' },
+    ];
+    const finalMilestones = [
+      { key: 'invoice_final', label: 'Invoice (Final)' },
+      { key: 'paid_final', label: 'Final Paid' },
+    ];
+    const settlementMilestone = { key: 'payment_settlement', label: 'Payment Settlement' };
+
+    // Advance is relevant early; put it after started (or at top if missing).
+    insertAfter('started', advanceMilestones);
+
+    // Final is expected after QC; if QC missing, append near end.
+    insertAfter('qc', finalMilestones);
+
+    // Payment settlement should appear after Completed.
+    insertAfter('completed', [settlementMilestone]);
+
+    // Final dedupe in case steps already included similar keys
+    const seen2 = new Set();
+    return out.filter((s) => {
+      const k = normalizeStatusKey(s?.key);
+      if (!k || seen2.has(k)) return false;
+      seen2.add(k);
+      return true;
+    });
+  }, [project, statusModel]);
+
+  const statusTimelineMulti = useMemo(() => {
+    const list = Array.isArray(statusModel?.timeline) ? statusModel.timeline : [];
+    const map = new Map();
+    for (const item of list) {
+      const k = statusKeyFromTimelineItem(item);
+      if (!k) continue;
+      const ts = timestampFromTimelineItem(item);
+      if (!ts) continue;
+      const arr = map.get(k) ?? [];
+      arr.push(ts);
+      map.set(k, arr);
+    }
+    const startedLike = project?.startedAt ?? project?.started_at ?? project?.createdAt ?? project?.created_at ?? null;
+    if (startedLike && !map.has('started')) map.set('started', [startedLike]);
+    const finishedAt =
+      statusModel?.finishedAt ?? statusModel?.finished_at ?? project?.finishedAt ?? project?.finished_at ?? null;
+    if (finishedAt && !map.has('completed')) map.set('completed', [finishedAt]);
+    // sort each bucket asc
+    for (const [k, arr] of map.entries()) {
+      const sorted = arr
+        .map((x) => ({ raw: x, t: new Date(x).getTime() }))
+        .filter((x) => Number.isFinite(x.t))
+        .sort((a, b) => a.t - b.t)
+        .map((x) => x.raw);
+      map.set(k, sorted);
+    }
+    return map;
+  }, [project, statusModel]);
+
+  const currentOperationalStatusKey = useMemo(
+    () =>
+      normalizeStatusKey(
+        statusModel?.projectStatus ??
+          statusModel?.project_status ??
+          project?.projectStatus ??
+          project?.project_status ??
+          '',
+      ),
+    [project, statusModel],
+  );
+
+  const advancePaidAt = useMemo(() => {
+    const fromBlock = paidAtFromPaymentBlock(advancePayment);
+    if (fromBlock) return fromBlock;
+    let best = null;
+    for (const e of ledger) {
+      const type = paymentTypeOfLedgerEntry(e);
+      const status = paymentStatusOfLedgerEntry(e);
+      if (type !== 'advance') continue;
+      if (status && status !== 'paid' && status !== 'success' && status !== 'completed') continue;
+      const ts = timestampOfLedgerEntry(e);
+      if (!ts) continue;
+      if (!best) best = ts;
+      else if (new Date(ts).getTime() > new Date(best).getTime()) best = ts;
+    }
+    return best;
+  }, [advancePayment, ledger]);
+
+  const finalPaidAt = useMemo(() => {
+    const fromBlock = paidAtFromPaymentBlock(finalPayment);
+    if (fromBlock) return fromBlock;
+    let best = null;
+    for (const e of ledger) {
+      const type = paymentTypeOfLedgerEntry(e);
+      const status = paymentStatusOfLedgerEntry(e);
+      if (type !== 'final') continue;
+      if (status && status !== 'paid' && status !== 'success' && status !== 'completed') continue;
+      const ts = timestampOfLedgerEntry(e);
+      if (!ts) continue;
+      if (!best) best = ts;
+      else if (new Date(ts).getTime() > new Date(best).getTime()) best = ts;
+    }
+    return best;
+  }, [finalPayment, ledger]);
+
+  const currentStepKey = useMemo(() => {
+    if (currentOperationalStatusKey === 'invoice') {
+      if (advanceStatus === 'due') return 'invoice_advance';
+      if (finalStatus === 'due') return 'invoice_final';
+      if (finalStatus === 'paid') return 'paid_final';
+      if (advanceStatus === 'paid') return 'paid_advance';
+      return 'invoice_advance';
+    }
+    if (currentOperationalStatusKey === 'paid') {
+      if (finalStatus === 'paid') return 'paid_final';
+      if (advanceStatus === 'paid') return 'paid_advance';
+      return 'paid_final';
+    }
+    return currentOperationalStatusKey;
+  }, [advanceStatus, currentOperationalStatusKey, finalStatus]);
+
+  const canMarkInProgress = currentOperationalStatusKey === 'started';
+  const canMarkQc = currentOperationalStatusKey === 'in_progress';
+
+  const qcEntries = useMemo(() => {
+    const raw = qcModel?.logs ?? qcModel?.log ?? [];
+    const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return arr.filter(Boolean);
+  }, [qcModel]);
+
+  const load = useCallback(async () => {
+    if (!projectId) return;
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    setLoading(true);
+    try {
+      const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      setDetails(res || null);
+    } catch (e) {
+      if (isCanceledRequest(e)) return;
+      addToast(e?.message || 'Failed to load project', 'error');
+      setDetails(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast, projectId]);
+
+  const loadPaymentDetails = useCallback(async () => {
+    if (!projectId) return;
+    if (paymentAbortRef.current) paymentAbortRef.current.abort();
+    const ctrl = new AbortController();
+    paymentAbortRef.current = ctrl;
+    try {
+      const res = await projectService.getVendorPaymentDetails(projectId, { signal: ctrl.signal });
+      setPaymentDetails(res || null);
+    } catch {
+      // ignore; card can stay hidden or show missing data
+      setPaymentDetails(null);
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    load();
+    loadPaymentDetails();
+    return () => {
+      abortRef.current?.abort();
+      paymentAbortRef.current?.abort();
+    };
+  }, [load, loadPaymentDetails]);
+
+  const goBack = useCallback(() => {
+    navigate('/vendor/projects/assigned');
+  }, [navigate]);
+
+  const chatWithCustomer = useCallback(() => {
+    if (!customerId) return;
+    navigate('/vendor/messages', { state: { openRecipientId: customerId } });
+  }, [customerId, navigate]);
+
+  const updateStatus = async (nextStatus, { skipGuard = false } = {}) => {
+    if (!projectId || !nextStatus) return;
+    if (!skipGuard && statusUpdating) return;
+    setStatusUpdating(true);
+    try {
+      await projectService.updateStatus(projectId, nextStatus);
+      addToast('Project status updated.', 'success');
+      await load();
+    } catch (e) {
+      addToast(e?.message || 'Failed to update status', 'error');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const openStatusConfirm = (type) => {
+    if (statusUpdating) return;
+    setStatusConfirmType(type);
+  };
+
+  const closeStatusConfirm = () => {
+    if (statusUpdating) return;
+    setStatusConfirmType(null);
+  };
+
+  const confirmStatusChange = async () => {
+    if (!statusConfirmType) return;
+    if (statusConfirmSubmitting || statusUpdating) return;
+    const type = statusConfirmType;
+    setStatusConfirmSubmitting(true);
+    try {
+      await updateStatus(type, { skipGuard: true });
+      setStatusConfirmType(null);
+    } finally {
+      setStatusConfirmSubmitting(false);
+    }
+  };
+
+  if (loading && !details) {
+    return (
+      <div className="w-full min-h-[calc(100vh-260px)] flex items-center justify-center">
+        <svg
+          className="animate-spin text-primary-dark"
+          xmlns="http://www.w3.org/2000/svg"
+          width="28"
+          height="28"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (!details && !loading) {
+    return (
+      <div className="w-full py-8">
+        <button
+          type="button"
+          onClick={goBack}
+          className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
+        >
+          Back
+        </button>
+        <p className="mt-4 text-[13px] text-gray-600">Unable to load project.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full pb-10 animate-fade-in">
+      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row md:items-start gap-4">
+        {/* Left column: overview */}
+        <div className="w-full md:w-[420px] lg:w-[460px] shrink-0 md:self-start">
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={goBack}
+                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+              >
+                Back
+              </button>
+              <span className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap">
+                {projectStatusLabel}
+              </span>
+            </div>
+
+            <div className="mt-4">
+              <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
+                {project?.title || 'Project'}
+              </p>
+              <p className="mt-2 text-[12px] text-gray-500 leading-relaxed whitespace-pre-line line-clamp-5">
+                {project?.description || '—'}
+              </p>
+
+              <div className="mt-4 space-y-1.5">
+                {customerName ? (
+                  <p className="text-[12px] text-gray-500">
+                    Customer: <span className="font-extrabold text-gray-900">{customerName}</span>
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={chatWithCustomer}
+                  disabled={!customerId}
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  Chat with Customer
+                </button>
+              </div>
+
+              {metaRows.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Extra Fields</p>
+                  <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                    {metaRows.map((r) => (
+                      <div key={r.key} className="space-y-0.5">
+                        <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
+                        <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {attachments.length > 0 ? (
+                <div className="mt-4">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Attachments</p>
+                  <div className="mt-2 space-y-2">
+                    {attachments.map((u, idx) => {
+                      const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+                      return (
+                        <a
+                          key={`${u}-${idx}`}
+                          href={u}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                          title="Open attachment"
+                        >
+                          <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
+                            <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                            <span className="truncate">{name}</span>
+                          </span>
+                          <span className="shrink-0 text-gray-400">
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M7 17 17 7" />
+                              <path d="M7 7h10v10" />
+                            </svg>
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {/* Right column: payable + status + updates */}
+        <div className="flex-1 md:self-start">
+          <div className="space-y-4">
+            {/* Payable + Change status cards side-by-side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Payable card */}
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">Payable to You</p>
+                    {paymentDetails?.vendorSettlementDone ? (
+                      <span className="px-2 py-1 rounded-full border border-emerald-100 bg-emerald-50 text-[10px] font-extrabold text-emerald-700">
+                        Payment Settled
+                      </span>
+                    ) : null}
+                  </div>
+                  {paymentDetails ? (
+                    <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
+                      <p>
+                        Total Amount:{' '}
+                        <span className="font-extrabold text-gray-900">
+                          {paymentDetails.totalAmount != null ? `₹ ${formatMoney(paymentDetails.totalAmount)}` : '—'}
+                        </span>
+                      </p>
+                      <p>
+                        Total Commission:{' '}
+                        <span className="font-extrabold text-gray-900">
+                          {paymentDetails.totalCommission != null
+                            ? `₹ ${formatMoney(paymentDetails.totalCommission)}`
+                            : '—'}
+                        </span>
+                      </p>
+                      <p>
+                        Net Payable:{' '}
+                        <span className="font-extrabold text-gray-900">
+                          {paymentDetails.totalPayableToVendor != null
+                            ? `₹ ${formatMoney(paymentDetails.totalPayableToVendor)}`
+                            : '—'}
+                        </span>
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-3 text-[12px] text-gray-500">
+                      Payable details are not available yet.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Change status card */}
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">Change Status</p>
+                  </div>
+                  <p className="mt-1 text-[12px] text-gray-500">
+                    Update the project operational status as work progresses.
+                  </p>
+                  <div className="mt-4 grid grid-cols-1 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openStatusConfirm('in_progress')}
+                      disabled={!canMarkInProgress || statusUpdating}
+                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-gray-100 bg-gray-50 text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Mark In Progress
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openStatusConfirm('qc')}
+                      disabled={!canMarkQc || statusUpdating}
+                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Put in QC Check
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {statusConfirmType ? (
+              (typeof document !== 'undefined'
+                ? createPortal(
+                    <div
+                      className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                      onMouseDown={closeStatusConfirm}
+                    >
+                      <div
+                        className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                      >
+                        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-gray-900">
+                              {statusConfirmType === 'in_progress' ? 'Mark as In Progress' : 'Put in QC Check'}
+                            </p>
+                            <p className="mt-1 text-[12px] text-gray-500">
+                              {statusConfirmType === 'in_progress'
+                                ? 'This will update the project status to In Progress and notify the system.'
+                                : 'This will move the project into Mirah QC checks.'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={closeStatusConfirm}
+                            disabled={statusUpdating || statusConfirmSubmitting}
+                            className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                            aria-label="Close"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="px-5 py-4 flex flex-col sm:flex-row sm:justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={closeStatusConfirm}
+                            disabled={statusUpdating || statusConfirmSubmitting}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={confirmStatusChange}
+                            disabled={statusUpdating || statusConfirmSubmitting}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                          >
+                            {statusUpdating || statusConfirmSubmitting ? 'Submitting…' : 'Confirm'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null)
+            ) : null}
+
+            {/* QC logs card */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="p-4 md:p-6">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12px] font-extrabold text-gray-900">QC Updates</p>
+                </div>
+                {qcEntries.length === 0 ? (
+                  <div className="mt-6 min-h-[120px] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="18"
+                          height="18"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                          <path d="M8 10h8" />
+                          <path d="M8 14h5" />
+                        </svg>
+                      </div>
+                      <p className="mt-2 text-[12px] text-gray-500 font-semibold">QC Status Awaiting…</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {qcEntries.map((entry, idx) => {
+                      const statusKey = normalizeStatusKey(entry?.status);
+                      const statusLabel =
+                        statusKey === 'passed'
+                          ? 'Passed'
+                          : statusKey === 'failed'
+                            ? 'Failed'
+                            : toTitleCase(entry?.status || 'QC');
+                      const ts = entry?.createdAt ?? entry?.created_at ?? null;
+                      const remarks = entry?.remarks ?? entry?.remark ?? null;
+                      const pillClass =
+                        statusKey === 'passed'
+                          ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                          : statusKey === 'failed'
+                            ? 'bg-red-50 border-red-100 text-red-700'
+                            : 'bg-gray-50 border-gray-100 text-gray-600';
+
+                      return (
+                        <div key={idx} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-[12px] font-semibold text-gray-800">Mirah QC Reviews</p>
+                            {ts ? (
+                              <p className="text-[11px] text-gray-400">{formatDateTime(ts)}</p>
+                            ) : null}
+                          </div>
+                          {remarks ? (
+                            <p className="mt-1 text-[12px] text-gray-600 whitespace-pre-line">{String(remarks)}</p>
+                          ) : null}
+                          <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[10px] font-bold ${pillClass}`}>
+                            QC {statusLabel}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Project updates timeline */}
+            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              {loading ? (
+                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
+                  <svg
+                    className="animate-spin text-primary-dark"
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="28"
+                    height="28"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              ) : !project ? (
+                <div className="p-8 text-[13px] text-gray-600">Unable to load project updates.</div>
+              ) : (
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">Project Updates</p>
+                  </div>
+
+                  <div className="mt-4">
+                    <div className="space-y-5">
+                      {statusSteps.map((s, idx) => {
+                        const key = s?.key;
+                        if (!key) return null;
+                        const isLast = idx === statusSteps.length - 1;
+                        const kNorm = normalizeStatusKey(key);
+                        const isPaymentKey = (k) =>
+                          ['invoice_advance', 'paid_advance', 'invoice_final', 'paid_final', 'payment_settlement'].includes(
+                            normalizeStatusKey(k),
+                          );
+                        const paymentSettlementReached = Boolean(paymentDetails?.vendorSettlementDone);
+
+                        const tsCandidate = (() => {
+                          const k = normalizeStatusKey(key);
+                          if (k === 'invoice_advance') {
+                            const arr = statusTimelineMulti.get('invoice') ?? [];
+                            return arr[0] ?? null;
+                          }
+                          if (k === 'invoice_final') {
+                            const arr = statusTimelineMulti.get('invoice') ?? [];
+                            // Some backends only emit a single `invoice` timeline entry.
+                            // If final is already paid, treat Invoice (Final) as reached and
+                            // fall back to the final paid timestamp (or QC timestamp) for display.
+                            if (arr.length > 1) return arr[arr.length - 1] ?? null;
+                            const qcArr = statusTimelineMulti.get('qc') ?? [];
+                            return finalPaidAt ?? (qcArr.length ? qcArr[qcArr.length - 1] : null);
+                          }
+                          if (k === 'paid_advance') return advancePaidAt ?? null;
+                          if (k === 'paid_final') return finalPaidAt ?? null;
+                          const arr = statusTimelineMulti.get(k) ?? [];
+                          return arr.length ? arr[arr.length - 1] : null;
+                        })();
+
+                        const isPayment = isPaymentKey(kNorm);
+
+                        const currentIdx = statusSteps.findIndex(
+                          (st) => normalizeStatusKey(st?.key) === normalizeStatusKey(currentStepKey),
+                        );
+
+
+                        const advanceInvoiceReached =
+                          (advanceStatus === 'due' || advanceStatus === 'paid') ||
+                          (currentIdx > 0 && advanceStatus !== 'not_applicable');
+                        const advancePaidReached = advanceStatus === 'paid' || Boolean(advancePaidAt);
+
+                        const qcIdx = statusSteps.findIndex(
+                          (st) => normalizeStatusKey(st?.key) === 'qc',
+                        );
+                        const qcTimelineArr = statusTimelineMulti.get('qc') ?? [];
+                        const qcReached =
+                          qcIdx >= 0 &&
+                          (currentIdx >= qcIdx || (qcTimelineArr.length > 0));
+
+                        const finalPaidReached = finalStatus === 'paid' || Boolean(finalPaidAt);
+                        // Final invoice should be considered reached once QC is reached and final is due/paid.
+                        // (After payment, operational status may move past `invoice`.)
+                        const finalInvoiceReached =
+                          qcReached &&
+                          finalStatus !== 'not_applicable' &&
+                          (finalStatus === 'due' || finalStatus === 'paid' || finalPaidReached);
+
+                        const reachedByRule = (() => {
+                          if (kNorm === 'invoice_advance') return advanceInvoiceReached;
+                          if (kNorm === 'paid_advance') return advancePaidReached;
+                          if (kNorm === 'invoice_final') return finalInvoiceReached;
+                          if (kNorm === 'paid_final') return finalPaidReached;
+                          if (kNorm === 'payment_settlement') return paymentSettlementReached;
+                          return false;
+                        })();
+
+                        const ts = reachedByRule || !isPayment ? tsCandidate : null;
+                        const isCurrent = normalizeStatusKey(key) === normalizeStatusKey(currentStepKey);
+                        const completedByIdx = currentIdx >= 0 ? idx < currentIdx : false;
+                        const isCompleted = isPayment ? reachedByRule : Boolean(ts) || completedByIdx;
+                        const state = isCurrent ? 'current' : isCompleted ? 'completed' : 'upcoming';
+
+                        const circleClass =
+                          state === 'completed'
+                            ? 'bg-primary-dark text-white border-primary-dark'
+                            : state === 'current'
+                              ? 'bg-primary-dark text-white border-primary-dark ring-2 ring-primary-dark/20'
+                              : 'bg-white text-gray-400 border-gray-200';
+
+                        const lineClass = isCompleted || state === 'current' ? 'bg-primary-dark' : 'bg-gray-200';
+
+                        const labelRaw = (() => {
+                          const k = normalizeStatusKey(key);
+                          if (k === 'invoice_advance') return 'Invoice (Advance)';
+                          if (k === 'invoice_final') return 'Invoice (Final)';
+                          if (k === 'paid_advance') return 'Advance Paid';
+                          if (k === 'paid_final') return 'Final Paid';
+                          if (k === 'payment_settlement') return 'Payment Settlement';
+                          if (k === 'qc') return 'Mirah QC Checks';
+                          if (k === 'invoice') return 'Invoice';
+                          return s?.label ?? toTitleCase(key);
+                        })();
+                        const label = String(labelRaw ?? key).toUpperCase();
+                        const sub = ts ? formatDateOnly(ts) : 'Awaiting update';
+
+                        return (
+                          <div key={key} className="flex items-start gap-3">
+                            <div className="flex flex-col items-center">
+                              <div
+                                className={`w-7 h-7 rounded-full border flex items-center justify-center text-[11px] font-extrabold ${circleClass}`}
+                              >
+                                {idx + 1}
+                              </div>
+                              {!isLast ? (
+                                <div className={`flex-1 w-px mt-1 mb-[-4px] ${lineClass}`} style={{ minHeight: 28 }} />
+                              ) : null}
+                            </div>
+                            <div className="flex-1 min-w-0 pt-0.5">
+                              <p className="text-[11px] font-extrabold text-gray-900 tracking-wide">{label}</p>
+                              <p className="mt-0.5 text-[11px] text-gray-500">{sub}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+

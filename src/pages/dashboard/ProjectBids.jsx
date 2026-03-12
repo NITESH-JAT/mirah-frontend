@@ -871,7 +871,7 @@ export default function ProjectBids() {
               className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 shrink-0 flex items-center justify-end"
             >
               {(() => {
-                const canProceed = Boolean(selectedBidId) && !Boolean(actionLoading?.override);
+                const canProceed = Boolean(selectedBidId) && !actionLoading?.override;
                 return (
                   <button
                     type="button"

@@ -412,7 +412,7 @@ export default function DashboardLayout() {
                               <div className="flex-1">
                                 <p className="text-[13px] font-bold text-gray-800">{title}</p>
                                 {message && (
-                                  <p className="text-[12px] text-gray-500 mt-0.5 line-clamp-2">{message}</p>
+                                  <p className="text-[12px] text-gray-500 mt-0.5 ">{message}</p>
                                 )}
                                 {when ? (
                                   <p className="text-[11px] text-gray-400 mt-1">{when}</p>

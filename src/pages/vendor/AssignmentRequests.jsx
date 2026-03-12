@@ -14,11 +14,6 @@ function toTitleCase(text) {
     .replace(/\b\w/g, (m) => m.toUpperCase());
 }
 
-function coerceArray(x) {
-  if (Array.isArray(x)) return x.filter(Boolean);
-  return x ? [x] : [];
-}
-
 function projectOf(row) {
   return row?.project ?? row?.projectDetails ?? row?.projectModel ?? row?.projectSnapshot ?? row?.data?.project ?? null;
 }
@@ -355,9 +350,12 @@ export default function VendorAssignmentRequests() {
                       ) : isAccepted ? (
                         <button
                           type="button"
-                          disabled
-                          className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold opacity-60 cursor-not-allowed"
-                          title="Coming soon"
+                          onClick={() => {
+                            const projectId = p?.id ?? p?._id ?? a?.projectId ?? a?.project_id ?? null;
+                            if (!projectId) return;
+                            navigate(`/vendor/projects/${projectId}`);
+                          }}
+                          className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
                         >
                           Manage Project
                         </button>

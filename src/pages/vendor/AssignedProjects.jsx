@@ -99,7 +99,6 @@ export default function VendorAssignedProjects() {
 
   const abortRef = useRef(null);
   const [loading, setLoading] = useState(false);
-  const [moreLoading, setMoreLoading] = useState(false);
   const [items, setItems] = useState([]);
   const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: null });
   const [query, setQuery] = useState('');
@@ -121,8 +120,7 @@ export default function VendorAssignedProjects() {
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      if (append) setMoreLoading(true);
-      else setLoading(true);
+      setLoading(true);
       try {
         const res = await projectService.listAssignments({
           page: nextPage,
@@ -160,8 +158,7 @@ export default function VendorAssignedProjects() {
         addToast(e?.message || 'Failed to load assigned projects', 'error');
         if (!append) setItems([]);
       } finally {
-        if (append) setMoreLoading(false);
-        else setLoading(false);
+        setLoading(false);
       }
     },
     [addToast],
@@ -242,7 +239,7 @@ export default function VendorAssignedProjects() {
   }
 
   const empty = !loading && sorted.length === 0;
-  const currentPage = Number(meta?.page || page) || 1;
+  const currentPage = Number(meta?.page || 1) || 1;
   const totalPages = Number(meta?.totalPages || 1) || 1;
   const canPrev = currentPage > 1;
   const canNext = currentPage < totalPages;
@@ -304,7 +301,7 @@ export default function VendorAssignedProjects() {
 
             <button
               type="button"
-              onClick={() => load({ nextPage: page })}
+              onClick={() => load({ nextPage: currentPage })}
               disabled={loading}
               className="w-10 h-10 rounded-xl border border-gray-100 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Refresh"
@@ -347,7 +344,7 @@ export default function VendorAssignedProjects() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {sorted.map((x) => {
               const budgetText = budgetTextOf(x.project);
               const days = durationDaysOf(x.project);
@@ -378,9 +375,8 @@ export default function VendorAssignedProjects() {
                     <div className="mt-4">
                       <button
                         type="button"
-                        disabled
-                        className="w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold opacity-60 cursor-not-allowed"
-                        title="Coming soon"
+                        onClick={() => navigate(`/vendor/projects/${x.id}`)}
+                        className="w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
                       >
                         Manage Project
                       </button>

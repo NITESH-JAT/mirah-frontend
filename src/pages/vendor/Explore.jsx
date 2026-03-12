@@ -134,7 +134,6 @@ export default function VendorExplore() {
     ],
     [],
   );
-  const sortLabel = useMemo(() => sortOptions.find((x) => x.id === sortKey)?.label || 'Sort', [sortKey, sortOptions]);
 
   const canPrev = Number(meta?.page || 1) > 1;
   const canNext = Number(meta?.page || 1) < Number(meta?.totalPages || 1);

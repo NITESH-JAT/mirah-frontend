@@ -35,6 +35,7 @@ const VendorBids = lazy(() => import('../pages/vendor/Bids'));
 const VendorBidsView = lazy(() => import('../pages/vendor/BidsView'));
 const VendorAssignmentRequests = lazy(() => import('../pages/vendor/AssignmentRequests'));
 const VendorAssignedProjects = lazy(() => import('../pages/vendor/AssignedProjects'));
+const VendorManageProject = lazy(() => import('../pages/vendor/ManageProject'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 
 export const routes = [
@@ -117,6 +118,7 @@ export const routes = [
       { path: 'bids/:id', element: <VendorBidsView /> },
       { path: 'projects/assignment-requests', element: <VendorAssignmentRequests /> },
       { path: 'projects/assigned', element: <VendorAssignedProjects /> },
+      { path: 'projects/:id', element: <VendorManageProject /> },
       { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },

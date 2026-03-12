@@ -401,13 +401,7 @@ export default function VendorBidsView() {
     }
   };
 
-  const openVendorProfile = (bid) => {
-    const vendorId = bidVendorIdOf(bid);
-    if (!vendorId) return;
-    navigate(`/dashboard/vendors/${vendorId}`, {
-      state: { fromProjectId: projectId, fromProjectTitle: project?.title ?? null },
-    });
-  };
+
 
   const chatWithCustomer = useCallback(() => {
     if (!customerId) return;
