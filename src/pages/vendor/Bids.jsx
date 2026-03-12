@@ -133,11 +133,17 @@ export default function VendorBids() {
   const { addToast } = useOutletContext();
   const abortRef = useRef(null);
 
-  const [loading, setLoading] = useState(false);
-  const [items, setItems] = useState([]);
+  const [loadingActive, setLoadingActive] = useState(false);
+  const [loadingCompleted, setLoadingCompleted] = useState(false);
+  const [itemsActive, setItemsActive] = useState([]);
+  const [itemsCompleted, setItemsCompleted] = useState([]);
   const [tab, setTab] = useState('active'); // 'active' | 'completed'
   const [queryActive, setQueryActive] = useState('');
   const [queryCompleted, setQueryCompleted] = useState('');
+  const [pageActive, setPageActive] = useState(1);
+  const [pageCompleted, setPageCompleted] = useState(1);
+  const [metaActive, setMetaActive] = useState({ page: 1, totalPages: 1, total: null });
+  const [metaCompleted, setMetaCompleted] = useState({ page: 1, totalPages: 1, total: null });
 
   useEffect(() => {
     try {
@@ -148,56 +154,97 @@ export default function VendorBids() {
     }
   }, [location.search]);
 
-  const load = useCallback(async () => {
-    if (abortRef.current) abortRef.current.abort();
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-    setLoading(true);
-    try {
-      const res = await projectService.listBidParticipation({ page: 1, limit: 100, signal: ctrl.signal });
-      const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
-      setItems(list.map(normalizeParticipationItem).filter((x) => x?.id && !x.vendorWithdrewAllBids));
-    } catch (e) {
-      if (isCanceledRequest(e)) return;
-      addToast(e?.message || 'Failed to load bids', 'error');
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [addToast]);
+  const loadActive = useCallback(
+    async ({ nextPage = 1 } = {}) => {
+      if (abortRef.current) abortRef.current.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setLoadingActive(true);
+      try {
+        const res = await projectService.listBidParticipation({ page: nextPage, limit: 24, signal: ctrl.signal });
+        const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+        const normalized = list.map(normalizeParticipationItem).filter((x) => x?.id && !x.vendorWithdrewAllBids);
+        setItemsActive(normalized.filter((x) => x.isActive));
+        const meta = res?.meta || { page: nextPage, totalPages: 1, total: null };
+        setMetaActive(meta);
+        setPageActive(meta.page || nextPage);
+      } catch (e) {
+        if (isCanceledRequest(e)) return;
+        addToast(e?.message || 'Failed to load bids', 'error');
+        setItemsActive([]);
+      } finally {
+        setLoadingActive(false);
+      }
+    },
+    [addToast],
+  );
+
+  const loadCompleted = useCallback(
+    async ({ nextPage = 1 } = {}) => {
+      if (abortRef.current) abortRef.current.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setLoadingCompleted(true);
+      try {
+        const res = await projectService.listBidParticipation({ page: nextPage, limit: 24, signal: ctrl.signal });
+        const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+        const normalized = list.map(normalizeParticipationItem).filter((x) => x?.id && !x.vendorWithdrewAllBids);
+        setItemsCompleted(normalized.filter((x) => !x.isActive));
+        const meta = res?.meta || { page: nextPage, totalPages: 1, total: null };
+        setMetaCompleted(meta);
+        setPageCompleted(meta.page || nextPage);
+      } catch (e) {
+        if (isCanceledRequest(e)) return;
+        addToast(e?.message || 'Failed to load bids', 'error');
+        setItemsCompleted([]);
+      } finally {
+        setLoadingCompleted(false);
+      }
+    },
+    [addToast],
+  );
 
   useEffect(() => {
-    load();
+    if (tab === 'active') {
+      loadActive({ nextPage: pageActive });
+    } else {
+      loadCompleted({ nextPage: pageCompleted });
+    }
     return () => abortRef.current?.abort();
-  }, [load]);
-
-  const activeList = useMemo(() => items.filter((x) => x.isActive), [items]);
-  const completedList = useMemo(() => items.filter((x) => !x.isActive), [items]);
+  }, [tab, pageActive, pageCompleted, loadActive, loadCompleted]);
 
   const filteredActive = useMemo(() => {
     const q = String(queryActive || '').trim().toLowerCase();
-    if (!q) return activeList;
-    return activeList.filter((x) => {
+    if (!q) return itemsActive;
+    return itemsActive.filter((x) => {
       const t = String(x?.title ?? '').toLowerCase();
       const d = String(x?.description ?? '').toLowerCase();
       return t.includes(q) || d.includes(q);
     });
-  }, [activeList, queryActive]);
+  }, [itemsActive, queryActive]);
 
   const filteredCompleted = useMemo(() => {
     const q = String(queryCompleted || '').trim().toLowerCase();
-    if (!q) return completedList;
-    return completedList.filter((x) => {
+    if (!q) return itemsCompleted;
+    return itemsCompleted.filter((x) => {
       const t = String(x?.title ?? '').toLowerCase();
       const d = String(x?.description ?? '').toLowerCase();
       return t.includes(q) || d.includes(q);
     });
-  }, [completedList, queryCompleted]);
+  }, [itemsCompleted, queryCompleted]);
 
   const filtered = tab === 'active' ? filteredActive : filteredCompleted;
 
+  const currentPage = tab === 'active' ? pageActive : pageCompleted;
+  const meta = tab === 'active' ? metaActive : metaCompleted;
+  const canPrev = Number(meta?.page || 1) > 1;
+  const canNext = Number(meta?.page || 1) < Number(meta?.totalPages || 1);
+  const totalPages = Number(meta?.totalPages || 1) || 1;
+
+  const loading = tab === 'active' ? loadingActive : loadingCompleted;
+
   return (
-    <div className="w-full pb-10 animate-fade-in">
+    <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
       {/* Tabs + search */}
       <div className="sticky top-0 z-30 isolate bg-[#F8F9FA] -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-gray-100/60">
         <div className="flex items-center justify-start">
@@ -350,6 +397,58 @@ export default function VendorBids() {
           </div>
         )}
       </div>
+
+      {/* Fixed pagination bar per tab */}
+      {!loading && filtered.length > 0 ? (
+        <div
+          className="fixed left-0 right-0 z-40
+                     bottom-0
+                     lg:left-[240px]"
+        >
+          <div className="px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
+            <div className="max-w-5xl lg:max-w-none mx-auto">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  disabled={!canPrev}
+                  onClick={() => {
+                    const next = Math.max(1, currentPage - 1);
+                    if (tab === 'active') {
+                      loadActive({ nextPage: next });
+                    } else {
+                      loadCompleted({ nextPage: next });
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  Prev
+                </button>
+
+                <div className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] text-gray-500 shadow-sm whitespace-nowrap">
+                  Page <span className="font-semibold text-gray-800">{currentPage}</span> of{' '}
+                  <span className="font-semibold text-gray-800">{totalPages}</span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!canNext}
+                  onClick={() => {
+                    const next = currentPage + 1;
+                    if (tab === 'active') {
+                      loadActive({ nextPage: next });
+                    } else {
+                      loadCompleted({ nextPage: next });
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

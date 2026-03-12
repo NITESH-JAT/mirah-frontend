@@ -11,11 +11,16 @@ function coerceArray(maybe) {
 }
 
 export const productService = {
-  listVendorProducts: async ({ page = 1, limit = 20 } = {}) => {
-    const res = await api.get('/api/user/product/vendor', { params: { page, limit } });
-    const data = unwrap(res);
-    const items = data?.products ?? data?.items ?? data ?? [];
-    return Array.isArray(items) ? items : [];
+  listVendorProducts: async ({ page = 1, limit = 20, search, status, minPrice, maxPrice, signal } = {}) => {
+    const params = { page, limit };
+    if (search) params.search = search;
+    if (status) params.status = status;
+    if (minPrice != null && !Number.isNaN(Number(minPrice))) params.minPrice = Number(minPrice);
+    if (maxPrice != null && !Number.isNaN(Number(maxPrice))) params.maxPrice = Number(maxPrice);
+    const res = await api.get('/api/user/product/vendor', { params, signal });
+    const data = unwrap(res) || {};
+    const items = data?.products ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    return Array.isArray(items) ? items : coerceArray(items);
   },
 
   getVendorProduct: async (id) => {

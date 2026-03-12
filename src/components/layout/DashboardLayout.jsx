@@ -88,6 +88,7 @@ export default function DashboardLayout() {
   const isShopPage = path.includes('/vendor/shop');
   const isVendorExplorePage = path.includes('/vendor/explore');
   const isVendorBidsPage = path.includes('/vendor/bids');
+  const isVendorProjectsPage = path.includes('/vendor/projects');
   const isShoppingPage = path.includes('/dashboard/shopping');
   const isShoppingListPage = path === '/dashboard/shopping';
   const isCartPage = path.includes('/dashboard/cart');
@@ -104,6 +105,7 @@ export default function DashboardLayout() {
     if (isShopPage) return 'Store';
     if (isVendorBidsPage) return path.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (isVendorProjectsPage) return path.includes('/vendor/projects/assigned') ? 'Assigned Projects' : 'Assignment Requests';
     if (isCartPage) return 'Cart';
     if (isCheckoutPage) return 'Checkout';
     if (isOrdersPage) return 'My Orders';
@@ -122,6 +124,7 @@ export default function DashboardLayout() {
     isShoppingPage,
     isVendorBidsPage,
     isVendorExplorePage,
+    isVendorProjectsPage,
     path,
   ]);
   
@@ -494,6 +497,7 @@ export default function DashboardLayout() {
               isShopPage ||
               isVendorExplorePage ||
               isVendorBidsPage ||
+              isVendorProjectsPage ||
               isShoppingPage ||
               isProjectsPage ||
               isOrdersPage ||

@@ -150,6 +150,50 @@ export const projectService = {
     return { items, meta: { page: currentPage, totalPages, total } };
   },
 
+  // Customer assignments
+  listCustomerAssignments: async ({ page = 1, limit = 10, status, isActive, signal } = {}) => {
+    const params = { page, limit };
+    if (status) params.status = status;
+    if (typeof isActive === 'boolean') params.isActive = isActive;
+    const res = await api.get('/api/user/projects/assignments', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.projects ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total }, pagination: data?.pagination ?? null };
+  },
+
+  // Vendor assignments
+  listAssignments: async ({ page = 1, limit = 24, status, isActive, signal } = {}) => {
+    const params = { page, limit };
+    if (status) params.status = status;
+    if (typeof isActive === 'boolean') params.isActive = isActive;
+    const res = await api.get('/api/user/assignments', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.assignments ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total }, pagination: data?.pagination ?? null };
+  },
+
+  acceptAssignment: async (assignmentId, { signal } = {}) => {
+    if (!assignmentId) return null;
+    const res = await api.post(`/api/user/assignments/${assignmentId}/accept`, {}, { signal });
+    return unwrap(res);
+  },
+
+  rejectAssignment: async (assignmentId, { signal } = {}) => {
+    if (!assignmentId) return null;
+    const res = await api.post(`/api/user/assignments/${assignmentId}/reject`, {}, { signal });
+    return unwrap(res);
+  },
+
   // Vendor bid actions
   placeBid: async (projectId, { price, daysToComplete } = {}, { signal } = {}) => {
     if (!projectId) return null;

@@ -300,7 +300,23 @@ export default function VendorShop() {
 
   // ----- Vendor products -----
   const [productsLoading, setProductsLoading] = useState(false);
+  const productsAbortRef = useRef(null);
   const [products, setProducts] = useState([]);
+  const [productsPage, setProductsPage] = useState(1);
+  const [productsHasMore, setProductsHasMore] = useState(false);
+  const [productFiltersOpen, setProductFiltersOpen] = useState(false);
+  const [productFilterDraft, setProductFilterDraft] = useState({
+    search: '',
+    status: '',
+    minPrice: '',
+    maxPrice: '',
+  });
+  const [productFilters, setProductFilters] = useState({
+    search: '',
+    status: '',
+    minPrice: '',
+    maxPrice: '',
+  });
   const [createLoading, setCreateLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -366,16 +382,61 @@ export default function VendorShop() {
     extraFields: [],
   });
 
-  const loadProducts = async () => {
+  const loadProducts = async ({ nextPage = 1, append = false, filters = productFilters } = {}) => {
+    if (productsAbortRef.current) productsAbortRef.current.abort();
+    const ctrl = new AbortController();
+    productsAbortRef.current = ctrl;
     setProductsLoading(true);
     try {
-      const items = await productService.listVendorProducts({ page: 1, limit: 50 });
-      setProducts(items);
+      const limit = 10;
+      const items = await productService.listVendorProducts({
+        page: nextPage,
+        limit,
+        search: String(filters?.search || '').trim() || undefined,
+        status: String(filters?.status || '').trim() || undefined,
+        minPrice: String(filters?.minPrice || '').trim() || undefined,
+        maxPrice: String(filters?.maxPrice || '').trim() || undefined,
+        signal: ctrl.signal,
+      });
+      setProducts((prev) => {
+        if (!append) return items;
+        const base = Array.isArray(prev) ? prev : [];
+        const seen = new Set(base.map((p) => String(p?.id ?? p?._id ?? '')));
+        const merged = [...base];
+        for (const it of items) {
+          const key = String(it?.id ?? it?._id ?? '');
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          merged.push(it);
+        }
+        return merged;
+      });
+      setProductsPage(nextPage);
+      setProductsHasMore(Array.isArray(items) && items.length === limit);
     } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
       addToast(e?.message || 'Failed to load products', 'error');
     } finally {
       setProductsLoading(false);
     }
+  };
+
+  const applyProductFilters = async () => {
+    const next = {
+      search: String(productFilterDraft?.search || '').trim(),
+      status: String(productFilterDraft?.status || '').trim(),
+      minPrice: String(productFilterDraft?.minPrice || '').trim(),
+      maxPrice: String(productFilterDraft?.maxPrice || '').trim(),
+    };
+    setProductFilters(next);
+    await loadProducts({ nextPage: 1, append: false, filters: next });
+  };
+
+  const clearProductFilters = async () => {
+    const empty = { search: '', status: '', minPrice: '', maxPrice: '' };
+    setProductFilterDraft(empty);
+    setProductFilters(empty);
+    await loadProducts({ nextPage: 1, append: false, filters: empty });
   };
 
   const setActionLoading = (id, key, value) => {
@@ -422,7 +483,7 @@ export default function VendorShop() {
     if (activeTab !== 'list' && activeTab !== 'reviews') return;
     // Ensure vendor products are loaded for product reviews dropdown as well.
     if (products.length > 0) return;
-    loadProducts();
+    loadProducts({ nextPage: 1, append: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, kycAccepted, canSell]);
 
@@ -1058,7 +1119,7 @@ export default function VendorShop() {
               {activeTab === 'list' ? (
                 <button
                   type="button"
-                  onClick={loadProducts}
+                  onClick={() => loadProducts({ nextPage: 1, append: false })}
                   disabled={productsLoading}
                   className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
@@ -1465,6 +1526,106 @@ export default function VendorShop() {
                   </div>
                 ) : activeTab === 'list' ? (
                   <div className="h-full min-h-0 overflow-y-auto pr-1">
+                    <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
+                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                        <div className="md:hidden">
+                          <button
+                            type="button"
+                            onClick={() => setProductFiltersOpen((v) => !v)}
+                            className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+                          >
+                            <span className="truncate">Filters</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="m6 9 6 6 6-6" />
+                            </svg>
+                          </button>
+                        </div>
+
+                        <div className={`${productFiltersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Search</p>
+                              <input
+                                type="text"
+                                value={productFilterDraft.search}
+                                onChange={(e) =>
+                                  setProductFilterDraft((p) => ({ ...(p || {}), search: e.target.value }))
+                                }
+                                placeholder="Search by title…"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
+                              <select
+                                value={productFilterDraft.status}
+                                onChange={(e) =>
+                                  setProductFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
+                                }
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                              >
+                                <option value="">All</option>
+                                <option value="draft">Draft</option>
+                                <option value="pending_approval">Pending Approval</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Min price</p>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                value={productFilterDraft.minPrice}
+                                onChange={(e) =>
+                                  setProductFilterDraft((p) => ({ ...(p || {}), minPrice: e.target.value }))
+                                }
+                                placeholder="₹ Min"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="text-[11px] font-bold text-gray-600 mb-1">Max price</p>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                value={productFilterDraft.maxPrice}
+                                onChange={(e) =>
+                                  setProductFilterDraft((p) => ({ ...(p || {}), maxPrice: e.target.value }))
+                                }
+                                placeholder="₹ Max"
+                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={clearProductFilters}
+                              disabled={productsLoading}
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                              Clear
+                            </button>
+                            <button
+                              type="button"
+                              onClick={applyProductFilters}
+                              disabled={productsLoading}
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                            >
+                              Apply
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {productsLoading ? (
                       <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
                         <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -1483,7 +1644,11 @@ export default function VendorShop() {
                             </svg>
                           </div>
                           <p className="mt-3 text-[14px] font-bold text-gray-900">No products yet</p>
-                          <p className="mt-1 text-[12px] text-gray-500">Create your first product to start selling.</p>
+                          <p className="mt-1 text-[12px] text-gray-500">
+                            {productFilters?.search || productFilters?.status || productFilters?.minPrice || productFilters?.maxPrice
+                              ? 'No products match your filters.'
+                              : 'Create your first product to start selling.'}
+                          </p>
                         </div>
                       </div>
                     ) : (
@@ -1556,6 +1721,17 @@ export default function VendorShop() {
                             </div>
                           </div>
                         ))}
+
+                        {productsHasMore ? (
+                          <button
+                            type="button"
+                            onClick={() => loadProducts({ nextPage: productsPage + 1, append: true })}
+                            disabled={productsLoading}
+                            className="mt-2 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          >
+                            {productsLoading ? 'Loading…' : 'Load more'}
+                          </button>
+                        ) : null}
                       </div>
                     )}
                   </div>
