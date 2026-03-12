@@ -346,6 +346,8 @@ export default function Projects() {
   const [projects, setProjects] = useState([]);
   const [listMeta, setListMeta] = useState({ page: 1, totalPages: 1, total: null });
   const [listPage, setListPage] = useState(1);
+  const [listSearchDraft, setListSearchDraft] = useState('');
+  const [listSearch, setListSearch] = useState('');
 
   const [editingId, setEditingId] = useState(null);
   const [createLoading, setCreateLoading] = useState(false);
@@ -397,7 +399,7 @@ export default function Projects() {
   const attachmentInputRef = useRef(null);
   const listAbortRef = useRef(null);
 
-  const loadProjects = useCallback(async ({ nextPage = 1, append = false } = {}) => {
+  const loadProjects = useCallback(async ({ nextPage = 1, append = false, search = listSearch } = {}) => {
     if (listAbortRef.current) listAbortRef.current.abort();
     const ctrl = new AbortController();
     listAbortRef.current = ctrl;
@@ -406,7 +408,12 @@ export default function Projects() {
     else setListLoading(true);
 
     try {
-      const res = await projectService.list({ page: nextPage, limit: 10, signal: ctrl.signal });
+      const res = await projectService.list({
+        page: nextPage,
+        limit: 10,
+        search: String(search || '').trim() || undefined,
+        signal: ctrl.signal,
+      });
       const incoming = Array.isArray(res?.items) ? res.items : [];
       setProjects((prev) => {
         if (!append) return incoming;
@@ -431,7 +438,7 @@ export default function Projects() {
       if (append) setListMoreLoading(false);
       else setListLoading(false);
     }
-  }, [addToast]);
+  }, [addToast, listSearch]);
 
   useEffect(() => {
     loadProjects({ nextPage: 1, append: false });
@@ -844,238 +851,343 @@ export default function Projects() {
 
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
             {activeTab === 'list' ? (
-              listLoading ? (
-                <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-              ) : empty ? (
-                <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
-                  <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                        <path d="M14 2v6h6" />
-                        <path d="M8 13h8" />
-                        <path d="M8 17h8" />
-                      </svg>
+              <div className="h-full min-h-0 overflow-y-auto pr-1">
+                <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={listSearchDraft}
+                          onChange={(e) => setListSearchDraft(e.target.value)}
+                          placeholder="Search by title…"
+                          className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                        />
+                      </div>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const next = '';
+                            setListSearchDraft(next);
+                            setListSearch(next);
+                            await loadProjects({ nextPage: 1, append: false, search: next });
+                          }}
+                          disabled={listLoading || !String(listSearch || '').trim()}
+                          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          aria-label="Clear search"
+                          title="Clear search"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const next = String(listSearchDraft || '').trim();
+                            setListSearch(next);
+                            await loadProjects({ nextPage: 1, append: false, search: next });
+                          }}
+                          disabled={listLoading}
+                          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                          aria-label="Apply search"
+                          title="Apply search"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                          >
+                            <path d="M5 12.5 9 17l10-10" />
+                          </svg>
+                        </button>
+                      </div>
                     </div>
-                    <p className="mt-3 text-[14px] font-bold text-gray-900">No projects yet</p>
-                    <p className="mt-1 text-[12px] text-gray-500">Create your first project to start bidding.</p>
                   </div>
                 </div>
-              ) : (
-                <div className="h-full min-h-0 overflow-y-auto space-y-4 pr-1">
-                  {projects.map((p) => {
-                    const id = localProjectIdOf(p);
-                    const attachments = coerceUrlArray(p?.attachments);
-                    const preview = pickPreviewUrl(attachments);
-                    const statusKey = String(p?.status ?? '').trim().toLowerCase();
-                    const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
-                    const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
-                    const windows = bidWindowsOf(p);
-                    const activeWindow = activeBidWindowOf(p);
-                    const biddingRunning = Boolean(activeWindow);
-                    const biddingEndsAt = activeWindow ? bidWindowFinishingAt(activeWindow) : null;
-                    const allWindowsFinished = allBidWindowsFinished(p);
-                    const latestFinishedAt = latestFinishedBidAtOf(p);
-                    const hasBidHistory = Boolean(latestBidWindowId != null) || windows.length > 0;
-                    const notStarted = statusKey === 'draft' && projectStatusKey === 'started';
-                    const runningStarted = statusKey === 'running' && projectStatusKey === 'started';
-                    const statusLabel = projectStatusCardLabel(p);
-                    const statusCardValue = runningStarted && hasBidHistory && allWindowsFinished ? 'Bid Ended' : statusLabel;
-                    const minAmount =
-                      Number(p?.amountRange?.min ?? p?.amount_range?.min ?? p?.minAmount ?? p?.min_amount ?? 0) || 0;
-                    const maxAmount =
-                      Number(p?.amountRange?.max ?? p?.amount_range?.max ?? p?.maxAmount ?? p?.max_amount ?? 0) || 0;
-                    const timeline = p?.timelineExpected ?? p?.timeline_expected ?? '—';
-                    const updatedAt = p?.updatedAt ?? p?.updated_at ?? null;
-                    const completedLike = isProjectCompletedLike(p);
-                    const existingReview = vendorReviewOf(p);
-                    const hasVendorReview = Boolean(p?.hasVendorReview) || Boolean(existingReview);
-                    const primaryAssignment = primaryAssignmentOf(p);
-                    const assignmentStatusKey = String(primaryAssignment?.status ?? '').trim().toLowerCase();
-                    const canTrack = assignmentStatusKey === 'accepted' && Boolean(id);
-                    const reviewVendorId = assignmentVendorIdOf(primaryAssignment) ?? existingReview?.vendorId ?? existingReview?.vendor_id ?? null;
-                    return (
-                      <div key={String(id ?? Math.random())} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                        <div className="flex flex-col md:flex-row">
-                          <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
-                            {preview && isImageUrl(preview) ? (
-                              <SafeImage src={preview} alt="" loading="lazy" className="w-full h-full object-contain p-2" />
-                            ) : preview && isPdfUrl(preview) ? (
-                              <div className="w-full h-full flex flex-col items-center justify-center text-red-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                  <path d="M14 2v6h6" />
-                                  <path d="M8 13h8" />
-                                  <path d="M8 17h8" />
-                                </svg>
-                                <div className="mt-2 text-[11px] font-bold">PDF</div>
-                              </div>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-gray-300">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <rect x="3" y="3" width="18" height="18" rx="2" />
-                                  <circle cx="8.5" cy="8.5" r="1.5" />
-                                  <path d="M21 15l-5-5L5 21" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
 
-                          <div className="flex-1 min-w-0 p-4 md:p-5">
-                            <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">{p?.title || 'Project'}</p>
-                            <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">{p?.description || '—'}</p>
-
-                            {runningStarted && (biddingRunning || allWindowsFinished) ? (
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                {biddingRunning ? (
-                                  <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
-                                    {biddingEndsAt ? `Bidding ends: ${formatDateTime(biddingEndsAt)}` : 'Bidding running'}
-                                  </span>
-                                ) : allWindowsFinished ? (
-                                  <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-gray-50 border-gray-100 text-gray-600">
-                                    {latestFinishedAt ? `Last bidding ended: ${formatDateTime(latestFinishedAt)}` : 'Bidding ended'}
-                                  </span>
-                                ) : null}
-                                {hasBidHistory ? (
-                                  <span className="text-[11px] text-gray-400">
-                                    Winner auto-assign happens when auction ends.
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : null}
-
-                            <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2">
-                              <InfoBox
-                                label="Budget"
-                                value={
-                                  minAmount || maxAmount
-                                    ? `₹ ${formatMoney(minAmount)} - ₹ ${formatMoney(maxAmount)}`
-                                    : '—'
-                                }
-                              />
-                              <InfoBox label="Timeline" value={timeline ? `${timeline} days` : '—'} />
-                              <InfoBox label="Status" value={statusCardValue} />
-                              <InfoBox label="Last updated" value={formatDateTime(updatedAt)} />
+                {listLoading ? (
+                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                ) : empty ? (
+                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
+                    <div className="text-center">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                          <path d="M14 2v6h6" />
+                          <path d="M8 13h8" />
+                          <path d="M8 17h8" />
+                        </svg>
+                      </div>
+                      <p className="mt-3 text-[14px] font-bold text-gray-900">No projects yet</p>
+                      <p className="mt-1 text-[12px] text-gray-500">Create your first project to start bidding.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-1">
+                    {projects.map((p) => {
+                      const id = localProjectIdOf(p);
+                      const attachments = coerceUrlArray(p?.attachments);
+                      const preview = pickPreviewUrl(attachments);
+                      const statusKey = String(p?.status ?? '').trim().toLowerCase();
+                      const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+                      const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
+                      const windows = bidWindowsOf(p);
+                      const activeWindow = activeBidWindowOf(p);
+                      const biddingRunning = Boolean(activeWindow);
+                      const biddingEndsAt = activeWindow ? bidWindowFinishingAt(activeWindow) : null;
+                      const allWindowsFinished = allBidWindowsFinished(p);
+                      const latestFinishedAt = latestFinishedBidAtOf(p);
+                      const hasBidHistory = Boolean(latestBidWindowId != null) || windows.length > 0;
+                      const notStarted = statusKey === 'draft' && projectStatusKey === 'started';
+                      const runningStarted = statusKey === 'running' && projectStatusKey === 'started';
+                      const statusLabel = projectStatusCardLabel(p);
+                      const statusCardValue =
+                        runningStarted && hasBidHistory && allWindowsFinished ? 'Bid Ended' : statusLabel;
+                      const minAmount =
+                        Number(p?.amountRange?.min ?? p?.amount_range?.min ?? p?.minAmount ?? p?.min_amount ?? 0) || 0;
+                      const maxAmount =
+                        Number(p?.amountRange?.max ?? p?.amount_range?.max ?? p?.maxAmount ?? p?.max_amount ?? 0) || 0;
+                      const timeline = p?.timelineExpected ?? p?.timeline_expected ?? '—';
+                      const updatedAt = p?.updatedAt ?? p?.updated_at ?? null;
+                      const completedLike = isProjectCompletedLike(p);
+                      const existingReview = vendorReviewOf(p);
+                      const hasVendorReview = Boolean(p?.hasVendorReview) || Boolean(existingReview);
+                      const primaryAssignment = primaryAssignmentOf(p);
+                      const assignmentStatusKey = String(primaryAssignment?.status ?? '').trim().toLowerCase();
+                      const canTrack = assignmentStatusKey === 'accepted' && Boolean(id);
+                      const reviewVendorId =
+                        assignmentVendorIdOf(primaryAssignment) ??
+                        existingReview?.vendorId ??
+                        existingReview?.vendor_id ??
+                        null;
+                      return (
+                        <div
+                          key={String(id ?? Math.random())}
+                          className="rounded-2xl border border-gray-100 bg-white overflow-hidden"
+                        >
+                          <div className="flex flex-col md:flex-row">
+                            <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                              {preview && isImageUrl(preview) ? (
+                                <SafeImage
+                                  src={preview}
+                                  alt=""
+                                  loading="lazy"
+                                  className="w-full h-full object-contain p-2"
+                                />
+                              ) : preview && isPdfUrl(preview) ? (
+                                <div className="w-full h-full flex flex-col items-center justify-center text-red-400">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="26"
+                                    height="26"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                    <path d="M14 2v6h6" />
+                                    <path d="M8 13h8" />
+                                    <path d="M8 17h8" />
+                                  </svg>
+                                  <div className="mt-2 text-[11px] font-bold">PDF</div>
+                                </div>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="22"
+                                    height="22"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <path d="M21 15l-5-5L5 21" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
 
-                            <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
-                              {completedLike && reviewVendorId != null ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openVendorReview(p)}
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                >
-                                  {hasVendorReview ? 'Update review' : 'Review vendor'}
-                                </button>
+                            <div className="flex-1 min-w-0 p-4 md:p-5">
+                              <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">
+                                {p?.title || 'Project'}
+                              </p>
+                              <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">{p?.description || '—'}</p>
+
+                              {runningStarted && (biddingRunning || allWindowsFinished) ? (
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  {biddingRunning ? (
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
+                                      {biddingEndsAt
+                                        ? `Bidding ends: ${formatDateTime(biddingEndsAt)}`
+                                        : 'Bidding running'}
+                                    </span>
+                                  ) : allWindowsFinished ? (
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-gray-50 border-gray-100 text-gray-600">
+                                      {latestFinishedAt
+                                        ? `Last bidding ended: ${formatDateTime(latestFinishedAt)}`
+                                        : 'Bidding ended'}
+                                    </span>
+                                  ) : null}
+                                  {hasBidHistory ? (
+                                    <span className="text-[11px] text-gray-400">
+                                      Winner auto-assign happens when auction ends.
+                                    </span>
+                                  ) : null}
+                                </div>
                               ) : null}
 
-                              {canTrack ? (
-                                <button
-                                  type="button"
-                                  onClick={() => navigate(`/dashboard/projects/${id}`)}
-                                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50"
-                                >
-                                  Track
-                                </button>
-                              ) : null}
-
-                              {canCancelProject(p) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openCancel(p)}
-                                  disabled={isActionLoading(id, 'cancel')}
-                                  className="px-4 py-2 rounded-xl border border-amber-200 text-[12px] font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(id, 'cancel') ? 'Cancelling…' : 'Cancel Project'}
-                                </button>
-                              ) : null}
-                              {/* Only a single bid window per project. Once a bid window exists, do not show Start Auction again. */}
-                              {notStarted || (runningStarted && !hasBidHistory) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openStartBid(p)}
-                                  disabled={
-                                    isActionLoading(id, 'startBid') ||
-                                    biddingRunning ||
-                                    (runningStarted && !hasBidHistory)
+                              <div className="mt-4 grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-2">
+                                <InfoBox
+                                  label="Budget"
+                                  value={
+                                    minAmount || maxAmount
+                                      ? `₹ ${formatMoney(minAmount)} - ₹ ${formatMoney(maxAmount)}`
+                                      : '—'
                                   }
-                                  title={
-                                    biddingRunning
-                                      ? 'Auction already running'
-                                      : runningStarted && !hasBidHistory
-                                        ? 'No bidding history found'
-                                        : undefined
-                                  }
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(id, 'startBid') ? 'Starting…' : 'Start Auction'}
-                                </button>
-                              ) : null}
+                                />
+                                <InfoBox label="Timeline" value={timeline ? `${timeline} days` : '—'} />
+                                <InfoBox label="Status" value={statusCardValue} />
+                                <InfoBox label="Last updated" value={formatDateTime(updatedAt)} />
+                              </div>
 
-                              {biddingRunning ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openForceStop(p)}
-                                  disabled={isActionLoading(id, 'forceStop')}
-                                  className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(id, 'forceStop') ? 'Ending…' : 'Force End'}
-                                </button>
-                              ) : null}
+                              <div className="mt-4 flex flex-wrap gap-2 md:justify-end">
+                                {completedLike && reviewVendorId != null ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openVendorReview(p)}
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    {hasVendorReview ? 'Update review' : 'Review vendor'}
+                                  </button>
+                                ) : null}
 
-                              {hasBidHistory ? (
-                                <button
-                                  type="button"
-                                  onClick={() => goToBids(p)}
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  View Bids
-                                </button>
-                              ) : null}
+                                {canTrack ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => navigate(`/dashboard/projects/${id}`)}
+                                    className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50"
+                                  >
+                                    Track
+                                  </button>
+                                ) : null}
 
-                              {!completedLike ? (
-                                <button
-                                  type="button"
-                                  onClick={() => startEdit(p)}
-                                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                                >
-                                  Edit
-                                </button>
-                              ) : null}
-                              {canDeleteProject(p) ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openDelete(p)}
-                                  disabled={isActionLoading(id, 'delete')}
-                                  className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {isActionLoading(id, 'delete') ? 'Deleting…' : 'Delete'}
-                                </button>
-                              ) : null}
+                                {canCancelProject(p) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openCancel(p)}
+                                    disabled={isActionLoading(id, 'cancel')}
+                                    className="px-4 py-2 rounded-xl border border-amber-200 text-[12px] font-semibold text-amber-700 hover:bg-amber-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(id, 'cancel') ? 'Cancelling…' : 'Cancel Project'}
+                                  </button>
+                                ) : null}
+                                {/* Only a single bid window per project. Once a bid window exists, do not show Start Auction again. */}
+                                {notStarted || (runningStarted && !hasBidHistory) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openStartBid(p)}
+                                    disabled={
+                                      isActionLoading(id, 'startBid') ||
+                                      biddingRunning ||
+                                      (runningStarted && !hasBidHistory)
+                                    }
+                                    title={
+                                      biddingRunning
+                                        ? 'Auction already running'
+                                        : runningStarted && !hasBidHistory
+                                          ? 'No bidding history found'
+                                          : undefined
+                                    }
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(id, 'startBid') ? 'Starting…' : 'Start Auction'}
+                                  </button>
+                                ) : null}
+
+                                {biddingRunning ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openForceStop(p)}
+                                    disabled={isActionLoading(id, 'forceStop')}
+                                    className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(id, 'forceStop') ? 'Ending…' : 'Force End'}
+                                  </button>
+                                ) : null}
+
+                                {hasBidHistory ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => goToBids(p)}
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    View Bids
+                                  </button>
+                                ) : null}
+
+                                {!completedLike ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => startEdit(p)}
+                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    Edit
+                                  </button>
+                                ) : null}
+                                {canDeleteProject(p) ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => openDelete(p)}
+                                    disabled={isActionLoading(id, 'delete')}
+                                    className="px-4 py-2 rounded-xl border border-red-100 text-[12px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  >
+                                    {isActionLoading(id, 'delete') ? 'Deleting…' : 'Delete'}
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {canLoadMore ? (
-                    <button
-                      type="button"
-                      onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
-                      disabled={listMoreLoading}
-                      className="w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                    >
-                      {listMoreLoading ? 'Loading…' : 'Load more'}
-                    </button>
-                  ) : null}
-                </div>
-              )
+                    {canLoadMore ? (
+                      <button
+                        type="button"
+                        onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
+                        disabled={listMoreLoading}
+                        className="w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {listMoreLoading ? 'Loading…' : 'Load more'}
+                      </button>
+                    ) : null}
+                  </div>
+                )}
+              </div>
             ) : activeTab === 'assignments' ? (
               <div className="h-full min-h-0">
                 {listLoading ? (

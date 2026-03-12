@@ -26,9 +26,10 @@ function parseFilenameFromDisposition(disposition) {
 }
 
 export const projectService = {
-  list: async ({ page = 1, limit = 10, status, signal } = {}) => {
+  list: async ({ page = 1, limit = 10, status, search, signal } = {}) => {
     const params = { page, limit };
     if (status) params.status = status;
+    if (search) params.search = search;
     const res = await api.get('/api/user/projects', { params, signal });
     const data = unwrap(res) || {};
     const itemsRaw = data?.projects ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
