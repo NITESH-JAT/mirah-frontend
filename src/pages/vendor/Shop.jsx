@@ -6,6 +6,25 @@ import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import SafeImage from '../../components/SafeImage';
 
+const INITIAL_PRODUCT_FORM = {
+  name: '',
+  price: '',
+  compareAtPrice: '',
+  description: '',
+  sku: '',
+  stock: '',
+  category: '',
+  brand: '',
+  unit: 'pcs',
+  weight: '',
+  weightUnit: 'gm',
+  metaTitle: '',
+  metaDescription: '',
+  images: [],
+  videos: [],
+  extraFields: [],
+};
+
 function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
@@ -254,6 +273,14 @@ export default function VendorShop() {
     }
   }, [urlTab]);
 
+  // When leaving the create tab, always reset edit state so coming back shows a fresh form
+  useEffect(() => {
+    if (activeTab !== 'create') {
+      setEditingId(null);
+      setCreateForm(INITIAL_PRODUCT_FORM);
+    }
+  }, [activeTab]);
+
   const goStoreTab = (tab) => {
     const t = String(tab || '').trim().toLowerCase();
     const next = t === 'list' || t === 'create' || t === 'orders' || t === 'reviews' ? t : 'list';
@@ -363,24 +390,7 @@ export default function VendorShop() {
 
   const imageInputRef = useRef(null);
   const videoInputRef = useRef(null);
-  const [createForm, setCreateForm] = useState({
-    name: '',
-    price: '',
-    compareAtPrice: '',
-    description: '',
-    sku: '',
-    stock: '',
-    category: '',
-    brand: '',
-    unit: 'pcs',
-    weight: '',
-    weightUnit: 'gm',
-    metaTitle: '',
-    metaDescription: '',
-    images: [],
-    videos: [],
-    extraFields: [],
-  });
+  const [createForm, setCreateForm] = useState(INITIAL_PRODUCT_FORM);
 
   const loadProducts = async ({ nextPage = 1, append = false, filters = productFilters } = {}) => {
     if (productsAbortRef.current) productsAbortRef.current.abort();
@@ -800,7 +810,7 @@ export default function VendorShop() {
         videos: [],
         extraFields: [],
       });
-      goStoreTab('list', { toContent: true });
+      goStoreTab('list');
       await loadProducts();
     } catch (e) {
       addToast(e?.message || 'Failed to create product', 'error');
@@ -811,32 +821,15 @@ export default function VendorShop() {
 
   const startCreateNew = () => {
     setEditingId(null);
-    setCreateForm({
-      name: '',
-      price: '',
-      compareAtPrice: '',
-      description: '',
-      sku: '',
-      stock: '',
-      category: '',
-      brand: '',
-      unit: 'pcs',
-      weight: '',
-      weightUnit: 'gm',
-      metaTitle: '',
-      metaDescription: '',
-      images: [],
-      videos: [],
-      extraFields: [],
-    });
-    goStoreTab('create', { toContent: true });
+    setCreateForm(INITIAL_PRODUCT_FORM);
+    goStoreTab('create');
   };
 
   const startEdit = async (product) => {
     const id = product?.id ?? product?._id;
     if (!id) return;
     setEditingId(id);
-    goStoreTab('create', { toContent: true });
+    goStoreTab('create');
     setCreateLoading(true);
     try {
       const res = await productService.getVendorProduct(id);
@@ -868,7 +861,7 @@ export default function VendorShop() {
     } catch (e) {
       addToast(e?.message || 'Failed to load product', 'error');
       setEditingId(null);
-      goStoreTab('list', { toContent: true });
+      goStoreTab('list');
     } finally {
       setCreateLoading(false);
     }
@@ -939,7 +932,7 @@ export default function VendorShop() {
       await productService.updateVendorProduct({ id: editingId, payload });
       addToast('Product updated.', 'success');
       setEditingId(null);
-      goStoreTab('list', { toContent: true });
+      goStoreTab('list');
       await loadProducts();
     } catch (e) {
       addToast(e?.message || 'Failed to update product', 'error');
@@ -1717,13 +1710,13 @@ export default function VendorShop() {
                   </div>
                 ) : (
                   <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
-                    <div className="mb-4 flex items-center justify-between gap-3">
+                    <div className="sticky top-0 z-10 bg-white pb-2 flex items-center justify-between gap-3">
                       <div>
                         <p className="text-[13px] font-bold text-gray-800">
                           {editingId ? 'Update product' : 'Create product'}
                         </p>
                         <p className="text-[12px] text-gray-400">
-                          {editingId ? 'Editing an existing product (saved as draft).' : 'Creates a draft product.'}
+                          {editingId ? 'Editing an existing product.' : 'Creates a draft product.'}
                         </p>
                       </div>
                       {editingId ? (

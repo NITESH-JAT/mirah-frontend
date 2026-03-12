@@ -636,6 +636,22 @@ export default function Projects() {
     await loadProjects({ nextPage: 1, append: false });
   }, [loadProjects]);
 
+  // When leaving the create tab, reset edit state so returning to create shows a fresh form
+  useEffect(() => {
+    if (activeTab !== 'create') {
+      setEditingId(null);
+      setCreateForm({
+        title: '',
+        description: '',
+        minAmount: '',
+        maxAmount: '',
+        timelineExpected: '',
+        attachments: [],
+        metaFields: [],
+      });
+    }
+  }, [activeTab]);
+
   const openStartBid = (p) => {
     const id = localProjectIdOf(p);
     if (!id) return;
@@ -816,11 +832,7 @@ export default function Projects() {
     });
   }, [assignmentRows, assignmentsSearch]);
 
-  const headerTitle = useMemo(() => {
-    if (activeTab === 'create') return editingId ? 'Update Project' : 'Create Project';
-    if (activeTab === 'assignments') return 'Assignments';
-    return 'My Projects';
-  }, [activeTab, editingId]);
+
 
   return (
     <div className="w-full pb-10 animate-fade-in">
@@ -828,28 +840,7 @@ export default function Projects() {
 
         {/* Main */}
         <div className="flex-1 flex flex-col">
-          <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
-            <p className="text-[13px] font-bold text-gray-800">{headerTitle}</p>
-
-            {activeTab === 'list' || activeTab === 'assignments' ? (
-              <button
-                type="button"
-                onClick={() => loadProjects({ nextPage: 1, append: false })}
-                disabled={listLoading}
-                className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                {listLoading ? 'Refreshing…' : 'Refresh'}
-              </button>
-            ) : editingId ? (
-              <button
-                type="button"
-                onClick={startCreateNew}
-                className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-              >
-                New project
-              </button>
-            ) : null}
-          </div>
+          
 
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
             {activeTab === 'list' ? (
@@ -1207,7 +1198,7 @@ export default function Projects() {
               </div>
             ) : (
               <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
-                <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="sticky top-0 z-10 bg-white pb-2 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[13px] font-bold text-gray-800">{editingId ? 'Update Project' : 'Create Project'}</p>
                     <p className="text-[12px] text-gray-400">
