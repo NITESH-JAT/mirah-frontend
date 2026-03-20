@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
+import SafeImage from '../../components/SafeImage';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -657,6 +658,10 @@ export default function ProjectDetails() {
   }, [primaryAssignment, vendorDetails]);
   const assignedAmount = useMemo(() => assignmentAmountOf(primaryAssignment), [primaryAssignment]);
   const assignedDays = useMemo(() => assignmentDaysOf(primaryAssignment), [primaryAssignment]);
+  const referenceImage = useMemo(
+    () => String(project?.referenceImage ?? project?.reference_image ?? '').trim(),
+    [project],
+  );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
 
@@ -1001,6 +1006,15 @@ export default function ProjectDetails() {
                           <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                ) : null}
+
+                {referenceImage ? (
+                  <div className="mt-4">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Reference Image</p>
+                    <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                      <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
                     </div>
                   </div>
                 ) : null}

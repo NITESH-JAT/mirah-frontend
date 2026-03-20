@@ -590,7 +590,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
                       <path d="M4 12h.01" />
                       <path d="M4 18h.01" />
                     </svg>
-                    <span>List Projects</span>
+                    <span>My projects</span>
                   </button>
 
                   <button

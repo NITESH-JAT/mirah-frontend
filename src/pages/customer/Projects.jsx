@@ -124,6 +124,10 @@ function isImageUrl(url) {
   return /\.(png|jpg|jpeg|webp|gif|bmp|svg)$/.test(u);
 }
 
+function isHttpUrl(url) {
+  return /^https?:\/\//i.test(String(url || '').trim());
+}
+
 function pickPreviewUrl(attachments) {
   const list = coerceUrlArray(attachments);
   const img = list.find((u) => isImageUrl(u));
@@ -325,6 +329,8 @@ export default function Projects() {
   const location = useLocation();
 
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
+  const createModalOpen = activeTab === 'create';
+  const mainTab = createModalOpen ? 'list' : activeTab;
 
   const urlTab = useMemo(() => {
     try {
@@ -340,6 +346,15 @@ export default function Projects() {
     if (urlTab !== 'list' && urlTab !== 'create' && urlTab !== 'assignments') return;
     setActiveTab(urlTab);
   }, [urlTab]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    const prev = document.documentElement.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prev;
+    };
+  }, [createModalOpen]);
 
   const [listLoading, setListLoading] = useState(false);
   const [listMoreLoading, setListMoreLoading] = useState(false);
@@ -383,6 +398,7 @@ export default function Projects() {
     minAmount: '',
     maxAmount: '',
     timelineExpected: '',
+    referenceImage: '',
     attachments: [],
     metaFields: [],
   });
@@ -396,7 +412,9 @@ export default function Projects() {
   const [forceStopOpen, setForceStopOpen] = useState(false);
   const [forceStopFor, setForceStopFor] = useState({ id: null, title: '' });
 
+  const [referenceUploading, setReferenceUploading] = useState(false);
   const attachmentInputRef = useRef(null);
+  const referenceImageInputRef = useRef(null);
   const listAbortRef = useRef(null);
 
   const loadProjects = useCallback(async ({ nextPage = 1, append = false, search = listSearch } = {}) => {
@@ -470,6 +488,7 @@ export default function Projects() {
       minAmount: '',
       maxAmount: '',
       timelineExpected: '',
+      referenceImage: '',
       attachments: [],
       metaFields: [],
     });
@@ -487,11 +506,29 @@ export default function Projects() {
       minAmount: String(p?.amountRange?.min ?? p?.amount_range?.min ?? p?.minAmount ?? p?.min_amount ?? ''),
       maxAmount: String(p?.amountRange?.max ?? p?.amount_range?.max ?? p?.maxAmount ?? p?.max_amount ?? ''),
       timelineExpected: String(p?.timelineExpected ?? p?.timeline_expected ?? ''),
+      referenceImage: String(p?.referenceImage ?? p?.reference_image ?? ''),
       attachments: coerceUrlArray(p?.attachments),
       metaFields: extraFieldsToArray(p?.meta),
     });
     setActiveTab('create');
     navigate('/customer/projects?tab=create');
+  };
+
+  const closeCreateModal = () => {
+    if (createLoading || attachmentUploading || referenceUploading) return;
+    setEditingId(null);
+    setCreateForm({
+      title: '',
+      description: '',
+      minAmount: '',
+      maxAmount: '',
+      timelineExpected: '',
+      referenceImage: '',
+      attachments: [],
+      metaFields: [],
+    });
+    setActiveTab('list');
+    navigate('/customer/projects?tab=list');
   };
 
   const handleUploadAttachments = async (files) => {
@@ -523,12 +560,39 @@ export default function Projects() {
     }
   };
 
+  const handleUploadReferenceImage = async (file) => {
+    const f = file || null;
+    if (!f) return;
+    const t = String(f?.type || '').toLowerCase();
+    if (!t.startsWith('image/')) {
+      addToast('Only images are allowed for reference image', 'error');
+      return;
+    }
+    setReferenceUploading(true);
+    try {
+      const res = await projectService.uploadAttachments([f]);
+      const url = Array.isArray(res?.urls) ? res.urls[0] : null;
+      if (!url) {
+        addToast('Upload succeeded but no URL returned.', 'error');
+        return;
+      }
+      setCreateForm((prev) => ({ ...prev, referenceImage: String(url || '') }));
+      addToast('Reference image uploaded', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Upload failed', 'error');
+    } finally {
+      setReferenceUploading(false);
+      if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
+    }
+  };
+
   const saveProject = async () => {
     const title = String(createForm?.title || '').trim();
     const description = String(createForm?.description || '').trim();
     const minAmount = Number(createForm?.minAmount || 0);
     const maxAmount = Number(createForm?.maxAmount || 0);
     const timelineExpected = Number(createForm?.timelineExpected || 0);
+    const referenceImage = String(createForm?.referenceImage || '').trim();
     const attachments = coerceUrlArray(createForm?.attachments);
     const meta = buildExtraFieldsPayload(createForm?.metaFields);
 
@@ -538,6 +602,8 @@ export default function Projects() {
     if (!Number.isFinite(maxAmount) || maxAmount <= 0) return addToast('Max amount is required', 'error');
     if (maxAmount < minAmount) return addToast('Max amount must be greater than Min amount', 'error');
     if (!Number.isFinite(timelineExpected) || timelineExpected <= 0) return addToast('Timeline (days) is required', 'error');
+    if (!referenceImage) return addToast('Reference image is required', 'error');
+    if (!isHttpUrl(referenceImage)) return addToast('Reference image must be a valid http/https URL', 'error');
 
     if (createLoading) return;
     setCreateLoading(true);
@@ -546,6 +612,7 @@ export default function Projects() {
         title,
         description,
         attachments,
+        referenceImage,
         meta,
         minAmount,
         maxAmount,
@@ -653,6 +720,7 @@ export default function Projects() {
         minAmount: '',
         maxAmount: '',
         timelineExpected: '',
+        referenceImage: '',
         attachments: [],
         metaFields: [],
       });
@@ -850,9 +918,22 @@ export default function Projects() {
           
 
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
-            {activeTab === 'list' ? (
+            {mainTab === 'list' ? (
               <div className="h-full min-h-0 overflow-y-auto pr-1">
                 <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[14px] md:text-[15px] font-extrabold text-gray-900">My projects</p>
+                      <p className="mt-0.5 text-[12px] text-gray-400">Create and manage your projects.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={startCreateNew}
+                      className="shrink-0 px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                    >
+                      Create Project
+                    </button>
+                  </div>
                   <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
@@ -947,7 +1028,11 @@ export default function Projects() {
                     {projects.map((p) => {
                       const id = localProjectIdOf(p);
                       const attachments = coerceUrlArray(p?.attachments);
-                      const preview = pickPreviewUrl(attachments);
+                      const referenceImageRaw = String(p?.referenceImage ?? p?.reference_image ?? '').trim();
+                      const preview =
+                        referenceImageRaw && isHttpUrl(referenceImageRaw)
+                          ? referenceImageRaw
+                          : pickPreviewUrl(attachments);
                       const statusKey = String(p?.status ?? '').trim().toLowerCase();
                       const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
                       const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
@@ -1188,7 +1273,7 @@ export default function Projects() {
                   </div>
                 )}
               </div>
-            ) : activeTab === 'assignments' ? (
+            ) : mainTab === 'assignments' ? (
               <div className="h-full min-h-0">
                 {listLoading ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
@@ -1308,27 +1393,52 @@ export default function Projects() {
                   </div>
                 )}
               </div>
-            ) : (
-              <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
-                <div className="sticky top-0 z-10 bg-white pb-2 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[13px] font-bold text-gray-800">{editingId ? 'Update Project' : 'Create Project'}</p>
-                    <p className="text-[12px] text-gray-400">
-                      {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
-                    </p>
-                  </div>
-                  {editingId ? (
-                    <button
-                      type="button"
-                      onClick={startCreateNew}
-                      className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
-                    >
-                      New project
-                    </button>
-                  ) : null}
-                </div>
+            ) : null}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {createModalOpen ? (
+              <div
+                className="fixed inset-0 z-[120] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                onMouseDown={closeCreateModal}
+              >
+                <div
+                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-[calc(100dvh-64px)] flex flex-col"
+                  onMouseDown={(e) => e.stopPropagation()}
+                >
+                  <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-extrabold text-gray-900">{editingId ? 'Edit Project' : 'Create Project'}</p>
+                      <p className="mt-1 text-[12px] text-gray-400">
+                        {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
+                      </p>
+                    </div>
+                    <div className="shrink-0 flex items-center gap-2">
+                      {editingId ? (
+                        <button
+                          type="button"
+                          onClick={startCreateNew}
+                          disabled={createLoading || attachmentUploading || referenceUploading}
+                          className="hidden sm:inline-flex px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          New project
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={closeCreateModal}
+                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Close"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Title *</label>
                     <input
@@ -1381,6 +1491,69 @@ export default function Projects() {
                       className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="Enter project description"
                     />
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-gray-100 p-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
+                      <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => referenceImageInputRef.current?.click()}
+                      disabled={referenceUploading}
+                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
+                    </button>
+                    <input
+                      ref={referenceImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = (e.target.files || [])[0] || null;
+                        if (f) handleUploadReferenceImage(f);
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-4">
+                    {String(createForm.referenceImage || '').trim() ? (
+                      <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                        <SafeImage
+                          src={String(createForm.referenceImage || '').trim()}
+                          alt="Reference"
+                          className="w-full h-48 md:h-56 object-contain bg-white"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                          disabled={referenceUploading}
+                          className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          aria-label="Remove reference image"
+                          title="Remove"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
+                        <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" />
+                            <circle cx="8.5" cy="8.5" r="1.5" />
+                            <path d="M21 15l-5-5L5 21" />
+                          </svg>
+                        </div>
+                        <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1567,11 +1740,12 @@ export default function Projects() {
                         minAmount: '',
                         maxAmount: '',
                         timelineExpected: '',
+                        referenceImage: '',
                         attachments: [],
                         metaFields: [],
                       });
                     }}
-                    disabled={createLoading || attachmentUploading}
+                      disabled={createLoading || attachmentUploading || referenceUploading}
                     className="px-6 py-3 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     Reset
@@ -1579,18 +1753,20 @@ export default function Projects() {
                   <button
                     type="button"
                     onClick={saveProject}
-                    disabled={createLoading || attachmentUploading}
+                      disabled={createLoading || attachmentUploading || referenceUploading}
                     className="px-6 py-3 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {createLoading ? 'Saving…' : editingId ? 'Update Project' : 'Create Project'}
                   </button>
                 </div>
 
-                <p className="mt-3 text-[11px] text-gray-400 text-center md:text-right">
+                <p className="mt-3 text-[11px] text-gray-400">
                   Note: Projects are created as <span className="font-semibold">draft</span>.
                 </p>
+                  </div>
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       </div>

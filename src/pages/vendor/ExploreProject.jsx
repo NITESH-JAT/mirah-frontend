@@ -254,7 +254,14 @@ export default function VendorExploreProject() {
   const bidEnded = timeLeftMs != null ? timeLeftMs <= 0 : false;
 
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
-  const thumbnailUrl = useMemo(() => pickThumbnailUrl(attachments), [attachments]);
+  const referenceImage = useMemo(
+    () => String(project?.referenceImage ?? project?.reference_image ?? '').trim(),
+    [project],
+  );
+  const thumbnailUrl = useMemo(
+    () => (referenceImage && /^https?:\/\//i.test(referenceImage) ? referenceImage : pickThumbnailUrl(attachments)),
+    [attachments, referenceImage],
+  );
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
   const budgetText = useMemo(() => budgetTextOf(project), [project]);
   const durationText = useMemo(() => durationTextOf(project), [project]);

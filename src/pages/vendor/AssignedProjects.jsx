@@ -45,6 +45,8 @@ function isLikelyImageUrl(url) {
 }
 
 function pickThumbnailUrl(project) {
+  const referenceImage = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
+  if (referenceImage && /^https?:\/\//i.test(referenceImage)) return referenceImage;
   const list = project?.attachments ?? project?.attachmentUrls ?? project?.attachment_urls ?? [];
   const arr = Array.isArray(list) ? list : list ? [list] : [];
   const img = arr.find((u) => isLikelyImageUrl(u));

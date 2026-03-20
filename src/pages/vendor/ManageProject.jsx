@@ -310,6 +310,10 @@ export default function VendorManageProject() {
   const customerName = customerNameOf(project, details);
   const customerId = customerIdOf(project, details);
 
+  const referenceImage = useMemo(
+    () => String(project?.referenceImage ?? project?.reference_image ?? '').trim(),
+    [project],
+  );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
 
@@ -691,6 +695,15 @@ export default function VendorManageProject() {
                         <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
                       </div>
                     ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {referenceImage ? (
+                <div className="mt-4">
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Reference Image</p>
+                  <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                    <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
                   </div>
                 </div>
               ) : null}
