@@ -247,6 +247,8 @@ export default function VendorShop() {
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create' | 'orders'
 
   const [submitting, setSubmitting] = useState(false);
+  const [vendorSellingEnabled, setVendorSellingEnabled] = useState(true);
+  const [vendorSellingLoading, setVendorSellingLoading] = useState(false);
 
   const kycStatus = String(user?.kyc?.status || '').toLowerCase();
   const kycAccepted = kycStatus === 'accepted';
@@ -324,6 +326,30 @@ export default function VendorShop() {
       setSubmitting(false);
     }
   };
+
+  useEffect(() => {
+    if (!kycAccepted || canSell) return;
+    let mounted = true;
+    setVendorSellingLoading(true);
+    authService
+      .getVendorSellingEnabled()
+      .then((enabled) => {
+        if (!mounted) return;
+        setVendorSellingEnabled(Boolean(enabled));
+      })
+      .catch(() => {
+        if (!mounted) return;
+        // Keep current vendor request flow available if config fetch fails.
+        setVendorSellingEnabled(true);
+      })
+      .finally(() => {
+        if (!mounted) return;
+        setVendorSellingLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [kycAccepted, canSell]);
 
   // ----- Vendor products -----
   const [productsLoading, setProductsLoading] = useState(false);
@@ -2128,6 +2154,23 @@ export default function VendorShop() {
                 )}
               </div>
             </div>
+        ) : vendorSellingLoading ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-8 min-h-screen flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-gray-200 border-t-primary-dark rounded-full animate-spin" aria-label="Loading" />
+          </div>
+        ) : !vendorSellingEnabled ? (
+          <div className="rounded-xl border border-gray-200 bg-white p-8 min-h-[85vh] flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 rounded-3xl bg-primary-light/20 text-primary-dark flex items-center justify-center mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 8v4l2.5 2.5" />
+                <circle cx="12" cy="12" r="9" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Coming soon</h3>
+            <p className="mt-1 text-[13px] text-gray-500 max-w-md">
+              This feature is coming soon.
+            </p>
+          </div>
         ) : (
           <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-[13px] text-red-700">
             <div className="font-semibold text-red-800 mb-1">Selling is disabled for your account</div>
