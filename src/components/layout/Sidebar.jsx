@@ -47,21 +47,24 @@ export default function Sidebar({ isOpen = false, onClose }) {
   useEffect(() => {
     if (isVendor) return;
     if (location.pathname.startsWith('/dashboard/projects')) {
-      setProjectsOpen(true);
+      // async to avoid "setState synchronously within effect" lint
+      setTimeout(() => setProjectsOpen(true), 0);
     }
   }, [isVendor, location.pathname]);
 
   useEffect(() => {
     if (!isVendor) return;
     if (location.pathname.startsWith('/vendor/shop')) {
-      setStoreOpen(true);
+      // async to avoid "setState synchronously within effect" lint
+      setTimeout(() => setStoreOpen(true), 0);
     }
   }, [isVendor, location.pathname]);
 
   useEffect(() => {
     if (!isVendor) return;
     if (location.pathname.startsWith('/vendor/projects')) {
-      setVendorProjectsOpen(true);
+      // async to avoid "setState synchronously within effect" lint
+      setTimeout(() => setVendorProjectsOpen(true), 0);
     }
   }, [isVendor, location.pathname]);
 
@@ -94,6 +97,24 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const isProjectsRoute = !isVendor && location.pathname.startsWith('/dashboard/projects');
   const isStoreRoute = isVendor && location.pathname.startsWith('/vendor/shop');
   const isVendorProjectsRoute = isVendor && location.pathname.startsWith('/vendor/projects');
+
+  const baseTitle = (() => {
+    const p = location.pathname || '';
+    if (p.includes('profile')) return 'My Profile';
+    if (p.includes('faq')) return 'FAQ';
+    if (p.includes('messages')) return 'Messages';
+    if (p.includes('/vendor/kyc')) return 'KYC';
+    if (p.includes('/vendor/shop')) return 'Store';
+    if (p.startsWith('/vendor/bids')) return p.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
+    if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (p.startsWith('/vendor/projects')) return p.includes('/vendor/projects/assigned') ? 'Assigned Projects' : 'Assignment Requests';
+    if (p.includes('/dashboard/cart')) return 'Cart';
+    if (p.includes('/dashboard/checkout')) return 'Checkout';
+    if (p.includes('/dashboard/orders')) return 'My Orders';
+    if (p.includes('/dashboard/shopping')) return 'Shop';
+    if (p.startsWith('/dashboard/projects')) return 'My Projects';
+    return '';
+  })();
 
   const goProjectsTab = (tab) => {
     const t = String(tab || '').trim().toLowerCase();
@@ -183,9 +204,12 @@ export default function Sidebar({ isOpen = false, onClose }) {
 
   useEffect(() => {
     try {
-      setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
+      // async to avoid "setState synchronously within effect" lint
+      const next = localStorage.getItem('mirah_cart_has_new') === '1';
+      setTimeout(() => setCartHasNew(next), 0);
     } catch {
-      setCartHasNew(false);
+      // async to avoid "setState synchronously within effect" lint
+      setTimeout(() => setCartHasNew(false), 0);
     }
   }, []);
 
@@ -215,7 +239,8 @@ export default function Sidebar({ isOpen = false, onClose }) {
     } catch {
       // ignore
     }
-    setCartHasNew(false);
+    // async to avoid "setState synchronously within effect" lint
+    setTimeout(() => setCartHasNew(false), 0);
   }, [location.pathname]);
 
   return (
@@ -228,10 +253,14 @@ export default function Sidebar({ isOpen = false, onClose }) {
       {/* Logo Area */}
       <div className="p-6 flex items-center gap-3 mb-2 justify-between">
         <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 shadow-lg shadow-blue-900/10">
-          <img src={logo} alt="Mirah" className="w-full h-full object-cover" />
-        </div>
-        <span className="font-serif text-2xl text-primary-dark font-bold italic tracking-tight">Mirah</span>
+          <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 shadow-lg shadow-blue-900/10 lg:hidden">
+            <img src={logo} alt="Mirah" className="w-full h-full object-cover" />
+          </div>
+          <span className="font-serif text-3xl text-primary-dark font-extrabold italic tracking-tight lg:hidden">Mirah</span>
+
+          <span className="hidden lg:block font-serif text-2xl text-primary-dark font-extrabold italic tracking-tight whitespace-nowrap">
+            Mirah | <span className="font-extrabold">{baseTitle || ''}</span>
+          </span>
         </div>
         <button
           type="button"

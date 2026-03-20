@@ -4,6 +4,7 @@ import Sidebar from './Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { authService } from '../../services/authService';
+import logo from '../../assets/logo.png';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -380,7 +381,7 @@ export default function DashboardLayout() {
   `;
 
   return (
-    <div className="h-screen w-full bg-[#F8F9FA] flex overflow-hidden font-sans">
+    <div className="h-screen w-full bg-[#F8F9FA] flex overflow-hidden font-sans relative">
       <style>{globalStyles}</style>
 
       {/* TOAST CONTAINER */}
@@ -406,11 +407,16 @@ export default function DashboardLayout() {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
+      {/* Desktop-only centered logo across sidebar + main header width */}
+      <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-0 h-16 items-center pointer-events-none z-[45]">
+        <img src={logo} alt="Mirah" className="w-18 h-18 object-contain" />
+      </div>
+
       {/* Main Content Wrapper */}
       <div className="flex-1 flex flex-col h-full w-full lg:ml-[240px] ml-0 relative">
 
         {/* HEADER */}
-        <div className="flex h-16 bg-white border-b border-gray-100 px-4 sm:px-8 items-center justify-between shrink-0 sticky top-0 z-40">
+      <div className="relative flex h-16 bg-white border-b border-gray-100 px-4 sm:px-8 items-center justify-between shrink-0 sticky top-0 z-40">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -425,11 +431,13 @@ export default function DashboardLayout() {
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
             {headerTitle ? (
-              <h1 className="hidden sm:block font-serif text-xl font-bold text-gray-800 truncate max-w-[60vw]">
+              <h1 className="hidden sm:block lg:hidden font-serif text-xl font-bold text-gray-800 truncate max-w-[60vw]">
                 {headerTitle}
               </h1>
             ) : null}
           </div>
+
+          {/* Desktop-only center branding moved to outer layout */}
           
           <div className="flex items-center gap-3 relative">
             {/* Mobile cart icon */}
