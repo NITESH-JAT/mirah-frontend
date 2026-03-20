@@ -104,6 +104,46 @@ function buildExtraFieldsPayload(extraFieldRows) {
   return { schema, values };
 }
 
+function buildStructuredSpecsPayload(specs) {
+  const s = specs ?? {};
+  const out = [];
+
+  const push = (key, label, value) => {
+    const v = value ?? '';
+    const str = typeof v === 'string' ? v.trim() : v === true ? 'true' : v === false ? 'false' : String(v ?? '').trim();
+    if (!key || !label) return;
+    if (str === '') return;
+    out.push({ key, label, value: str });
+  };
+
+  push('jewelleryType', 'Jewellery Type', s.jewelleryType);
+  push('sizeMode', 'Size Mode', s.sizeMode);
+  push('sizeStandard', 'Size', s.sizeStandard);
+  push('sizeCustomValue', 'Custom Size', s.sizeCustomValue);
+  push('sizeCustomUnit', 'Custom Size Unit', s.sizeCustomUnit);
+  push('metalType', 'Metal type', s.metalType);
+  push('metalPurity', 'Metal purity', s.metalPurity);
+  push('metalColour', 'Metal colour', s.metalColour);
+  push('twoToneDetails', 'Two-tone specification and additional metal details', s.twoToneDetails);
+  push('metalFinish', 'Metal finish', s.metalFinish);
+  push('stonesIncluded', 'Does your design include stones?', s.stonesIncluded);
+  push('stoneType', 'Stone type', s.stoneType);
+  push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
+  push('engravingDetails', 'Stamping or engraving details', s.engravingDetails);
+  push(
+    'changesComparedToReference',
+    'Changes compared to reference image',
+    s.changesComparedToReference,
+  );
+  push('budgetPerPiece', 'Budget per piece', s.budgetPerPiece);
+  push('quantityRequired', 'Quantity required', s.quantityRequired);
+  push('preferredDeliveryTimeline', 'Preferred delivery timeline', s.preferredDeliveryTimeline);
+  push('additionalNotes', 'Additional notes for the manufacturer', s.additionalNotes);
+  push('confirmSpecs', 'Confirmation of specifications and terms', s.confirmSpecs);
+
+  return buildExtraFieldsPayload(out);
+}
+
 function coerceUrlArray(input) {
   if (!input) return [];
   if (Array.isArray(input)) return input.map((x) => String(x || '').trim()).filter(Boolean);
@@ -126,6 +166,23 @@ function isImageUrl(url) {
 
 function isHttpUrl(url) {
   return /^https?:\/\//i.test(String(url || '').trim());
+}
+
+function addDays(date, days) {
+  const d = date instanceof Date ? new Date(date.getTime()) : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  d.setDate(d.getDate() + Number(days || 0));
+  return d;
+}
+
+function toDateInputValue(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  const mm = pad(d.getMonth() + 1);
+  const dd = pad(d.getDate());
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function pickPreviewUrl(attachments) {
@@ -328,6 +385,53 @@ export default function Projects() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const RESERVED_META_KEYS = useMemo(
+    () =>
+      new Set([
+        'jewelleryType',
+        'jewellery_type',
+        'sizeMode',
+        'size_mode',
+        'sizeStandard',
+        'size_standard',
+        'sizeCustomValue',
+        'size_custom_value',
+        'sizeCustomUnit',
+        'size_custom_unit',
+        'metalType',
+        'metal_type',
+        'metalPurity',
+        'metal_purity',
+        'metalColour',
+        'metal_colour',
+        'twoToneDetails',
+        'two_tone_details',
+        'metalFinish',
+        'metal_finish',
+        'stonesIncluded',
+        'stones_included',
+        'stoneType',
+        'stone_type',
+        'stoneQualityBracket',
+        'stone_quality_bracket',
+        'engravingDetails',
+        'engraving_details',
+        'changesComparedToReference',
+        'changes_compared_to_reference',
+        'budgetPerPiece',
+        'budget_per_piece',
+        'quantityRequired',
+        'quantity_required',
+        'preferredDeliveryTimeline',
+        'preferred_delivery_timeline',
+        'additionalNotes',
+        'additional_notes',
+        'confirmSpecs',
+        'confirm_specs',
+      ]),
+    [],
+  );
+
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
   const createModalOpen = activeTab === 'create';
   const mainTab = createModalOpen ? 'list' : activeTab;
@@ -399,9 +503,208 @@ export default function Projects() {
     maxAmount: '',
     timelineExpected: '',
     referenceImage: '',
+    specs: {
+      jewelleryType: '',
+      sizeMode: 'standard', // 'standard' | 'custom'
+      sizeStandard: '',
+      sizeCustomValue: '',
+      sizeCustomUnit: 'cm', // 'cm' | 'in'
+      metalType: '',
+      metalPurity: '',
+      metalColour: '',
+      twoToneDetails: '',
+      metalFinish: '',
+      stonesIncluded: 'no', // 'yes' | 'no'
+      stoneType: '',
+      stoneQualityBracket: '',
+      engravingDetails: '',
+      changesComparedToReference: '',
+      budgetPerPiece: '',
+      quantityRequired: '',
+      preferredDeliveryTimeline: '',
+      additionalNotes: '',
+      confirmSpecs: false,
+    },
     attachments: [],
     metaFields: [],
   });
+
+  const [createStep, setCreateStep] = useState(1); // 1..4
+  const stepLabels = useMemo(
+    () => [
+      { id: 1, label: 'Project' },
+      { id: 2, label: 'Specs' },
+      { id: 3, label: 'Details' },
+      { id: 4, label: 'Review' },
+    ],
+    [],
+  );
+
+  const validateStep = useCallback(
+    (step) => {
+      const s = createForm?.specs || {};
+
+      if (step === 1) {
+        const title = String(createForm?.title || '').trim();
+        const description = String(createForm?.description || '').trim();
+        const minAmount = Number(createForm?.minAmount || 0);
+        const maxAmount = Number(createForm?.maxAmount || 0);
+        const timelineExpected = Number(createForm?.timelineExpected || 0);
+        const referenceImage = String(createForm?.referenceImage || '').trim();
+
+        if (!title) return 'Project title is required';
+        if (!description) return 'Project description is required';
+        if (!Number.isFinite(minAmount) || minAmount <= 0) return 'Min amount is required';
+        if (!Number.isFinite(maxAmount) || maxAmount <= 0) return 'Max amount is required';
+        if (maxAmount < minAmount) return 'Max amount must be greater than Min amount';
+        if (!Number.isFinite(timelineExpected) || timelineExpected <= 0) return 'Timeline (days) is required';
+        if (!referenceImage) return 'Reference image is required';
+        if (!isHttpUrl(referenceImage)) return 'Reference image must be a valid http/https URL';
+        return null;
+      }
+
+      if (step === 2) {
+        const jewelleryType = String(s?.jewelleryType || '').trim();
+        if (!jewelleryType) return 'Jewellery type is required';
+
+        const sizeMode = String(s?.sizeMode || 'standard').trim().toLowerCase();
+        if (sizeMode === 'custom') {
+          const v = Number(s?.sizeCustomValue || 0);
+          if (!Number.isFinite(v) || v <= 0) return 'Custom measurement is required';
+          const unit = String(s?.sizeCustomUnit || '').trim();
+          if (!unit) return 'Custom measurement unit is required';
+        } else {
+          const sizeStandard = String(s?.sizeStandard || '').trim();
+          if (!sizeStandard) return 'Size is required';
+        }
+
+        const metalType = String(s?.metalType || '').trim();
+        if (!metalType) return 'Metal type is required';
+        const isGold = metalType.toLowerCase() === 'gold';
+        if (isGold) {
+          if (!String(s?.metalPurity || '').trim()) return 'Metal purity is required';
+          if (!String(s?.metalColour || '').trim()) return 'Metal colour is required';
+        }
+        if (String(s?.metalColour || '').trim().toLowerCase() === 'two-tone') {
+          if (!String(s?.twoToneDetails || '').trim()) return 'Two-tone details are required';
+        }
+        if (!String(s?.metalFinish || '').trim()) return 'Metal finish is required';
+
+        const stonesIncluded = String(s?.stonesIncluded || 'no').trim().toLowerCase();
+        if (stonesIncluded !== 'yes' && stonesIncluded !== 'no') return 'Please select stones included (Yes/No)';
+        if (stonesIncluded === 'yes') {
+          const stoneType = String(s?.stoneType || '').trim();
+          if (!stoneType) return 'Stone type is required';
+          if (stoneType.toLowerCase().includes('natural')) {
+            if (!String(s?.stoneQualityBracket || '').trim()) return 'Preferred stone quality bracket is required';
+          }
+        }
+
+        return null;
+      }
+
+      if (step === 3) {
+        const budgetRaw = String(s?.budgetPerPiece ?? '').trim();
+        const budget = Number(budgetRaw || 0);
+        const qty = Number(s?.quantityRequired || 0);
+        const preferredDelivery = String(s?.preferredDeliveryTimeline || '').trim();
+
+        // Budget per piece is optional; validate only if provided.
+        if (budgetRaw !== '' && (!Number.isFinite(budget) || budget <= 0)) return 'Budget per piece must be greater than 0';
+        if (!Number.isFinite(qty) || qty <= 0) return 'Quantity required is required';
+        if (!preferredDelivery) return 'Preferred delivery timeline is required';
+
+        const min = addDays(new Date(), 20);
+        const selected = new Date(preferredDelivery);
+        if (min && (!selected || Number.isNaN(selected.getTime()) || selected.getTime() < min.getTime())) {
+          return 'Preferred delivery timeline must be at least 20 days from today';
+        }
+
+        if (!s?.confirmSpecs) return 'Please confirm specifications and terms';
+        return null;
+      }
+
+      return null;
+    },
+    [createForm],
+  );
+
+  const [feasibilityLoading, setFeasibilityLoading] = useState(false);
+  const [feasibilitySuggestions, setFeasibilitySuggestions] = useState([]);
+  const feasibilityAbortRef = useRef(null);
+
+  const feasibilityPayload = useMemo(() => {
+    const title = String(createForm?.title || '').trim();
+    const description = String(createForm?.description || '').trim();
+    const minAmount = Number(createForm?.minAmount || 0);
+    const maxAmount = Number(createForm?.maxAmount || 0);
+    const timelineExpected = Number(createForm?.timelineExpected || 0);
+    const referenceImage = String(createForm?.referenceImage || '').trim();
+    const attachments = coerceUrlArray(createForm?.attachments);
+    const baseMeta = buildExtraFieldsPayload(createForm?.metaFields);
+    const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
+    const meta = buildExtraFieldsPayload([
+      ...(extraFieldsToArray(baseMeta) || []),
+      ...(extraFieldsToArray(specsMeta) || []),
+    ]);
+    return {
+      title,
+      description,
+      attachments,
+      referenceImage,
+      meta,
+      minAmount,
+      maxAmount,
+      timelineExpected,
+    };
+  }, [createForm]);
+
+  const feasibilityPayloadKey = useMemo(() => {
+    try {
+      return JSON.stringify(feasibilityPayload);
+    } catch {
+      return String(Date.now());
+    }
+  }, [feasibilityPayload]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    if (createStep !== 4) return;
+
+    // Only call once the form is valid (stepper enforces this before reaching Review).
+    const err1 = validateStep(1);
+    const err2 = err1 ? null : validateStep(2);
+    const err3 = err1 || err2 ? null : validateStep(3);
+    if (err1 || err2 || err3) return;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        if (feasibilityAbortRef.current) {
+          try {
+            feasibilityAbortRef.current.abort();
+          } catch {
+            // ignore
+          }
+        }
+        const controller = new AbortController();
+        feasibilityAbortRef.current = controller;
+
+        setFeasibilityLoading(true);
+        const data = await projectService.reviewFeasibility(feasibilityPayload, { signal: controller.signal });
+        const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+        setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
+      } catch {
+        // If review fails, don't block submit; just hide suggestions.
+        setFeasibilitySuggestions([]);
+      } finally {
+        setFeasibilityLoading(false);
+      }
+    }, 450);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [createModalOpen, createStep, feasibilityPayloadKey, validateStep]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Bidding / assignment UI
   const [startBidOpen, setStartBidOpen] = useState(false);
@@ -416,6 +719,30 @@ export default function Projects() {
   const attachmentInputRef = useRef(null);
   const referenceImageInputRef = useRef(null);
   const listAbortRef = useRef(null);
+
+  const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
+  const howToMeasureText = useMemo(() => {
+    const type = String(createForm?.specs?.jewelleryType || '').trim().toLowerCase();
+    if (!type) {
+      return 'Select a jewellery type first to see how to measure.';
+    }
+    if (type === 'ring') {
+      return 'Use a ring sizer if you have one. Otherwise, measure the inner diameter of a ring that fits you and match it to standard ring size charts. For custom measurements, enter the circumference or diameter as instructed by your jeweller.';
+    }
+    if (type === 'necklace') {
+      return 'Measure around your neck with a soft measuring tape at the length you prefer. For necklaces, the common lengths are typically 16–24 inches; choose what feels comfortable.';
+    }
+    if (type === 'bracelet' || type === 'flexi bangle') {
+      return 'Wrap a soft measuring tape around your wrist where you’ll wear the bracelet/bangle. Add a little extra space for comfort depending on fit preference.';
+    }
+    if (type === 'earrings') {
+      return 'Earrings are typically not sized like rings/necklaces. If you need a specific drop length, measure from your earlobe to the desired point and enter as custom measurement.';
+    }
+    if (type === 'pendant') {
+      return 'For pendants, sizing is usually based on pendant dimensions. If you need a specific pendant size or chain length, measure the desired length and enter it as custom measurement.';
+    }
+    return 'Measure using a soft measuring tape and enter your custom measurement in cm or inches.';
+  }, [createForm?.specs?.jewelleryType]);
 
   const loadProjects = useCallback(async ({ nextPage = 1, append = false, search = listSearch } = {}) => {
     if (listAbortRef.current) listAbortRef.current.abort();
@@ -482,6 +809,7 @@ export default function Projects() {
 
   const startCreateNew = () => {
     setEditingId(null);
+    setCreateStep(1);
     setCreateForm({
       title: '',
       description: '',
@@ -489,6 +817,28 @@ export default function Projects() {
       maxAmount: '',
       timelineExpected: '',
       referenceImage: '',
+      specs: {
+        jewelleryType: '',
+        sizeMode: 'standard',
+        sizeStandard: '',
+        sizeCustomValue: '',
+        sizeCustomUnit: 'cm',
+        metalType: '',
+        metalPurity: '',
+        metalColour: '',
+        twoToneDetails: '',
+        metalFinish: '',
+        stonesIncluded: 'no',
+        stoneType: '',
+        stoneQualityBracket: '',
+        engravingDetails: '',
+        changesComparedToReference: '',
+        budgetPerPiece: '',
+        quantityRequired: '',
+        preferredDeliveryTimeline: '',
+        additionalNotes: '',
+        confirmSpecs: false,
+      },
       attachments: [],
       metaFields: [],
     });
@@ -500,6 +850,17 @@ export default function Projects() {
     const id = localProjectIdOf(p);
     if (!id) return;
     setEditingId(id);
+    setCreateStep(1);
+    const metaRowsAll = extraFieldsToArray(p?.meta);
+    const metaIndex = new Map(metaRowsAll.map((r) => [String(r?.key || '').trim(), String(r?.value ?? '').trim()]));
+    const pickMeta = (...keys) => {
+      for (const k of keys) {
+        const key = String(k || '').trim();
+        if (!key) continue;
+        if (metaIndex.has(key)) return metaIndex.get(key);
+      }
+      return '';
+    };
     setCreateForm({
       title: String(p?.title ?? ''),
       description: String(p?.description ?? ''),
@@ -508,7 +869,32 @@ export default function Projects() {
       timelineExpected: String(p?.timelineExpected ?? p?.timeline_expected ?? ''),
       referenceImage: String(p?.referenceImage ?? p?.reference_image ?? ''),
       attachments: coerceUrlArray(p?.attachments),
-      metaFields: extraFieldsToArray(p?.meta),
+      specs: {
+        jewelleryType: pickMeta('jewelleryType', 'jewellery_type'),
+        sizeMode: pickMeta('sizeMode', 'size_mode') || 'standard',
+        sizeStandard: pickMeta('sizeStandard', 'size_standard'),
+        sizeCustomValue: pickMeta('sizeCustomValue', 'size_custom_value'),
+        sizeCustomUnit: pickMeta('sizeCustomUnit', 'size_custom_unit') || 'cm',
+        metalType: pickMeta('metalType', 'metal_type'),
+        metalPurity: pickMeta('metalPurity', 'metal_purity'),
+        metalColour: pickMeta('metalColour', 'metal_colour'),
+        twoToneDetails: pickMeta('twoToneDetails', 'two_tone_details'),
+        metalFinish: pickMeta('metalFinish', 'metal_finish'),
+        stonesIncluded: pickMeta('stonesIncluded', 'stones_included') || 'no',
+        stoneType: pickMeta('stoneType', 'stone_type'),
+        stoneQualityBracket: pickMeta('stoneQualityBracket', 'stone_quality_bracket'),
+        engravingDetails: pickMeta('engravingDetails', 'engraving_details'),
+        changesComparedToReference: pickMeta('changesComparedToReference', 'changes_compared_to_reference'),
+        budgetPerPiece: pickMeta('budgetPerPiece', 'budget_per_piece'),
+        quantityRequired: pickMeta('quantityRequired', 'quantity_required'),
+        preferredDeliveryTimeline: pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'),
+        additionalNotes: pickMeta('additionalNotes', 'additional_notes'),
+        confirmSpecs:
+          String(pickMeta('confirmSpecs', 'confirm_specs') || '')
+            .trim()
+            .toLowerCase() === 'true',
+      },
+      metaFields: metaRowsAll.filter((r) => !RESERVED_META_KEYS.has(String(r?.key || '').trim())),
     });
     setActiveTab('create');
     navigate('/customer/projects?tab=create');
@@ -517,6 +903,7 @@ export default function Projects() {
   const closeCreateModal = () => {
     if (createLoading || attachmentUploading || referenceUploading) return;
     setEditingId(null);
+    setCreateStep(1);
     setCreateForm({
       title: '',
       description: '',
@@ -524,6 +911,28 @@ export default function Projects() {
       maxAmount: '',
       timelineExpected: '',
       referenceImage: '',
+      specs: {
+        jewelleryType: '',
+        sizeMode: 'standard',
+        sizeStandard: '',
+        sizeCustomValue: '',
+        sizeCustomUnit: 'cm',
+        metalType: '',
+        metalPurity: '',
+        metalColour: '',
+        twoToneDetails: '',
+        metalFinish: '',
+        stonesIncluded: 'no',
+        stoneType: '',
+        stoneQualityBracket: '',
+        engravingDetails: '',
+        changesComparedToReference: '',
+        budgetPerPiece: '',
+        quantityRequired: '',
+        preferredDeliveryTimeline: '',
+        additionalNotes: '',
+        confirmSpecs: false,
+      },
       attachments: [],
       metaFields: [],
     });
@@ -594,16 +1003,18 @@ export default function Projects() {
     const timelineExpected = Number(createForm?.timelineExpected || 0);
     const referenceImage = String(createForm?.referenceImage || '').trim();
     const attachments = coerceUrlArray(createForm?.attachments);
-    const meta = buildExtraFieldsPayload(createForm?.metaFields);
+    const baseMeta = buildExtraFieldsPayload(createForm?.metaFields);
+    const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
+    const meta = buildExtraFieldsPayload([
+      ...(extraFieldsToArray(baseMeta) || []),
+      ...(extraFieldsToArray(specsMeta) || []),
+    ]);
 
-    if (!title) return addToast('Project title is required', 'error');
-    if (!description) return addToast('Project description is required', 'error');
-    if (!Number.isFinite(minAmount) || minAmount <= 0) return addToast('Min amount is required', 'error');
-    if (!Number.isFinite(maxAmount) || maxAmount <= 0) return addToast('Max amount is required', 'error');
-    if (maxAmount < minAmount) return addToast('Max amount must be greater than Min amount', 'error');
-    if (!Number.isFinite(timelineExpected) || timelineExpected <= 0) return addToast('Timeline (days) is required', 'error');
-    if (!referenceImage) return addToast('Reference image is required', 'error');
-    if (!isHttpUrl(referenceImage)) return addToast('Reference image must be a valid http/https URL', 'error');
+    const err1 = validateStep(1);
+    const err2 = err1 ? null : validateStep(2);
+    const err3 = err1 || err2 ? null : validateStep(3);
+    const err = err1 || err2 || err3;
+    if (err) return addToast(err, 'error');
 
     if (createLoading) return;
     setCreateLoading(true);
@@ -714,6 +1125,7 @@ export default function Projects() {
   useEffect(() => {
     if (activeTab !== 'create') {
       setEditingId(null);
+      setCreateStep(1);
       setCreateForm({
         title: '',
         description: '',
@@ -721,6 +1133,28 @@ export default function Projects() {
         maxAmount: '',
         timelineExpected: '',
         referenceImage: '',
+        specs: {
+          jewelleryType: '',
+          sizeMode: 'standard',
+          sizeStandard: '',
+          sizeCustomValue: '',
+          sizeCustomUnit: 'cm',
+          metalType: '',
+          metalPurity: '',
+          metalColour: '',
+          twoToneDetails: '',
+          metalFinish: '',
+          stonesIncluded: 'no',
+          stoneType: '',
+          stoneQualityBracket: '',
+          engravingDetails: '',
+          changesComparedToReference: '',
+          budgetPerPiece: '',
+          quantityRequired: '',
+          preferredDeliveryTimeline: '',
+          additionalNotes: '',
+          confirmSpecs: false,
+        },
         attachments: [],
         metaFields: [],
       });
@@ -1401,7 +1835,7 @@ export default function Projects() {
                 onMouseDown={closeCreateModal}
               >
                 <div
-                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-[calc(100dvh-64px)] flex flex-col"
+                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3">
@@ -1437,332 +1871,960 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Title *</label>
-                    <input
-                      value={createForm.title}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                      placeholder="Enter project title"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Min amount (₹) *</label>
-                    <input
-                      type="number"
-                      value={createForm.minAmount}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, minAmount: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                      placeholder="10000"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Max amount (₹) *</label>
-                    <input
-                      type="number"
-                      value={createForm.maxAmount}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, maxAmount: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                      placeholder="20000"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Timeline (days) *</label>
-                    <input
-                      type="number"
-                      value={createForm.timelineExpected}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, timelineExpected: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                      placeholder="7"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description *</label>
-                    <textarea
-                      rows={3}
-                      value={createForm.description}
-                      onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                      placeholder="Enter project description"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <div>
-                      <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
-                      <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
+                  <div className="px-5 py-3 border-b border-gray-50 bg-white">
+                    <div className="sm:hidden mb-2 text-[13px] font-extrabold text-gray-900">
+                      {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => referenceImageInputRef.current?.click()}
-                      disabled={referenceUploading}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
-                    </button>
-                    <input
-                      ref={referenceImageInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = (e.target.files || [])[0] || null;
-                        if (f) handleUploadReferenceImage(f);
-                      }}
-                    />
-                  </div>
-
-                  <div className="mt-4">
-                    {String(createForm.referenceImage || '').trim() ? (
-                      <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
-                        <SafeImage
-                          src={String(createForm.referenceImage || '').trim()}
-                          alt="Reference"
-                          className="w-full h-48 md:h-56 object-contain bg-white"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
-                          disabled={referenceUploading}
-                          className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                          aria-label="Remove reference image"
-                          title="Remove"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center">
-                        <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="3" width="18" height="18" rx="2" />
-                            <circle cx="8.5" cy="8.5" r="1.5" />
-                            <path d="M21 15l-5-5L5 21" />
-                          </svg>
-                        </div>
-                        <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-6 rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                    <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra Fields</p>
-                      <p className="text-[12px] text-gray-400">Add custom label/value pairs for this project.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setCreateForm((p) => ({
-                          ...p,
-                          metaFields: [...(p.metaFields || []), { key: '', label: '', value: '' }],
-                        }))
-                      }
-                      className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-                    >
-                      Add field
-                    </button>
-                  </div>
-
-                  {(createForm.metaFields || []).length ? (
-                    <div className="mt-4 space-y-3">
-                      {(createForm.metaFields || []).map((ef, idx) => (
-                        <div key={`mf-${idx}`} className="rounded-xl border border-gray-100 p-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
-                              <input
-                                value={ef?.label ?? ''}
-                                onChange={(e) => {
-                                  const label = e.target.value;
-                                  const key = normalizeExtraFieldKey(label);
-                                  setCreateForm((p) => ({
-                                    ...p,
-                                    metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), label, key } : x)),
-                                  }));
-                                }}
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                                placeholder="e.g. Material"
-                              />
+                    <div className="flex items-center gap-2 w-full">
+                      {stepLabels.map((s, idx) => {
+                        const active = createStep === s.id;
+                        const done = createStep > s.id;
+                        return (
+                          <React.Fragment key={String(s.id)}>
+                            <div className="flex items-center gap-2 min-w-0 shrink-0">
+                              <div
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center text-[12px] font-extrabold border ${
+                                  active || done ? 'bg-primary-dark text-white border-primary-dark' : 'bg-white text-gray-400 border-gray-200'
+                                }`}
+                              >
+                                {s.id}
+                              </div>
+                              <div className={`hidden sm:block text-[12px] font-bold whitespace-nowrap ${active || done ? 'text-gray-900' : 'text-gray-400'}`}>
+                                {s.label}
+                              </div>
                             </div>
+                            {idx < stepLabels.length - 1 ? (
+                              <div className={`flex-1 h-[2px] rounded-full ${done ? 'bg-primary-dark' : 'bg-gray-100'}`} />
+                            ) : null}
+                          </React.Fragment>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                            <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
-                              <input
-                                value={ef?.value ?? ''}
-                                onChange={(e) => {
-                                  const value = e.target.value;
-                                  setCreateForm((p) => ({
-                                    ...p,
-                                    metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), value } : x)),
-                                  }));
-                                }}
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                                placeholder="e.g. Gold"
-                              />
+                  <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5">
+                    {createStep === 1 ? (
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Mobile order: reference -> fields -> description. Desktop: reference left, fields right, description full-width below */}
+                          <div className="order-2 md:order-2">
+                            <div className="grid grid-cols-1 gap-4">
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Title *</label>
+                                <input
+                                  value={createForm.title}
+                                  onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                  placeholder="Enter project title"
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1.5">
+                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Min amount (₹) *</label>
+                                  <input
+                                    type="number"
+                                    value={createForm.minAmount}
+                                    onChange={(e) => setCreateForm((p) => ({ ...p, minAmount: e.target.value }))}
+                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                    placeholder="10000"
+                                  />
+                                </div>
+
+                                <div className="space-y-1.5">
+                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Max amount (₹) *</label>
+                                  <input
+                                    type="number"
+                                    value={createForm.maxAmount}
+                                    onChange={(e) => setCreateForm((p) => ({ ...p, maxAmount: e.target.value }))}
+                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                    placeholder="20000"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Timeline (days) *</label>
+                                <input
+                                  type="number"
+                                  value={createForm.timelineExpected}
+                                  onChange={(e) => setCreateForm((p) => ({ ...p, timelineExpected: e.target.value }))}
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                  placeholder="7"
+                                />
+                              </div>
                             </div>
                           </div>
 
-                          <div className="mt-3 flex justify-end">
+                          <div className="order-1 md:order-1">
+                            <div className="rounded-2xl border border-gray-100 p-4">
+                              <div className="flex items-center justify-between gap-3 flex-wrap">
+                                <div>
+                                  <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
+                                  <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => referenceImageInputRef.current?.click()}
+                                  disabled={referenceUploading}
+                                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
+                                </button>
+                                <input
+                                  ref={referenceImageInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const f = (e.target.files || [])[0] || null;
+                                    if (f) handleUploadReferenceImage(f);
+                                  }}
+                                />
+                              </div>
+
+                              <div className="mt-4">
+                                {String(createForm.referenceImage || '').trim() ? (
+                                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                                    <SafeImage
+                                      src={String(createForm.referenceImage || '').trim()}
+                                      alt="Reference"
+                                      className="w-full h-48 md:h-[320px] object-contain bg-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                                      disabled={referenceUploading}
+                                      className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      aria-label="Remove reference image"
+                                      title="Remove"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M18 6 6 18" />
+                                        <path d="m6 6 12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[220px] md:min-h-[320px] flex flex-col items-center justify-center">
+                                    <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <path d="M21 15l-5-5L5 21" />
+                                      </svg>
+                                    </div>
+                                    <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="order-3 md:order-3 md:col-span-2 space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description *</label>
+                            <textarea
+                              rows={3}
+                              value={createForm.description}
+                              onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              placeholder="Enter project description"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {createStep === 2 ? (
+                      <div className="rounded-2xl border border-gray-100 p-4">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery specifications</p>
+                            <p className="text-[12px] text-gray-400">These details will be shared with the jeweller to prepare your order.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setHowToMeasureOpen(true)}
+                            className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
+                          >
+                            How to Measure
+                          </button>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery type *</label>
+                            <select
+                              value={createForm?.specs?.jewelleryType || ''}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), jewelleryType: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            >
+                              <option value="">Select</option>
+                              {['Ring', 'Necklace', 'Bracelet', 'Flexi Bangle', 'Earrings', 'Pendant'].map((x) => (
+                                <option key={x} value={x}>
+                                  {x}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Size *</label>
+                            <select
+                              value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
+                              onChange={(e) => {
+                                const v = String(e.target.value || '');
+                                if (v === 'custom') {
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
+                                  }));
+                                } else {
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
+                                  }));
+                                }
+                              }}
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            >
+                              <option value="">Select</option>
+                              {['XS', 'S', 'M', 'L', 'XL'].map((x) => (
+                                <option key={x} value={x}>
+                                  {x}
+                                </option>
+                              ))}
+                              <option value="custom">Enter custom measurement</option>
+                            </select>
+                            {createForm?.specs?.sizeMode === 'custom' ? (
+                              <div className="mt-2 grid grid-cols-2 gap-2">
+                                <input
+                                  type="number"
+                                  value={createForm?.specs?.sizeCustomValue || ''}
+                                  onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: { ...(p.specs || {}), sizeCustomValue: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                  placeholder="Measurement"
+                                />
+                                <select
+                                  value={createForm?.specs?.sizeCustomUnit || 'cm'}
+                                  onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: { ...(p.specs || {}), sizeCustomUnit: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                >
+                                  <option value="cm">cm</option>
+                                  <option value="in">inches</option>
+                                </select>
+                              </div>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal type *</label>
+                            <select
+                              value={createForm?.specs?.metalType || ''}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), metalType: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            >
+                              <option value="">Select</option>
+                              {['Gold', 'Platinum', 'Silver', 'Other'].map((x) => (
+                                <option key={x} value={x}>
+                                  {x}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {String(createForm?.specs?.metalType || '').trim().toLowerCase() === 'gold' ? (
+                            <>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal purity *</label>
+                                <select
+                                  value={createForm?.specs?.metalPurity || ''}
+                                  onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: { ...(p.specs || {}), metalPurity: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                >
+                                  <option value="">Select</option>
+                                  {['9KT', '14KT', '18KT', '22KT'].map((x) => (
+                                    <option key={x} value={x}>
+                                      {x}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="space-y-1.5">
+                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal colour *</label>
+                                <select
+                                  value={createForm?.specs?.metalColour || ''}
+                                  onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: { ...(p.specs || {}), metalColour: e.target.value },
+                                    }))
+                                  }
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                >
+                                  <option value="">Select</option>
+                                  {['Yellow', 'White', 'Rose', 'Two-tone'].map((x) => (
+                                    <option key={x} value={x}>
+                                      {x}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </>
+                          ) : null}
+
+                          {String(createForm?.specs?.metalColour || '').trim().toLowerCase() === 'two-tone' ? (
+                            <div className="space-y-1.5 md:col-span-2">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                                Two-tone specification and additional metal details *
+                              </label>
+                              <input
+                                value={createForm?.specs?.twoToneDetails || ''}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), twoToneDetails: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                placeholder="Describe the exact combination and placement of colours"
+                              />
+                            </div>
+                          ) : null}
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal finish *</label>
+                            <select
+                              value={createForm?.specs?.metalFinish || ''}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), metalFinish: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            >
+                              <option value="">Select</option>
+                              {['Matte', 'Polished'].map((x) => (
+                                <option key={x} value={x}>
+                                  {x}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Does your design include stones? *</label>
+                            <select
+                              value={createForm?.specs?.stonesIncluded || 'no'}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), stonesIncluded: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            >
+                              <option value="yes">Yes</option>
+                              <option value="no">No</option>
+                            </select>
+                          </div>
+
+                          {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' ? (
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stone type *</label>
+                              <select
+                                value={createForm?.specs?.stoneType || ''}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), stoneType: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                              >
+                                <option value="">Select</option>
+                                <option value="Natural Diamonds">Natural Diamonds</option>
+                                <option value="Lab-Grown Diamonds">Lab-Grown Diamonds</option>
+                              </select>
+                            </div>
+                          ) : null}
+
+                          {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' &&
+                          String(createForm?.specs?.stoneType || '').toLowerCase().includes('natural') ? (
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Preferred stone quality bracket *</label>
+                              <select
+                                value={createForm?.specs?.stoneQualityBracket || ''}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), stoneQualityBracket: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                              >
+                                <option value="">Select</option>
+                                {['Standard', 'Premium', 'Luxury'].map((x) => (
+                                  <option key={x} value={x}>
+                                    {x}
+                                  </option>
+                                ))}
+                              </select>
+                              <p className="text-[12px] text-gray-400">
+                                Based on your selected quality bracket and budget, we will determine the appropriate stone colour, clarity, and size.
+                              </p>
+                            </div>
+                          ) : null}
+
+                          <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stamping or engraving details</label>
+                            <textarea
+                              rows={3}
+                              value={createForm?.specs?.engravingDetails || ''}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), engravingDetails: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              placeholder="Specify any initials, names, dates, or markings required"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5 md:col-span-2">
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Changes compared to reference image</label>
+                            <textarea
+                              rows={3}
+                              value={createForm?.specs?.changesComparedToReference || ''}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), changesComparedToReference: e.target.value },
+                                }))
+                              }
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              placeholder="Specify any changes beyond the selections above"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {createStep === 3 ? (
+                      <div className="space-y-6">
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Order details</p>
+                          <p className="mt-1 text-[12px] text-gray-400">Provide quantities, budget, and delivery timeline.</p>
+
+                          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Budget per piece</label>
+                              <input
+                                type="number"
+                                value={createForm?.specs?.budgetPerPiece || ''}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), budgetPerPiece: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                placeholder="e.g. 25000"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Quantity required *</label>
+                              <input
+                                type="number"
+                                value={createForm?.specs?.quantityRequired || ''}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), quantityRequired: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                placeholder="e.g. 1"
+                              />
+                            </div>
+                            <div className="space-y-1.5 md:col-span-2">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Preferred delivery timeline *</label>
+                              <input
+                                type="date"
+                                value={createForm?.specs?.preferredDeliveryTimeline || ''}
+                                min={toDateInputValue(addDays(new Date(), 20) || new Date())}
+                                onChange={(e) =>
+                                  setCreateForm((p) => ({
+                                    ...p,
+                                    specs: { ...(p.specs || {}), preferredDeliveryTimeline: e.target.value },
+                                  }))
+                                }
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              />
+                              <p className="text-[12px] text-gray-400">Minimum selectable date is 20 days from today.</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra Fields</p>
+                              <p className="text-[12px] text-gray-400">Add custom label/value pairs for this project.</p>
+                            </div>
                             <button
                               type="button"
                               onClick={() =>
                                 setCreateForm((p) => ({
                                   ...p,
-                                  metaFields: (p.metaFields || []).filter((_, i) => i !== idx),
+                                  metaFields: [...(p.metaFields || []), { key: '', label: '', value: '' }],
                                 }))
                               }
-                              className="text-[12px] font-semibold text-red-600 hover:underline cursor-pointer"
+                              className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                             >
-                              Remove
+                              Add field
                             </button>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4 text-[12px] text-gray-400">No extra fields added.</div>
-                  )}
-                </div>
 
-                <div className="mt-6 rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
-                      <p className="text-[12px] text-gray-400">Upload project attachments (images/PDF).</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => attachmentInputRef.current?.click()}
-                      disabled={attachmentUploading}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                    >
-                      {attachmentUploading ? 'Uploading…' : 'Upload files'}
-                    </button>
-                    <input
-                      ref={attachmentInputRef}
-                      type="file"
-                      accept="image/*,application/pdf"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        const files = Array.from(e.target.files || []);
-                        if (files.length) handleUploadAttachments(files);
-                      }}
-                    />
-                  </div>
-
-                  {coerceUrlArray(createForm.attachments).length ? (
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {coerceUrlArray(createForm.attachments).map((url, idx) => (
-                        <div
-                          key={`${url}-${idx}`}
-                          role={isPdfUrl(url) ? 'button' : undefined}
-                          tabIndex={isPdfUrl(url) ? 0 : undefined}
-                          onClick={() => {
-                            if (!isPdfUrl(url)) return;
-                            try {
-                              window.open(url, '_blank', 'noopener,noreferrer');
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (!isPdfUrl(url)) return;
-                            if (e.key !== 'Enter') return;
-                            try {
-                              window.open(url, '_blank', 'noopener,noreferrer');
-                            } catch {
-                              // ignore
-                            }
-                          }}
-                          className={`relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 ${
-                            isPdfUrl(url) ? 'cursor-pointer' : ''
-                          }`}
-                          aria-label={isPdfUrl(url) ? 'Open PDF attachment' : undefined}
-                        >
-                          {isPdfUrl(url) ? (
-                            <div className="w-full h-24 bg-white flex items-center justify-center text-red-400">
-                              <div className="text-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                                  <path d="M14 2v6h6" />
-                                </svg>
-                                <div className="mt-1 text-[10px] font-bold">PDF</div>
-                              </div>
+                          {(createForm.metaFields || []).length ? (
+                            <div className="mt-4 space-y-3">
+                              {(createForm.metaFields || []).map((ef, idx) => (
+                                <div key={`mf-${idx}`} className="rounded-xl border border-gray-100 p-3">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div className="space-y-1.5">
+                                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
+                                      <input
+                                        value={ef?.label ?? ''}
+                                        onChange={(e) => {
+                                          const label = e.target.value;
+                                          const key = normalizeExtraFieldKey(label);
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            metaFields: (p.metaFields || []).map((x, i) =>
+                                              i === idx ? { ...(x || {}), label, key } : x,
+                                            ),
+                                          }));
+                                        }}
+                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                        placeholder="e.g. Material"
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
+                                      <input
+                                        value={ef?.value ?? ''}
+                                        onChange={(e) => {
+                                          const value = e.target.value;
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), value } : x)),
+                                          }));
+                                        }}
+                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                        placeholder="e.g. Gold"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="mt-3 flex justify-end">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          metaFields: (p.metaFields || []).filter((_, i) => i !== idx),
+                                        }))
+                                      }
+                                      className="text-[12px] font-semibold text-red-600 hover:underline cursor-pointer"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           ) : (
-                            <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
+                            <div className="mt-4 text-[12px] text-gray-400">No extra fields added.</div>
                           )}
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setCreateForm((p) => ({ ...p, attachments: coerceUrlArray(p.attachments).filter((_, i) => i !== idx) }))
-                            }}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 text-white flex items-center justify-center hover:bg-black/60 cursor-pointer"
-                            aria-label="Remove"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M18 6 6 18" />
-                              <path d="m6 6 12 12" />
-                            </svg>
-                          </button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-4 text-[12px] text-gray-400">No attachments uploaded.</div>
-                  )}
-                </div>
 
-                <div className="mt-6 flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(null);
-                      setCreateForm({
-                        title: '',
-                        description: '',
-                        minAmount: '',
-                        maxAmount: '',
-                        timelineExpected: '',
-                        referenceImage: '',
-                        attachments: [],
-                        metaFields: [],
-                      });
-                    }}
-                      disabled={createLoading || attachmentUploading || referenceUploading}
-                    className="px-6 py-3 rounded-xl border border-gray-200 text-[12px] font-bold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    Reset
-                  </button>
-                  <button
-                    type="button"
-                    onClick={saveProject}
-                      disabled={createLoading || attachmentUploading || referenceUploading}
-                    className="px-6 py-3 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                  >
-                    {createLoading ? 'Saving…' : editingId ? 'Update Project' : 'Create Project'}
-                  </button>
-                </div>
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
+                              <p className="text-[12px] text-gray-400">Upload project attachments (images/PDF).</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => attachmentInputRef.current?.click()}
+                              disabled={attachmentUploading}
+                              className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {attachmentUploading ? 'Uploading…' : 'Upload files'}
+                            </button>
+                            <input
+                              ref={attachmentInputRef}
+                              type="file"
+                              accept="image/*,application/pdf"
+                              multiple
+                              className="hidden"
+                              onChange={(e) => {
+                                const files = Array.from(e.target.files || []);
+                                if (files.length) handleUploadAttachments(files);
+                              }}
+                            />
+                          </div>
 
-                <p className="mt-3 text-[11px] text-gray-400">
-                  Note: Projects are created as <span className="font-semibold">draft</span>.
-                </p>
+                          {coerceUrlArray(createForm.attachments).length ? (
+                            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              {coerceUrlArray(createForm.attachments).map((url, idx) => (
+                                <div
+                                  key={`${url}-${idx}`}
+                                  role={isPdfUrl(url) ? 'button' : undefined}
+                                  tabIndex={isPdfUrl(url) ? 0 : undefined}
+                                  onClick={() => {
+                                    if (!isPdfUrl(url)) return;
+                                    try {
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (!isPdfUrl(url)) return;
+                                    if (e.key !== 'Enter') return;
+                                    try {
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }}
+                                  className={`relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
+                                  aria-label={isPdfUrl(url) ? 'Open PDF attachment' : undefined}
+                                >
+                                  {isPdfUrl(url) ? (
+                                    <div className="w-full h-24 bg-white flex items-center justify-center text-red-400">
+                                      <div className="text-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                          <path d="M14 2v6h6" />
+                                        </svg>
+                                        <div className="mt-1 text-[10px] font-bold">PDF</div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setCreateForm((p) => ({ ...p, attachments: coerceUrlArray(p.attachments).filter((_, i) => i !== idx) }))
+                                    }}
+                                    className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 text-white flex items-center justify-center hover:bg-black/60 cursor-pointer"
+                                    aria-label="Remove"
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <path d="M18 6 6 18" />
+                                      <path d="m6 6 12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-4 text-[12px] text-gray-400">No attachments uploaded.</div>
+                          )}
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Additional notes for the manufacturer</label>
+                          <textarea
+                            rows={3}
+                            value={createForm?.specs?.additionalNotes || ''}
+                            onChange={(e) =>
+                              setCreateForm((p) => ({
+                                ...p,
+                                specs: { ...(p.specs || {}), additionalNotes: e.target.value },
+                              }))
+                            }
+                            className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                            placeholder="Any additional details you want to share"
+                          />
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <label className="flex items-start gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(createForm?.specs?.confirmSpecs)}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), confirmSpecs: e.target.checked },
+                                }))
+                              }
+                              className="mt-0.5 w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                            />
+                            <span className="font-medium text-gray-700">
+                              I confirm that all specifications provided are accurate and final. I understand that any changes after this stage may impact pricing and delivery timelines. I agree to the platform’s terms and conditions.
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {createStep === 4 ? (
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[13px] font-extrabold text-gray-900">Review</p>
+                          <p className="mt-1 text-[12px] text-gray-400">Confirm all details before submitting.</p>
+                        </div>
+
+                        {Array.isArray(feasibilitySuggestions) && feasibilitySuggestions.length ? (
+                          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-amber-900 uppercase tracking-wide">Suggestions</p>
+                                <p className="mt-1 text-[12px] text-amber-800/80">
+                                  Based on your budget and timeline, here are some suggestions.
+                                </p>
+                              </div>
+                              {feasibilityLoading ? (
+                                <svg className="shrink-0 animate-spin text-amber-700" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                </svg>
+                              ) : null}
+                            </div>
+                            <ul className="mt-3 space-y-2">
+                              {feasibilitySuggestions.map((s, idx) => (
+                                <li key={`sug-${idx}`} className="flex items-start gap-2 text-[13px] text-amber-900">
+                                  <span className="mt-[2px] w-5 h-5 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-[11px] font-extrabold text-amber-800">
+                                    {idx + 1}
+                                  </span>
+                                  <span className="text-amber-900">{String(s)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Project</p>
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
+                            <div><span className="text-gray-400">Title:</span> <span className="font-semibold text-gray-800">{createForm.title || '—'}</span></div>
+                            <div><span className="text-gray-400">Budget:</span> <span className="font-semibold text-gray-800">{createForm.minAmount && createForm.maxAmount ? `₹ ${formatMoney(Number(createForm.minAmount) || 0)} - ₹ ${formatMoney(Number(createForm.maxAmount) || 0)}` : '—'}</span></div>
+                            <div><span className="text-gray-400">Timeline:</span> <span className="font-semibold text-gray-800">{createForm.timelineExpected ? `${createForm.timelineExpected} days` : '—'}</span></div>
+                            <div className="md:col-span-2"><span className="text-gray-400">Description:</span> <span className="font-semibold text-gray-800">{createForm.description || '—'}</span></div>
+                          </div>
+                          <div className="mt-4">
+                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference image</p>
+                            <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                              {String(createForm.referenceImage || '').trim() ? (
+                                <SafeImage
+                                  src={String(createForm.referenceImage || '').trim()}
+                                  alt="Reference"
+                                  className="w-full h-48 md:h-60 object-contain bg-white"
+                                />
+                              ) : (
+                                <div className="min-h-[160px] flex items-center justify-center text-[12px] text-gray-500">
+                                  No reference image uploaded.
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery specifications</p>
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
+                            <div><span className="text-gray-400">Jewellery type:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.jewelleryType || '—'}</span></div>
+                            <div><span className="text-gray-400">Size:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.sizeMode === 'custom' ? `${createForm?.specs?.sizeCustomValue || '—'} ${createForm?.specs?.sizeCustomUnit || ''}`.trim() : (createForm?.specs?.sizeStandard || '—')}</span></div>
+                            <div><span className="text-gray-400">Metal:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalType || '—'}</span></div>
+                            <div><span className="text-gray-400">Finish:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalFinish || '—'}</span></div>
+                            {String(createForm?.specs?.metalPurity || '').trim() ? (
+                              <div><span className="text-gray-400">Metal purity:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalPurity}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.metalColour || '').trim() ? (
+                              <div><span className="text-gray-400">Metal colour:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalColour}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.twoToneDetails || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-gray-400">Two-tone details:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.twoToneDetails}</span></div>
+                            ) : null}
+                            <div><span className="text-gray-400">Stones included:</span> <span className="font-semibold text-gray-800">{String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No'}</span></div>
+                            {String(createForm?.specs?.stoneType || '').trim() ? (
+                              <div><span className="text-gray-400">Stone type:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.stoneType}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.stoneQualityBracket || '').trim() ? (
+                              <div><span className="text-gray-400">Stone quality bracket:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.stoneQualityBracket}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.engravingDetails || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-gray-400">Stamping / engraving:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.engravingDetails}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.changesComparedToReference || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-gray-400">Changes vs reference:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.changesComparedToReference}</span></div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Order details</p>
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
+                            <div><span className="text-gray-400">Budget per piece:</span> <span className="font-semibold text-gray-800">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
+                            <div><span className="text-gray-400">Quantity:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.quantityRequired || '—'}</span></div>
+                            <div className="md:col-span-2"><span className="text-gray-400">Preferred delivery:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.preferredDeliveryTimeline || '—'}</span></div>
+                            {String(createForm?.specs?.additionalNotes || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-gray-400">Additional notes:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.additionalNotes}</span></div>
+                            ) : null}
+                            <div className="md:col-span-2">
+                              <span className="text-gray-400">Confirmation:</span>{' '}
+                              <span className="font-semibold text-gray-800">{createForm?.specs?.confirmSpecs ? 'Confirmed' : 'Not confirmed'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra fields</p>
+                          {Array.isArray(createForm?.metaFields) && createForm.metaFields.some((x) => String(x?.label || '').trim() || String(x?.value || '').trim()) ? (
+                            <div className="mt-3 space-y-2">
+                              {createForm.metaFields
+                                .filter((x) => String(x?.label || '').trim() || String(x?.value || '').trim())
+                                .map((x, idx) => (
+                                  <div key={`review-mf-${idx}`} className="flex items-start justify-between gap-3 text-[13px]">
+                                    <div className="text-gray-700 font-semibold">{String(x?.label || '').trim() || 'Label'}</div>
+                                    <div className="text-gray-600 text-right">{String(x?.value || '').trim() || '—'}</div>
+                                  </div>
+                                ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-[12px] text-gray-400">No extra fields added.</div>
+                          )}
+                        </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
+                          {coerceUrlArray(createForm?.attachments).length ? (
+                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                              {coerceUrlArray(createForm.attachments).map((url, idx) => (
+                                <div
+                                  key={`review-att-${url}-${idx}`}
+                                  role={isPdfUrl(url) ? 'button' : undefined}
+                                  tabIndex={isPdfUrl(url) ? 0 : undefined}
+                                  onClick={() => {
+                                    if (!isPdfUrl(url)) return;
+                                    try {
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }}
+                                  onKeyDown={(e) => {
+                                    if (!isPdfUrl(url)) return;
+                                    if (e.key !== 'Enter') return;
+                                    try {
+                                      window.open(url, '_blank', 'noopener,noreferrer');
+                                    } catch {
+                                      // ignore
+                                    }
+                                  }}
+                                  className={`rounded-xl overflow-hidden border border-gray-100 bg-gray-50 ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
+                                >
+                                  {isPdfUrl(url) ? (
+                                    <div className="w-full h-24 bg-white flex items-center justify-center text-red-400">
+                                      <div className="text-center">
+                                        <div className="text-[10px] font-extrabold">PDF</div>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="mt-2 text-[12px] text-gray-400">No attachments uploaded.</div>
+                          )}
+                        </div>
+
+                        
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                    <button
+                      type="button"
+                      onClick={() => setCreateStep((s) => Math.max(1, Number(s || 1) - 1))}
+                      disabled={createLoading || attachmentUploading || referenceUploading || createStep === 1}
+                      className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Back
+                    </button>
+
+                    {createStep < 4 ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const err = validateStep(createStep);
+                          if (err) {
+                            addToast(err, 'error');
+                            return;
+                          }
+                          setCreateStep((s) => Math.min(4, Number(s || 1) + 1));
+                        }}
+                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {createStep === 3 ? 'Review' : 'Next'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const err1 = validateStep(1);
+                          const err2 = err1 ? null : validateStep(2);
+                          const err3 = err1 || err2 ? null : validateStep(3);
+                          const err = err1 || err2 || err3;
+                          if (err) {
+                            addToast(err, 'error');
+                            setCreateStep(err1 ? 1 : err2 ? 2 : 3);
+                            return;
+                          }
+                          saveProject();
+                        }}
+                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {createLoading ? 'Saving…' : editingId ? 'Update Project' : 'Create Project'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1770,6 +2832,51 @@ export default function Projects() {
           </div>
         </div>
       </div>
+
+      {/* How to measure modal */}
+      {howToMeasureOpen ? (
+        <div
+          className="fixed inset-0 z-[130] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setHowToMeasureOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[14px] font-extrabold text-gray-900">How to Measure</p>
+                {createForm?.specs?.jewelleryType ? (
+                  <p className="mt-1 text-[12px] text-gray-400 truncate">{String(createForm.specs.jewelleryType)}</p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setHowToMeasureOpen(false)}
+                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="px-5 py-5">
+              <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-line">{howToMeasureText}</p>
+            </div>
+            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <button
+                type="button"
+                onClick={() => setHowToMeasureOpen(false)}
+                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90"
+              >
+                Got it
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* Start auction modal */}
       {startBidOpen ? (

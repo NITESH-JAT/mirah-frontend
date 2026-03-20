@@ -77,6 +77,11 @@ export const projectService = {
     return { urls: Array.isArray(urls) ? urls : urls ? [urls] : [] };
   },
 
+  reviewFeasibility: async (payload, { signal } = {}) => {
+    const res = await api.post('/api/user/projects/review', payload, { signal });
+    return unwrap(res);
+  },
+
   cancel: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.post(`/api/user/projects/${projectId}/cancel`, {}, { signal });
