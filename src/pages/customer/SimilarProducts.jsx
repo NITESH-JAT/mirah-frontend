@@ -36,6 +36,26 @@ export default function SimilarProducts() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const DESKTOP_GRID_KEY = 'mirah_shop_desktop_grid_cols';
+  const [desktopGridCols, setDesktopGridCols] = useState(() => {
+    try {
+      const raw = localStorage.getItem(DESKTOP_GRID_KEY);
+      const n = Number(raw);
+      return n === 2 || n === 4 || n === 6 ? n : 4;
+    } catch {
+      return 4;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(DESKTOP_GRID_KEY, String(desktopGridCols));
+    } catch {
+      // ignore
+    }
+  }, [desktopGridCols]);
+  const desktopGridColsClass =
+    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 6 ? 'md:grid-cols-6' : 'md:grid-cols-4';
+
   const [category, setCategory] = useState(() => location?.state?.category || '');
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
@@ -229,22 +249,44 @@ export default function SimilarProducts() {
 
   return (
     <div className="w-full pb-[160px] lg:pb-[96px] animate-fade-in">
-      <div className="flex items-center gap-3 mb-4">
-        <button
-          type="button"
-          onClick={() => navigate(`/customer/shopping/${id}`)}
-          className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
-          aria-label="Back to product"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </button>
-        <div className="min-w-0">
-          <p className="text-[15px] font-bold text-gray-900">Similar products</p>
-          {category ? (
-            <p className="text-[12px] text-gray-400 mt-0.5 truncate">Category: {category}</p>
-          ) : null}
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => navigate(`/customer/shopping/${id}`)}
+            className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+            aria-label="Back to product"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <div className="min-w-0">
+            <p className="text-[15px] font-bold text-gray-900">Similar products</p>
+            {category ? (
+              <p className="text-[12px] text-gray-400 mt-0.5 truncate">Category: {category}</p>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="hidden md:flex items-center gap-2">
+          <p className="text-[12px] font-semibold text-gray-500">Grids</p>
+          <div className="inline-flex items-center bg-white border border-gray-100 rounded-xl p-1">
+            {[2, 4, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setDesktopGridCols(n)}
+                className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${
+                  desktopGridCols === n ? 'bg-primary-dark text-white' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+                aria-label={`${n} products per row`}
+                title={`${n} per row`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -282,7 +324,7 @@ export default function SimilarProducts() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 sm:grid-cols-3 ${desktopGridColsClass} gap-4`}>
             {featuredFirstItems.map((p) => (
               <ProductCard key={String(pickId(p) ?? Math.random())} p={p} />
             ))}

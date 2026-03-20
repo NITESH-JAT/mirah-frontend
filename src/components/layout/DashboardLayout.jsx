@@ -751,6 +751,7 @@ export default function DashboardLayout() {
               isShoppingPage ||
               isProjectsPage ||
               isOrdersPage ||
+              isCheckoutPage ||
               isProfilePage ||
               isFaqPage ||
               isVendorProfileViewPage

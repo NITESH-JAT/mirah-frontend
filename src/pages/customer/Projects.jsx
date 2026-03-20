@@ -435,6 +435,7 @@ export default function Projects() {
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
   const createModalOpen = activeTab === 'create';
   const mainTab = createModalOpen ? 'list' : activeTab;
+  const [consultBannerDismissed, setConsultBannerDismissed] = useState(false);
 
   const urlTab = useMemo(() => {
     try {
@@ -453,6 +454,7 @@ export default function Projects() {
 
   useEffect(() => {
     if (!createModalOpen) return;
+    setConsultBannerDismissed(false);
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
     return () => {
@@ -1872,6 +1874,32 @@ export default function Projects() {
                   </div>
 
                   <div className="px-5 py-3 border-b border-gray-50 bg-white">
+                    {!consultBannerDismissed ? (
+                      <div className="mb-2 rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
+                        <p className="text-[11px] font-semibold text-gray-700">
+                          Need help bringing your idea together?
+                        </p>
+                        <div className="shrink-0 flex items-center gap-2">
+                          <a
+                            href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
+                            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-primary-dark text-white text-[11px] font-bold hover:opacity-90 transition-opacity"
+                          >
+                            Book a Consultation
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setConsultBannerDismissed(true)}
+                            className="w-7 h-7 rounded-lg border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center cursor-pointer"
+                            aria-label="Dismiss"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="sm:hidden mb-2 text-[13px] font-extrabold text-gray-900">
                       {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>

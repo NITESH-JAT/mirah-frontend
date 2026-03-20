@@ -36,6 +36,26 @@ export default function Shopping() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
 
+  const DESKTOP_GRID_KEY = 'mirah_shop_desktop_grid_cols';
+  const [desktopGridCols, setDesktopGridCols] = useState(() => {
+    try {
+      const raw = localStorage.getItem(DESKTOP_GRID_KEY);
+      const n = Number(raw);
+      return n === 2 || n === 4 || n === 6 ? n : 4;
+    } catch {
+      return 4;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem(DESKTOP_GRID_KEY, String(desktopGridCols));
+    } catch {
+      // ignore
+    }
+  }, [desktopGridCols]);
+  const desktopGridColsClass =
+    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 6 ? 'md:grid-cols-6' : 'md:grid-cols-4';
+
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -294,6 +314,25 @@ export default function Shopping() {
           </div>
 
           <div className="flex items-center gap-2 w-full justify-end md:w-auto">
+            <div className="hidden md:flex items-center gap-2 mr-1">
+              <p className="text-[12px] font-semibold text-gray-500">Grids</p>
+              <div className="inline-flex items-center bg-white border border-gray-100 rounded-xl p-1">
+                {[2, 4, 6].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setDesktopGridCols(n)}
+                    className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${
+                      desktopGridCols === n ? 'bg-primary-dark text-white' : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                    aria-label={`${n} products per row`}
+                    title={`${n} per row`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="relative hidden md:block">
               <button
                 type="button"
@@ -508,7 +547,7 @@ export default function Shopping() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+          <div className={`grid grid-cols-2 sm:grid-cols-3 ${desktopGridColsClass} gap-4`}>
             {featuredFirstItems.map((p) => (
               <ProductCard key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())} p={p} />
             ))}
