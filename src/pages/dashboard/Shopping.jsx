@@ -405,7 +405,7 @@ export default function Shopping() {
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Category</label>
+                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Category</label>
                   <select
                     value={draftCategory}
                     onChange={(e) => setDraftCategory(e.target.value)}
@@ -425,7 +425,7 @@ export default function Shopping() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Brand</label>
+                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Brand</label>
                   <select
                     value={draftBrand}
                     onChange={(e) => setDraftBrand(e.target.value)}
@@ -445,7 +445,7 @@ export default function Shopping() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Min price</label>
+                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Min price</label>
                   <input
                     type="number"
                     value={draftMinPrice}
@@ -455,7 +455,7 @@ export default function Shopping() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">Max price</label>
+                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Max price</label>
                   <input
                     type="number"
                     value={draftMaxPrice}
@@ -466,7 +466,7 @@ export default function Shopping() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-[12px] text-gray-600 cursor-pointer select-none">
+              <label className="flex items-center gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={draftFeatured}

@@ -245,14 +245,14 @@ export default function Cart() {
 
         {!loading && items.length > 0 ? (
           <div className="flex items-center justify-between gap-3 mt-4">
-              <label className="flex items-center gap-2 text-[12px] text-gray-600 select-none cursor-pointer">
+              <label className="flex items-center gap-2 text-[12px] text-primary-dark select-none cursor-pointer">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
                   className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
                 />
-                <span className="font-semibold">Select all</span>
+                <span className="font-medium">Select all</span>
               </label>
 
             <button

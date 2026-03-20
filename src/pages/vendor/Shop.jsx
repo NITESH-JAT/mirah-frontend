@@ -1814,7 +1814,7 @@ export default function VendorShop() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Name *</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Name *</label>
                         <input
                           value={createForm.name}
                           onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
@@ -1825,7 +1825,7 @@ export default function VendorShop() {
                       <div className="space-y-1.5">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Price *</label>
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Price *</label>
                             <input
                               type="number"
                               value={createForm.price}
@@ -1835,7 +1835,7 @@ export default function VendorShop() {
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Compare at price</label>
+                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Compare at price</label>
                             <input
                               type="number"
                               value={createForm.compareAtPrice}
@@ -1847,7 +1847,7 @@ export default function VendorShop() {
                         </div>
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Description</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description</label>
                         <textarea
                           rows={3}
                           value={createForm.description}
@@ -1857,7 +1857,7 @@ export default function VendorShop() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">SKU</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">SKU</label>
                         <input
                           value={createForm.sku}
                           onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
@@ -1866,7 +1866,7 @@ export default function VendorShop() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Stock</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stock</label>
                         <div className="grid grid-cols-2 gap-3">
                           <input
                             type="number"
@@ -1885,7 +1885,7 @@ export default function VendorShop() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Category</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Category</label>
                         <input
                           value={createForm.category}
                           onChange={(e) => setCreateForm((p) => ({ ...p, category: e.target.value }))}
@@ -1894,7 +1894,7 @@ export default function VendorShop() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Brand</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Brand</label>
                         <input
                           value={createForm.brand}
                           onChange={(e) => setCreateForm((p) => ({ ...p, brand: e.target.value }))}
@@ -1904,7 +1904,7 @@ export default function VendorShop() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Weight</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Weight</label>
                         <input
                           type="number"
                           value={createForm.weight}
@@ -1914,7 +1914,7 @@ export default function VendorShop() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Weight unit</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Weight unit</label>
                         <input
                           value={createForm.weightUnit}
                           onChange={(e) => setCreateForm((p) => ({ ...p, weightUnit: e.target.value }))}
@@ -1950,7 +1950,7 @@ export default function VendorShop() {
                             <div key={`ef-${idx}`} className="rounded-xl border border-gray-100 p-3">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Label</label>
+                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
                                   <input
                                     value={ef?.label ?? ''}
                                     onChange={(e) => {
@@ -1969,7 +1969,7 @@ export default function VendorShop() {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                  <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Value</label>
+                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
                                   <input
                                     value={ef?.value ?? ''}
                                     onChange={(e) => {

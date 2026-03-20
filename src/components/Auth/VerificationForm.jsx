@@ -33,8 +33,8 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         )}
       </div>
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
-          {isError ? 'Action Failed' : 'Success'}
+        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+          {isError ? 'Error' : 'Success'}
         </h4>
         <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
       </div>

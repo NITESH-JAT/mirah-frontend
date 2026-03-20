@@ -842,7 +842,7 @@ export default function Orders() {
                                   />
                                 </div>
 
-                                <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700 select-none">
+                                <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
                                   <input
                                     type="checkbox"
                                     checked={Boolean(draft?.isAnonymous)}

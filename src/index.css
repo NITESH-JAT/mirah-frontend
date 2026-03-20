@@ -1,7 +1,23 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('./assets/fonts/Cormorant_Garamond/CormorantGaramond-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cormorant Garamond';
+  src: url('./assets/fonts/Cormorant_Garamond/CormorantGaramond-Italic-VariableFont_wght.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: italic;
+  font-display: swap;
+}
+
 @theme {
-  --font-serif: 'Playfair Display', serif;
+  --font-serif: 'Cormorant Garamond', serif;
   --font-sans: 'Inter', sans-serif;
   --color-primary-dark: #0F3456;
 }
@@ -13,6 +29,19 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden; 
+}
+
+/* Brand-consistent form styling across the app */
+input::placeholder,
+textarea::placeholder {
+  font-weight: 400 !important;
+}
+
+input:focus:not(:disabled),
+textarea:focus:not(:disabled),
+select:focus:not(:disabled) {
+  outline: none !important;
+  box-shadow: 0 0 0 2px rgba(15, 52, 86, 0.25) !important;
 }
 
 .auth-heading {

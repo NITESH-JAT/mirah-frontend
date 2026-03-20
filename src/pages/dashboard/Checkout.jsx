@@ -766,7 +766,7 @@ export default function Checkout() {
                           )}
                         </div>
                         {x.type === 'shipping' ? (
-                          <label className="inline-flex items-center gap-2 text-[12px] font-bold text-gray-700 select-none">
+                          <label className="inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
                             <input
                               type="checkbox"
                               checked={shippingSameAsBilling}
@@ -785,7 +785,7 @@ export default function Checkout() {
                       ) : (
                         <div className="mt-3 space-y-3">
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                             Full name *
                           </label>
                           <input
@@ -800,7 +800,7 @@ export default function Checkout() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                               Phone *
                             </label>
                             <input
@@ -821,7 +821,7 @@ export default function Checkout() {
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                               Pin code *
                             </label>
                             <input
@@ -837,7 +837,7 @@ export default function Checkout() {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                             Address *
                           </label>
                           <input
@@ -851,7 +851,7 @@ export default function Checkout() {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                             Address line 2
                           </label>
                           <input
@@ -864,7 +864,7 @@ export default function Checkout() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                               City *
                             </label>
                             <input
@@ -877,7 +877,7 @@ export default function Checkout() {
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                               State *
                             </label>
                             <input
@@ -892,7 +892,7 @@ export default function Checkout() {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                             Country *
                           </label>
                           <input

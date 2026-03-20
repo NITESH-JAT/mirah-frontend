@@ -401,7 +401,7 @@ export default function Kyc() {
                   const isUploading = Boolean(uploadingByField[`${activeSection.key}:${fieldKey}`]);
                   return (
                     <div key={fieldKey} className="space-y-1.5 md:col-span-2">
-                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                         {label}{required ? <span className="text-red-500">*</span> : null}
                       </label>
                       <div
@@ -449,7 +449,7 @@ export default function Kyc() {
                   const options = field.options || field.values || [];
                   return (
                     <div key={fieldKey} className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                         {label}{required ? <span className="text-red-500">*</span> : null}
                       </label>
                       <select
@@ -481,7 +481,7 @@ export default function Kyc() {
 
                 return (
                   <div key={fieldKey} className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
                       {label}{required ? <span className="text-red-500">*</span> : null}
                     </label>
                     <input

@@ -1330,55 +1330,55 @@ export default function Projects() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Title *</label>
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Title *</label>
                     <input
                       value={createForm.title}
                       onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="Enter project title"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Min amount (₹) *</label>
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Min amount (₹) *</label>
                     <input
                       type="number"
                       value={createForm.minAmount}
                       onChange={(e) => setCreateForm((p) => ({ ...p, minAmount: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="10000"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Max amount (₹) *</label>
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Max amount (₹) *</label>
                     <input
                       type="number"
                       value={createForm.maxAmount}
                       onChange={(e) => setCreateForm((p) => ({ ...p, maxAmount: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="20000"
                     />
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Timeline (days) *</label>
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Timeline (days) *</label>
                     <input
                       type="number"
                       value={createForm.timelineExpected}
                       onChange={(e) => setCreateForm((p) => ({ ...p, timelineExpected: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="7"
                     />
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Description *</label>
+                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description *</label>
                     <textarea
                       rows={3}
                       value={createForm.description}
                       onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                      className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                       placeholder="Enter project description"
                     />
                   </div>
@@ -1387,7 +1387,7 @@ export default function Projects() {
                 <div className="mt-6 rounded-2xl border border-gray-100 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                    <p className="text-[13px] font-bold text-gray-800">Extra Fields</p>
+                    <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra Fields</p>
                       <p className="text-[12px] text-gray-400">Add custom label/value pairs for this project.</p>
                     </div>
                     <button
@@ -1398,7 +1398,7 @@ export default function Projects() {
                           metaFields: [...(p.metaFields || []), { key: '', label: '', value: '' }],
                         }))
                       }
-                      className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                      className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
                     >
                       Add field
                     </button>
@@ -1410,7 +1410,7 @@ export default function Projects() {
                         <div key={`mf-${idx}`} className="rounded-xl border border-gray-100 p-3">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Label</label>
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
                               <input
                                 value={ef?.label ?? ''}
                                 onChange={(e) => {
@@ -1421,13 +1421,13 @@ export default function Projects() {
                                     metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), label, key } : x)),
                                   }));
                                 }}
-                                className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                                 placeholder="e.g. Material"
                               />
                             </div>
 
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Value</label>
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
                               <input
                                 value={ef?.value ?? ''}
                                 onChange={(e) => {
@@ -1437,7 +1437,7 @@ export default function Projects() {
                                     metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), value } : x)),
                                   }));
                                 }}
-                                className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                                 placeholder="e.g. Gold"
                               />
                             </div>
@@ -1452,7 +1452,7 @@ export default function Projects() {
                                   metaFields: (p.metaFields || []).filter((_, i) => i !== idx),
                                 }))
                               }
-                              className="text-[12px] font-bold text-red-600 hover:underline cursor-pointer"
+                              className="text-[12px] font-semibold text-red-600 hover:underline cursor-pointer"
                             >
                               Remove
                             </button>
@@ -1468,14 +1468,14 @@ export default function Projects() {
                 <div className="mt-6 rounded-2xl border border-gray-100 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[13px] font-bold text-gray-800">Attachments</p>
+                      <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
                       <p className="text-[12px] text-gray-400">Upload project attachments (images/PDF).</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
                       disabled={attachmentUploading}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {attachmentUploading ? 'Uploading…' : 'Upload files'}
                     </button>
@@ -1626,13 +1626,13 @@ export default function Projects() {
             </div>
 
             <div className="px-5 py-5">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Finishing date & time *</label>
+              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Finishing date & time *</label>
               <input
                 type="datetime-local"
                 value={startBidEndsAt}
                 onChange={(e) => setStartBidEndsAt(e.target.value)}
                 min={startBidMin || undefined}
-                className="mt-2 w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
               />
               <p className="mt-2 text-[12px] text-gray-400">
                 Choose when bidding should end (must be a future time).
@@ -1820,7 +1820,7 @@ export default function Projects() {
                 />
               </div>
 
-              <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700 select-none">
+              <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
                 <input
                   type="checkbox"
                   checked={Boolean(vendorReviewDraft?.isAnonymous)}

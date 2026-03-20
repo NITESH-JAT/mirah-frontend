@@ -45,8 +45,8 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         )}
       </div>
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
-          {isError ? 'Action Failed' : 'Success'}
+        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+          {isError ? 'Error' : 'Success'}
         </h4>
         <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
       </div>
@@ -83,7 +83,7 @@ const MainLayout = ({ children }) => (
 const InputField = ({ label, className, type="text", readOnly, required, error, ...props }) => (
   <div className={`w-full ${className}`}>
     {label && (
-      <label className="block text-gray-700 text-sm font-medium mb-1">
+      <label className="block text-primary-dark text-sm font-medium mb-1">
         {label} {required && <span className="text-red-500 text-sm ml-1">*</span>}
       </label>
     )}
