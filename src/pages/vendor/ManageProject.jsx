@@ -1010,6 +1010,7 @@ export default function VendorManageProject() {
                           }
                           if (k === 'paid_advance') return advancePaidAt ?? null;
                           if (k === 'paid_final') return finalPaidAt ?? null;
+                          if (k === 'payment_settlement') return paymentDetails?.settlementMarkedAt ?? null;
                           const arr = statusTimelineMulti.get(k) ?? [];
                           return arr.length ? arr[arr.length - 1] : null;
                         })();

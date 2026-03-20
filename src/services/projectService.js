@@ -287,6 +287,12 @@ export const projectService = {
           data.vendor_settlement ??
           false,
       ),
+      settlementMarkedAt:
+        data.settlementMarkedAt ??
+        data.settlement_marked_at ??
+        data.settlementMarked ??
+        data.settlement_marked ??
+        null,
       raw: data,
     };
   },
