@@ -530,6 +530,8 @@ export default function Projects() {
   });
 
   const [createStep, setCreateStep] = useState(1); // 1..4
+  const [mobileRefCollapsed, setMobileRefCollapsed] = useState(false);
+  const prevRefImageRef = useRef('');
   const stepLabels = useMemo(
     () => [
       { id: 1, label: 'Project' },
@@ -539,6 +541,21 @@ export default function Projects() {
     ],
     [],
   );
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    setMobileRefCollapsed(createStep >= 2);
+  }, [createModalOpen, createStep]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    const next = String(createForm?.referenceImage || '').trim();
+    const prev = String(prevRefImageRef.current || '').trim();
+    if (prev !== next && createStep >= 2) {
+      setMobileRefCollapsed(false);
+    }
+    prevRefImageRef.current = next;
+  }, [createModalOpen, createStep, createForm?.referenceImage]);
 
   const validateStep = useCallback(
     (step) => {
@@ -1928,12 +1945,162 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5">
-                    {createStep === 1 ? (
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Mobile order: reference -> fields -> description. Desktop: reference left, fields right, description full-width below */}
-                          <div className="order-2 md:order-2">
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <div className="h-full grid grid-cols-1 md:grid-cols-[420px_1fr]">
+                      {/* Left: reference image (desktop, always visible) */}
+                      <div className="hidden md:block h-full overflow-y-auto border-r border-gray-100 bg-white px-5 py-5">
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
+                              <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => referenceImageInputRef.current?.click()}
+                              disabled={referenceUploading}
+                              className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
+                            </button>
+                          </div>
+
+                          <div className="mt-4">
+                            {String(createForm.referenceImage || '').trim() ? (
+                              <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                                <SafeImage
+                                  src={String(createForm.referenceImage || '').trim()}
+                                  alt="Reference"
+                                  className="w-full h-48 md:h-[360px] object-contain bg-white"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                                  disabled={referenceUploading}
+                                  className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  aria-label="Remove reference image"
+                                  title="Remove"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M18 6 6 18" />
+                                    <path d="m6 6 12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[320px] flex flex-col items-center justify-center">
+                                <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                                    <circle cx="8.5" cy="8.5" r="1.5" />
+                                    <path d="M21 15l-5-5L5 21" />
+                                  </svg>
+                                </div>
+                                <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: step content (scrollable) */}
+                      <div className="h-full overflow-y-auto px-5 py-5">
+                        <input
+                          ref={referenceImageInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = (e.target.files || [])[0] || null;
+                            if (f) handleUploadReferenceImage(f);
+                          }}
+                        />
+
+                        {/* Mobile: reference image block at top (always visible) */}
+                        <div className="md:hidden mb-6">
+                          <div className="rounded-2xl border border-gray-100 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
+                                <p className="text-[12px] text-gray-400">
+                                  {String(createForm.referenceImage || '').trim() ? 'Reference image uploaded.' : 'No reference image uploaded.'}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => referenceImageInputRef.current?.click()}
+                                  disabled={referenceUploading}
+                                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                >
+                                  {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change' : 'Upload'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setMobileRefCollapsed((v) => !v)}
+                                  className="w-10 h-10 rounded-xl border border-gray-100 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                                  aria-label={mobileRefCollapsed ? 'Expand reference image' : 'Collapse reference image'}
+                                  title={mobileRefCollapsed ? 'Expand' : 'Collapse'}
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="18"
+                                    height="18"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    className={`transition-transform ${mobileRefCollapsed ? '' : 'rotate-180'}`}
+                                  >
+                                    <path d="m6 9 6 6 6-6" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+
+                            {!mobileRefCollapsed ? (
+                              <div className="mt-4">
+                                {String(createForm.referenceImage || '').trim() ? (
+                                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                                    <SafeImage
+                                      src={String(createForm.referenceImage || '').trim()}
+                                      alt="Reference"
+                                      className="w-full h-48 object-contain bg-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                                      disabled={referenceUploading}
+                                      className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      aria-label="Remove reference image"
+                                      title="Remove"
+                                    >
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M18 6 6 18" />
+                                        <path d="m6 6 12 12" />
+                                      </svg>
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[220px] flex flex-col items-center justify-center">
+                                    <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" />
+                                        <circle cx="8.5" cy="8.5" r="1.5" />
+                                        <path d="M21 15l-5-5L5 21" />
+                                      </svg>
+                                    </div>
+                                    <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {createStep === 1 ? (
+                          <div className="space-y-6">
                             <div className="grid grid-cols-1 gap-4">
                               <div className="space-y-1.5">
                                 <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Title *</label>
@@ -1980,88 +2147,21 @@ export default function Projects() {
                                 />
                               </div>
                             </div>
-                          </div>
 
-                          <div className="order-1 md:order-1">
-                            <div className="rounded-2xl border border-gray-100 p-4">
-                              <div className="flex items-center justify-between gap-3 flex-wrap">
-                                <div>
-                                  <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
-                                  <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => referenceImageInputRef.current?.click()}
-                                  disabled={referenceUploading}
-                                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                >
-                                  {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
-                                </button>
-                                <input
-                                  ref={referenceImageInputRef}
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const f = (e.target.files || [])[0] || null;
-                                    if (f) handleUploadReferenceImage(f);
-                                  }}
-                                />
-                              </div>
-
-                              <div className="mt-4">
-                                {String(createForm.referenceImage || '').trim() ? (
-                                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
-                                    <SafeImage
-                                      src={String(createForm.referenceImage || '').trim()}
-                                      alt="Reference"
-                                      className="w-full h-48 md:h-[320px] object-contain bg-white"
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
-                                      disabled={referenceUploading}
-                                      className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                      aria-label="Remove reference image"
-                                      title="Remove"
-                                    >
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M18 6 6 18" />
-                                        <path d="m6 6 12 12" />
-                                      </svg>
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[220px] md:min-h-[320px] flex flex-col items-center justify-center">
-                                    <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                                        <circle cx="8.5" cy="8.5" r="1.5" />
-                                        <path d="M21 15l-5-5L5 21" />
-                                      </svg>
-                                    </div>
-                                    <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
-                                  </div>
-                                )}
-                              </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description *</label>
+                              <textarea
+                                rows={3}
+                                value={createForm.description}
+                                onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                placeholder="Enter project description"
+                              />
                             </div>
                           </div>
+                        ) : null}
 
-                          <div className="order-3 md:order-3 md:col-span-2 space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description *</label>
-                            <textarea
-                              rows={3}
-                              value={createForm.description}
-                              onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                              placeholder="Enter project description"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
-
-                    {createStep === 2 ? (
+                        {createStep === 2 ? (
                       <div className="rounded-2xl border border-gray-100 p-4">
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                           <div className="min-w-0">
@@ -2361,7 +2461,7 @@ export default function Projects() {
                           </div>
                         </div>
                       </div>
-                    ) : null}
+                        ) : null}
 
                     {createStep === 3 ? (
                       <div className="space-y-6">
@@ -2670,22 +2770,6 @@ export default function Projects() {
                             <div><span className="text-gray-400">Timeline:</span> <span className="font-semibold text-gray-800">{createForm.timelineExpected ? `${createForm.timelineExpected} days` : '—'}</span></div>
                             <div className="md:col-span-2"><span className="text-gray-400">Description:</span> <span className="font-semibold text-gray-800">{createForm.description || '—'}</span></div>
                           </div>
-                          <div className="mt-4">
-                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference image</p>
-                            <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
-                              {String(createForm.referenceImage || '').trim() ? (
-                                <SafeImage
-                                  src={String(createForm.referenceImage || '').trim()}
-                                  alt="Reference"
-                                  className="w-full h-48 md:h-60 object-contain bg-white"
-                                />
-                              ) : (
-                                <div className="min-h-[160px] flex items-center justify-center text-[12px] text-gray-500">
-                                  No reference image uploaded.
-                                </div>
-                              )}
-                            </div>
-                          </div>
                         </div>
 
                         <div className="rounded-2xl border border-gray-100 p-4">
@@ -2803,6 +2887,8 @@ export default function Projects() {
                       </div>
                     ) : null}
                   </div>
+                </div>
+              </div>
 
                   <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                     <button
