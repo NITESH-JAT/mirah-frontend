@@ -950,14 +950,14 @@ export default function ProjectDetails() {
                   </p>
                   {vendorFullName ? (
                     <p className="text-[12px] text-gray-500">
-                      Vendor:{' '}
+                      Jeweller:{' '}
                       <span className="font-extrabold text-gray-900">
                         {vendorLoading ? 'Loading…' : vendorFullName}
                       </span>
                     </p>
                   ) : vendorId ? (
                     <p className="text-[12px] text-gray-500">
-                      Vendor:{' '}
+                      Jeweller:{' '}
                       <span className="font-extrabold text-gray-900">
                         {vendorLoading ? 'Loading…' : `#${vendorId}`}
                       </span>
@@ -976,7 +976,7 @@ export default function ProjectDetails() {
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                      View Vendor Profile
+                      View Jeweller Profile
                     </button>
                     <button
                       type="button"
@@ -986,7 +986,7 @@ export default function ProjectDetails() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Message Vendor
+                      Message Jeweller
                     </button>
                   </div>
                 ) : null}

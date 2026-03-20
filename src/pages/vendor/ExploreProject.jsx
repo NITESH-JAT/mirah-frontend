@@ -558,7 +558,7 @@ export default function VendorExploreProject() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-[13px] font-extrabold text-gray-900 truncate">
-                              {isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Vendor #${vendorId ?? '—'}`}
+                              {isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`}
                             </p>
                             <p className="mt-1 text-[12px] text-gray-500">
                               Amount:{' '}

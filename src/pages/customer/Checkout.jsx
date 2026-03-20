@@ -111,7 +111,7 @@ export default function Checkout() {
     }
     const list = Array.from(providers);
     const ok = list.length <= 1;
-    const providerLabel = list[0] === 'admin' ? null : vendorName ? `Vendor: ${vendorName}` : 'Vendor items';
+    const providerLabel = list[0] === 'admin' ? null : vendorName ? `Jeweller: ${vendorName}` : 'Jeweller items';
     return { ok, providerLabel, providers: list };
   }, [selectedItems]);
 
@@ -683,7 +683,7 @@ export default function Checkout() {
 
           {!providerCheck.ok ? (
             <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 p-4 text-[12px] text-red-700 font-semibold">
-              Selected items must be from a same seller (all Mirah products OR same vendor). Please adjust your selection in cart.
+              Selected items must be from a same seller (all Mirah products OR same jeweller). Please adjust your selection in cart.
             </div>
           ) : null}
 

@@ -15,13 +15,13 @@ function formatDate(ts) {
 }
 
 function avatarUrlFor(name) {
-  const safe = name || 'Vendor';
+  const safe = name || 'Jeweller';
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
 function vendorNameOf(v) {
   const joined = `${v?.firstName ?? ''} ${v?.lastName ?? ''}`.trim();
-  return String(v?.fullName ?? v?.vendorName ?? v?.name ?? (joined || 'Vendor'));
+  return String(v?.fullName ?? v?.vendorName ?? v?.name ?? (joined || 'Jeweller'));
 }
 
 function starRow(rating) {
@@ -55,7 +55,7 @@ export default function VendorProfile() {
       setVendor(v || null);
     } catch (e) {
       if (isCanceledRequest(e)) return;
-      addToast(e?.message || 'Failed to load vendor', 'error');
+      addToast(e?.message || 'Failed to load jeweller', 'error');
       setVendor(null);
     } finally {
       setLoading(false);

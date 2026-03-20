@@ -216,7 +216,7 @@ export const authService = {
       const response = await api.get('/api/user/system/vendor-selling-enabled');
       return Boolean(response?.data?.data?.sellingForVendorEnabled);
     } catch (error) {
-      throw error.response?.data || { message: "Failed to fetch vendor selling config" };
+      throw error.response?.data || { message: "Failed to fetch." };
     }
   },
 

@@ -735,16 +735,16 @@ export default function Projects() {
     const pid = localProjectIdOf(p);
     if (!pid) return;
     if (!isProjectCompletedLike(p)) {
-      addToast('Vendor can be reviewed only after project is completed.', 'error');
+      addToast('Jeweller can be reviewed only after project is completed.', 'error');
       return;
     }
     const existing = vendorReviewOf(p);
     const hasReview = Boolean(p?.hasVendorReview) || Boolean(existing);
     const a = primaryAssignmentOf(p);
     const vendorId = assignmentVendorIdOf(a) ?? existing?.vendorId ?? existing?.vendor_id ?? existing?.vendor?.id ?? null;
-    const vendorName = assignmentVendorNameOf(a) || 'Vendor';
+    const vendorName = assignmentVendorNameOf(a) || 'Jeweller';
     if (!vendorId) {
-      addToast('No vendor assignment found for this project.', 'error');
+      addToast('No Jeweller assignment found for this project.', 'error');
       return;
     }
     setVendorReviewFor({ projectId: pid, projectTitle: String(p?.title ?? 'Project'), vendorId, vendorName, hasReview });
@@ -1081,7 +1081,7 @@ export default function Projects() {
                                     onClick={() => openVendorReview(p)}
                                     className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
                                   >
-                                    {hasVendorReview ? 'Update review' : 'Review vendor'}
+                                    {hasVendorReview ? 'Update review' : 'Review Jeweller'}
                                   </button>
                                 ) : null}
 
@@ -1219,7 +1219,7 @@ export default function Projects() {
                           <input
                             value={assignmentsSearch}
                             onChange={(e) => setAssignmentsSearch(e.target.value)}
-                            placeholder='Search by Project Title or Vendor Name'
+                            placeholder='Search by Project Title or Jeweller Name'
                             className="w-full sm:w-[320px] max-w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
                           />
                         </div>
@@ -1255,7 +1255,7 @@ export default function Projects() {
                       a?.vendor_name ??
                       a?.vendor?.fullName ??
                       (vendorJoined || null);
-                    const vendorLabel = vendorName || 'Vendor';
+                    const vendorLabel = vendorName || 'Jeweller';
                     const statusClass =
                       status === 'accepted'
                         ? 'bg-green-50 border-green-100 text-green-700'
@@ -1741,7 +1741,7 @@ export default function Projects() {
         </div>
       ) : null}
 
-      {/* Vendor review modal */}
+      {/* Jeweller review modal */}
       {vendorReviewOpen ? (
         <div
           className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
@@ -1753,14 +1753,14 @@ export default function Projects() {
           >
             <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Review vendor</p>
+                <p className="text-[14px] font-extrabold text-gray-900">Review Jeweller</p>
                 <p className="mt-1 text-[12px] text-gray-500 truncate">
                   {vendorReviewFor?.vendorName ? (
                     <>
                       For <span className="font-semibold text-gray-800">{vendorReviewFor.vendorName}</span>
                     </>
                   ) : (
-                    'For vendor'
+                    'For Jeweller'
                   )}
                 </p>
                 {vendorReviewFor?.projectTitle ? (

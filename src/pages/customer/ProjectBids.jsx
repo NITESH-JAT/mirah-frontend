@@ -21,14 +21,7 @@ function formatCountdown(ms) {
   return `${hh}:${mm}:${ss}`;
 }
 
-function formatDateTime(ts) {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return '—';
-  const datePart = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
-  const timePart = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).format(d);
-  return `${datePart}, ${timePart}`;
-}
+
 
 function toTitleCase(text) {
   return String(text || '')
@@ -68,7 +61,7 @@ function isProjectFinishedLike(p) {
 }
 
 function avatarUrlFor(name) {
-  const safe = name || 'Vendor';
+  const safe = name || 'Jeweller';
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
@@ -400,7 +393,7 @@ export default function ProjectBids() {
   };
 
   const openOverride = (bid) => {
-    const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Vendor';
+    const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Jeweller';
     const amount = Number(bid?.amount ?? bid?.price ?? bid?.bidAmount ?? bid?.bid_price ?? NaN);
     const noOfDays = Number(bid?.noOfDays ?? bid?.daysToComplete ?? bid?.days_to_complete ?? bid?.no_of_days ?? NaN);
     const bidEntryId = bid?.bidEntryId ?? bid?.bid_entry_id ?? bid?.id ?? bid?._id ?? null;
@@ -422,14 +415,14 @@ export default function ProjectBids() {
         addToast('Assignment overridden.', 'success');
       } else {
         await projectService.selectWinner(projectId, payload);
-        addToast('Assignment sent to vendor.', 'success');
+        addToast('Assignment sent to Jeweller.', 'success');
       }
       setOverrideOpen(false);
       setOverrideFor(null);
       await load();
       await loadBids();
     } catch (e) {
-      addToast(e?.message || 'Failed to assign vendor', 'error');
+      addToast(e?.message || 'Failed to assign Jeweller', 'error');
     } finally {
       setActionLoading((p) => ({ ...(p || {}), override: false }));
     }
@@ -713,7 +706,7 @@ export default function ProjectBids() {
                   const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                   const vendor = b?.vendor ?? null;
                   const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
-                  const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Vendor'));
+                  const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
                   const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                   const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
                   const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
@@ -882,7 +875,7 @@ export default function ProjectBids() {
                       const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
                       const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
                       if (assignmentPending && isAssigned) {
-                        addToast('Assignment is pending. Please wait for vendor response before overriding.', 'error');
+                        addToast('Assignment is pending. Please wait for Jeweller response before overriding.', 'error');
                         return;
                       }
                       openOverride(bid);
@@ -938,11 +931,11 @@ export default function ProjectBids() {
                 {activeAssignment ? (
                   <>
                     This will override the current assignment and assign to{' '}
-                    <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'vendor'}</span>.
+                    <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'Jeweller'}</span>.
                   </>
                 ) : (
                   <>
-                    Assign this project to <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'vendor'}</span>?
+                    Assign this project to <span className="font-semibold text-gray-800">{overrideFor?.vendorName || 'Jeweller'}</span>?
                   </>
                 )}
               </p>

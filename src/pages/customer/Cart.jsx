@@ -211,7 +211,7 @@ export default function Cart() {
       return;
     }
     if (!selectedProviderOk) {
-      addToast('Selected items must be from a same seller (all Mirah products OR same vendor)', 'error');
+      addToast('Selected items must be from a same seller (all Mirah products OR same jeweller)', 'error');
       return;
     }
     // Checkout UI will be implemented next; for now route placeholder with selected IDs.

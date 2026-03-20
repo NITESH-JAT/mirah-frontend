@@ -326,7 +326,7 @@ export default function Kyc() {
       <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h2 className="font-sans text-lg font-bold text-gray-800">Vendor KYC</h2>
+            <h2 className="font-sans text-lg font-bold text-gray-800">Jeweller KYC</h2>
             <p className="text-[12px] text-gray-400">
               Status: <span className="font-semibold text-gray-600">{toTitleCase(status)}</span>
             </p>

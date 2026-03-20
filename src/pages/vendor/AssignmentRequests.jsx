@@ -398,7 +398,7 @@ export default function VendorAssignmentRequests() {
                 </p>
                 <p className="mt-1 text-[12px] text-gray-500">
                   {confirmType === 'accept'
-                    ? 'You will be marked as the assigned vendor for this project.'
+                    ? 'You will be marked as the assigned Jeweller for this project.'
                     : 'You will decline this assignment request.'}
                 </p>
               </div>

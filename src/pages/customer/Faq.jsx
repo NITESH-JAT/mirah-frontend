@@ -55,7 +55,7 @@ export default function Faq() {
   };
 
   const headerText = useMemo(() => {
-    return isVendor ? 'Vendor Support & FAQ' : 'Customer Support & FAQ';
+    return isVendor ? 'Jeweller Support & FAQ' : 'Customer Support & FAQ';
   }, [isVendor]);
 
   return (

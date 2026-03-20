@@ -85,7 +85,7 @@ function daysLabel(days) {
 }
 
 function avatarUrlFor(name) {
-  const safe = name || 'Vendor';
+  const safe = name || 'Jeweller';
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
@@ -653,7 +653,7 @@ export default function VendorBidsView() {
                   {filteredBids.map((b, idx) => {
                     const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                     const vendorId = bidVendorIdOf(b);
-                    const vendorName = bidVendorNameOf(b) || 'Vendor';
+                    const vendorName = bidVendorNameOf(b) || 'Jeweller';
                     const amount = bidPriceOf(b);
                     const days = bidDaysOf(b);
                     const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);

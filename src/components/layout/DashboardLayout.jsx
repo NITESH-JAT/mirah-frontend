@@ -986,7 +986,7 @@ export default function DashboardLayout() {
                       return;
                     }
                     if (!cartSelectedProviderOk) {
-                      addToast('Selected items must be from a same seller (all Mirah products OR same vendor)', 'error');
+                      addToast('Selected items must be from a same seller (all Mirah products OR same jeweller)', 'error');
                       return;
                     }
                     const productIds = cartSelectedIds.map((x) => Number(x) || x);
