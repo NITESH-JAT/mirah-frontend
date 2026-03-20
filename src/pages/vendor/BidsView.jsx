@@ -23,6 +23,24 @@ function formatCountdown(ms) {
   return `${hh}:${mm}:${ss}`;
 }
 
+function parseLocalDateInput(value) {
+  const raw = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(y, mo - 1, day, 0, 0, 0, 0);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatDateOnlyFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
 function bidVendorIdOf(b) {
   return b?.vendorId ?? b?.vendor_id ?? b?.vendor?.id ?? b?.vendor?._id ?? null;
 }
@@ -245,19 +263,6 @@ export default function VendorBidsView() {
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
-  const budgetText = useMemo(() => {
-    if (!project) return '—';
-    const range = project?.amountRange ?? project?.amount_range ?? null;
-    const min = Number(range?.min ?? range?.minAmount ?? project?.minAmount ?? NaN);
-    const max = Number(range?.max ?? range?.maxAmount ?? project?.maxAmount ?? NaN);
-    if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
-    return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
-  }, [project]);
-  const durationText = useMemo(() => {
-    const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? project?.noOfDays ?? NaN);
-    if (!Number.isFinite(t) || t <= 0) return '—';
-    return `${t} days`;
-  }, [project]);
 
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const referenceImage = useMemo(
@@ -269,6 +274,23 @@ export default function VendorBidsView() {
     [attachments, referenceImage],
   );
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
+  const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
+  const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
+  const quantityRequiredRaw = String(metaIndex.get('quantityRequired')?.value ?? metaIndex.get('quantity_required')?.value ?? '').trim();
+  const preferredDeliveryRaw = String(
+    metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
+  ).trim();
+  const remainingMetaRows = useMemo(() => {
+    const skip = new Set([
+      'budgetPerPiece',
+      'budget_per_piece',
+      'quantityRequired',
+      'quantity_required',
+      'preferredDeliveryTimeline',
+      'preferred_delivery_timeline',
+    ]);
+    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+  }, [metaRows]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
 
   const load = useCallback(async () => {
@@ -445,7 +467,7 @@ export default function VendorBidsView() {
     <div className="w-full pb-10 animate-fade-in">
       <div className="w-full flex flex-col lg:flex-row gap-4">
         {/* Left: project card */}
-        <div className="w-full lg:w-[360px] shrink-0">
+        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
             <div className="flex items-center justify-between gap-3">
               <button
@@ -455,36 +477,51 @@ export default function VendorBidsView() {
               >
                 Back
               </button>
-              {isActive && finishesMs != null ? (
-                <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
-                  {formatCountdown(timeLeftMs)}
-                </span>
-              ) : bidEnded ? (
-                <span className="px-3 py-1.5 rounded-xl bg-gray-500 text-white text-[12px] font-extrabold">
-                  Bid Ended
-                </span>
-              ) : null}
-            </div>
-            <div className="mt-4 rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="relative h-[220px] bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 overflow-hidden">
-                <SafeImage
-                  src={thumbnailUrl}
-                  alt={project?.title ?? 'Project'}
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
-              </div>
             </div>
 
             <div className="mt-4">
               <p className="text-[16px] font-extrabold text-gray-900 break-words">{project?.title ?? 'Project'}</p>
-              <p className="mt-2 text-[12px] text-gray-500 leading-relaxed whitespace-pre-wrap">{project?.description ?? '—'}</p>
-              <div className="mt-4 space-y-1.5">
-                <p className="text-[12px] text-gray-500">
-                  Budget: <span className="font-extrabold text-gray-900">{budgetText}</span>
-                </p>
-                <p className="text-[12px] text-gray-500">
-                  Duration: <span className="font-extrabold text-gray-900">{durationText}</span>
-                </p>
+            </div>
+
+            {finishesMs != null ? (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <p className="text-[12px] text-gray-500 font-semibold">Biddings Ends in</p>
+                {isActive ? (
+                  <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
+                    {formatCountdown(timeLeftMs)}
+                  </span>
+                ) : (
+                  <span className="px-3 py-1.5 rounded-xl bg-gray-500 text-white text-[12px] font-extrabold">
+                    Bid Ended
+                  </span>
+                )}
+              </div>
+            ) : null}
+
+            <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+              <SafeImage
+                src={thumbnailUrl}
+                alt={project?.title ?? 'Project'}
+                className="w-full h-44 object-contain bg-white"
+              />
+            </div>
+
+            <div className="mt-4 space-y-2">
+              <div className="flex items-start justify-between gap-3 text-[12px]">
+                <span className="text-gray-500 font-semibold">Budget per piece</span>
+                <span className="text-gray-900 font-extrabold text-right">
+                  {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-3 text-[12px]">
+                <span className="text-gray-500 font-semibold">Quantity required</span>
+                <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3 text-[12px]">
+                <span className="text-gray-500 font-semibold">Expected delivery</span>
+                <span className="text-gray-900 font-extrabold text-right">
+                  {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+                </span>
               </div>
             </div>
 
@@ -498,20 +535,24 @@ export default function VendorBidsView() {
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
-                Chat with Customer
+                Send message
               </button>
             </div>
 
-            {metaRows.length > 0 ? (
+            {remainingMetaRows.length > 0 ? (
               <div className="mt-4">
-                <p className="text-[12px] font-extrabold text-gray-900">Extra Details</p>
-                <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 p-4 space-y-3">
-                  {metaRows.map((r) => (
-                    <div key={r.key} className="space-y-0.5">
-                      <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
-                      <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
-                    </div>
-                  ))}
+                <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                  <div className="px-4 py-3 border-b border-gray-50">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                  </div>
+                  <div className="px-4 py-3 space-y-3">
+                    {remainingMetaRows.map((r) => (
+                      <div key={r.key} className="space-y-1">
+                        <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
+                        <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ) : null}
@@ -556,28 +597,6 @@ export default function VendorBidsView() {
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-[14px] font-extrabold text-gray-900">Biddings</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                {isActive && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleWithdrawAll}
-                      disabled={withdrawingAll}
-                      className="px-4 py-2 rounded-xl border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBidModalOpen(true)}
-                      disabled={bidEnded}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
-                    >
-                      Update Bid
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
 
             <div className="mt-4 flex items-center gap-3 md:justify-between">
@@ -613,6 +632,25 @@ export default function VendorBidsView() {
                     </div>
                   ) : null}
                 </div>
+                <button
+                  type="button"
+                  onClick={loadBids}
+                  disabled={bidsLoading}
+                  title="Reload bids"
+                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {bidsLoading ? (
+                    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
+                  )}
+                </button>
               </div>
             </div>
           </div>
@@ -620,25 +658,28 @@ export default function VendorBidsView() {
           <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
             <div className="px-4 md:px-6 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
               <p className="text-[12px] font-extrabold text-gray-900">Bids</p>
-              <button
-                type="button"
-                onClick={loadBids}
-                disabled={bidsLoading}
-                title="Reload bids"
-                className="p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {bidsLoading ? (
-                  <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                    <path d="M21 3v6h-6" />
-                  </svg>
-                )}
-              </button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {isActive ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleWithdrawAll}
+                      disabled={withdrawingAll}
+                      className="px-4 py-2 rounded-xl border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                    >
+                      {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBidModalOpen(true)}
+                      disabled={bidEnded}
+                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                    >
+                      Update Bid
+                    </button>
+                  </>
+                ) : null}
+              </div>
             </div>
             <div className="p-4 md:p-6 min-h-0 overflow-y-auto">
               {bidsLoading && bids.length === 0 ? (

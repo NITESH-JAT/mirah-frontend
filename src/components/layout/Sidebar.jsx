@@ -28,12 +28,13 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
+  const userType = String(user?.userType ?? '').trim().toLowerCase();
+  const isVendor = userType === 'vendor' || userType === 'jeweller';
   const canSell = Boolean(user?.canSellProducts);
   const vendorKycStatus = String(
-    user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? ''
+    user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? user?.vendorKycStatus ?? user?.vendor_kyc_status ?? ''
   ).toLowerCase();
-  const isVendorKycAccepted = vendorKycStatus === 'accepted';
+  const isVendorKycAccepted = ['accepted', 'approved', 'verified', 'success', 'completed'].includes(vendorKycStatus);
 
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
@@ -282,7 +283,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
               />
             ) : null}
 
-            {isVendorKycAccepted && canSell ? (
+            {isVendorKycAccepted ? (
               <div className="mx-4 mb-1">
                 <button
                   type="button"

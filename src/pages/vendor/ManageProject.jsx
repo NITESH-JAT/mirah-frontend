@@ -31,6 +31,24 @@ function formatDateOnly(ts) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
+function parseLocalDateInput(value) {
+  const raw = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(y, mo - 1, day, 0, 0, 0, 0);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatDateOnlyFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
 function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
@@ -316,6 +334,91 @@ export default function VendorManageProject() {
   );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
+  const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
+  const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
+  const quantityRequiredRaw = String(metaIndex.get('quantityRequired')?.value ?? metaIndex.get('quantity_required')?.value ?? '').trim();
+  const preferredDeliveryRaw = String(
+    metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
+  ).trim();
+  const agreedPriceRaw = useMemo(() => {
+    const root = details ?? {};
+    const p = project ?? {};
+    const assignmentsRaw = p?.assignments ?? root?.data?.project?.assignments ?? root?.project?.assignments ?? null;
+    const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw.filter(Boolean) : assignmentsRaw ? [assignmentsRaw] : [];
+    const activeAssignment =
+      assignments.find((x) => x?.isActive) ??
+      assignments.find((x) => String(x?.status || '').toLowerCase() === 'accepted') ??
+      assignments[0] ??
+      null;
+    const a =
+      activeAssignment ??
+      root?.assignment ??
+      root?.assignedProject ??
+      root?.assigned_project ??
+      root?.projectAssignment ??
+      root?.project_assignment ??
+      p?.assignment ??
+      p?.assignedProject ??
+      p?.assigned_project ??
+      null;
+    const v =
+      a?.agreedPrice ??
+      a?.agreed_price ??
+      a?.agreedAmount ??
+      a?.agreed_amount ??
+      p?.agreedPrice ??
+      p?.agreed_price ??
+      p?.agreedAmount ??
+      p?.agreed_amount ??
+      root?.agreedPrice ??
+      root?.agreed_price ??
+      root?.agreedAmount ??
+      root?.agreed_amount ??
+      null;
+    return v == null ? '' : String(v).trim();
+  }, [details, project]);
+  const agreedDaysToCompleteRaw = useMemo(() => {
+    const root = details ?? {};
+    const p = project ?? {};
+    const assignmentsRaw = p?.assignments ?? root?.data?.project?.assignments ?? root?.project?.assignments ?? null;
+    const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw.filter(Boolean) : assignmentsRaw ? [assignmentsRaw] : [];
+    const activeAssignment =
+      assignments.find((x) => x?.isActive) ??
+      assignments.find((x) => String(x?.status || '').toLowerCase() === 'accepted') ??
+      assignments[0] ??
+      null;
+    const a =
+      activeAssignment ??
+      root?.assignment ??
+      root?.assignedProject ??
+      root?.assigned_project ??
+      root?.projectAssignment ??
+      root?.project_assignment ??
+      p?.assignment ??
+      p?.assignedProject ??
+      p?.assigned_project ??
+      null;
+    const v =
+      a?.agreedDaysToComplete ??
+      a?.agreed_days_to_complete ??
+      p?.agreedDaysToComplete ??
+      p?.agreed_days_to_complete ??
+      root?.agreedDaysToComplete ??
+      root?.agreed_days_to_complete ??
+      null;
+    return v == null ? '' : String(v).trim();
+  }, [details, project]);
+  const remainingMetaRows = useMemo(() => {
+    const skip = new Set([
+      'budgetPerPiece',
+      'budget_per_piece',
+      'quantityRequired',
+      'quantity_required',
+      'preferredDeliveryTimeline',
+      'preferred_delivery_timeline',
+    ]);
+    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+  }, [metaRows]);
 
   const finishedLike = useMemo(() => isFinishedLike(project), [project]);
   const advanceStatus = useMemo(
@@ -651,9 +754,14 @@ export default function VendorManageProject() {
               <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
                 {project?.title || 'Project'}
               </p>
-              <p className="mt-2 text-[12px] text-gray-500 leading-relaxed whitespace-pre-line line-clamp-5">
-                {project?.description || '—'}
-              </p>
+
+              {referenceImage ? (
+                <div className="mt-3">
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                    <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
+                  </div>
+                </div>
+              ) : null}
 
               <div className="mt-4 space-y-1.5">
                 {customerName ? (
@@ -681,29 +789,72 @@ export default function VendorManageProject() {
                   >
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                   </svg>
-                  Chat with Customer
+                  Send message
                 </button>
               </div>
 
-              {metaRows.length > 0 ? (
-                <div className="mt-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Extra Fields</p>
-                  <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
-                    {metaRows.map((r) => (
-                      <div key={r.key} className="space-y-0.5">
-                        <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
-                        <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
-                      </div>
-                    ))}
+              <div className="mt-4 space-y-2">
+                <div className="flex items-start justify-between gap-3 text-[12px]">
+                  <span className="text-gray-500 font-semibold">Budget per piece</span>
+                  <span className="text-gray-900 font-extrabold text-right">
+                    {budgetPerPieceRaw
+                      ? (() => {
+                          const n = Number(budgetPerPieceRaw);
+                          if (Number.isNaN(n)) return budgetPerPieceRaw;
+                          return `₹ ${formatMoney(n)}`;
+                        })()
+                      : '—'}
+                  </span>
+                </div>
+                <div className="flex items-start justify-between gap-3 text-[12px]">
+                  <span className="text-gray-500 font-semibold">Quantity required</span>
+                  <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+                </div>
+                <div className="flex items-start justify-between gap-3 text-[12px]">
+                  <span className="text-gray-500 font-semibold">Expected delivery</span>
+                  <span className="text-gray-900 font-extrabold text-right">
+                    {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+                  </span>
+                </div>
+              </div>
+
+              {agreedPriceRaw || agreedDaysToCompleteRaw ? (
+                <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="text-gray-500 font-semibold">Agreed amount</span>
+                    <span className="text-gray-900 font-extrabold text-right">
+                      {agreedPriceRaw
+                        ? (() => {
+                            const n = Number(agreedPriceRaw);
+                            if (Number.isNaN(n)) return agreedPriceRaw;
+                            return `₹ ${formatMoney(n)}`;
+                          })()
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="text-gray-500 font-semibold">Agreed duration</span>
+                    <span className="text-gray-900 font-extrabold text-right">
+                      {agreedDaysToCompleteRaw ? `${agreedDaysToCompleteRaw} days` : '—'}
+                    </span>
                   </div>
                 </div>
               ) : null}
 
-              {referenceImage ? (
+              {remainingMetaRows.length > 0 ? (
                 <div className="mt-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Reference Image</p>
-                  <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
-                    <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
+                  <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-gray-50">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                    </div>
+                    <div className="px-4 py-3 space-y-3">
+                      {remainingMetaRows.map((r) => (
+                        <div key={r.key} className="space-y-1">
+                          <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
+                          <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : null}
@@ -901,34 +1052,13 @@ export default function VendorManageProject() {
                 : null)
             ) : null}
 
-            {/* QC logs card */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="p-4 md:p-6">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[12px] font-extrabold text-gray-900">QC Updates</p>
-                </div>
-                {qcEntries.length === 0 ? (
-                  <div className="mt-6 min-h-[120px] flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="mx-auto w-10 h-10 rounded-full bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="18"
-                          height="18"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                        >
-                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                          <path d="M8 10h8" />
-                          <path d="M8 14h5" />
-                        </svg>
-                      </div>
-                      <p className="mt-2 text-[12px] text-gray-500 font-semibold">QC Status Awaiting…</p>
-                    </div>
+            {/* QC logs card (only show when logs exist) */}
+            {qcEntries.length > 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div className="p-4 md:p-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[12px] font-extrabold text-gray-900">QC Updates</p>
                   </div>
-                ) : (
                   <div className="mt-3 space-y-2">
                     {qcEntries.map((entry, idx) => {
                       const statusKey = normalizeStatusKey(entry?.status);
@@ -951,23 +1081,23 @@ export default function VendorManageProject() {
                         <div key={idx} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-[12px] font-semibold text-gray-800">Mirah QC Reviews</p>
-                            {ts ? (
-                              <p className="text-[11px] text-gray-400">{formatDateTime(ts)}</p>
-                            ) : null}
+                            {ts ? <p className="text-[11px] text-gray-400">{formatDateTime(ts)}</p> : null}
                           </div>
                           {remarks ? (
                             <p className="mt-1 text-[12px] text-gray-600 whitespace-pre-line">{String(remarks)}</p>
                           ) : null}
-                          <span className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[10px] font-bold ${pillClass}`}>
+                          <span
+                            className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[10px] font-bold ${pillClass}`}
+                          >
                             QC {statusLabel}
                           </span>
                         </div>
                       );
                     })}
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {/* Project updates timeline */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">

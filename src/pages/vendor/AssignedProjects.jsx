@@ -23,13 +23,7 @@ function budgetValueOf(project) {
   return Number.isFinite(v) ? v : null;
 }
 
-function budgetTextOf(project) {
-  const range = project?.amountRange ?? project?.amount_range ?? null;
-  const min = Number(range?.min ?? range?.minAmount ?? range?.min_amount ?? project?.minAmount ?? project?.min_amount ?? NaN);
-  const max = Number(range?.max ?? range?.maxAmount ?? range?.max_amount ?? project?.maxAmount ?? project?.max_amount ?? NaN);
-  if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
-  return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
-}
+
 
 function durationDaysOf(project) {
   const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? project?.noOfDays ?? project?.no_of_days ?? NaN);
@@ -97,7 +91,6 @@ export default function VendorAssignedProjects() {
 
   const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
   const kycAccepted = vendorKycStatus === 'accepted';
-  const canSell = Boolean(user?.canSellProducts);
 
   const abortRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -174,6 +167,7 @@ export default function VendorAssignedProjects() {
   const normalized = useMemo(() => {
     return (Array.isArray(items) ? items : []).map((r) => {
       const project = projectOf(r) || {};
+      const a = assignmentOf(r) || {};
       return {
         raw: r,
         project,
@@ -182,6 +176,15 @@ export default function VendorAssignedProjects() {
         description: project?.description ?? '—',
         customerName: customerNameOf(project, r),
         thumbnailUrl: pickThumbnailUrl(project),
+        agreedAmount: a?.agreedAmount ?? a?.agreed_amount ?? a?.agreedBidAmount ?? a?.agreed_bid_amount ?? null,
+        agreedDaysToComplete:
+          a?.agreedDaysToComplete ??
+          a?.agreed_days_to_complete ??
+          a?.agreedNoOfDays ??
+          a?.agreed_no_of_days ??
+          a?.agreedDays ??
+          a?.agreed_days ??
+          null,
       };
     }).filter((x) => x.id != null);
   }, [items]);
@@ -229,16 +232,7 @@ export default function VendorAssignedProjects() {
     );
   }
 
-  if (!canSell) {
-    return (
-      <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-[13px] text-red-700">
-          <div className="font-semibold text-red-800 mb-1">Assigned projects are disabled for your account</div>
-          <div>For safety, assignments are enabled only after admin approval for selling.</div>
-        </div>
-      </div>
-    );
-  }
+  // Assigned projects should be visible regardless of selling approval.
 
   const empty = !loading && sorted.length === 0;
   const currentPage = Number(meta?.page || 1) || 1;
@@ -348,8 +342,8 @@ export default function VendorAssignedProjects() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {sorted.map((x) => {
-              const budgetText = budgetTextOf(x.project);
-              const days = durationDaysOf(x.project);
+              const agreedAmountNum = Number(x?.agreedAmount ?? NaN);
+              const agreedDaysNum = Number(x?.agreedDaysToComplete ?? NaN);
               return (
                 <div key={String(x.id)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
                   <div className="relative">
@@ -357,7 +351,6 @@ export default function VendorAssignedProjects() {
                   </div>
                   <div className="p-4">
                     <p className="text-[14px] font-extrabold text-gray-900 truncate">{x.title}</p>
-                    <p className="mt-1 text-[12px] text-gray-500 line-clamp-1">{x.description}</p>
 
                     <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
                       {x.customerName ? (
@@ -367,10 +360,13 @@ export default function VendorAssignedProjects() {
                       ) : null}
                       <p>
                         Agreed No. of Duration:{' '}
-                        <span className="font-extrabold text-gray-900">{days != null ? `${days} days` : '—'}</span>
+                        <span className="font-extrabold text-gray-900">{Number.isFinite(agreedDaysNum) && agreedDaysNum > 0 ? `${agreedDaysNum} days` : '—'}</span>
                       </p>
                       <p>
-                        Agreed Amount: <span className="font-extrabold text-gray-900">{budgetText}</span>
+                        Agreed Amount:{' '}
+                        <span className="font-extrabold text-gray-900">
+                          {Number.isFinite(agreedAmountNum) && agreedAmountNum > 0 ? `₹ ${formatMoney(agreedAmountNum)}` : '—'}
+                        </span>
                       </p>
                     </div>
 

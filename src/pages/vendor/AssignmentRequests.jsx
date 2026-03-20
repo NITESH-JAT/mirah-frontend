@@ -56,7 +56,6 @@ export default function VendorAssignmentRequests() {
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
   const kycAccepted = vendorKycStatus === 'accepted';
-  const canSell = Boolean(user?.canSellProducts);
 
   const abortRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -202,16 +201,7 @@ export default function VendorAssignmentRequests() {
     );
   }
 
-  if (!canSell) {
-    return (
-      <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-6 text-[13px] text-red-700">
-          <div className="font-semibold text-red-800 mb-1">Assignments are disabled for your account</div>
-          <div>For safety, assignments are enabled only after admin approval for selling.</div>
-        </div>
-      </div>
-    );
-  }
+  // Assignments should be visible regardless of selling approval.
 
   const empty = !loading && rows.length === 0;
   const canLoadMore = !loading && !empty && meta.page < meta.totalPages;

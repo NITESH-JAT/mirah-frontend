@@ -32,6 +32,24 @@ function formatDateOnly(ts) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
+function parseLocalDateInput(value) {
+  const raw = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(y, mo - 1, day, 0, 0, 0, 0);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatDateOnlyFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
 function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
@@ -664,6 +682,23 @@ export default function ProjectDetails() {
   );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
+  const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
+  const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
+  const quantityRequiredRaw = String(metaIndex.get('quantityRequired')?.value ?? metaIndex.get('quantity_required')?.value ?? '').trim();
+  const preferredDeliveryRaw = String(
+    metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
+  ).trim();
+  const remainingMetaRows = useMemo(() => {
+    const skip = new Set([
+      'budgetPerPiece',
+      'budget_per_piece',
+      'quantityRequired',
+      'quantity_required',
+      'preferredDeliveryTimeline',
+      'preferred_delivery_timeline',
+    ]);
+    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+  }, [metaRows]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -936,23 +971,41 @@ export default function ProjectDetails() {
                 <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
                   {project?.title || 'Project'}
                 </p>
-                <p className="mt-2 text-[12px] text-gray-500 leading-relaxed whitespace-pre-line line-clamp-5">
-                  {project?.description || '—'}
-                </p>
+
+                {referenceImage ? (
+                  <div className="mt-3">
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                      <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="text-gray-500 font-semibold">Budget per piece</span>
+                    <span className="text-gray-900 font-extrabold text-right">
+                      {budgetPerPieceRaw
+                        ? (() => {
+                            const n = Number(budgetPerPieceRaw);
+                            if (Number.isNaN(n)) return budgetPerPieceRaw;
+                            return `₹ ${formatMoney(n)}`;
+                          })()
+                        : '—'}
+                    </span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="text-gray-500 font-semibold">Quantity required</span>
+                    <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+                  </div>
+                  <div className="flex items-start justify-between gap-3 text-[12px]">
+                    <span className="text-gray-500 font-semibold">Expected delivery</span>
+                    <span className="text-gray-900 font-extrabold text-right">
+                      {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+                    </span>
+                  </div>
+                </div>
 
                 <div className="mt-4 space-y-1.5">
-                  <p className="text-[12px] text-gray-500">
-                    Bid amount:{' '}
-                    <span className="font-extrabold text-gray-900">
-                      {assignedAmount != null && Number.isFinite(Number(assignedAmount)) ? `₹ ${formatMoney(assignedAmount)}` : '—'}
-                    </span>
-                  </p>
-                  <p className="text-[12px] text-gray-500">
-                    Duration:{' '}
-                    <span className="font-extrabold text-gray-900">
-                      {assignedDays != null && Number.isFinite(Number(assignedDays)) ? `${Number(assignedDays)} days` : '—'}
-                    </span>
-                  </p>
                   {vendorFullName ? (
                     <p className="text-[12px] text-gray-500">
                       Jeweller:{' '}
@@ -971,11 +1024,11 @@ export default function ProjectDetails() {
                 </div>
 
                 {vendorId ? (
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <div className="mt-4 grid grid-cols-2 gap-2 w-full">
                     <button
                       type="button"
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
-                      className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-primary-dark hover:bg-gray-50 inline-flex items-center gap-2"
+                      className="w-full px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-primary-dark hover:bg-gray-50 inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -986,7 +1039,7 @@ export default function ProjectDetails() {
                     <button
                       type="button"
                       onClick={() => navigate('/customer/messages', { state: { openRecipientId: vendorId } })}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 inline-flex items-center gap-2"
+                      className="w-full px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -996,25 +1049,41 @@ export default function ProjectDetails() {
                   </div>
                 ) : null}
 
-                {metaRows.length > 0 ? (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Extra Fields</p>
-                    <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
-                      {metaRows.map((r) => (
-                        <div key={r.key} className="space-y-0.5">
-                          <p className="text-[12px] font-extrabold text-gray-900 break-words">{r.label}</p>
-                          <p className="text-[12px] text-gray-600 font-semibold break-words whitespace-pre-wrap">{r.value}</p>
-                        </div>
-                      ))}
+                {assignedAmount != null || assignedDays != null ? (
+                  <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-3 text-[12px]">
+                      <span className="text-gray-500 font-semibold">Agreed amount</span>
+                      <span className="text-gray-900 font-extrabold text-right">
+                        {assignedAmount != null && Number.isFinite(Number(assignedAmount))
+                          ? `₹ ${formatMoney(assignedAmount)}`
+                          : '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-start justify-between gap-3 text-[12px]">
+                      <span className="text-gray-500 font-semibold">Agreed duration</span>
+                      <span className="text-gray-900 font-extrabold text-right">
+                        {assignedDays != null && Number.isFinite(Number(assignedDays))
+                          ? `${Number(assignedDays)} days`
+                          : '—'}
+                      </span>
                     </div>
                   </div>
                 ) : null}
 
-                {referenceImage ? (
+                {remainingMetaRows.length > 0 ? (
                   <div className="mt-4">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Reference Image</p>
-                    <div className="mt-2 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
-                      <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
+                    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
+                      <div className="px-4 py-3 border-b border-gray-50">
+                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                      </div>
+                      <div className="px-4 py-3 space-y-3">
+                        {remainingMetaRows.map((r) => (
+                          <div key={r.key} className="space-y-1">
+                            <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
+                            <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 ) : null}

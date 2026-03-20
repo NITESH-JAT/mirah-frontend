@@ -124,18 +124,22 @@ function metaRowsOf(project) {
   return rows;
 }
 
-function budgetTextOf(project) {
-  const range = project?.amountRange ?? project?.amount_range ?? null;
-  const min = Number(range?.min ?? range?.minAmount ?? range?.min_amount ?? project?.minAmount ?? project?.min_amount ?? NaN);
-  const max = Number(range?.max ?? range?.maxAmount ?? range?.max_amount ?? project?.maxAmount ?? project?.max_amount ?? NaN);
-  if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
-  return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
+function parseLocalDateInput(value) {
+  const raw = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(y, mo - 1, day, 0, 0, 0, 0);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return d;
 }
 
-function durationTextOf(project) {
-  const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? project?.noOfDays ?? project?.no_of_days ?? NaN);
-  if (!Number.isFinite(t) || t <= 0) return '—';
-  return `${t} days`;
+function formatDateOnlyFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
 function bidVendorIdOf(b) {
@@ -263,8 +267,23 @@ export default function VendorExploreProject() {
     [attachments, referenceImage],
   );
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
-  const budgetText = useMemo(() => budgetTextOf(project), [project]);
-  const durationText = useMemo(() => durationTextOf(project), [project]);
+  const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
+  const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
+  const quantityRequiredRaw = String(metaIndex.get('quantityRequired')?.value ?? metaIndex.get('quantity_required')?.value ?? '').trim();
+  const preferredDeliveryRaw = String(
+    metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
+  ).trim();
+  const remainingMetaRows = useMemo(() => {
+    const skip = new Set([
+      'budgetPerPiece',
+      'budget_per_piece',
+      'quantityRequired',
+      'quantity_required',
+      'preferredDeliveryTimeline',
+      'preferred_delivery_timeline',
+    ]);
+    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+  }, [metaRows]);
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
@@ -348,13 +367,22 @@ export default function VendorExploreProject() {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[16px] font-extrabold text-gray-900 break-words">{project?.title ?? 'Project'}</p>
-          <p className="mt-1 text-[12px] text-gray-500 leading-relaxed whitespace-pre-wrap">{project?.description ?? '—'}</p>
           <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
             <p>
-              Expected Timeline: <span className="font-extrabold text-gray-900">{durationText}</span>
+              Budget per piece:{' '}
+              <span className="font-extrabold text-gray-900">
+                {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+              </span>
             </p>
             <p>
-              Budget: <span className="font-extrabold text-gray-900">{budgetText}</span>
+              Quantity required:{' '}
+              <span className="font-extrabold text-gray-900">{quantityRequiredRaw || '—'}</span>
+            </p>
+            <p>
+              Expected delivery:{' '}
+              <span className="font-extrabold text-gray-900">
+                {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+              </span>
             </p>
             {customerName ? (
               <p>
@@ -372,16 +400,16 @@ export default function VendorExploreProject() {
   );
 
   const MetaCard = ({ className = '' }) =>
-    metaRows.length > 0 ? (
-      <div className={`rounded-2xl border border-gray-100 bg-white p-5 ${className}`}>
-        <p className="text-[14px] font-extrabold text-gray-900">Extra Details</p>
-        <div className="mt-3 space-y-3">
-          {metaRows.map((r) => (
-            <div key={r.key} className="flex items-start justify-between gap-4">
-              <p className="text-[12px] font-extrabold text-gray-800">{r.label}</p>
-              <p className="text-[12px] text-gray-600 font-semibold text-right break-words whitespace-pre-wrap max-w-[65%]">
-                {r.value}
-              </p>
+    remainingMetaRows.length > 0 ? (
+      <div className={`rounded-2xl border border-gray-100 bg-white overflow-hidden ${className}`}>
+        <div className="px-5 py-4 border-b border-gray-50">
+          <p className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          {remainingMetaRows.map((r) => (
+            <div key={r.key} className="space-y-1">
+              <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
+              <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
             </div>
           ))}
         </div>
@@ -447,30 +475,31 @@ export default function VendorExploreProject() {
         <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">Unable to load project.</div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-5 items-start">
-          <div className="w-full lg:w-[46%]">
+          {/* Match customer View Bids ratio: fixed left, fluid right */}
+          <div className="w-full lg:w-[400px] shrink-0 lg:self-start">
             <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
               <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 overflow-hidden">
                 <SafeImage src={thumbnailUrl} alt={project?.title ?? 'Project'} className="absolute inset-0 w-full h-full object-cover" />
               </div>
               <div className="p-4 border-t border-gray-100">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2">
                   {customerId ? (
                     <button
                       type="button"
                       onClick={() => navigate('/vendor/messages', { state: { openRecipientId: customerId } })}
-                      className="flex-1 px-5 py-3 rounded-2xl bg-white border border-gray-100 text-[13px] font-extrabold text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-2"
+                      className="w-full px-5 py-3 rounded-2xl bg-white border border-gray-100 text-[13px] font-extrabold text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Chat With Customer
+                      Send message
                     </button>
                   ) : null}
                   <button
                     type="button"
                     onClick={() => setBidModalOpen(true)}
                     disabled={bidEnded || bidSubmitting}
-                    className={`${customerId ? 'flex-1' : 'w-full'} px-5 py-3 rounded-2xl bg-primary-dark text-white text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
+                    className="w-full px-5 py-3 rounded-2xl bg-primary-dark text-white text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Bid Now
                   </button>
@@ -486,7 +515,7 @@ export default function VendorExploreProject() {
             </div>
           </div>
 
-          <div className="w-full lg:flex-1 space-y-4">
+          <div className="w-full lg:flex-1 min-w-0 space-y-4">
             {/* Second action row + mobile-only details/meta/attachments */}
             <div className="lg:hidden">
               <DetailsCard />

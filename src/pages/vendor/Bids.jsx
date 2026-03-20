@@ -24,6 +24,48 @@ function formatMoney(v) {
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+function pickMetaValue(project, ...keys) {
+  const meta = project?.meta ?? null;
+  const values = meta?.values ?? meta?.data ?? null;
+  if (!values || typeof values !== 'object') return '';
+  for (const k of keys) {
+    const key = String(k || '').trim();
+    if (!key) continue;
+    if (Object.prototype.hasOwnProperty.call(values, key)) {
+      const v = values[key];
+      if (v == null) return '';
+      if (Array.isArray(v)) return v.filter(Boolean).join(', ');
+      if (typeof v === 'object') {
+        try {
+          return JSON.stringify(v);
+        } catch {
+          return String(v);
+        }
+      }
+      return String(v).trim();
+    }
+  }
+  return '';
+}
+
+function parseLocalDateInput(value) {
+  const raw = String(value || '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const d = new Date(y, mo - 1, day, 0, 0, 0, 0);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function formatDateOnlyFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
 function budgetTextOf(project) {
   if (!project) return '—';
   const range = project?.amountRange ?? project?.amount_range ?? null;
@@ -220,8 +262,7 @@ export default function VendorBids() {
     if (!q) return itemsActive;
     return itemsActive.filter((x) => {
       const t = String(x?.title ?? '').toLowerCase();
-      const d = String(x?.description ?? '').toLowerCase();
-      return t.includes(q) || d.includes(q);
+      return t.includes(q);
     });
   }, [itemsActive, queryActive]);
 
@@ -230,8 +271,7 @@ export default function VendorBids() {
     if (!q) return itemsCompleted;
     return itemsCompleted.filter((x) => {
       const t = String(x?.title ?? '').toLowerCase();
-      const d = String(x?.description ?? '').toLowerCase();
-      return t.includes(q) || d.includes(q);
+      return t.includes(q);
     });
   }, [itemsCompleted, queryCompleted]);
 
@@ -324,8 +364,12 @@ export default function VendorBids() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             {filtered.map((x) => {
-              const budgetText = budgetTextOf(x.project);
-              const days = durationDaysOf(x.project);
+              const budgetPerPieceRaw = pickMetaValue(x.project, 'budgetPerPiece', 'budget_per_piece');
+              const budgetPerPiece = Number(String(budgetPerPieceRaw || '').trim() || NaN);
+              const quantityRequired = String(pickMetaValue(x.project, 'quantityRequired', 'quantity_required') || '').trim();
+              const preferredDelivery = String(
+                pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
+              ).trim();
               return (
                 <div
                   key={String(x.id)}
@@ -366,7 +410,6 @@ export default function VendorBids() {
                   </div>
                   <div className="p-4">
                     <p className="text-[14px] font-extrabold text-gray-900 truncate">{x.title}</p>
-                    <p className="mt-1 text-[12px] text-gray-500 line-clamp-1">{x.description}</p>
                     <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
                       {x.customerName ? (
                         <p>
@@ -374,10 +417,14 @@ export default function VendorBids() {
                         </p>
                       ) : null}
                       <p>
-                        Expected Timeline: <span className="font-extrabold text-gray-900">{days != null ? `${days} days` : '—'}</span>
+                        Budget: <span className="font-extrabold text-gray-900">{Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? `₹ ${formatMoney(budgetPerPiece)}` : '—'}</span>
                       </p>
                       <p>
-                        Budget: <span className="font-extrabold text-gray-900">{budgetText}</span>
+                        Quantity: <span className="font-extrabold text-gray-900">{quantityRequired || '—'}</span>
+                      </p>
+                      <p>
+                        Expected delivery:{' '}
+                        <span className="font-extrabold text-gray-900">{preferredDelivery ? formatDateOnlyFromInput(preferredDelivery) : '—'}</span>
                       </p>
                       <p>
                         Bid Count: <span className="font-extrabold text-gray-900">{x.bidCount != null ? x.bidCount : '—'}</span>
