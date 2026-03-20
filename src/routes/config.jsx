@@ -9,6 +9,8 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 // Guards
 import AuthGuard from '../components/guards/AuthGuard';
 import GuestGuard from '../components/guards/GuestGuard';
+import CustomerOnlyGuard from '../components/guards/CustomerOnlyGuard';
+import VendorOnlyGuard from '../components/guards/VendorOnlyGuard';
 
 // Lazy Pages
 const LoginForm = lazy(() => import('../components/Auth/LoginForm').then(m => ({ default: m.LoginForm })));
@@ -61,7 +63,9 @@ export const routes = [
     path: '/dashboard',
     element: (
       <AuthGuard>
-        <DashboardLayout />
+        <CustomerOnlyGuard>
+          <DashboardLayout />
+        </CustomerOnlyGuard>
       </AuthGuard>
     ),
     children: [
@@ -107,7 +111,9 @@ export const routes = [
     path: '/vendor',
     element: (
       <AuthGuard>
-        <DashboardLayout />
+        <VendorOnlyGuard>
+          <DashboardLayout />
+        </VendorOnlyGuard>
       </AuthGuard>
     ),
     children: [
