@@ -44,15 +44,11 @@ export default function Shopping() {
   // Applied filters (used for API requests)
   const [category, setCategory] = useState('');
   const [brand, setBrand] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
   const [featured, setFeatured] = useState(false);
 
   // Draft filters (only applied on "Apply")
   const [draftCategory, setDraftCategory] = useState('');
   const [draftBrand, setDraftBrand] = useState('');
-  const [draftMinPrice, setDraftMinPrice] = useState('');
-  const [draftMaxPrice, setDraftMaxPrice] = useState('');
   const [draftFeatured, setDraftFeatured] = useState(false);
 
   const [openFilters, setOpenFilters] = useState(false);
@@ -107,8 +103,6 @@ export default function Shopping() {
         limit,
         category: category || undefined,
         brand: brand || undefined,
-        minPrice: minPrice === '' ? undefined : Number(minPrice),
-        maxPrice: maxPrice === '' ? undefined : Number(maxPrice),
         featured: featured ? true : undefined,
         search: search || undefined,
         sortBy: sort?.sortBy,
@@ -130,8 +124,6 @@ export default function Shopping() {
     // sync draft from applied
     setDraftCategory(category);
     setDraftBrand(brand);
-    setDraftMinPrice(minPrice);
-    setDraftMaxPrice(maxPrice);
     setDraftFeatured(featured);
     setOpenFilters(true);
   };
@@ -148,7 +140,7 @@ export default function Shopping() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, brand, minPrice, maxPrice, featured, sortId]);
+  }, [q, category, brand, featured, sortId]);
 
   // Load filter metadata (brands/categories) once
   useEffect(() => {
@@ -380,11 +372,11 @@ export default function Shopping() {
       {/* Filters panel (mobile drawer) */}
       {openFilters ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[80] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
           onMouseDown={() => setOpenFilters(false)}
         >
           <div
-            className="w-full max-w-xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
@@ -403,7 +395,7 @@ export default function Shopping() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Category</label>
                   <select
@@ -444,26 +436,6 @@ export default function Shopping() {
                     ))}
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Min price</label>
-                  <input
-                    type="number"
-                    value={draftMinPrice}
-                    onChange={(e) => setDraftMinPrice(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Max price</label>
-                  <input
-                    type="number"
-                    value={draftMaxPrice}
-                    onChange={(e) => setDraftMaxPrice(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
-                    placeholder="100000"
-                  />
-                </div>
               </div>
 
               <label className="flex items-center gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
@@ -483,8 +455,6 @@ export default function Shopping() {
                 onClick={() => {
                   setDraftCategory('');
                   setDraftBrand('');
-                  setDraftMinPrice('');
-                  setDraftMaxPrice('');
                   setDraftFeatured(false);
                 }}
                 className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
@@ -496,8 +466,6 @@ export default function Shopping() {
                 onClick={() => {
                   setCategory(draftCategory);
                   setBrand(draftBrand);
-                  setMinPrice(draftMinPrice);
-                  setMaxPrice(draftMaxPrice);
                   setFeatured(Boolean(draftFeatured));
                   setOpenFilters(false);
                 }}

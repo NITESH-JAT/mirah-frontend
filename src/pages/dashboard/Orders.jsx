@@ -112,6 +112,11 @@ export default function Orders() {
   const [filters, setFilters] = useState({ status: '', from: '', to: '', productName: '' });
   const [filtersOpen, setFiltersOpen] = useState(false);
 
+  const openFilterModal = () => {
+    setFilterDraft(filters || { status: '', from: '', to: '', productName: '' });
+    setFiltersOpen(true);
+  };
+
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsOrder, setDetailsOrder] = useState(null);
@@ -362,6 +367,7 @@ export default function Orders() {
     };
     setFilters(next);
     await load({ nextPage: 1, append: false, filterParams: next });
+    setFiltersOpen(false);
   };
 
   const clearFilters = async () => {
@@ -432,107 +438,132 @@ export default function Orders() {
             <p className="text-[16px] md:text-[18px] font-bold text-gray-900">My Orders</p>
             <p className="text-[12px] text-gray-400 mt-1">Track status, cancel, and download invoices.</p>
           </div>
-          {headerRight}
+          <div className="flex items-center gap-3">
+            {headerRight}
+            <button
+              type="button"
+              onClick={() => {
+                if (filtersOpen) setFiltersOpen(false);
+                else openFilterModal();
+              }}
+              className="hidden md:inline-flex px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
+              Filters
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+            <button
+              type="button"
+              onClick={openFilterModal}
+              className="md:hidden w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              aria-label="Filters"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Orders container */}
       <div className="flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
         <div className="mt-3 bg-white rounded-2xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
-        <div className="shrink-0 sticky top-0 z-10 bg-white border-b border-gray-100 p-4">
-          <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-            <div className="md:hidden">
-              <button
-                type="button"
-                onClick={() => setFiltersOpen((v) => !v)}
-                className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+          {/* Filters panel (mobile bottom-sheet, desktop right drawer) */}
+          {filtersOpen ? (
+            <div
+              className="fixed inset-0 z-[80] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
+              onMouseDown={() => setFiltersOpen(false)}
+            >
+              <div
+                className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
+                onMouseDown={(e) => e.stopPropagation()}
               >
-                <span className="truncate">Filters</span>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-            </div>
-
-            <div className={`${filtersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
-                  <select
-                    value={filterDraft.status}
-                    onChange={(e) =>
-                      setFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
-                    }
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[15px] font-bold text-gray-800">Filters</p>
+                    <p className="text-[12px] text-gray-400 mt-1">Refine results</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFiltersOpen(false)}
+                    className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                    aria-label="Close"
                   >
-                    <option value="">All</option>
-                    <option value="paid">Paid</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="pending">Pending</option>
-                    <option value="failed">Failed</option>
-                    <option value="will_pay_offline">Will pay offline</option>
-                  </select>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </button>
                 </div>
 
-                <div>
-                  <p className="text-[11px] font-bold text-gray-600 mb-1">From</p>
-                  <input
-                    type="date"
-                    value={filterDraft.from}
-                    onChange={(e) =>
-                      setFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))
-                    }
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
-                  />
+                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Status</label>
+                      <select
+                        value={filterDraft.status}
+                        onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                      >
+                        <option value="">All</option>
+                        <option value="paid">Paid</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                        <option value="will_pay_offline">Will pay offline</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">From</label>
+                      <input
+                        type="date"
+                        value={filterDraft.from}
+                        onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">To</label>
+                      <input
+                        type="date"
+                        value={filterDraft.to}
+                        onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Product name</label>
+                      <input
+                        value={filterDraft.productName}
+                        onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))}
+                        placeholder="Type product name…"
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <p className="text-[11px] font-bold text-gray-600 mb-1">To</p>
-                  <input
-                    type="date"
-                    value={filterDraft.to}
-                    onChange={(e) =>
-                      setFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))
-                    }
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
-                  />
+                <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    disabled={loading || moreLoading}
+                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={applyFilters}
+                    disabled={loading || moreLoading}
+                    className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                  >
+                    Apply
+                  </button>
                 </div>
-
-                <div>
-                  <p className="text-[11px] font-bold text-gray-600 mb-1">Product name</p>
-                  <input
-                    value={filterDraft.productName}
-                    onChange={(e) =>
-                      setFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))
-                    }
-                    placeholder="Type product name…"
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  disabled={loading || moreLoading}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  Clear
-                </button>
-                <button
-                  type="button"
-                  onClick={applyFilters}
-                  disabled={loading || moreLoading}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
-                >
-                  Apply
-                </button>
               </div>
             </div>
-          </div>
-        </div>
+          ) : null}
 
         <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
         <div className="min-h-[calc(100vh-260px)] flex flex-col">

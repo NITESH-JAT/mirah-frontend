@@ -764,7 +764,19 @@ export default function Messages() {
 
         <div className="flex-1 min-h-0 overflow-y-auto">
           {loadingConvos ? (
-            <div className="px-6 py-4 text-[13px] text-gray-400">Loading…</div>
+            <div className="min-h-[240px] px-6 py-10 flex items-center justify-center">
+              <svg
+                className="animate-spin text-primary-dark"
+                xmlns="http://www.w3.org/2000/svg"
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+              >
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+              </svg>
+            </div>
           ) : (
             sortedConvos.map((c) => {
               const isActive = String(c.id) === String(activeConvoId);
