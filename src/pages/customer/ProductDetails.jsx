@@ -145,9 +145,24 @@ export default function ProductDetails() {
       if (value == null || value === '') return;
       pairs.push({ label, value: String(value) });
     };
+    const diamondTypeRaw = String(product?.diamondType ?? product?.diamond_type ?? '').trim().toLowerCase();
+    const diamondType =
+      diamondTypeRaw ? `${diamondTypeRaw.slice(0, 1).toUpperCase()}${diamondTypeRaw.slice(1)}` : null;
+    const totalDiamondWeightRaw = product?.totalDiamondWeight ?? product?.total_diamond_weight ?? null;
+    const totalDiamondWeightNum = Number(totalDiamondWeightRaw);
+    const totalDiamondWeight =
+      totalDiamondWeightRaw == null || totalDiamondWeightRaw === ''
+        ? null
+        : Number.isFinite(totalDiamondWeightNum)
+          ? `${totalDiamondWeightNum} carats`
+          : String(totalDiamondWeightRaw);
     add('Collection', product?.brand);
     add('Category', product?.category);
     add('SKU', product?.sku);
+    add('Metal type', product?.metalType ?? product?.metal_type);
+    add('Metal colour', product?.metalColour ?? product?.metal_colour ?? product?.metalColor ?? product?.metal_color);
+    add('Diamond type', diamondType);
+    add('Total diamond weight', totalDiamondWeight);
     const unit = String(product?.unit ?? '').trim();
     const stockVal = product?.stock ?? null;
     const stockText =

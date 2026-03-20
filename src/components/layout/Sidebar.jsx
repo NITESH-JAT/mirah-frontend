@@ -595,24 +595,6 @@ export default function Sidebar({ isOpen = false, onClose }) {
 
                   <button
                     type="button"
-                    onClick={() => goProjectsTab('create')}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
-                      ${
-                        isProjectsRoute && projectsTab === 'create'
-                          ? 'bg-primary-dark/10 text-primary-dark'
-                          : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
-                      }
-                    `}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 5v14" />
-                      <path d="M5 12h14" />
-                    </svg>
-                    <span>Create Projects</span>
-                  </button>
-
-                  <button
-                    type="button"
                     onClick={() => goProjectsTab('assignments')}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
                       ${
