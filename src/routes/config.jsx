@@ -39,6 +39,7 @@ const VendorAssignmentRequests = lazy(() => import('../pages/vendor/AssignmentRe
 const VendorAssignedProjects = lazy(() => import('../pages/vendor/AssignedProjects'));
 const VendorManageProject = lazy(() => import('../pages/vendor/ManageProject'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
+const Faq = lazy(() => import('../pages/dashboard/Faq'));
 
 export const routes = [
   // --- AUTH ROUTES ---
@@ -82,6 +83,10 @@ export const routes = [
       { 
         path: 'profile', 
         element: <Profile />
+      },
+      {
+        path: 'faq',
+        element: <Faq />,
       },
       { 
         path: 'projects', 
@@ -128,6 +133,7 @@ export const routes = [
       { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },
+      { path: 'faq', element: <Faq /> },
       { path: 'messages', element: <Messages /> }
     ]
   },

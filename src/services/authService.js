@@ -220,6 +220,36 @@ export const authService = {
     }
   },
 
+  getProjectTutorialSeen: async () => {
+    try {
+      const response = await api.get('/api/user/system/project-tutorial/seen');
+      const data = response?.data?.data ?? response?.data ?? {};
+      return {
+        tutorialTarget: data?.tutorialTarget ?? null,
+        videoUrl: data?.videoUrl ?? null,
+        hasSeen: Boolean(data?.hasSeen),
+        seenAt: data?.seenAt ?? null,
+      };
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to fetch project tutorial status' };
+    }
+  },
+
+  markProjectTutorialSeen: async () => {
+    try {
+      const response = await api.post('/api/user/system/project-tutorial/seen');
+      const data = response?.data?.data ?? response?.data ?? {};
+      return {
+        tutorialTarget: data?.tutorialTarget ?? null,
+        videoUrl: data?.videoUrl ?? null,
+        hasSeen: Boolean(data?.hasSeen ?? true),
+        seenAt: data?.seenAt ?? null,
+      };
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to mark project tutorial as seen' };
+    }
+  },
+
   changePassword: async (data) => {
     try {
         try {

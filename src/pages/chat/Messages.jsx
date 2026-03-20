@@ -152,8 +152,10 @@ export default function Messages() {
   const loadSeqRef = useRef(0);
   const msgInFlightRef = useRef(false);
   const conversationsRef = useRef([]);
-  const prefillAppliedRef = useRef(false);
+  const prefillAppliedRef = useRef(null);
   const deepLinkAppliedRef = useRef(false);
+  const pendingSupportOpenRef = useRef(null);
+  const [pendingSupportTick, setPendingSupportTick] = useState(0);
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
@@ -179,6 +181,16 @@ export default function Messages() {
       isPlaceholder: true,
     };
   }, [normalizedConvos]);
+
+  // If some other page requests opening support, wait until we have the real
+  // support conversation id (it can differ from the placeholder "support" id).
+  useEffect(() => {
+    const pending = pendingSupportOpenRef.current;
+    if (!pending) return;
+    const supportId = supportConvo?.id;
+    if (!supportId) return;
+    setActiveConvoId(supportId);
+  }, [supportConvo?.id, pendingSupportTick]);
 
   const sortedConvos = useMemo(() => {
     const others = normalizedConvos.filter((c) => !c.admin);
@@ -255,14 +267,18 @@ export default function Messages() {
     const state = location?.state || null;
     const prefill = state?.supportPrefill ?? state?.prefill ?? null;
     const openSupport = Boolean(state?.openSupport);
-    if (!openSupport || !prefill || prefillAppliedRef.current) return;
+    if (!openSupport || !prefill) return;
 
-    prefillAppliedRef.current = true;
-    setActiveConvoId('support');
+    // Allow re-triggering when another page requests opening support.
+    // We still clear route state below to avoid re-running on refresh/back.
+    const signature = `${String(openSupport)}:${String(prefill)}`;
+    prefillAppliedRef.current = signature;
     setMobileView('thread');
     setComposer(String(prefill));
     setShowEmoji(false);
     setTimeout(() => composerRef.current?.focus?.(), 50);
+    pendingSupportOpenRef.current = { signature };
+    setPendingSupportTick((x) => x + 1);
 
     // Clear route state to avoid reapplying on back/refresh.
     navigate(messagesRoute, { replace: true, state: {} });

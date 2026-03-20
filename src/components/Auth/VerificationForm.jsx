@@ -223,7 +223,9 @@ export const VerificationForm = () => {
         updatedData = await authService.verifyPhoneOtp(tempUser.phone, currentOtp, tempUser.countryCode);
         setPhoneVerified(true);
         addToast("Phone verified successfully!", "success");
-        if (!emailVerified) setActiveTab('email');
+        // After phone OTP success, always move user to the email OTP step.
+        // (Email verification status is derived separately via emailVerified.)
+        setActiveTab('email');
       } else {
         updatedData = await authService.verifyEmailOtp(tempUser.email, currentOtp);
         setEmailVerified(true);
@@ -276,19 +278,48 @@ export const VerificationForm = () => {
       // CHECK FOR TOKEN
       // If we have a token, we can go to dashboard.
       // If NOT, we must force a login.
-      if (finalUser.token) {
-          localStorage.setItem('mirah_session_user', JSON.stringify(finalUser));
+      const extractedToken =
+        finalUser?.token ||
+        finalUser?.accessToken ||
+        finalUser?.access_token ||
+        finalUser?.jwt ||
+        finalUser?.jwtToken ||
+        finalUser?.accessJwt ||
+        finalUser?.data?.token ||
+        finalUser?.data?.accessToken ||
+        finalUser?.data?.access_token ||
+        finalUser?.data?.jwt ||
+        finalUser?.data?.jwtToken ||
+        finalUser?.data?.accessJwt ||
+        finalUser?.data?.data?.token ||
+        finalUser?.data?.data?.accessToken ||
+        finalUser?.data?.data?.access_token ||
+        finalUser?.data?.data?.jwt ||
+        finalUser?.data?.data?.jwtToken ||
+        finalUser?.data?.data?.accessJwt ||
+        finalUser?.user?.token ||
+        finalUser?.user?.accessToken ||
+        finalUser?.user?.access_token ||
+        finalUser?.user?.jwt ||
+        finalUser?.user?.jwtToken ||
+        finalUser?.user?.accessJwt ||
+        null;
+
+      const normalizedFinalUser = extractedToken ? { ...finalUser, token: extractedToken } : finalUser;
+
+      if (normalizedFinalUser?.token) {
+          localStorage.setItem('mirah_session_user', JSON.stringify(normalizedFinalUser));
           localStorage.removeItem('mirah_temp_user');
           // Hydrate via /me so we have kyc + canSell flags before routing
-          const hydrated = await authService.me().catch(() => finalUser);
+          const hydrated = await authService.me().catch(() => normalizedFinalUser);
           setUser(hydrated);
           addToast("Registration Complete!", "success");
-          const isVendor = hydrated.userType === 'vendor' || hydrated.userType === 'jeweller';
-          const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
-          const vendorLanding = kycStatus === 'accepted' ? '/vendor/explore' : '/vendor/kyc';
-          setTimeout(() => navigate(isVendor ? vendorLanding : '/dashboard/shopping'), 500);
+          const userType = String(hydrated?.userType || '').toLowerCase();
+          // PRD requirement: after verification, route to KYC (jeweller/vendor) or Shop (customer)
+          const landing = userType === 'vendor' || userType === 'jeweller' ? '/vendor/kyc' : '/dashboard/shopping';
+          setTimeout(() => navigate(landing), 500);
       } else {
-          // Token missing (backend didn't send it during verify). Force login.
+          // Token should be present per PRD. If it's not, redirect to login.
           localStorage.removeItem('mirah_temp_user');
           addToast("Verification complete! Please login.", "success");
           setTimeout(() => navigate('/login'), 1500);

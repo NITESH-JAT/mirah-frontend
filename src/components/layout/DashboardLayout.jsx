@@ -3,6 +3,7 @@ import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
+import { authService } from '../../services/authService';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -77,12 +78,52 @@ function truncateName(name, max = 10) {
   return `${s.slice(0, max - 1)}…`;
 }
 
+function avatarNameForUser(u) {
+  const first = String(u?.firstName ?? '').trim();
+  const last = String(u?.lastName ?? '').trim();
+  const full = [first, last].filter(Boolean).join(' ').trim();
+  return full || String(u?.email ?? '').trim() || 'User';
+}
+
+function normalizeYouTubeForIframe(url) {
+  try {
+    const u = new URL(url);
+    const host = String(u.hostname || '').toLowerCase();
+
+    // youtu.be/<id>
+    if (host === 'youtu.be') {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
+    }
+
+    // youtube.com/watch?v=<id>
+    if (host.includes('youtube.com')) {
+      if (u.pathname === '/watch') {
+        const id = u.searchParams.get('v');
+        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
+      }
+      // youtube.com/shorts/<id>
+      if (u.pathname.startsWith('/shorts/')) {
+        const id = u.pathname.split('/').filter(Boolean)[0] === 'shorts' ? u.pathname.split('/').filter(Boolean)[1] : null;
+        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
+      }
+      // already embed
+      if (u.pathname.startsWith('/embed/')) return url;
+    }
+
+    return url;
+  } catch {
+    return url;
+  }
+}
+
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user: currentUser, setUser: setCurrentUser, logout } = useAuth();
   const path = location.pathname;
   const isProfilePage = path.includes('profile');
+  const isFaqPage = path.includes('faq');
   const isMessagesPage = path.includes('messages');
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
@@ -97,9 +138,12 @@ export default function DashboardLayout() {
   const isProjectsPage = path.includes('/dashboard/projects');
   const isVendorProfileViewPage = path.startsWith('/dashboard/vendors/');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
+  const kycStatus = String(currentUser?.kyc?.status || '').toLowerCase();
+  const kycAccepted = kycStatus === 'accepted';
 
   const headerTitle = useMemo(() => {
     if (isProfilePage) return 'My Profile';
+    if (isFaqPage) return 'FAQ';
     if (isMessagesPage) return 'Messages';
     if (isKycPage) return 'KYC';
     if (isShopPage) return 'Store';
@@ -125,6 +169,7 @@ export default function DashboardLayout() {
     isVendorBidsPage,
     isVendorExplorePage,
     isVendorProjectsPage,
+    isFaqPage,
     path,
   ]);
   
@@ -132,6 +177,10 @@ export default function DashboardLayout() {
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [projectTutorialOpen, setProjectTutorialOpen] = useState(false);
+  const [projectTutorialVideoUrl, setProjectTutorialVideoUrl] = useState(null);
+  const [projectTutorialLoading, setProjectTutorialLoading] = useState(false);
+  const projectTutorialCheckKeyRef = useRef(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -191,19 +240,6 @@ export default function DashboardLayout() {
     }
   }, [addToast]);
 
-  const markAllAsRead = useCallback(async () => {
-    try {
-      setNotifLoading(true);
-      await notificationService.markAllRead();
-      await refreshUnreadCount();
-      await loadNotifications();
-    } catch (e) {
-      addToast(e?.message || 'Failed to mark all as read', 'error');
-    } finally {
-      setNotifLoading(false);
-    }
-  }, [addToast, loadNotifications, refreshUnreadCount]);
-
   // --- CLICK OUTSIDE ---
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -222,6 +258,13 @@ export default function DashboardLayout() {
     setIsSidebarOpen(false);
   }, [location.pathname, location.search]);
 
+  // When mobile sidenav is opened, close dropdowns and prevent them from staying open.
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+    setShowUserMenu(false);
+    setShowNotifications(false);
+  }, [isSidebarOpen]);
+
   useEffect(() => {
     // On app start and periodically (PRD)
     refreshUnreadCount();
@@ -233,6 +276,45 @@ export default function DashboardLayout() {
     if (!showNotifications) return;
     loadNotifications().then(refreshUnreadCount);
   }, [showNotifications, loadNotifications, refreshUnreadCount]);
+
+  // --- PROJECT TUTORIAL VIDEO MODAL (customer + vendor) ---
+  useEffect(() => {
+    const userId = currentUser?.id ?? currentUser?._id ?? null;
+    if (!userId) return;
+
+    const canShow = !isVendor || kycAccepted;
+    if (!canShow) return;
+
+    const targetKey = isVendor ? 'vendor' : 'customer';
+    const checkKey = `${userId}:${targetKey}`;
+    if (projectTutorialCheckKeyRef.current === checkKey) return;
+    projectTutorialCheckKeyRef.current = checkKey;
+
+    let cancelled = false;
+    setProjectTutorialLoading(true);
+
+    authService
+      .getProjectTutorialSeen()
+      .then((res) => {
+        if (cancelled) return;
+        if (!res?.hasSeen && res?.videoUrl) {
+          setProjectTutorialVideoUrl(res.videoUrl);
+          setProjectTutorialOpen(true);
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        addToast(e?.message || 'Failed to load project tutorial', 'error');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setProjectTutorialLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addToast, currentUser?.id, currentUser?._id, isVendor, kycAccepted]);
 
   // Cart red-dot indicator (set when items added; cleared when cart page opened)
   useEffect(() => {
@@ -273,6 +355,20 @@ export default function DashboardLayout() {
   const handleLogout = async () => {
     await logout();
     navigate('/login');
+  };
+
+  const handleProjectTutorialGotIt = async () => {
+    try {
+      setProjectTutorialLoading(true);
+      await authService.markProjectTutorialSeen();
+      setProjectTutorialOpen(false);
+      setProjectTutorialVideoUrl(null);
+      addToast('Tutorial seen.', 'success');
+    } catch (e) {
+      addToast(e?.message || 'Failed to mark tutorial as seen', 'error');
+    } finally {
+      setProjectTutorialLoading(false);
+    }
   };
 
   // --- STYLES ---
@@ -318,7 +414,11 @@ export default function DashboardLayout() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => setIsSidebarOpen(true)}
+              onClick={() => {
+                setShowUserMenu(false);
+                setShowNotifications(false);
+                setIsSidebarOpen(true);
+              }}
               className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
               aria-label="Open menu"
             >
@@ -355,7 +455,10 @@ export default function DashboardLayout() {
             <div className="relative" ref={notifMenuRef}>
               <button
                 type="button"
-                onClick={() => setShowNotifications((v) => !v)}
+                onClick={() => {
+                  if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
+                  setShowNotifications((v) => !v);
+                }}
                 className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
                 aria-label="Notifications"
               >
@@ -379,14 +482,6 @@ export default function DashboardLayout() {
                     <p className="text-[13px] font-bold text-gray-800">Notifications</p>
                     <div className="flex items-center gap-3">
                       <p className="text-[11px] text-gray-400">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
-                      <button
-                        type="button"
-                        onClick={markAllAsRead}
-                        disabled={notifLoading || unreadCount === 0}
-                        className="text-[11px] font-bold text-primary-dark disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                      >
-                        Mark all as read
-                      </button>
                     </div>
                   </div>
 
@@ -406,6 +501,25 @@ export default function DashboardLayout() {
                           <div
                             key={String(id)}
                             className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                            role="button"
+                            tabIndex={0}
+                            onClick={async () => {
+                              if (notifLoading) return;
+                              if (isRead || !id) return;
+                              try {
+                                await notificationService.markRead(id);
+                                await refreshUnreadCount();
+                                await loadNotifications();
+                              } catch (err) {
+                                addToast(err?.message || 'Failed to mark notification as read', 'error');
+                              }
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                e.currentTarget.click();
+                              }
+                            }}
                           >
                             <div className="flex gap-3 items-start">
                               <div className={`mt-1 w-2 h-2 rounded-full ${isRead ? 'bg-transparent' : 'bg-red-500'}`} />
@@ -418,24 +532,6 @@ export default function DashboardLayout() {
                                   <p className="text-[11px] text-gray-400 mt-1">{when}</p>
                                 ) : null}
                               </div>
-                              {!isRead && id && (
-                                <button
-                                  type="button"
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    try {
-                                      await notificationService.markRead(id);
-                                      await refreshUnreadCount();
-                                      await loadNotifications();
-                                    } catch (err) {
-                                      addToast(err?.message || 'Failed to mark as read', 'error');
-                                    }
-                                  }}
-                                  className="shrink-0 text-[11px] font-bold text-primary-dark hover:underline cursor-pointer"
-                                >
-                                  Mark as read
-                                </button>
-                              )}
                             </div>
                           </div>
                         );
@@ -450,7 +546,10 @@ export default function DashboardLayout() {
             <div className="relative" ref={userMenuRef}>
              <div 
                 className="flex items-center gap-3 cursor-pointer p-1 rounded-lg hover:bg-gray-50 transition-colors"
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => {
+                  if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
+                  setShowUserMenu(!showUserMenu);
+                }}
              >
                  <div className="text-right leading-tight">
                     <p className="text-[13px] font-bold text-gray-800">
@@ -462,7 +561,7 @@ export default function DashboardLayout() {
                     <img 
                         src={
                           currentUser?.profileImageUrl ||
-                          `https://ui-avatars.com/api/?name=${currentUser?.firstName || 'U'}&background=0D8ABC&color=fff`
+                          `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarNameForUser(currentUser))}&background=0D8ABC&color=fff`
                         } 
                         alt="User" 
                     />
@@ -474,13 +573,30 @@ export default function DashboardLayout() {
                 <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
-                          navigate('/dashboard/profile');
+                          const profilePath = isVendor ? '/vendor/profile' : '/dashboard/profile';
+                          navigate(profilePath);
                           setShowUserMenu(false);
                         }}
                         className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        const faqPath = isVendor ? '/vendor/faq' : '/dashboard/faq';
+                        navigate(faqPath);
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                        <path d="M9 9h.01" />
+                        <path d="M13 9h.01" />
+                        <path d="M17 9h.01" />
+                      </svg>
+                      FAQ
                     </button>
                     <button 
                         onClick={handleLogout}
@@ -512,6 +628,7 @@ export default function DashboardLayout() {
               isProjectsPage ||
               isOrdersPage ||
               isProfilePage ||
+              isFaqPage ||
               isVendorProfileViewPage
                 ? 'max-w-none'
                 : 'max-w-5xl'
@@ -521,6 +638,64 @@ export default function DashboardLayout() {
             <Outlet context={outletContext} /> 
           </div>
         </div>
+
+        {/* PROJECT TUTORIAL MODAL */}
+        {projectTutorialOpen && projectTutorialVideoUrl ? (
+          <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4">
+            <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-xl">
+              <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between gap-3">
+                <p className="text-[13px] font-extrabold text-gray-900">Tutorial</p>
+                {projectTutorialLoading ? (
+                  <p className="text-[12px] text-gray-400">Loading…</p>
+                ) : (
+                  <span className="text-[12px] text-gray-400">Watch the tutorial to get started</span>
+                )}
+              </div>
+
+              <div className="p-4 bg-gray-50">
+                {/youtube\.com|youtu\.be/i.test(projectTutorialVideoUrl) ? (
+                  <iframe
+                    title="Project tutorial video"
+                    src={
+                      (() => {
+                        const base = normalizeYouTubeForIframe(projectTutorialVideoUrl);
+                        return base.includes('?')
+                          ? `${base}&controls=1&modestbranding=1&rel=0`
+                          : `${base}?controls=1&modestbranding=1&rel=0`;
+                      })()
+                    }
+                    className="w-full aspect-video rounded-xl bg-black"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <video
+                    src={projectTutorialVideoUrl}
+                    className="w-full max-h-[60vh] rounded-xl bg-black"
+                    autoPlay
+                    muted
+                    preload="metadata"
+                    controls
+                    controlsList="nodownload noplaybackrate noremoteplayback"
+                    disablePictureInPicture
+                    playsInline
+                  />
+                )}
+              </div>
+
+              <div className="px-4 py-4 border-t border-gray-50 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleProjectTutorialGotIt}
+                  disabled={projectTutorialLoading}
+                  className="px-6 py-3 rounded-xl bg-primary-dark text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  Got It
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
       </div>
       

@@ -506,7 +506,7 @@ export const RegisterForm = () => {
 
         <div className="flex gap-4 lg:gap-3">
           <InputField name="state" placeholder="State" value={formData.state} onChange={handleChange} />
-          <InputField name="pinCode" placeholder="Zip Code" value={formData.pinCode} onChange={handleChange} />
+          <InputField name="pinCode" placeholder="Pin Code" value={formData.pinCode} onChange={handleChange} />
         </div>
 
         <div className="flex flex-col gap-4 lg:gap-3 mt-2">
