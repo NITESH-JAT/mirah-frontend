@@ -413,7 +413,7 @@ export default function Shopping() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Brand</label>
+                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Collection</label>
                   <select
                     value={draftBrand}
                     onChange={(e) => setDraftBrand(e.target.value)}

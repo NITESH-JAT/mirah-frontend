@@ -1894,7 +1894,7 @@ export default function VendorShop() {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Brand</label>
+                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Collection</label>
                         <input
                           value={createForm.brand}
                           onChange={(e) => setCreateForm((p) => ({ ...p, brand: e.target.value }))}

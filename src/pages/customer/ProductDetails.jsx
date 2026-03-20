@@ -145,12 +145,17 @@ export default function ProductDetails() {
       if (value == null || value === '') return;
       pairs.push({ label, value: String(value) });
     };
-    add('Brand', product?.brand);
+    add('Collection', product?.brand);
     add('Category', product?.category);
     add('SKU', product?.sku);
-    add('Unit', product?.unit);
+    const unit = String(product?.unit ?? '').trim();
+    const stockVal = product?.stock ?? null;
+    const stockText =
+      stockVal == null || stockVal === ''
+        ? null
+        : `${String(stockVal)}${unit ? ` ${unit}` : ''}`;
     add('Weight', product?.weight ? `${product.weight} ${product?.weightUnit || ''}`.trim() : null);
-    add('Stock', product?.stock);
+    add('Stock', stockText);
     return pairs;
   }, [product]);
 
