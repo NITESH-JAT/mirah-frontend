@@ -1340,7 +1340,7 @@ export default function Projects() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Min amount *</label>
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Min amount (₹) *</label>
                     <input
                       type="number"
                       value={createForm.minAmount}
@@ -1351,7 +1351,7 @@ export default function Projects() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Max amount *</label>
+                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wide">Max amount (₹) *</label>
                     <input
                       type="number"
                       value={createForm.maxAmount}
