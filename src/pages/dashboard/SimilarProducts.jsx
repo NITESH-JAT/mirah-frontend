@@ -153,7 +153,6 @@ export default function SimilarProducts() {
     const img = firstImageUrl(p);
     const sourceText = sourceBadgeText(p);
     const pid = pickId(p);
-    const desc = String(p?.description ?? p?.shortDescription ?? p?.desc ?? '').trim();
     const off = discountPercent({ price: p?.price, compareAtPrice: p?.compareAtPrice });
     const isFeatured =
       p?.isFeatured === true || p?.isFeatured === 1 || String(p?.isFeatured).toLowerCase() === 'true';
@@ -202,7 +201,7 @@ export default function SimilarProducts() {
               e.stopPropagation();
               openAddToCart(p);
             }}
-            className="absolute right-2 bottom-2 w-8 h-8 rounded-full bg-white/95 shadow-sm border border-gray-100 flex items-center justify-center text-primary-dark hover:opacity-90 transition-opacity"
+            className="absolute right-2 bottom-2 w-8 h-8 rounded-full bg-white/95 shadow-sm border border-gray-100 flex items-center justify-center text-primary-dark transition-colors hover:bg-primary-dark hover:text-white"
             aria-label="Add to cart"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -214,9 +213,6 @@ export default function SimilarProducts() {
         <div className="mt-2">
           <p className="text-[12px] md:text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2">
             {p?.name || 'Product'}
-          </p>
-          <p className="mt-1 text-[11px] text-gray-500 line-clamp-1 min-h-[16px]">
-            {desc || '\u00A0'}
           </p>
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">

@@ -258,8 +258,10 @@ export default function Sidebar({ isOpen = false, onClose }) {
           </div>
           <span className="font-serif text-3xl text-primary-dark font-extrabold italic tracking-tight lg:hidden">Mirah</span>
 
-          <span className="hidden lg:block font-serif text-2xl text-primary-dark font-extrabold italic tracking-tight whitespace-nowrap">
-            Mirah | <span className="font-extrabold">{baseTitle || ''}</span>
+          <span className="hidden lg:block text-2xl text-primary-dark tracking-tight whitespace-nowrap">
+            <span className="font-serif font-extrabold italic">Mirah</span>
+            <span className="font-sans  not-italic mx-2">|</span>
+            <span className="font-serif font-extrabold italic">{baseTitle || ''}</span>
           </span>
         </div>
         <button
