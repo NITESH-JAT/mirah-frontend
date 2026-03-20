@@ -121,6 +121,7 @@ export default function Messages() {
 
   const [mobileView, setMobileView] = useState('list'); // 'list' | 'thread'
   const [showEmoji, setShowEmoji] = useState(false);
+  const [showSafetyBanner, setShowSafetyBanner] = useState(true);
 
   const [loadingConvos, setLoadingConvos] = useState(true);
   const [conversations, setConversations] = useState([]);
@@ -834,6 +835,27 @@ export default function Messages() {
                 </div>
               </div>
             </div>
+            {showSafetyBanner && !activeConvo?.admin ? (
+              <div className="px-5 py-3">
+                <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-700 flex items-start justify-between gap-3">
+                  <p>
+                    <span className="font-semibold">For safety, keep all communication in Mirah Chat.</span>{' '}
+                    Messages are visible to Admin.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowSafetyBanner(false)}
+                    className="shrink-0 text-red-500 hover:text-red-700 transition-colors cursor-pointer"
+                    aria-label="Dismiss safety notice"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6 6 18" />
+                      <path d="m6 6 12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex-1 min-h-0 relative bg-white overflow-hidden">
               <div className="h-full overflow-y-auto px-5 py-6 space-y-3 relative z-10">
@@ -909,12 +931,6 @@ export default function Messages() {
                 <div ref={messagesEndRef} />
               </div>
 
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3 z-0 w-[min(520px,calc(100%-40px))]">
-                <div className="rounded-2xl border border-red-100 bg-red-50/80 px-4 py-2.5 text-[12px] text-red-700 shadow-sm text-center">
-                  <span className="font-semibold">For safety, keep all communication in Mirah Chat.</span>{' '}
-                  Messages are visible to Admin.
-                </div>
-              </div>
             </div>
 
             <div className="border-t border-gray-100 p-4">

@@ -250,8 +250,14 @@ export default function Kyc() {
       return true;
     } catch (e) {
       const mf = e?.missingFields || e?.data?.missingFields || e?.response?.data?.missingFields;
+      const invalidFields = e?.invalidFields || e?.data?.invalidFields || e?.response?.data?.invalidFields;
       if (Array.isArray(mf) && mf.length) setMissingFields(mf);
-      addToast(e?.message || 'Failed to save section', 'error');
+      
+      let errorMsg = e?.message || 'Failed to save section';
+      if (Array.isArray(invalidFields) && invalidFields.length) {
+        errorMsg = invalidFields.join('\n');
+      }
+      addToast(errorMsg, 'error');
       return false;
     } finally {
       setSavingSection(false);
@@ -276,7 +282,13 @@ export default function Kyc() {
       const refreshed = await kycService.getStatus();
       setKycStatus(refreshed);
     } catch (e) {
-      addToast(e?.message || 'KYC submit failed', 'error');
+      const invalidFields = e?.invalidFields || e?.data?.invalidFields || e?.response?.data?.invalidFields;
+      
+      let errorMsg = e?.message || 'KYC submit failed';
+      if (Array.isArray(invalidFields) && invalidFields.length) {
+        errorMsg = invalidFields.join('\n');
+      }
+      addToast(errorMsg, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -348,13 +360,13 @@ export default function Kyc() {
                 <button
                   key={s.key}
                   type="button"
-                  disabled={isLocked}
-                  onClick={() => setActiveSectionIdx(idx)}
-                  className={`px-3 py-2 rounded-xl border text-[12px] font-semibold transition-colors cursor-pointer
+                  disabled={false}
+                  onClick={() => isLocked && setActiveSectionIdx(idx)}
+                  className={`px-3 py-2 rounded-xl border text-[12px] font-semibold transition-colors
                     ${idx === activeSectionIdx
                       ? 'bg-primary-dark text-white border-primary-dark'
-                      : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}
-                    ${isLocked ? 'opacity-60 cursor-not-allowed' : ''}
+                      : 'bg-white text-gray-500 border-gray-100'}
+                    ${isLocked ? 'cursor-pointer hover:bg-gray-50' : ''}
                   `}
                 >
                   {s.title}

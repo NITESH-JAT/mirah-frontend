@@ -42,7 +42,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
       </div>
       <div className="flex-1 pt-0.5">
         <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
-          {isError ? 'Action Failed' : 'Success'}
+          {isError ? 'Error' : 'Success'}
         </h4>
         <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
       </div>
@@ -469,9 +469,19 @@ export default function DashboardLayout() {
                  </div>
              </div>
 
-             {/* LOGOUT DROPDOWN */}
+             {/* PROFILE DROPDOWN */}
              {showUserMenu && (
                 <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden animate-slide-in">
+                    <button 
+                        onClick={() => {
+                          navigate('/dashboard/profile');
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        Profile
+                    </button>
                     <button 
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2 text-[13px] text-red-500 hover:bg-red-50 font-medium flex items-center gap-2"
