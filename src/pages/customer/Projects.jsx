@@ -435,7 +435,6 @@ export default function Projects() {
   const [activeTab, setActiveTab] = useState('list'); // 'list' | 'create'
   const createModalOpen = activeTab === 'create';
   const mainTab = createModalOpen ? 'list' : activeTab;
-  const [consultBannerDismissed, setConsultBannerDismissed] = useState(false);
 
   const urlTab = useMemo(() => {
     try {
@@ -454,7 +453,6 @@ export default function Projects() {
 
   useEffect(() => {
     if (!createModalOpen) return;
-    setConsultBannerDismissed(false);
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
     return () => {
@@ -1840,13 +1838,27 @@ export default function Projects() {
                   className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                  <div className="relative px-5 pt-4 border-b border-gray-50 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[14px] font-extrabold text-gray-900">{editingId ? 'Edit Project' : 'Create Project'}</p>
                       <p className="mt-1 text-[12px] text-gray-400">
                         {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
                       </p>
                     </div>
+
+                    {/* Desktop: consultation prompt centered in header row */}
+                    <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-4 flex-col items-center text-center gap-2 max-w-[52%]">
+                      <p className="text-[14px] font-extrabold text-gray-800">
+                        Need help bringing your idea together?
+                      </p>
+                      <a
+                        href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
+                        className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity"
+                      >
+                        Book a Consultation
+                      </a>
+                    </div>
+
                     <div className="shrink-0 flex items-center gap-2">
                       {editingId ? (
                         <button
@@ -1874,36 +1886,22 @@ export default function Projects() {
                   </div>
 
                   <div className="px-5 py-3 border-b border-gray-50 bg-white">
-                    {!consultBannerDismissed ? (
-                      <div className="mb-2 rounded-xl border border-gray-100 bg-white px-3 py-2 flex items-center justify-between gap-3">
-                        <p className="text-[11px] font-semibold text-gray-700">
-                          Need help bringing your idea together?
-                        </p>
-                        <div className="shrink-0 flex items-center gap-2">
-                          <a
-                            href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
-                            className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-primary-dark text-white text-[11px] font-bold hover:opacity-90 transition-opacity"
-                          >
-                            Book a Consultation
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => setConsultBannerDismissed(true)}
-                            className="w-7 h-7 rounded-lg border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 flex items-center justify-center cursor-pointer"
-                            aria-label="Dismiss"
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M18 6 6 18" />
-                              <path d="m6 6 12 12" />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    ) : null}
+                    {/* Mobile: compact consultation prompt above stepper */}
+                    <div className="md:hidden mb-2 rounded-2xl border border-gray-100 bg-white px-4 pt-4 pb-3 flex flex-col items-center justify-center text-center gap-2">
+                      <p className="text-[14px] font-extrabold text-gray-800 mt-1">
+                        Need help bringing your idea together?
+                      </p>
+                      <a
+                        href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
+                        className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity"
+                      >
+                        Book a Consultation
+                      </a>
+                    </div>
                     <div className="sm:hidden mb-2 text-[13px] font-extrabold text-gray-900">
                       {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>
-                    <div className="flex items-center gap-2 w-full">
+                    <div className="flex items-center gap-2 w-full md:mt-4">
                       {stepLabels.map((s, idx) => {
                         const active = createStep === s.id;
                         const done = createStep > s.id;
