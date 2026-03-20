@@ -134,7 +134,7 @@ export default function VendorProfile() {
 
   const chatNow = () => {
     if (!vendorId) return;
-    navigate('/dashboard/messages', { state: { openRecipientId: vendorId } });
+    navigate('/customer/messages', { state: { openRecipientId: vendorId } });
   };
 
   const canLoadMoreReviews = (Number(reviewsMeta?.page ?? 1) || 1) < (Number(reviewsMeta?.totalPages ?? 1) || 1);

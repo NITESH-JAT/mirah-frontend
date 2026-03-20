@@ -43,14 +43,14 @@ export default function OrderSuccess() {
         <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
           <button
             type="button"
-            onClick={() => navigate('/dashboard/orders')}
+            onClick={() => navigate('/customer/orders')}
             className="px-5 py-3 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90"
           >
             Go to My Orders
           </button>
           <button
             type="button"
-            onClick={() => navigate('/dashboard/shopping')}
+            onClick={() => navigate('/customer/shopping')}
             className="px-5 py-3 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
           >
             Continue shopping

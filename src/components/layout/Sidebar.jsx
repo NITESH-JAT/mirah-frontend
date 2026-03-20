@@ -35,7 +35,6 @@ export default function Sidebar({ isOpen = false, onClose }) {
   ).toLowerCase();
   const isVendorKycAccepted = vendorKycStatus === 'accepted';
 
-  const [cartHasNew, setCartHasNew] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
   const [vendorProjectsOpen, setVendorProjectsOpen] = useState(false);
@@ -46,7 +45,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
 
   useEffect(() => {
     if (isVendor) return;
-    if (location.pathname.startsWith('/dashboard/projects')) {
+    if (location.pathname.startsWith('/customer/projects')) {
       // async to avoid "setState synchronously within effect" lint
       setTimeout(() => setProjectsOpen(true), 0);
     }
@@ -94,7 +93,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
     }
   })();
 
-  const isProjectsRoute = !isVendor && location.pathname.startsWith('/dashboard/projects');
+  const isProjectsRoute = !isVendor && location.pathname.startsWith('/customer/projects');
   const isStoreRoute = isVendor && location.pathname.startsWith('/vendor/shop');
   const isVendorProjectsRoute = isVendor && location.pathname.startsWith('/vendor/projects');
 
@@ -108,11 +107,11 @@ export default function Sidebar({ isOpen = false, onClose }) {
     if (p.startsWith('/vendor/bids')) return p.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
     if (p.startsWith('/vendor/projects')) return p.includes('/vendor/projects/assigned') ? 'Assigned Projects' : 'Assignment Requests';
-    if (p.includes('/dashboard/cart')) return 'Cart';
-    if (p.includes('/dashboard/checkout')) return 'Checkout';
-    if (p.includes('/dashboard/orders')) return 'My Orders';
-    if (p.includes('/dashboard/shopping')) return 'Shop';
-    if (p.startsWith('/dashboard/projects')) return 'My Projects';
+    if (p.includes('/customer/cart')) return 'Cart';
+    if (p.includes('/customer/checkout')) return 'Checkout';
+    if (p.includes('/customer/orders')) return 'My Orders';
+    if (p.includes('/customer/shopping')) return 'Shop';
+    if (p.startsWith('/customer/projects')) return 'My Projects';
     return '';
   })();
 
@@ -123,7 +122,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
     } catch {
       // ignore
     }
-    navigate(`/dashboard/projects?tab=${encodeURIComponent(t)}`);
+    navigate(`/customer/projects?tab=${encodeURIComponent(t)}`);
     onClose?.();
   };
 
@@ -201,47 +200,6 @@ export default function Sidebar({ isOpen = false, onClose }) {
     navigate(`/vendor/projects/${encodeURIComponent(next)}`);
     onClose?.();
   };
-
-  useEffect(() => {
-    try {
-      // async to avoid "setState synchronously within effect" lint
-      const next = localStorage.getItem('mirah_cart_has_new') === '1';
-      setTimeout(() => setCartHasNew(next), 0);
-    } catch {
-      // async to avoid "setState synchronously within effect" lint
-      setTimeout(() => setCartHasNew(false), 0);
-    }
-  }, []);
-
-  // Keep badge in sync when cart updates in the app.
-  useEffect(() => {
-    const onUpdated = () => {
-      try {
-        setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
-      } catch {
-        setCartHasNew(false);
-      }
-    };
-    window.addEventListener('mirah_cart_updated', onUpdated);
-    window.addEventListener('storage', onUpdated);
-    return () => {
-      window.removeEventListener('mirah_cart_updated', onUpdated);
-      window.removeEventListener('storage', onUpdated);
-    };
-  }, []);
-
-  // When user opens Cart page, clear the red dot.
-  useEffect(() => {
-    if (location.pathname !== '/dashboard/cart') return;
-    try {
-      localStorage.removeItem('mirah_cart_has_new');
-      window.dispatchEvent(new Event('mirah_cart_updated'));
-    } catch {
-      // ignore
-    }
-    // async to avoid "setState synchronously within effect" lint
-    setTimeout(() => setCartHasNew(false), 0);
-  }, [location.pathname]);
 
   return (
     <div
@@ -565,31 +523,14 @@ export default function Sidebar({ isOpen = false, onClose }) {
         ) : (
           <>
             <NavItem 
-              active={location.pathname === '/dashboard/shopping'}
-              path="/dashboard/shopping"
+              active={location.pathname === '/customer/shopping'}
+              path="/customer/shopping"
               label="Shop" 
               icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.2-4h15.6L21 7"/><path d="M2 7h20"/><path d="M4 7v14h16V7"/><path d="M6 7v4"/><path d="M10 7v4"/><path d="M14 7v4"/><path d="M18 7v4"/><path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7"/></svg>}
             />
             <NavItem 
-              active={location.pathname === '/dashboard/cart'}
-              path="/dashboard/cart"
-              label="Cart" 
-              icon={
-                <div className="relative">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="9" cy="21" r="1" />
-                    <circle cx="20" cy="21" r="1" />
-                    <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
-                  </svg>
-                  {cartHasNew ? (
-                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
-                  ) : null}
-                </div>
-              }
-            />
-            <NavItem 
-              active={location.pathname === '/dashboard/orders'}
-              path="/dashboard/orders"
+              active={location.pathname === '/customer/orders'}
+              path="/customer/orders"
               label="My Orders" 
               icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h8"/><path d="M8 17h8"/></svg>}
             />
@@ -690,14 +631,14 @@ export default function Sidebar({ isOpen = false, onClose }) {
               ) : null}
             </div>
             <NavItem 
-              active={location.pathname === '/dashboard/messages'}
-              path="/dashboard/messages"
+              active={location.pathname === '/customer/messages'}
+              path="/customer/messages"
               label="Messages" 
               icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
             />
             <NavItem 
-              active={location.pathname === '/dashboard/profile'}
-              path="/dashboard/profile"
+              active={location.pathname === '/customer/profile'}
+              path="/customer/profile"
               label="Profile" 
               icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
             />

@@ -474,7 +474,7 @@ export default function Projects() {
       metaFields: [],
     });
     setActiveTab('create');
-    navigate('/dashboard/projects?tab=create');
+    navigate('/customer/projects?tab=create');
   };
 
   const startEdit = (p) => {
@@ -491,7 +491,7 @@ export default function Projects() {
       metaFields: extraFieldsToArray(p?.meta),
     });
     setActiveTab('create');
-    navigate('/dashboard/projects?tab=create');
+    navigate('/customer/projects?tab=create');
   };
 
   const handleUploadAttachments = async (files) => {
@@ -560,7 +560,7 @@ export default function Projects() {
       }
       setEditingId(null);
       setActiveTab('list');
-      navigate('/dashboard/projects?tab=list');
+      navigate('/customer/projects?tab=list');
       await loadProjects({ nextPage: 1, append: false });
     } catch (e) {
       addToast(e?.message || 'Failed to save project', 'error');
@@ -728,7 +728,7 @@ export default function Projects() {
   const goToBids = (p) => {
     const id = localProjectIdOf(p);
     if (!id) return;
-    navigate(`/dashboard/projects/${id}/bids`, { state: { projectTitle: p?.title ?? '' } });
+    navigate(`/customer/projects/${id}/bids`, { state: { projectTitle: p?.title ?? '' } });
   };
 
   const openVendorReview = (p) => {
@@ -1088,7 +1088,7 @@ export default function Projects() {
                                 {canTrack ? (
                                   <button
                                     type="button"
-                                    onClick={() => navigate(`/dashboard/projects/${id}`)}
+                                    onClick={() => navigate(`/customer/projects/${id}`)}
                                     className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50"
                                   >
                                     Track
@@ -1294,7 +1294,7 @@ export default function Projects() {
                             {status === 'accepted' && pid ? (
                               <button
                                 type="button"
-                                onClick={() => navigate(`/dashboard/projects/${pid}`)}
+                                onClick={() => navigate(`/customer/projects/${pid}`)}
                                 className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-primary-dark hover:bg-gray-50"
                               >
                                 Track

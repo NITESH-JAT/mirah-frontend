@@ -316,7 +316,7 @@ export const LoginForm = () => {
         const kycStatus = String(hydrated?.kyc?.status || '').toLowerCase();
         // If vendor and KYC verified, land on Explore page; otherwise use KYC flow
         const vendorLanding = kycStatus === 'accepted' ? '/vendor/explore' : '/vendor/kyc';
-        navigate(isVendor ? vendorLanding : '/dashboard/shopping');
+        navigate(isVendor ? vendorLanding : '/customer/shopping');
         addToast("Welcome back!", "success");
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));

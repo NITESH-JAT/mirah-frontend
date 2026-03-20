@@ -5,6 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { authService } from '../../services/authService';
 import logo from '../../assets/logo.png';
+import { cartService } from '../../services/cartService';
+import SafeImage from '../SafeImage';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -131,13 +133,13 @@ export default function DashboardLayout() {
   const isVendorExplorePage = path.includes('/vendor/explore');
   const isVendorBidsPage = path.includes('/vendor/bids');
   const isVendorProjectsPage = path.includes('/vendor/projects');
-  const isShoppingPage = path.includes('/dashboard/shopping');
-  const isShoppingListPage = path === '/dashboard/shopping';
-  const isCartPage = path.includes('/dashboard/cart');
-  const isCheckoutPage = path.includes('/dashboard/checkout');
-  const isOrdersPage = path.includes('/dashboard/orders');
-  const isProjectsPage = path.includes('/dashboard/projects');
-  const isVendorProfileViewPage = path.startsWith('/dashboard/vendors/');
+  const isShoppingPage = path.includes('/customer/shopping');
+  const isShoppingListPage = path === '/customer/shopping';
+  const isCartPage = path.includes('/customer/cart');
+  const isCheckoutPage = path.includes('/customer/checkout');
+  const isOrdersPage = path.includes('/customer/orders');
+  const isProjectsPage = path.includes('/customer/projects');
+  const isVendorProfileViewPage = path.startsWith('/customer/vendors/');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
   const kycStatus = String(currentUser?.kyc?.status || '').toLowerCase();
   const kycAccepted = kycStatus === 'accepted';
@@ -185,7 +187,13 @@ export default function DashboardLayout() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifLoading, setNotifLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [cartHasNew, setCartHasNew] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
+  const [cartDrawerOpen, setCartDrawerOpen] = useState(false);
+  const [cartDrawerLoading, setCartDrawerLoading] = useState(false);
+  const [cartDrawerItems, setCartDrawerItems] = useState([]);
+  const [cartSelected, setCartSelected] = useState(() => new Set());
+  const cartDrawerAbortRef = useRef(null);
+  const cartMutatingRef = useRef(false);
   const userMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
 
@@ -317,22 +325,135 @@ export default function DashboardLayout() {
     };
   }, [addToast, currentUser?.id, currentUser?._id, isVendor, kycAccepted]);
 
-  // Cart red-dot indicator (set when items added; cleared when cart page opened)
-  useEffect(() => {
-    try {
-      setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
-    } catch {
-      setCartHasNew(false);
+  const cartItemCountOf = useCallback((rawItems) => {
+    const arr = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+    return arr.reduce((sum, it) => {
+      const q = Number(it?.quantity ?? it?.qty ?? it?.count ?? 1);
+      const n = Number.isFinite(q) && q > 0 ? Math.floor(q) : 1;
+      return sum + n;
+    }, 0);
+  }, []);
+
+  const normalizeCartItems = useCallback((rawItems) => {
+    const arr = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+    return arr
+      .map((it) => {
+        const product = it?.product ?? it?.productDetails ?? it?.productData ?? it?.item ?? it ?? {};
+        const productId =
+          it?.productId ??
+          it?.product_id ??
+          product?.id ??
+          product?._id ??
+          it?.id ??
+          it?._id ??
+          null;
+        const quantityRaw = Number(it?.quantity ?? it?.qty ?? it?.count ?? 1);
+        const quantity = Number.isFinite(quantityRaw) && quantityRaw > 0 ? Math.floor(quantityRaw) : 1;
+        return { raw: it, product, productId, quantity };
+      })
+      .filter((x) => x.productId != null);
+  }, []);
+
+  const providerKeyForCartItem = useCallback((item, product) => {
+    const vendorId =
+      product?.vendorId ??
+      product?.vendor_id ??
+      product?.vendor?.id ??
+      product?.vendor?._id ??
+      item?.vendorId ??
+      item?.vendor_id ??
+      null;
+    return vendorId ? `vendor:${vendorId}` : 'admin';
+  }, []);
+
+  const cartAllSelected = useMemo(() => {
+    if (!cartDrawerItems.length) return false;
+    return cartDrawerItems.every((x) => cartSelected.has(String(x.productId)));
+  }, [cartDrawerItems, cartSelected]);
+
+  const cartSelectedIds = useMemo(() => {
+    return cartDrawerItems
+      .map((x) => String(x.productId))
+      .filter((id) => cartSelected.has(id));
+  }, [cartDrawerItems, cartSelected]);
+
+  const cartSelectedProviderOk = useMemo(() => {
+    if (cartSelectedIds.length <= 1) return true;
+    const keys = new Set();
+    for (const it of cartDrawerItems) {
+      const id = String(it.productId);
+      if (!cartSelected.has(id)) continue;
+      keys.add(providerKeyForCartItem(it.raw, it.product));
     }
+    return keys.size <= 1;
+  }, [cartDrawerItems, cartSelected, cartSelectedIds.length, providerKeyForCartItem]);
+
+  const toggleCartSelectAll = useCallback(() => {
+    setCartSelected(() => {
+      if (cartAllSelected) return new Set();
+      return new Set(cartDrawerItems.map((x) => String(x.productId)));
+    });
+  }, [cartAllSelected, cartDrawerItems]);
+
+  const toggleCartSelectOne = useCallback((productId) => {
+    const id = String(productId);
+    setCartSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const refreshCartCount = useCallback(async () => {
+    if (isVendor) return;
+    try {
+      const res = await cartService.getCart();
+      setCartCount(cartItemCountOf(res?.items || []));
+    } catch {
+      // ignore badge failures
+    }
+  }, [cartItemCountOf, isVendor]);
+
+  const loadCartDrawer = useCallback(async () => {
+    if (isVendor) return;
+    if (cartDrawerAbortRef.current) cartDrawerAbortRef.current.abort();
+    const ctrl = new AbortController();
+    cartDrawerAbortRef.current = ctrl;
+    setCartDrawerLoading(true);
+    try {
+      const res = await cartService.getCart({ signal: ctrl.signal });
+      const list = normalizeCartItems(res?.items || []);
+      setCartDrawerItems(list);
+      // default: select all when drawer loads (and keep selection for existing items)
+      setCartSelected((prev) => {
+        const allowed = new Set(list.map((x) => String(x.productId)));
+        const kept = new Set();
+        for (const id of prev) {
+          if (allowed.has(String(id))) kept.add(String(id));
+        }
+        if (kept.size) return kept;
+        return new Set(list.map((x) => String(x.productId)));
+      });
+      setCartCount(cartItemCountOf(res?.items || []));
+    } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
+      addToast(e?.message || 'Failed to load cart', 'error');
+    } finally {
+      setCartDrawerLoading(false);
+    }
+  }, [addToast, cartItemCountOf, isVendor, normalizeCartItems]);
+
+  const closeCartDrawer = useCallback(() => {
+    if (cartDrawerAbortRef.current) cartDrawerAbortRef.current.abort();
+    setCartDrawerOpen(false);
   }, []);
 
   useEffect(() => {
+    refreshCartCount();
     const onUpdated = () => {
-      try {
-        setCartHasNew(localStorage.getItem('mirah_cart_has_new') === '1');
-      } catch {
-        setCartHasNew(false);
-      }
+      refreshCartCount();
+      if (cartDrawerOpen) loadCartDrawer();
     };
     window.addEventListener('mirah_cart_updated', onUpdated);
     window.addEventListener('storage', onUpdated);
@@ -340,18 +461,7 @@ export default function DashboardLayout() {
       window.removeEventListener('mirah_cart_updated', onUpdated);
       window.removeEventListener('storage', onUpdated);
     };
-  }, []);
-
-  useEffect(() => {
-    if (!isCartPage) return;
-    try {
-      localStorage.removeItem('mirah_cart_has_new');
-      window.dispatchEvent(new Event('mirah_cart_updated'));
-    } catch {
-      // ignore
-    }
-    setCartHasNew(false);
-  }, [isCartPage]);
+  }, [cartDrawerOpen, loadCartDrawer, refreshCartCount]);
 
   const handleLogout = async () => {
     await logout();
@@ -385,7 +495,7 @@ export default function DashboardLayout() {
       <style>{globalStyles}</style>
 
       {/* TOAST CONTAINER */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
+      <div className="fixed top-6 right-6 z-[260] flex flex-col items-end pointer-events-none">
          {toasts.map(toast => (
             <ToastNotification 
                 key={toast.id} 
@@ -440,12 +550,18 @@ export default function DashboardLayout() {
           {/* Desktop-only center branding moved to outer layout */}
           
           <div className="flex items-center gap-3 relative">
-            {/* Mobile cart icon */}
+            {/* Cart icon (customer) */}
             {!isVendor ? (
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/cart')}
-                className="sm:hidden relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                onClick={() => {
+                  if (isSidebarOpen) return;
+                  setShowUserMenu(false);
+                  setShowNotifications(false);
+                  setCartDrawerOpen(true);
+                  loadCartDrawer();
+                }}
+                className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
                 aria-label="Cart"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -453,9 +569,9 @@ export default function DashboardLayout() {
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
                 </svg>
-                {cartHasNew ? (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
-                ) : null}
+                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary-dark text-white text-[10px] font-bold flex items-center justify-center">
+                  {Number(cartCount) || 0}
+                </span>
               </button>
             ) : null}
 
@@ -581,7 +697,7 @@ export default function DashboardLayout() {
                 <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
-                          const profilePath = isVendor ? '/vendor/profile' : '/dashboard/profile';
+                          const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
                           navigate(profilePath);
                           setShowUserMenu(false);
                         }}
@@ -592,7 +708,7 @@ export default function DashboardLayout() {
                     </button>
                     <button
                       onClick={() => {
-                        const faqPath = isVendor ? '/vendor/faq' : '/dashboard/faq';
+                        const faqPath = isVendor ? '/vendor/faq' : '/customer/faq';
                         navigate(faqPath);
                         setShowUserMenu(false);
                       }}
@@ -646,6 +762,246 @@ export default function DashboardLayout() {
             <Outlet context={outletContext} /> 
           </div>
         </div>
+
+        {/* CART DRAWER (customer) */}
+        {cartDrawerOpen && !isVendor ? (
+          <div
+            className="fixed inset-0 z-[160] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
+            onMouseDown={closeCartDrawer}
+          >
+            <div
+              className="w-full max-w-xl md:w-[520px] md:max-w-[520px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[15px] font-bold text-gray-800">Cart</p>
+                  <p className="text-[12px] text-gray-400 mt-1">
+                    Items: <span className="text-gray-700 font-semibold">{Number(cartCount) || 0}</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeCartDrawer}
+                  className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                  aria-label="Close"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+                {cartDrawerLoading ? (
+                  <div className="min-h-[240px] flex items-center justify-center">
+                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                ) : cartDrawerItems.length === 0 ? (
+                  <div className="min-h-[240px] flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="9" cy="21" r="1" />
+                          <circle cx="20" cy="21" r="1" />
+                          <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
+                        </svg>
+                      </div>
+                      <p className="mt-4 text-[14px] font-bold text-gray-900">Your cart is empty</p>
+                      <p className="mt-1 text-[12px] text-gray-500">Add products from shop to see them here.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <label className="mb-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={cartAllSelected}
+                        onChange={toggleCartSelectAll}
+                        className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                      />
+                      Select all
+                    </label>
+                    <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                      {cartDrawerItems.map((x) => {
+                        const p = x.product || {};
+                        const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
+                        const img = Array.isArray(images) ? images[0] : typeof images === 'string' ? images : null;
+                        const name = p?.name ?? p?.title ?? 'Product';
+                        const unitRaw = String(p?.unit ?? p?.unitType ?? 'pcs').trim().toLowerCase();
+                        const piecesLabel = unitRaw === 'pcs' || unitRaw === 'pc' ? 'pieces' : unitRaw || 'pcs';
+                        const price = Number(p?.price ?? x.raw?.price ?? 0) || 0;
+                        const compareAt = Number(p?.compareAtPrice ?? p?.compare_at_price ?? 0) || 0;
+                        return (
+                          <div key={String(x.productId)} className="p-4 bg-white border-b border-gray-50 last:border-0">
+                          <div className="flex items-start gap-3">
+                            <div className="pt-1">
+                              <input
+                                type="checkbox"
+                                checked={cartSelected.has(String(x.productId))}
+                                onChange={() => toggleCartSelectOne(x.productId)}
+                                className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                                aria-label="Select item"
+                              />
+                            </div>
+                            <div className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
+                              {img ? (
+                                <SafeImage src={img} alt="" className="w-full h-full object-contain bg-white p-1" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/></svg>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="text-[13px] font-bold text-gray-900 truncate">{name}</p>
+                                  <p className="mt-0.5 text-[12px] text-gray-500">
+                                    {x.quantity} {piecesLabel}
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const pid = String(x.productId);
+                                      if (cartMutatingRef.current) return;
+                                      cartMutatingRef.current = true;
+                                      try {
+                                        await cartService.removeItem(pid);
+                                        setCartDrawerItems((prev) => prev.filter((it) => String(it.productId) !== pid));
+                                        addToast('Removed from cart', 'success');
+                                      } catch (e) {
+                                        addToast(e?.message || 'Failed to remove item', 'error');
+                                      } finally {
+                                        cartMutatingRef.current = false;
+                                      }
+                                    }}
+                                    className="mt-1 text-[12px] text-red-500 hover:underline cursor-pointer"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+
+                                <div className="shrink-0 flex flex-col items-end gap-2">
+                                  <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const pid = String(x.productId);
+                                        const nextQty = Math.max(1, Number(x.quantity || 1) - 1);
+                                        if (cartMutatingRef.current) return;
+                                        cartMutatingRef.current = true;
+                                        try {
+                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty });
+                                          setCartDrawerItems((prev) =>
+                                            prev.map((it) => (String(it.productId) === pid ? { ...it, quantity: nextQty } : it))
+                                          );
+                                        } catch (e) {
+                                          addToast(e?.message || 'Failed to update quantity', 'error');
+                                        } finally {
+                                          cartMutatingRef.current = false;
+                                        }
+                                      }}
+                                      className="w-9 h-9 flex items-center justify-center hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                                      disabled={Number(x.quantity) <= 1}
+                                      aria-label="Decrease"
+                                    >
+                                      –
+                                    </button>
+                                    <div className="w-10 h-9 flex items-center justify-center text-[13px] font-bold">
+                                      {x.quantity}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        const pid = String(x.productId);
+                                        const nextQty = Math.max(1, Number(x.quantity || 1) + 1);
+                                        if (cartMutatingRef.current) return;
+                                        cartMutatingRef.current = true;
+                                        try {
+                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty });
+                                          setCartDrawerItems((prev) =>
+                                            prev.map((it) => (String(it.productId) === pid ? { ...it, quantity: nextQty } : it))
+                                          );
+                                        } catch (e) {
+                                          addToast(e?.message || 'Failed to update quantity', 'error');
+                                        } finally {
+                                          cartMutatingRef.current = false;
+                                        }
+                                      }}
+                                      className="w-9 h-9 flex items-center justify-center hover:opacity-90 cursor-pointer"
+                                      aria-label="Increase"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+
+                                  <div className="text-right">
+                                    {compareAt > price && price > 0 ? (
+                                      <p className="text-[12px] text-gray-400 line-through">₹{compareAt.toLocaleString()}</p>
+                                    ) : null}
+                                    <p className="text-[14px] font-bold text-gray-900">₹{price.toLocaleString()}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!cartDrawerItems.length) return;
+                    if (cartMutatingRef.current) return;
+                    cartMutatingRef.current = true;
+                    try {
+                      await cartService.clear();
+                      setCartDrawerItems([]);
+                      addToast('Cart cleared', 'success');
+                    } catch (e) {
+                      addToast(e?.message || 'Failed to clear cart', 'error');
+                    } finally {
+                      cartMutatingRef.current = false;
+                    }
+                  }}
+                  disabled={cartDrawerLoading || cartDrawerItems.length === 0}
+                  className="px-4 py-2 rounded-xl border border-red-200 text-[12px] font-semibold text-red-600 bg-white hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Clear All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!cartSelectedIds.length) {
+                      addToast('Select at least one item', 'error');
+                      return;
+                    }
+                    if (!cartSelectedProviderOk) {
+                      addToast('Selected items must be from a same seller (all Mirah products OR same vendor)', 'error');
+                      return;
+                    }
+                    const productIds = cartSelectedIds.map((x) => Number(x) || x);
+                    closeCartDrawer();
+                    navigate('/customer/checkout', { state: { productIds } });
+                  }}
+                  disabled={cartDrawerLoading || cartDrawerItems.length === 0}
+                  className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Place Order
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* PROJECT TUTORIAL MODAL */}
         {projectTutorialOpen && projectTutorialVideoUrl ? (

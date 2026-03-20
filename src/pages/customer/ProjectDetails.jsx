@@ -729,14 +729,14 @@ export default function ProjectDetails() {
       const raw = sessionStorage.getItem(PROJECTS_TAB_KEY);
       const t = String(raw || '').trim().toLowerCase();
       if (t === 'assignments' || t === 'create' || t === 'list') {
-        navigate(`/dashboard/projects?tab=${encodeURIComponent(t)}`);
+        navigate(`/customer/projects?tab=${encodeURIComponent(t)}`);
         return;
       }
     } catch {
       // ignore
     }
     // Default: assignments (most common entry to tracking)
-    navigate('/dashboard/projects?tab=assignments');
+    navigate('/customer/projects?tab=assignments');
   }, [navigate]);
 
   const pay = async (type) => {
@@ -969,7 +969,7 @@ export default function ProjectDetails() {
                   <div className="mt-4 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
-                      onClick={() => navigate(`/dashboard/vendors/${vendorId}`)}
+                      onClick={() => navigate(`/customer/vendors/${vendorId}`)}
                       className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-primary-dark hover:bg-gray-50 inline-flex items-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -980,7 +980,7 @@ export default function ProjectDetails() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => navigate('/dashboard/messages', { state: { openRecipientId: vendorId } })}
+                      onClick={() => navigate('/customer/messages', { state: { openRecipientId: vendorId } })}
                       className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 inline-flex items-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

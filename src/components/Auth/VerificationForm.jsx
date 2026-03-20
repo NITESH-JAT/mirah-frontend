@@ -13,9 +13,16 @@ const ToastNotification = ({ id, message, type, onClose }) => {
   };
 
   useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); 
-    return () => clearTimeout(timer);
-  }, []);
+    let closeTimer = null;
+    const timer = setTimeout(() => {
+      setIsExiting(true);
+      closeTimer = setTimeout(() => onClose(id), 400);
+    }, 10000);
+    return () => {
+      clearTimeout(timer);
+      if (closeTimer) clearTimeout(closeTimer);
+    };
+  }, [id, onClose]);
 
   const isError = type === 'error';
 
@@ -316,7 +323,7 @@ export const VerificationForm = () => {
           addToast("Registration Complete!", "success");
           const userType = String(hydrated?.userType || '').toLowerCase();
           // PRD requirement: after verification, route to KYC (jeweller/vendor) or Shop (customer)
-          const landing = userType === 'vendor' || userType === 'jeweller' ? '/vendor/kyc' : '/dashboard/shopping';
+          const landing = userType === 'vendor' || userType === 'jeweller' ? '/vendor/kyc' : '/customer/shopping';
           setTimeout(() => navigate(landing), 500);
       } else {
           // Token should be present per PRD. If it's not, redirect to login.

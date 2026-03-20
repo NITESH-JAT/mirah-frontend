@@ -50,7 +50,7 @@ export default function Faq() {
   }, []);
 
   const handleSupport = () => {
-    const messagesRoute = isVendor ? '/vendor/messages' : '/dashboard/messages';
+    const messagesRoute = isVendor ? '/vendor/messages' : '/customer/messages';
     navigate(messagesRoute, { state: { openSupport: true, supportPrefill: 'Hi' } });
   };
 

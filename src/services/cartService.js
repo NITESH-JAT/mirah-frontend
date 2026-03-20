@@ -10,6 +10,15 @@ function coerceArray(maybe) {
   return [maybe];
 }
 
+function emitCartUpdated({ markNew = false } = {}) {
+  try {
+    if (markNew) localStorage.setItem('mirah_cart_has_new', '1');
+    window.dispatchEvent(new Event('mirah_cart_updated'));
+  } catch {
+    // ignore storage/event failures
+  }
+}
+
 export const cartService = {
   getCart: async ({ signal } = {}) => {
     const res = await api.get('/api/user/cart', { signal });
@@ -23,29 +32,35 @@ export const cartService = {
   addItem: async ({ productId, quantity = 1 } = {}) => {
     const res = await api.post('/api/user/cart', { productId, quantity });
     const data = unwrap(res);
-    // Mark cart as "updated" so UI can show a red dot on Cart icon.
-    try {
-      localStorage.setItem('mirah_cart_has_new', '1');
-      window.dispatchEvent(new Event('mirah_cart_updated'));
-    } catch {
-      // ignore storage/event failures
-    }
+    // Mark cart as "updated" so UI can show a red dot / update badge.
+    emitCartUpdated({ markNew: true });
     return data;
   },
 
   updateQuantity: async ({ productId, quantity } = {}) => {
     const res = await api.put(`/api/user/cart/${productId}`, { quantity });
-    return unwrap(res);
+    const data = unwrap(res);
+    emitCartUpdated({ markNew: false });
+    return data;
   },
 
   removeItem: async (productId) => {
     const res = await api.delete(`/api/user/cart/${productId}`);
-    return unwrap(res);
+    const data = unwrap(res);
+    emitCartUpdated({ markNew: false });
+    return data;
   },
 
   clear: async () => {
     const res = await api.delete('/api/user/cart');
-    return unwrap(res);
+    const data = unwrap(res);
+    try {
+      localStorage.removeItem('mirah_cart_has_new');
+    } catch {
+      // ignore
+    }
+    emitCartUpdated({ markNew: false });
+    return data;
   },
 
   checkout: async ({ paymentMethod = 'razorpay', currency = 'INR', productIds = [] } = {}) => {

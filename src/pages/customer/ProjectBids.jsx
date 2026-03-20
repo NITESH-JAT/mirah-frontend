@@ -394,7 +394,7 @@ export default function ProjectBids() {
   const openVendorProfile = (bid) => {
     const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
     if (!vendorId) return;
-    navigate(`/dashboard/vendors/${vendorId}`, {
+    navigate(`/customer/vendors/${vendorId}`, {
       state: { fromProjectId: projectId, fromProjectTitle: project?.title ?? location?.state?.projectTitle ?? null },
     });
   };
@@ -460,7 +460,7 @@ export default function ProjectBids() {
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/projects')}
+                onClick={() => navigate('/customer/projects')}
                 className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
               >
                 Back

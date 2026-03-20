@@ -1,5 +1,5 @@
 import React, { lazy } from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import Placeholder from '../components/Placeholder';
 
 // Layouts
@@ -17,18 +17,18 @@ const LoginForm = lazy(() => import('../components/Auth/LoginForm').then(m => ({
 const RegisterForm = lazy(() => import('../components/Auth/RegisterForm').then(m => ({ default: m.RegisterForm })));
 const TermsPage = lazy(() => import('../components/Auth/TermsPage').then(m => ({ default: m.TermsPage })));
 const VerificationForm = lazy(() => import('../components/Auth/VerificationForm').then(m => ({ default: m.VerificationForm })));
-const Profile = lazy(() => import('../pages/dashboard/Profile'));
-const Shopping = lazy(() => import('../pages/dashboard/Shopping'));
-const Cart = lazy(() => import('../pages/dashboard/Cart'));
-const Checkout = lazy(() => import('../pages/dashboard/Checkout'));
-const Orders = lazy(() => import('../pages/dashboard/Orders'));
-const OrderSuccess = lazy(() => import('../pages/dashboard/OrderSuccess'));
-const Projects = lazy(() => import('../pages/dashboard/Projects'));
-const ProjectDetails = lazy(() => import('../pages/dashboard/ProjectDetails'));
-const ProjectBids = lazy(() => import('../pages/dashboard/ProjectBids'));
-const VendorProfile = lazy(() => import('../pages/dashboard/VendorProfile'));
-const ProductDetails = lazy(() => import('../pages/dashboard/ProductDetails'));
-const SimilarProducts = lazy(() => import('../pages/dashboard/SimilarProducts'));
+const Profile = lazy(() => import('../pages/customer/Profile'));
+const Shopping = lazy(() => import('../pages/customer/Shopping'));
+const Cart = lazy(() => import('../pages/customer/Cart'));
+const Checkout = lazy(() => import('../pages/customer/Checkout'));
+const Orders = lazy(() => import('../pages/customer/Orders'));
+const OrderSuccess = lazy(() => import('../pages/customer/OrderSuccess'));
+const Projects = lazy(() => import('../pages/customer/Projects'));
+const ProjectDetails = lazy(() => import('../pages/customer/ProjectDetails'));
+const ProjectBids = lazy(() => import('../pages/customer/ProjectBids'));
+const VendorProfile = lazy(() => import('../pages/customer/VendorProfile'));
+const ProductDetails = lazy(() => import('../pages/customer/ProductDetails'));
+const SimilarProducts = lazy(() => import('../pages/customer/SimilarProducts'));
 const VendorKyc = lazy(() => import('../pages/vendor/Kyc'));
 const VendorShop = lazy(() => import('../pages/vendor/Shop'));
 const VendorExplore = lazy(() => import('../pages/vendor/Explore'));
@@ -39,7 +39,14 @@ const VendorAssignmentRequests = lazy(() => import('../pages/vendor/AssignmentRe
 const VendorAssignedProjects = lazy(() => import('../pages/vendor/AssignedProjects'));
 const VendorManageProject = lazy(() => import('../pages/vendor/ManageProject'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
-const Faq = lazy(() => import('../pages/dashboard/Faq'));
+const Faq = lazy(() => import('../pages/customer/Faq'));
+
+function DashboardToCustomerRedirect() {
+  const location = useLocation();
+  const nextPath = String(location?.pathname || '/dashboard').replace(/^\/dashboard(?=\/|$)/, '/customer');
+  const next = `${nextPath}${location?.search || ''}${location?.hash || ''}`;
+  return <Navigate to={next} replace />;
+}
 
 export const routes = [
   // --- AUTH ROUTES ---
@@ -59,9 +66,9 @@ export const routes = [
     ]
   },
   
-  // --- DASHBOARD ROUTES---
+  // --- CUSTOMER ROUTES---
   {
-    path: '/dashboard',
+    path: '/customer',
     element: (
       <AuthGuard>
         <CustomerOnlyGuard>
@@ -70,7 +77,7 @@ export const routes = [
       </AuthGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/dashboard/shopping" replace /> },
+      { index: true, element: <Navigate to="/customer/shopping" replace /> },
     
       { path: 'shopping', element: <Shopping /> },
       { path: 'shopping/:id', element: <ProductDetails /> },
@@ -109,6 +116,12 @@ export const routes = [
         element: <Messages />
       }
     ]
+  },
+
+  // --- BACKWARD COMPAT: /dashboard/* -> /customer/* ---
+  {
+    path: '/dashboard/*',
+    element: <DashboardToCustomerRedirect />,
   },
 
   // --- VENDOR ROUTES ---

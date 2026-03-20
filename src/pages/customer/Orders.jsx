@@ -590,7 +590,7 @@ export default function Orders() {
               </p>
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/shopping')}
+                onClick={() => navigate('/customer/shopping')}
                 className="mt-4 inline-flex px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
               >
                 Go to shop
@@ -677,7 +677,7 @@ export default function Orders() {
                           type="button"
                           onClick={() => {
                             const msg = `Hi Support, I want to raise a dispute for Order ${String(idLabel)}. Please help.`;
-                            navigate('/dashboard/messages', { state: { openSupport: true, supportPrefill: msg } });
+                            navigate('/customer/messages', { state: { openSupport: true, supportPrefill: msg } });
                           }}
                           disabled={busy}
                           className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-primary-dark hover:bg-gray-50 disabled:opacity-50"

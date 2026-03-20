@@ -427,7 +427,7 @@ export default function Checkout() {
       if (!localOrderId) throw new Error('Checkout failed: missing order id');
 
       if (paymentMethod === 'offline') {
-        navigate('/dashboard/orders/success', {
+        navigate('/customer/orders/success', {
           state: { localOrderId, orderCode: parsed.orderCode ?? null, paymentMethod },
         });
         return;
@@ -470,7 +470,7 @@ export default function Checkout() {
               razorpaySignature: resp?.razorpay_signature,
             });
             const verified = parseVerify(verifyRes || {});
-            navigate('/dashboard/orders/success', {
+            navigate('/customer/orders/success', {
               state: {
                 localOrderId: verified.localOrderId ?? localOrderId,
                 orderCode: verified.orderCode ?? parsed.orderCode ?? null,
@@ -579,7 +579,7 @@ export default function Checkout() {
           No items selected for checkout.
           <button
             type="button"
-            onClick={() => navigate('/dashboard/cart')}
+            onClick={() => navigate('/customer/cart')}
             className="mt-4 inline-flex px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
           >
             Back to cart
@@ -700,7 +700,7 @@ export default function Checkout() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => navigate('/dashboard/cart')}
+                    onClick={() => navigate('/customer/cart')}
                     className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
                   >
                     Edit

@@ -15,7 +15,7 @@ const VendorOnlyGuard = ({ children }) => {
 
   // If user exists but is a customer, block access to vendor-only routes.
   if (user && !isVendorUser(user)) {
-    return <Navigate to="/dashboard/shopping" state={{ from: location }} replace />;
+    return <Navigate to="/customer/shopping" state={{ from: location }} replace />;
   }
 
   return children;

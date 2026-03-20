@@ -215,12 +215,12 @@ export default function Cart() {
       return;
     }
     // Checkout UI will be implemented next; for now route placeholder with selected IDs.
-    navigate('/dashboard/checkout', { state: { productIds: selectedIds.map((x) => Number(x) || x) } });
+    navigate('/customer/checkout', { state: { productIds: selectedIds.map((x) => Number(x) || x) } });
   };
 
   const openProduct = (productId) => {
     if (!productId) return;
-    navigate(`/dashboard/shopping/${productId}`);
+    navigate(`/customer/shopping/${productId}`);
   };
 
   return (

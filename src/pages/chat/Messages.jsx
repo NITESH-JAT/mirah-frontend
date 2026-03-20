@@ -159,7 +159,7 @@ export default function Messages() {
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const searchType = isVendor ? 'customer' : 'vendor';
-  const messagesRoute = isVendor ? '/vendor/messages' : '/dashboard/messages';
+  const messagesRoute = isVendor ? '/vendor/messages' : '/customer/messages';
 
   const normalizedConvos = useMemo(
     () => conversations.map(normalizeConversation),
