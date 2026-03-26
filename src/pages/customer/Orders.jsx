@@ -96,6 +96,44 @@ function statusText(o) {
     .join(' ');
 }
 
+function normalizeVariants(variants) {
+  if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return undefined;
+  const out = {
+    type: variants?.type ?? undefined,
+    size: variants?.size ?? undefined,
+    sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
+    sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
+  };
+  for (const k of Object.keys(out)) {
+    if (out[k] == null || out[k] === '') delete out[k];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function variantTextOf(variants) {
+  const v = normalizeVariants(variants);
+  if (!v) return '';
+
+  const parts = [];
+  const type = String(v?.type ?? '').trim();
+  const size = String(v?.size ?? '').trim();
+  const dimRaw = v?.sizeDimensions ?? null;
+  const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
+  const unit = String(v?.sizeDimensionsUnit ?? '').trim();
+  const dimPart =
+    dim && unit
+      ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
+        ? `${dim}${unit}`
+        : `${dim} ${unit}`
+      : dim || '';
+
+  if (type) parts.push(type);
+  if (size) parts.push(size);
+  if (dimPart) parts.push(dimPart);
+
+  return parts.join(' · ');
+}
+
 export default function Orders() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
@@ -224,6 +262,17 @@ export default function Orders() {
     const n = Number(v);
     if (Number.isNaN(n)) return 0;
     return n;
+  };
+
+  const itemVariants = (it) => {
+    return (
+      it?.variants ??
+      it?.variant ??
+      it?.variantSnapshot ??
+      it?.selectedVariant ??
+      it?.selected_variant ??
+      null
+    );
   };
 
   const setDraft = (productId, patch) => {
@@ -778,11 +827,15 @@ export default function Orders() {
                         const qty = itemQty(it);
                         const price = itemUnitPrice(it);
                         const lineTotal = qty * price;
+                        const variantsText = variantTextOf(itemVariants(it));
                         return (
                           <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-gray-100 bg-white p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-[12px] font-bold text-gray-900 truncate">{itemName(it)}</p>
+                                {variantsText ? (
+                                  <p className="mt-1 text-[11px] text-gray-500 font-semibold truncate">{variantsText}</p>
+                                ) : null}
                                 <p className="mt-1 text-[11px] text-gray-400">
                                   Qty: <span className="font-semibold text-gray-600">{qty}</span> • Unit: ₹{formatMoney(price)}
                                 </p>

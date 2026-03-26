@@ -4,6 +4,21 @@ function unwrap(response) {
   return response?.data?.data ?? response?.data;
 }
 
+function normalizeVariants(variants) {
+  if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return undefined;
+  const out = {
+    type: variants?.type ?? undefined,
+    size: variants?.size ?? undefined,
+    sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
+    sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
+  };
+  // Remove empty keys so backend doesn't see noise
+  for (const k of Object.keys(out)) {
+    if (out[k] == null || out[k] === '') delete out[k];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 function coerceArray(maybe) {
   if (Array.isArray(maybe)) return maybe;
   if (!maybe) return [];
@@ -29,23 +44,32 @@ export const cartService = {
     return { raw: data, items, meta };
   },
 
-  addItem: async ({ productId, quantity = 1 } = {}) => {
-    const res = await api.post('/api/user/cart', { productId, quantity });
+  addItem: async ({ productId, quantity = 1, variants } = {}) => {
+    const body = { productId, quantity };
+    const v = normalizeVariants(variants);
+    if (v) body.variants = v;
+    const res = await api.post('/api/user/cart', body);
     const data = unwrap(res);
     // Mark cart as "updated" so UI can show a red dot / update badge.
     emitCartUpdated({ markNew: true });
     return data;
   },
 
-  updateQuantity: async ({ productId, quantity } = {}) => {
-    const res = await api.put(`/api/user/cart/${productId}`, { quantity });
+  updateQuantity: async ({ productId, quantity, variants } = {}) => {
+    const body = { quantity };
+    const v = normalizeVariants(variants);
+    if (v) body.variants = v;
+    const res = await api.put(`/api/user/cart/${productId}`, body);
     const data = unwrap(res);
     emitCartUpdated({ markNew: false });
     return data;
   },
 
-  removeItem: async (productId) => {
-    const res = await api.delete(`/api/user/cart/${productId}`);
+  removeItem: async ({ productId, variants } = {}) => {
+    const body = {};
+    const v = normalizeVariants(variants);
+    if (v) body.variants = v;
+    const res = await api.delete(`/api/user/cart/${productId}`, Object.keys(body).length ? { data: body } : undefined);
     const data = unwrap(res);
     emitCartUpdated({ markNew: false });
     return data;
@@ -63,13 +87,19 @@ export const cartService = {
     return data;
   },
 
-  checkout: async ({ paymentMethod = 'razorpay', currency = 'INR', productIds = [] } = {}) => {
-    const res = await api.post('/api/user/cart/checkout', { paymentMethod, currency, productIds });
+  checkout: async ({ paymentMethod = 'razorpay', currency = 'INR', cartItemIds = [], productIds = [] } = {}) => {
+    const body = { paymentMethod, currency };
+    if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
+    else body.productIds = productIds;
+    const res = await api.post('/api/user/cart/checkout', body);
     return unwrap(res);
   },
 
-  calculatePartialPayment: async ({ currency = 'INR', productIds = [] } = {}) => {
-    const res = await api.post('/api/user/cart/partial-payment/calculate', { currency, productIds });
+  calculatePartialPayment: async ({ currency = 'INR', cartItemIds = [], productIds = [] } = {}) => {
+    const body = { currency };
+    if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
+    else body.productIds = productIds;
+    const res = await api.post('/api/user/cart/partial-payment/calculate', body);
     return unwrap(res);
   },
 

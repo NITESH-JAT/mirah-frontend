@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { cartService } from '../../services/cartService';
 import { vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
+import { priceForCartLine } from '../../utils/cartVariant';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -34,14 +35,62 @@ function pickProductFromItem(item) {
   return item?.product ?? item?.productDetails ?? item?.productData ?? item?.item ?? item ?? {};
 }
 
+function normalizeVariants(variants) {
+  if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return undefined;
+  const out = {
+    type: variants?.type ?? undefined,
+    size: variants?.size ?? undefined,
+    sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
+    sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
+  };
+  for (const k of Object.keys(out)) {
+    if (out[k] == null || out[k] === '') delete out[k];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+function stableVariantsKey(variants) {
+  const v = normalizeVariants(variants);
+  if (!v) return '';
+  const order = ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit'];
+  return order.map((k) => `${k}=${String(v?.[k] ?? '')}`).join('&');
+}
+
+function variantTextOf(variants) {
+  const v = normalizeVariants(variants);
+  if (!v) return '';
+
+  const parts = [];
+  const type = String(v?.type ?? '').trim();
+  const size = String(v?.size ?? '').trim();
+  const dimRaw = v?.sizeDimensions ?? null;
+  const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
+  const unit = String(v?.sizeDimensionsUnit ?? '').trim();
+
+  const dimPart =
+    dim && unit
+      ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
+        ? `${dim}${unit}`
+        : `${dim} ${unit}`
+      : dim || '';
+
+  if (type) parts.push(type);
+  if (size) parts.push(size);
+  if (dimPart) parts.push(dimPart);
+
+  return parts.join(' · ');
+}
+
+function pickCartItemId(item) {
+  return item?.cartItemId ?? item?.cart_item_id ?? item?.id ?? item?._id ?? null;
+}
+
 function pickProductId(item, product) {
   return (
     item?.productId ??
     item?.product_id ??
     product?.id ??
     product?._id ??
-    item?.id ??
-    item?._id ??
     null
   );
 }
@@ -85,18 +134,21 @@ export default function Cart() {
       const res = await cartService.getCart({ signal: ctrl.signal });
       const list = (res?.items || []).map((it) => {
         const product = pickProductFromItem(it);
+        const cartItemId = pickCartItemId(it);
         const productId = pickProductId(it, product);
         const quantity = pickQty(it);
-        return { raw: it, product, productId, quantity };
+        const variants = normalizeVariants(it?.variants);
+        const rowKey = cartItemId != null ? `ci:${String(cartItemId)}` : `p:${String(productId)}|v:${stableVariantsKey(variants)}`;
+        return { raw: it, product, cartItemId, productId, variants, quantity, rowKey };
       });
       setItems(list.filter((x) => x.productId != null));
 
       // Keep selection for items that still exist
       setSelected((prev) => {
         const next = new Set();
-        const allowed = new Set(list.map((x) => String(x.productId)));
-        for (const id of prev) {
-          if (allowed.has(String(id))) next.add(String(id));
+        const allowed = new Set(list.map((x) => String(x.rowKey)));
+        for (const key of prev) {
+          if (allowed.has(String(key))) next.add(String(key));
         }
         return next;
       });
@@ -117,51 +169,52 @@ export default function Cart() {
 
   const allSelected = useMemo(() => {
     if (!items.length) return false;
-    return items.every((x) => selected.has(String(x.productId)));
+    return items.every((x) => selected.has(String(x.rowKey)));
   }, [items, selected]);
 
-  const selectedIds = useMemo(() => {
+  const selectedKeys = useMemo(() => {
     return items
-      .map((x) => String(x.productId))
-      .filter((id) => selected.has(id));
+      .map((x) => String(x.rowKey))
+      .filter((k) => selected.has(k));
   }, [items, selected]);
 
   const selectedProviderOk = useMemo(() => {
-    if (selectedIds.length <= 1) return true;
+    if (selectedKeys.length <= 1) return true;
     const keys = new Set();
     for (const it of items) {
-      const id = String(it.productId);
-      if (!selected.has(id)) continue;
+      const key = String(it.rowKey);
+      if (!selected.has(key)) continue;
       keys.add(providerKeyFor(it.raw, it.product));
     }
     return keys.size <= 1;
-  }, [items, selected, selectedIds.length]);
+  }, [items, selected, selectedKeys.length]);
 
   const toggleSelectAll = () => {
     setSelected(() => {
       if (allSelected) return new Set();
-      return new Set(items.map((x) => String(x.productId)));
+      return new Set(items.map((x) => String(x.rowKey)));
     });
   };
 
-  const toggleOne = (productId) => {
-    const id = String(productId);
+  const toggleOne = (rowKey) => {
+    const key = String(rowKey);
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   };
 
-  const updateQty = async ({ productId, nextQty }) => {
+  const updateQty = async ({ rowKey, productId, variants, nextQty }) => {
     const pid = String(productId);
+    const key = String(rowKey);
     const qty = Math.max(1, Number(nextQty) || 1);
     if (mutatingRef.current) return;
     mutatingRef.current = true;
     try {
-      await cartService.updateQuantity({ productId: pid, quantity: qty });
-      setItems((prev) => prev.map((x) => (String(x.productId) === pid ? { ...x, quantity: qty } : x)));
+      await cartService.updateQuantity({ productId: pid, quantity: qty, variants });
+      setItems((prev) => prev.map((x) => (String(x.rowKey) === key ? { ...x, quantity: qty } : x)));
     } catch (e) {
       addToast(e?.message || 'Failed to update quantity', 'error');
     } finally {
@@ -169,16 +222,17 @@ export default function Cart() {
     }
   };
 
-  const removeItem = async (productId) => {
+  const removeItem = async ({ rowKey, productId, variants }) => {
     const pid = String(productId);
+    const key = String(rowKey);
     if (mutatingRef.current) return;
     mutatingRef.current = true;
     try {
-      await cartService.removeItem(pid);
-      setItems((prev) => prev.filter((x) => String(x.productId) !== pid));
+      await cartService.removeItem({ productId: pid, variants });
+      setItems((prev) => prev.filter((x) => String(x.rowKey) !== key));
       setSelected((prev) => {
         const next = new Set(prev);
-        next.delete(pid);
+        next.delete(key);
         return next;
       });
       addToast('Removed from cart', 'success');
@@ -206,7 +260,7 @@ export default function Cart() {
   };
 
   const proceedCheckout = async () => {
-    if (!selectedIds.length) {
+    if (!selectedKeys.length) {
       addToast('Select at least one item', 'error');
       return;
     }
@@ -214,8 +268,25 @@ export default function Cart() {
       addToast('Selected items must be from a same seller (all Mirah products OR same jeweller)', 'error');
       return;
     }
-    // Checkout UI will be implemented next; for now route placeholder with selected IDs.
-    navigate('/customer/checkout', { state: { productIds: selectedIds.map((x) => Number(x) || x) } });
+    const selectedItems = items.filter((x) => selected.has(String(x.rowKey)));
+    const cartItemIds = selectedItems
+      .map((x) => x.cartItemId)
+      .filter((x) => x != null)
+      .map((x) => Number(x) || x);
+
+    if (cartItemIds.length === selectedItems.length) {
+      navigate('/customer/checkout', { state: { cartItemIds } });
+      return;
+    }
+
+    // Fallback (legacy): only safe when there is at most one cart row per productId.
+    const productIds = selectedItems.map((x) => x.productId).filter((x) => x != null).map((x) => Number(x) || x);
+    const unique = new Set(productIds.map((x) => String(x)));
+    if (unique.size !== productIds.length) {
+      addToast('Please refresh cart and try again (unable to uniquely identify selected items).', 'error');
+      return;
+    }
+    navigate('/customer/checkout', { state: { productIds } });
   };
 
   const openProduct = (productId) => {
@@ -325,20 +396,24 @@ export default function Cart() {
                 });
                 const img = firstImageUrl(p);
                 const unit = p?.unit ?? p?.stockUnit ?? 'pcs';
-                const linePrice = Number(p?.price || 0) * Number(it.quantity || 1);
-                const lineCompare = Number(p?.compareAtPrice || 0) * Number(it.quantity || 1);
-                const hasCompare = Number(p?.compareAtPrice || 0) > Number(p?.price || 0);
-                const id = String(it.productId);
-                const checked = selected.has(id);
+                const pricing = priceForCartLine({ cartItem: it, product: p });
+                const unitPrice = pricing.unitPrice;
+                const unitCompare = pricing.compareAt;
+                const linePrice = unitPrice * Number(it.quantity || 1);
+                const lineCompare = unitCompare * Number(it.quantity || 1);
+                const hasCompare = unitCompare > unitPrice && unitPrice > 0;
+                const key = String(it.rowKey);
+                const checked = selected.has(key);
+                const variantText = variantTextOf(it?.variants);
                 return (
                   <div
-                    key={id}
+                    key={key}
                     className="flex items-center gap-3 md:gap-4 px-4 py-6 border-b border-gray-100 last:border-b-0"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={() => toggleOne(id)}
+                      onChange={() => toggleOne(key)}
                       className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
                       aria-label="Select item"
                     />
@@ -346,9 +421,9 @@ export default function Cart() {
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => openProduct(id)}
+                      onClick={() => openProduct(it.productId)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') openProduct(id);
+                        if (e.key === 'Enter') openProduct(it.productId);
                       }}
                       className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-gray-100 shrink-0 cursor-pointer"
                       aria-label="Open product"
@@ -359,9 +434,9 @@ export default function Cart() {
                     <div
                       role="button"
                       tabIndex={0}
-                      onClick={() => openProduct(id)}
+                      onClick={() => openProduct(it.productId)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter') openProduct(id);
+                        if (e.key === 'Enter') openProduct(it.productId);
                       }}
                       className="flex-1 min-w-0 cursor-pointer"
                       aria-label="Open product"
@@ -372,12 +447,20 @@ export default function Cart() {
                       {vendorText ? (
                         <p className="mt-0.5 text-[11px] text-gray-400 font-medium line-clamp-1">{vendorText}</p>
                       ) : null}
+                      {variantText ? (
+                        <p className="mt-0.5 text-[11px] text-gray-500 font-semibold line-clamp-1">{variantText}</p>
+                      ) : null}
                       <p className="text-[12px] text-gray-500 mt-0.5">
                         {it.quantity} {unitLabel(unit)}
                       </p>
                       <button
                         type="button"
-                        onClick={() => removeItem(id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeItem({ rowKey: key, productId: it.productId, variants: it.variants });
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="hidden md:inline-flex mt-2 text-[12px] font-semibold text-red-500 hover:underline"
                       >
                         Remove
@@ -388,7 +471,12 @@ export default function Cart() {
                       <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
                         <button
                           type="button"
-                          onClick={() => updateQty({ productId: id, nextQty: it.quantity - 1 })}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            updateQty({ rowKey: key, productId: it.productId, variants: it.variants, nextQty: it.quantity - 1 });
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="w-9 h-9 flex items-center justify-center hover:opacity-90 disabled:opacity-50"
                           disabled={it.quantity <= 1}
                           aria-label="Decrease quantity"
@@ -400,7 +488,12 @@ export default function Cart() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => updateQty({ productId: id, nextQty: it.quantity + 1 })}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            updateQty({ rowKey: key, productId: it.productId, variants: it.variants, nextQty: it.quantity + 1 });
+                          }}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="w-9 h-9 flex items-center justify-center hover:opacity-90"
                           aria-label="Increase quantity"
                         >
@@ -417,7 +510,12 @@ export default function Cart() {
 
                       <button
                         type="button"
-                        onClick={() => removeItem(id)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeItem({ rowKey: key, productId: it.productId, variants: it.variants });
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
                         className="md:hidden text-[11px] font-semibold text-red-500"
                       >
                         Remove
@@ -437,7 +535,7 @@ export default function Cart() {
               <button
                 type="button"
                 onClick={proceedCheckout}
-                disabled={!selectedIds.length}
+                disabled={!selectedKeys.length}
                 className="px-6 py-3 rounded-full bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Place Order
@@ -453,7 +551,7 @@ export default function Cart() {
           <button
             type="button"
             onClick={proceedCheckout}
-            disabled={!selectedIds.length}
+            disabled={!selectedKeys.length}
             className="w-full py-4 rounded-full bg-primary-dark text-white text-[13px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Place Order

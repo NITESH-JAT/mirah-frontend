@@ -7,6 +7,7 @@ import { authService } from '../../services/authService';
 import logo from '../../assets/logo.png';
 import { cartService } from '../../services/cartService';
 import SafeImage from '../SafeImage';
+import { priceForCartLine } from '../../utils/cartVariant';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -339,19 +340,55 @@ export default function DashboardLayout() {
     return arr
       .map((it) => {
         const product = it?.product ?? it?.productDetails ?? it?.productData ?? it?.item ?? it ?? {};
+        const cartItemId = it?.cartItemId ?? it?.cart_item_id ?? it?.id ?? it?._id ?? null;
         const productId =
           it?.productId ??
           it?.product_id ??
           product?.id ??
           product?._id ??
-          it?.id ??
-          it?._id ??
           null;
+        const variantsRaw = it?.variants;
+        const variants =
+          variantsRaw && typeof variantsRaw === 'object' && !Array.isArray(variantsRaw)
+            ? {
+                type: variantsRaw?.type ?? undefined,
+                size: variantsRaw?.size ?? undefined,
+                sizeDimensions: variantsRaw?.sizeDimensions ?? variantsRaw?.size_dimensions ?? undefined,
+                sizeDimensionsUnit: variantsRaw?.sizeDimensionsUnit ?? variantsRaw?.size_dimensions_unit ?? undefined,
+              }
+            : undefined;
+        const stableVariantsKey = variants
+          ? ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit']
+              .map((k) => `${k}=${String(variants?.[k] ?? '')}`)
+              .join('&')
+          : '';
+        const rowKey =
+          cartItemId != null ? `ci:${String(cartItemId)}` : `p:${String(productId)}|v:${stableVariantsKey}`;
         const quantityRaw = Number(it?.quantity ?? it?.qty ?? it?.count ?? 1);
         const quantity = Number.isFinite(quantityRaw) && quantityRaw > 0 ? Math.floor(quantityRaw) : 1;
-        return { raw: it, product, productId, quantity };
+        return { raw: it, product, cartItemId, productId, variants, quantity, rowKey };
       })
       .filter((x) => x.productId != null);
+  }, []);
+
+  const variantTextOf = useCallback((variants) => {
+    if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return '';
+    const parts = [];
+    const type = String(variants?.type ?? '').trim();
+    const size = String(variants?.size ?? '').trim();
+    const dimRaw = variants?.sizeDimensions ?? variants?.size_dimensions ?? null;
+    const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
+    const unit = String(variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? '').trim();
+    const dimPart =
+      dim && unit
+        ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
+          ? `${dim}${unit}`
+          : `${dim} ${unit}`
+        : dim || '';
+    if (type) parts.push(type);
+    if (size) parts.push(size);
+    if (dimPart) parts.push(dimPart);
+    return parts.join(' · ');
   }, []);
 
   const providerKeyForCartItem = useCallback((item, product) => {
@@ -368,12 +405,12 @@ export default function DashboardLayout() {
 
   const cartAllSelected = useMemo(() => {
     if (!cartDrawerItems.length) return false;
-    return cartDrawerItems.every((x) => cartSelected.has(String(x.productId)));
+    return cartDrawerItems.every((x) => cartSelected.has(String(x.rowKey)));
   }, [cartDrawerItems, cartSelected]);
 
   const cartSelectedIds = useMemo(() => {
     return cartDrawerItems
-      .map((x) => String(x.productId))
+      .map((x) => String(x.rowKey))
       .filter((id) => cartSelected.has(id));
   }, [cartDrawerItems, cartSelected]);
 
@@ -381,7 +418,7 @@ export default function DashboardLayout() {
     if (cartSelectedIds.length <= 1) return true;
     const keys = new Set();
     for (const it of cartDrawerItems) {
-      const id = String(it.productId);
+      const id = String(it.rowKey);
       if (!cartSelected.has(id)) continue;
       keys.add(providerKeyForCartItem(it.raw, it.product));
     }
@@ -391,12 +428,12 @@ export default function DashboardLayout() {
   const toggleCartSelectAll = useCallback(() => {
     setCartSelected(() => {
       if (cartAllSelected) return new Set();
-      return new Set(cartDrawerItems.map((x) => String(x.productId)));
+      return new Set(cartDrawerItems.map((x) => String(x.rowKey)));
     });
   }, [cartAllSelected, cartDrawerItems]);
 
-  const toggleCartSelectOne = useCallback((productId) => {
-    const id = String(productId);
+  const toggleCartSelectOne = useCallback((rowKey) => {
+    const id = String(rowKey);
     setCartSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -427,13 +464,13 @@ export default function DashboardLayout() {
       setCartDrawerItems(list);
       // default: select all when drawer loads (and keep selection for existing items)
       setCartSelected((prev) => {
-        const allowed = new Set(list.map((x) => String(x.productId)));
+        const allowed = new Set(list.map((x) => String(x.rowKey)));
         const kept = new Set();
         for (const id of prev) {
           if (allowed.has(String(id))) kept.add(String(id));
         }
         if (kept.size) return kept;
-        return new Set(list.map((x) => String(x.productId)));
+        return new Set(list.map((x) => String(x.rowKey)));
       });
       setCartCount(cartItemCountOf(res?.items || []));
     } catch (e) {
@@ -832,16 +869,18 @@ export default function DashboardLayout() {
                         const name = p?.name ?? p?.title ?? 'Product';
                         const unitRaw = String(p?.unit ?? p?.unitType ?? 'pcs').trim().toLowerCase();
                         const piecesLabel = unitRaw === 'pcs' || unitRaw === 'pc' ? 'pieces' : unitRaw || 'pcs';
-                        const price = Number(p?.price ?? x.raw?.price ?? 0) || 0;
-                        const compareAt = Number(p?.compareAtPrice ?? p?.compare_at_price ?? 0) || 0;
+                        const pricing = priceForCartLine({ cartItem: x, product: p });
+                        const price = pricing.unitPrice;
+                        const compareAt = pricing.compareAt;
+                        const variantText = variantTextOf(x?.variants);
                         return (
-                          <div key={String(x.productId)} className="p-4 bg-white border-b border-gray-50 last:border-0">
+                          <div key={String(x.rowKey)} className="p-4 bg-white border-b border-gray-50 last:border-0">
                           <div className="flex items-start gap-3">
                             <div className="pt-1">
                               <input
                                 type="checkbox"
-                                checked={cartSelected.has(String(x.productId))}
-                                onChange={() => toggleCartSelectOne(x.productId)}
+                                checked={cartSelected.has(String(x.rowKey))}
+                                onChange={() => toggleCartSelectOne(x.rowKey)}
                                 className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
                                 aria-label="Select item"
                               />
@@ -863,6 +902,11 @@ export default function DashboardLayout() {
                                   <p className="mt-0.5 text-[12px] text-gray-500">
                                     {x.quantity} {piecesLabel}
                                   </p>
+                                  {variantText ? (
+                                    <p className="mt-0.5 text-[11px] text-gray-500 font-semibold line-clamp-1">
+                                      {variantText}
+                                    </p>
+                                  ) : null}
                                   <button
                                     type="button"
                                     onClick={async () => {
@@ -870,8 +914,8 @@ export default function DashboardLayout() {
                                       if (cartMutatingRef.current) return;
                                       cartMutatingRef.current = true;
                                       try {
-                                        await cartService.removeItem(pid);
-                                        setCartDrawerItems((prev) => prev.filter((it) => String(it.productId) !== pid));
+                                        await cartService.removeItem({ productId: pid, variants: x.variants });
+                                        setCartDrawerItems((prev) => prev.filter((it) => String(it.rowKey) !== String(x.rowKey)));
                                         addToast('Removed from cart', 'success');
                                       } catch (e) {
                                         addToast(e?.message || 'Failed to remove item', 'error');
@@ -895,9 +939,9 @@ export default function DashboardLayout() {
                                         if (cartMutatingRef.current) return;
                                         cartMutatingRef.current = true;
                                         try {
-                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty });
+                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty, variants: x.variants });
                                           setCartDrawerItems((prev) =>
-                                            prev.map((it) => (String(it.productId) === pid ? { ...it, quantity: nextQty } : it))
+                                            prev.map((it) => (String(it.rowKey) === String(x.rowKey) ? { ...it, quantity: nextQty } : it))
                                           );
                                         } catch (e) {
                                           addToast(e?.message || 'Failed to update quantity', 'error');
@@ -922,9 +966,9 @@ export default function DashboardLayout() {
                                         if (cartMutatingRef.current) return;
                                         cartMutatingRef.current = true;
                                         try {
-                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty });
+                                          await cartService.updateQuantity({ productId: pid, quantity: nextQty, variants: x.variants });
                                           setCartDrawerItems((prev) =>
-                                            prev.map((it) => (String(it.productId) === pid ? { ...it, quantity: nextQty } : it))
+                                            prev.map((it) => (String(it.rowKey) === String(x.rowKey) ? { ...it, quantity: nextQty } : it))
                                           );
                                         } catch (e) {
                                           addToast(e?.message || 'Failed to update quantity', 'error');
@@ -990,9 +1034,18 @@ export default function DashboardLayout() {
                       addToast('Selected items must be from a same seller (all Mirah products OR same jeweller)', 'error');
                       return;
                     }
-                    const productIds = cartSelectedIds.map((x) => Number(x) || x);
+                    const selectedItems = cartDrawerItems.filter((x) => cartSelected.has(String(x.rowKey)));
+                    const cartItemIds = selectedItems
+                      .map((x) => x.cartItemId)
+                      .filter((x) => x != null)
+                      .map((x) => Number(x) || x);
+
+                    if (cartItemIds.length !== selectedItems.length) {
+                      addToast('Please refresh cart and try again (unable to uniquely identify selected items).', 'error');
+                      return;
+                    }
                     closeCartDrawer();
-                    navigate('/customer/checkout', { state: { productIds } });
+                    navigate('/customer/checkout', { state: { cartItemIds } });
                   }}
                   disabled={cartDrawerLoading || cartDrawerItems.length === 0}
                   className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"

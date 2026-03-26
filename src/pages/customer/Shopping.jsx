@@ -86,6 +86,31 @@ export default function Shopping() {
   const [cartProduct, setCartProduct] = useState(null);
   const [cartQty, setCartQty] = useState(1);
   const [cartAdding, setCartAdding] = useState(false);
+  const [cartVariantIdx, setCartVariantIdx] = useState(null);
+
+  const cartVariants = useMemo(() => {
+    return Array.isArray(cartProduct?.variants) ? cartProduct.variants.filter(Boolean) : [];
+  }, [cartProduct]);
+
+  const selectedCartVariant = useMemo(() => {
+    if (!cartVariants.length) return null;
+    const idx = Number(cartVariantIdx);
+    if (!Number.isFinite(idx) || idx < 0 || idx >= cartVariants.length) return null;
+    return cartVariants[idx] || null;
+  }, [cartVariantIdx, cartVariants]);
+
+  const variantLabel = (v) => {
+    const parts = [];
+    const type = String(v?.type ?? '').trim();
+    const size = String(v?.size ?? '').trim();
+    const dimRaw = v?.sizeDimensions ?? v?.size_dimensions ?? null;
+    const dim = dimRaw == null || dimRaw === '' ? null : String(dimRaw).trim();
+    const unit = String(v?.sizeDimensionsUnit ?? v?.size_dimensions_unit ?? '').trim();
+    if (type) parts.push(type);
+    if (size) parts.push(size);
+    if (dim) parts.push(`${dim}${unit ? ` ${unit}` : ''}`.trim());
+    return parts.join(' · ') || 'Variant';
+  };
 
   const featuredFirstItems = useMemo(() => {
     const arr = Array.isArray(items) ? items : [];
@@ -196,6 +221,8 @@ export default function Shopping() {
   const openAddToCart = (p) => {
     setCartProduct(p || null);
     setCartQty(1);
+    const variants = Array.isArray(p?.variants) ? p.variants : [];
+    setCartVariantIdx(variants.length === 1 ? 0 : null);
     setCartOpen(true);
   };
 
@@ -212,9 +239,22 @@ export default function Shopping() {
       addToast('Invalid product', 'error');
       return;
     }
+    if (cartVariants.length && !selectedCartVariant) {
+      addToast('Please select a variant before adding to cart', 'error');
+      return;
+    }
     setCartAdding(true);
     try {
-      await cartService.addItem({ productId: pid, quantity: qty });
+      const variantsPayload = selectedCartVariant
+        ? {
+            type: selectedCartVariant?.type ?? undefined,
+            size: selectedCartVariant?.size ?? undefined,
+            sizeDimensions: selectedCartVariant?.sizeDimensions ?? selectedCartVariant?.size_dimensions ?? undefined,
+            sizeDimensionsUnit:
+              selectedCartVariant?.sizeDimensionsUnit ?? selectedCartVariant?.size_dimensions_unit ?? undefined,
+          }
+        : undefined;
+      await cartService.addItem({ productId: pid, quantity: qty, variants: variantsPayload });
       addToast(`${qty} ${qty === 1 ? 'item' : 'items'} added to cart`, 'success');
       setCartOpen(false);
       setCartProduct(null);
@@ -582,6 +622,43 @@ export default function Shopping() {
             </div>
 
             <div className="px-5 py-5">
+              {cartVariants.length ? (
+                <div className="mb-5">
+                  <p className="text-[13px] font-semibold text-gray-700">Size Options</p>
+                  <div className="mt-3 space-y-2">
+                    {cartVariants.map((v, idx) => {
+                      const checked = Number(cartVariantIdx) === idx;
+                      const price = Number(v?.price);
+                      const showPrice = Number.isFinite(price) && price > 0;
+                      return (
+                        <label
+                          key={String(idx)}
+                          className="flex items-start gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/60 cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="cart_variant"
+                            checked={checked}
+                            onChange={() => setCartVariantIdx(idx)}
+                            className="mt-1 w-4 h-4 text-primary-dark focus:ring-primary-dark/30"
+                            disabled={cartAdding}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-[12px] font-bold text-gray-900 truncate">{variantLabel(v)}</p>
+                              {showPrice ? (
+                                <p className="text-[12px] font-extrabold text-gray-900">₹{formatMoney(price)}</p>
+                              ) : null}
+                            </div>
+                            <p className="mt-0.5 text-[11px] text-gray-500">Select this option to add this variant.</p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="flex items-center justify-between">
                 <p className="text-[13px] font-semibold text-gray-700">Quantity</p>
                 <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
@@ -628,7 +705,7 @@ export default function Shopping() {
                 type="button"
                 onClick={confirmAddToCart}
                 className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
-                disabled={cartAdding}
+                disabled={cartAdding || (cartVariants.length > 0 && !selectedCartVariant)}
               >
                 {cartAdding ? 'Adding…' : 'Add'}
               </button>
