@@ -4,9 +4,29 @@ import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 
+const PERSONAL_INFO_BLOCK_TOAST =
+  'For your safety and to ensure a secure transaction, sharing personal contact details (such as phone numbers or addresses) is not allowed on Mirah. Please keep all communication within the platform.';
+
 function fullName(u) {
   if (!u) return '';
   return [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+}
+
+function normalizeText(s) {
+  return String(s ?? '').trim().replace(/\s+/g, ' ');
+}
+
+function looksLikeBlockedPlaceholderMessage(m) {
+  // Backend may replace flagged content with a generic placeholder.
+  const content = normalizeText(m?.content).toLowerCase();
+  if (!content) return false;
+  if (m?.attachmentUrl) return false;
+  if (m?.messageType && String(m.messageType).toLowerCase() !== 'text') return false;
+  if (content === 'not allowed' || content === 'not allowed.' || content === '[not allowed]') return true;
+  // Handle other variants (kept conservative to avoid accidental filtering).
+  if (content.length <= 80 && /\bnot\s+allowed\b/.test(content)) return true;
+  if (content.length <= 80 && /\bmessage\s+not\s+allowed\b/.test(content)) return true;
+  return false;
 }
 
 function avatarUrlFor(user) {
@@ -100,12 +120,14 @@ function normalizeMessage(m) {
     m?.messageType ??
     m?.type ??
     (attachmentUrl ? 'file' : 'text');
+  const senderTypeRaw = m?.senderType ?? m?.sender_type ?? m?.sender?.userType ?? m?.sender?.role ?? null;
+  const senderType = senderTypeRaw != null ? String(senderTypeRaw).trim().toLowerCase() : null;
   return {
     id,
     content: m?.content ?? m?.text ?? '',
     messageType,
     attachmentUrl,
-    senderType: m?.senderType ?? null,
+    senderType,
     senderId: m?.senderId ?? m?.sender?.id ?? null,
     sender: m?.sender ?? null,
     isRead: Boolean(m?.isRead ?? m?.read ?? m?.readAt),
@@ -197,6 +219,10 @@ export default function Messages() {
     others.sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
     return [supportConvo, ...others];
   }, [normalizedConvos, supportConvo]);
+
+  const visibleMessages = useMemo(() => {
+    return (messages || []).filter((m) => !looksLikeBlockedPlaceholderMessage(m));
+  }, [messages]);
 
   const activeConvo = useMemo(() => {
     return sortedConvos.find((c) => String(c.id) === String(activeConvoId)) || null;
@@ -338,9 +364,11 @@ export default function Messages() {
       const res = await chatService.getMessages({ conversationId: convo.id, page: 1, limit: 50, signal: ac.signal });
       if (seq !== loadSeqRef.current) return; // stale response after a fast switch
       const items = res?.messages ?? [];
-      const normalized = items.map(normalizeMessage);
+      const normalizedAll = items.map(normalizeMessage);
+      const newestKey = computeNewestKey(normalizedAll);
+      const normalized = normalizedAll.filter((m) => !looksLikeBlockedPlaceholderMessage(m));
       setMessages(normalized);
-      lastSeenRef.current = computeNewestKey(normalized);
+      lastSeenRef.current = newestKey;
       msgBackoffMsRef.current = 0;
 
       // Merge updated conversation (includes online flags) into list
@@ -590,7 +618,8 @@ export default function Messages() {
             setMessages((prev) => {
               const prevArr = Array.isArray(prev) ? prev : [];
               const seen = new Set(prevArr.map((p) => String(p.id)));
-              const toAdd = newer.filter((m) => !seen.has(String(m.id)));
+              const toAddAll = newer.filter((m) => !seen.has(String(m.id)));
+              const toAdd = toAddAll.filter((m) => !looksLikeBlockedPlaceholderMessage(m));
               return toAdd.length ? [...prevArr, ...toAdd] : prevArr;
             });
             lastSeenRef.current = newest;
@@ -655,6 +684,13 @@ export default function Messages() {
       if (!activeConvo?.id) return;
       const res = await chatService.sendMessage({ conversationId: activeConvo.id, content: text, messageType: 'text' });
       const msg = normalizeMessage(res?.message ?? res?.data?.message ?? res?.message ?? res);
+      if (looksLikeBlockedPlaceholderMessage(msg)) {
+        addToast(PERSONAL_INFO_BLOCK_TOAST, 'error');
+        setComposer('');
+        await refreshConversations();
+        await loadMessagesFor(activeConvo);
+        return;
+      }
       setComposer('');
       if (msg?.id) {
         setMessages((prev) => [...prev, msg]);
@@ -782,7 +818,10 @@ export default function Messages() {
               const isActive = String(c.id) === String(activeConvoId);
               const who = c.admin ? { firstName: 'Support', lastName: '' } : c.otherUser;
               const name = c.admin ? 'Support' : fullName(who) || 'Unknown';
-              const last = c.lastMessage?.content || c.lastMessage?.text || (c.admin ? 'Contact support' : 'Start a conversation');
+              const lastRaw = c.lastMessage?.content || c.lastMessage?.text || '';
+              const last = looksLikeBlockedPlaceholderMessage({ content: lastRaw, messageType: 'text' })
+                ? (c.admin ? 'Contact support' : 'Start a conversation')
+                : (lastRaw || (c.admin ? 'Contact support' : 'Start a conversation'));
               const ts = c.lastMessage?.createdAt || c.updatedAt;
               return (
                 <button
@@ -889,11 +928,12 @@ export default function Messages() {
               <div className="h-full overflow-y-auto px-5 py-6 space-y-3 relative z-10">
                 {loadingMessages ? (
                   <div className="text-[13px] text-gray-400">Loading messages…</div>
-                ) : messages.length === 0 ? (
+                ) : visibleMessages.length === 0 ? (
                   <div className="text-[13px] text-gray-400">No messages yet.</div>
                 ) : (
-                  messages.map((m) => {
-                    const mine = String(m.senderId) === String(user?.id) && m.senderType !== 'admin';
+                  visibleMessages.map((m) => {
+                    const isAdminMsg = String(m.senderType || '').toLowerCase() === 'admin';
+                    const mine = String(m.senderId) === String(user?.id) && !isAdminMsg;
                     const hasAttachment = Boolean(m.attachmentUrl);
                     const isImage =
                       m.messageType === 'image' ||
@@ -901,7 +941,7 @@ export default function Messages() {
                     const when = formatMessageDateTime(m.createdAt);
                     const senderForAvatar = mine
                       ? user
-                      : m.senderType === 'admin'
+                      : isAdminMsg
                         ? { firstName: 'Support', lastName: '' }
                         : (m.sender || activeHeaderUser);
                     return (
@@ -913,7 +953,13 @@ export default function Messages() {
                             className="w-7 h-7 rounded-full shrink-0"
                           />
                           <div className={`max-w-[92%] md:max-w-[84%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
-                            ${mine ? 'bg-primary-dark text-white rounded-br-md' : 'bg-gray-100 text-gray-700 rounded-bl-md'}
+                            ${
+                              mine
+                                ? 'bg-primary-dark text-white rounded-br-md'
+                                : isAdminMsg
+                                  ? 'bg-red-50 text-red-800 border border-red-100 rounded-bl-md'
+                                  : 'bg-gray-100 text-gray-700 rounded-bl-md'
+                            }
                           `}>
                             {hasAttachment && isImage ? (
                               <div className="space-y-2">

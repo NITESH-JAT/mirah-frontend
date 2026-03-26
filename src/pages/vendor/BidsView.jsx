@@ -17,10 +17,11 @@ function formatMoney(v) {
 
 function formatCountdown(ms) {
   const t = Math.max(0, Math.floor(ms / 1000));
-  const hh = String(Math.floor(t / 3600)).padStart(2, '0');
+  const dd = Math.floor(t / (24 * 3600));
+  const hh = Math.floor((t % (24 * 3600)) / 3600);
   const mm = String(Math.floor((t % 3600) / 60)).padStart(2, '0');
   const ss = String(t % 60).padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
+  return `${dd}d ${hh}h ${mm}m ${ss}s`;
 }
 
 function parseLocalDateInput(value) {

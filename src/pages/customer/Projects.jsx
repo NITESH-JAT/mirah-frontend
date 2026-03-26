@@ -210,6 +210,54 @@ function toDateInputValue(date) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function clampNumber(n, min, max) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return min;
+  return Math.min(max, Math.max(min, x));
+}
+
+function preferredDeliveryTimelineFromDays(days) {
+  const d0 = startOfLocalDay(new Date()) || new Date();
+  const d = addDays(d0, clampNumber(days, 20, 90)) || d0;
+  return toDateInputValue(d);
+}
+
+function preferredDeliveryDaysFromTimeline(timelineValue) {
+  const base = startOfLocalDay(new Date());
+  const target = parseLocalDateInput(timelineValue);
+  if (!base || !target) return 20;
+  const diffMs = startOfLocalDay(target)?.getTime() - base.getTime();
+  const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return clampNumber(diffDays, 20, 90);
+}
+
+function dayOrdinalSuffix(day) {
+  const d = Number(day);
+  if (!Number.isFinite(d)) return '';
+  const mod100 = d % 100;
+  if (mod100 >= 11 && mod100 <= 13) return 'th';
+  const mod10 = d % 10;
+  if (mod10 === 1) return 'st';
+  if (mod10 === 2) return 'nd';
+  if (mod10 === 3) return 'rd';
+  return 'th';
+}
+
+function formatDateWithOrdinal(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  if (!d || Number.isNaN(d.getTime())) return '—';
+  const day = d.getDate();
+  const month = d.toLocaleDateString('en-GB', { month: 'short' });
+  const year = d.getFullYear();
+  return `${day}${dayOrdinalSuffix(day)} ${month}, ${year}`;
+}
+
+function formatDateWithOrdinalFromInput(value) {
+  const d = parseLocalDateInput(value);
+  if (!d) return String(value || '').trim() || '—';
+  return formatDateWithOrdinal(d);
+}
+
 function pickPreviewUrl(attachments) {
   const list = coerceUrlArray(attachments);
   const img = list.find((u) => isImageUrl(u));
@@ -367,6 +415,84 @@ function canDeleteProject(p) {
   if (isPaymentPaid(advancePayment) || isPaymentPaid(finalPayment)) return false;
 
   return true;
+}
+
+function canEditProject(p) {
+  // Editing is allowed only for not-started draft projects (same constraints as delete).
+  // Once auction/bidding is started (project becomes running or a bid window exists), disable editing.
+  return canDeleteProject(p);
+}
+
+function sanitizeDigitsInput(raw, { maxLen } = {}) {
+  const digits = String(raw ?? '').replace(/[^\d]/g, '');
+  if (typeof maxLen === 'number' && Number.isFinite(maxLen) && maxLen > 0) return digits.slice(0, maxLen);
+  return digits;
+}
+
+function sanitizeDecimalInput(raw, { maxLen } = {}) {
+  const s = String(raw ?? '');
+  let out = '';
+  let sawDot = false;
+  for (const ch of s) {
+    if (ch >= '0' && ch <= '9') {
+      out += ch;
+      continue;
+    }
+    if (ch === '.' && !sawDot) {
+      sawDot = true;
+      out = out ? `${out}.` : '0.';
+    }
+  }
+  if (typeof maxLen === 'number' && Number.isFinite(maxLen) && maxLen > 0) return out.slice(0, maxLen);
+  return out;
+}
+
+function normalizeJewelleryTypeKey(t) {
+  return String(t || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '');
+}
+
+function sizeStandardOptionsForJewelleryType(jewelleryType) {
+  const key = normalizeJewelleryTypeKey(jewelleryType);
+  if (key === 'bracelet' || key === 'flexibangle') {
+    return [
+      'Extra Small (14-15 cm)',
+      'Small (16-17 cm)',
+      'Medium (18-19 cm)',
+      'Large (20-21 cm)',
+      'Extra Large (22-23 cm)',
+    ];
+  }
+  if (key === 'ring') {
+    return [
+      'A (37.8 mm)', 'B (39.1 mm)', 'C (40.4 mm)', 'D (41.7 mm)', 'E (42.9 mm)', 'F (44.2 mm)',
+      'G (45.5 mm)', 'H (46.8 mm)', 'I (48.0 mm)', 'J (49.3 mm)', 'K (50.6 mm)', 'L (51.9 mm)',
+      'M (53.1 mm)', 'N (54.4 mm)', 'O (55.7 mm)', 'P (57.0 mm)', 'Q (58.3 mm)', 'R (59.5 mm)',
+      'S (60.8 mm)', 'T (62.1 mm)', 'U (63.4 mm)', 'V (64.6 mm)', 'W (65.9 mm)', 'X (67.2 mm)',
+      'Y (68.5 mm)', 'Z (69.7 mm)',
+    ];
+  }
+  if (key === 'necklace' || key === 'pendant') {
+    return [
+      'Choker (14")',
+      'Collarbone (16")',
+      'Princess (18")',
+      'Matinee (20")',
+      'Opera (24")',
+      'Rope (30")',
+    ];
+  }
+  // Fallback (existing generic sizes)
+  return ['XS', 'S', 'M', 'L', 'XL'];
+}
+
+function defaultSizeCustomUnitForJewelleryType(jewelleryType) {
+  const key = normalizeJewelleryTypeKey(jewelleryType);
+  if (key === 'ring') return 'mm';
+  if (key === 'necklace' || key === 'pendant') return 'in';
+  return 'cm';
 }
 
 function canCancelProject(p) {
@@ -546,7 +672,8 @@ export default function Projects() {
       changesComparedToReference: '',
       budgetPerPiece: '',
       quantityRequired: '',
-      preferredDeliveryTimeline: '',
+      preferredDeliveryDays: 20,
+      preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
       additionalNotes: '',
       confirmSpecs: false,
     },
@@ -560,7 +687,7 @@ export default function Projects() {
   const stepLabels = useMemo(
     () => [
       { id: 1, label: 'Design' },
-      { id: 2, label: 'Specs' },
+      { id: 2, label: 'Specifications' },
       { id: 3, label: 'Details' },
       { id: 4, label: 'Review' },
     ],
@@ -640,19 +767,18 @@ export default function Projects() {
         const budgetRaw = String(s?.budgetPerPiece ?? '').trim();
         const budget = Number(budgetRaw || 0);
         const qty = Number(s?.quantityRequired || 0);
-        const preferredDelivery = String(s?.preferredDeliveryTimeline || '').trim();
+        const deliveryDays = Number(s?.preferredDeliveryDays ?? 0);
 
-        // Budget per piece is optional; validate only if provided.
-        if (budgetRaw !== '' && (!Number.isFinite(budget) || budget <= 0)) return 'Budget per piece must be greater than 0';
+        if (!budgetRaw) return 'Budget per piece is required';
+        if (!Number.isFinite(budget) || budget <= 0) return 'Budget per piece must be greater than 0';
         if (!Number.isFinite(qty) || qty <= 0) return 'Quantity required is required';
-        if (!preferredDelivery) return 'Preferred delivery timeline is required';
-
-        const min = startOfLocalDay(addDays(startOfLocalDay(new Date()) || new Date(), 20));
-        const selected = parseLocalDateInput(preferredDelivery);
-        if (min && (!selected || Number.isNaN(selected.getTime()) || selected.getTime() < min.getTime())) {
-          return 'Preferred delivery timeline must be at least 20 days from today';
+        if (!Number.isFinite(deliveryDays) || deliveryDays < 20 || deliveryDays > 90) {
+          return 'Preferred delivery timeline must be between 20 and 90 days';
         }
+        return null;
+      }
 
+      if (step === 4) {
         if (!s?.confirmSpecs) return 'Please confirm specifications and terms';
         return null;
       }
@@ -670,9 +796,8 @@ export default function Projects() {
     const title = String(createForm?.title || '').trim();
     const referenceImage = String(createForm?.referenceImage || '').trim();
     const attachments = coerceUrlArray(createForm?.attachments);
-    const baseMeta = buildExtraFieldsPayload(createForm?.metaFields);
     const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
-    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(baseMeta) || []), ...(extraFieldsToArray(specsMeta) || [])]);
+    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
     return {
       title,
       referenceImage,
@@ -857,7 +982,8 @@ export default function Projects() {
         changesComparedToReference: '',
         budgetPerPiece: '',
         quantityRequired: '',
-        preferredDeliveryTimeline: '',
+        preferredDeliveryDays: 20,
+        preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
         additionalNotes: '',
         confirmSpecs: false,
       },
@@ -871,6 +997,10 @@ export default function Projects() {
   const startEdit = (p) => {
     const id = localProjectIdOf(p);
     if (!id) return;
+    if (!canEditProject(p)) {
+      addToast('Editing is disabled once auction/bidding has started.', 'error');
+      return;
+    }
     setEditingId(id);
     setCreateStep(1);
     const metaRowsAll = extraFieldsToArray(p?.meta);
@@ -895,8 +1025,8 @@ export default function Projects() {
         jewelleryType: pickMeta('jewelleryType', 'jewellery_type'),
         sizeMode: pickMeta('sizeMode', 'size_mode') || 'standard',
         sizeStandard: pickMeta('sizeStandard', 'size_standard'),
-        sizeCustomValue: pickMeta('sizeCustomValue', 'size_custom_value'),
-        sizeCustomUnit: pickMeta('sizeCustomUnit', 'size_custom_unit') || 'cm',
+        sizeCustomValue: sanitizeDigitsInput(pickMeta('sizeCustomValue', 'size_custom_value'), { maxLen: 10 }),
+        sizeCustomUnit: pickMeta('sizeCustomUnit', 'size_custom_unit') || defaultSizeCustomUnitForJewelleryType(pickMeta('jewelleryType', 'jewellery_type')),
         metalType: pickMeta('metalType', 'metal_type'),
         metalPurity: pickMeta('metalPurity', 'metal_purity'),
         metalColour: pickMeta('metalColour', 'metal_colour'),
@@ -907,16 +1037,19 @@ export default function Projects() {
         stoneQualityBracket: pickMeta('stoneQualityBracket', 'stone_quality_bracket'),
         engravingDetails: pickMeta('engravingDetails', 'engraving_details'),
         changesComparedToReference: pickMeta('changesComparedToReference', 'changes_compared_to_reference'),
-        budgetPerPiece: pickMeta('budgetPerPiece', 'budget_per_piece'),
-        quantityRequired: pickMeta('quantityRequired', 'quantity_required'),
-        preferredDeliveryTimeline: pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'),
+        budgetPerPiece: sanitizeDecimalInput(pickMeta('budgetPerPiece', 'budget_per_piece'), { maxLen: 16 }),
+        quantityRequired: sanitizeDigitsInput(pickMeta('quantityRequired', 'quantity_required'), { maxLen: 6 }),
+        preferredDeliveryDays: preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline')),
+        preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(
+          preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'))
+        ),
         additionalNotes: pickMeta('additionalNotes', 'additional_notes'),
         confirmSpecs:
           String(pickMeta('confirmSpecs', 'confirm_specs') || '')
             .trim()
             .toLowerCase() === 'true',
       },
-      metaFields: metaRowsAll.filter((r) => !RESERVED_META_KEYS.has(String(r?.key || '').trim())),
+      metaFields: [],
     });
     setActiveTab('create');
     navigate('/customer/projects?tab=create');
@@ -951,7 +1084,8 @@ export default function Projects() {
         changesComparedToReference: '',
         budgetPerPiece: '',
         quantityRequired: '',
-        preferredDeliveryTimeline: '',
+        preferredDeliveryDays: 20,
+        preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
         additionalNotes: '',
         confirmSpecs: false,
       },
@@ -1021,14 +1155,14 @@ export default function Projects() {
     const title = String(createForm?.title || '').trim();
     const referenceImage = String(createForm?.referenceImage || '').trim();
     const attachments = coerceUrlArray(createForm?.attachments);
-    const baseMeta = buildExtraFieldsPayload(createForm?.metaFields);
     const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
-    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(baseMeta) || []), ...(extraFieldsToArray(specsMeta) || [])]);
+    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
 
     const err1 = validateStep(1);
     const err2 = err1 ? null : validateStep(2);
     const err3 = err1 || err2 ? null : validateStep(3);
-    const err = err1 || err2 || err3;
+    const err4 = err1 || err2 || err3 ? null : validateStep(4);
+    const err = err1 || err2 || err3 || err4;
     if (err) return addToast(err, 'error');
 
     if (createLoading) return;
@@ -1689,7 +1823,7 @@ export default function Projects() {
                                   </button>
                                 ) : null}
 
-                                {!completedLike ? (
+                                {canEditProject(p) ? (
                                   <button
                                     type="button"
                                     onClick={() => startEdit(p)}
@@ -2122,12 +2256,21 @@ export default function Projects() {
                                 <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery type *</label>
                                 <select
                                   value={createForm?.specs?.jewelleryType || ''}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const nextType = String(e.target.value || '');
                                     setCreateForm((p) => ({
                                       ...p,
-                                      specs: { ...(p.specs || {}), jewelleryType: e.target.value },
-                                    }))
-                                  }
+                                      specs: {
+                                        ...(p.specs || {}),
+                                        jewelleryType: nextType,
+                                        // Reset size selection when type changes.
+                                        sizeMode: 'standard',
+                                        sizeStandard: '',
+                                        sizeCustomValue: '',
+                                        sizeCustomUnit: defaultSizeCustomUnitForJewelleryType(nextType),
+                                      },
+                                    }));
+                                  }}
                                   className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
                                 >
                                   <option value="">Select</option>
@@ -2140,64 +2283,76 @@ export default function Projects() {
                               </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Size *</label>
-                              <select
-                                value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
-                                onChange={(e) => {
-                                  const v = String(e.target.value || '');
-                                  if (v === 'custom') {
-                                    setCreateForm((p) => ({
-                                      ...p,
-                                      specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
-                                    }));
-                                  } else {
-                                    setCreateForm((p) => ({
-                                      ...p,
-                                      specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
-                                    }));
-                                  }
-                                }}
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
-                              >
-                                <option value="">Select</option>
-                                {['XS', 'S', 'M', 'L', 'XL'].map((x) => (
-                                  <option key={x} value={x}>
-                                    {x}
-                                  </option>
-                                ))}
-                                <option value="custom">Enter custom measurement</option>
-                              </select>
-                              {createForm?.specs?.sizeMode === 'custom' ? (
-                                <div className="mt-2 grid grid-cols-2 gap-2">
-                                  <input
-                                    type="number"
-                                    value={createForm?.specs?.sizeCustomValue || ''}
-                                    onChange={(e) =>
-                                      setCreateForm((p) => ({
-                                        ...p,
-                                        specs: { ...(p.specs || {}), sizeCustomValue: e.target.value },
-                                      }))
-                                    }
-                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
-                                    placeholder="Measurement"
-                                  />
-                                  <select
-                                    value={createForm?.specs?.sizeCustomUnit || 'cm'}
-                                    onChange={(e) =>
-                                      setCreateForm((p) => ({
-                                        ...p,
-                                        specs: { ...(p.specs || {}), sizeCustomUnit: e.target.value },
-                                      }))
-                                    }
-                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            {String(createForm?.specs?.jewelleryType || '').trim() ? (
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-3">
+                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Size *</label>
+                                  <button
+                                    type="button"
+                                    onClick={() => setHowToMeasureOpen(true)}
+                                    className="shrink-0 text-[12px] font-semibold text-primary-dark hover:underline cursor-pointer"
                                   >
-                                    <option value="cm">cm</option>
-                                    <option value="in">inches</option>
-                                  </select>
+                                    How to Measure
+                                  </button>
                                 </div>
-                              ) : null}
-                            </div>
+                                <select
+                                  value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
+                                  onChange={(e) => {
+                                    const v = String(e.target.value || '');
+                                    if (v === 'custom') {
+                                      setCreateForm((p) => ({
+                                        ...p,
+                                        specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
+                                      }));
+                                    } else {
+                                      setCreateForm((p) => ({
+                                        ...p,
+                                        specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
+                                      }));
+                                    }
+                                  }}
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                >
+                                  <option value="">Select</option>
+                                  {sizeStandardOptionsForJewelleryType(createForm?.specs?.jewelleryType).map((label) => (
+                                    <option key={label} value={label}>
+                                      {label}
+                                    </option>
+                                  ))}
+                                  <option value="custom">Enter custom measurement</option>
+                                </select>
+                                {createForm?.specs?.sizeMode === 'custom' ? (
+                                  <div className="mt-2 grid grid-cols-2 gap-2">
+                                    <input
+                                      type="number"
+                                      value={createForm?.specs?.sizeCustomValue || ''}
+                                      onChange={(e) =>
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          specs: { ...(p.specs || {}), sizeCustomValue: e.target.value },
+                                        }))
+                                      }
+                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                      placeholder="Measurement"
+                                    />
+                                    <select
+                                      value={createForm?.specs?.sizeCustomUnit || defaultSizeCustomUnitForJewelleryType(createForm?.specs?.jewelleryType)}
+                                      onChange={(e) =>
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          specs: { ...(p.specs || {}), sizeCustomUnit: e.target.value },
+                                        }))
+                                      }
+                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                    >
+                                      <option value="mm">mm</option>
+                                      <option value="cm">cm</option>
+                                      <option value="in">inches</option>
+                                    </select>
+                                  </div>
+                                ) : null}
+                              </div>
+                            ) : null}
                           </div>
                         ) : null}
 
@@ -2208,13 +2363,6 @@ export default function Projects() {
                             <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery specifications</p>
                             <p className="text-[12px] text-gray-400">These details will be shared with the jeweller to prepare your order.</p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setHowToMeasureOpen(true)}
-                            className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-                          >
-                            How to Measure
-                          </button>
                         </div>
 
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2431,14 +2579,16 @@ export default function Projects() {
 
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Budget per piece</label>
+                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Budget per piece *</label>
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="decimal"
+                                pattern="[0-9]*[.]?[0-9]*"
                                 value={createForm?.specs?.budgetPerPiece || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
                                     ...p,
-                                    specs: { ...(p.specs || {}), budgetPerPiece: e.target.value },
+                                    specs: { ...(p.specs || {}), budgetPerPiece: sanitizeDecimalInput(e.target.value, { maxLen: 16 }) },
                                   }))
                                 }
                                 className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
@@ -2448,12 +2598,14 @@ export default function Projects() {
                             <div className="space-y-1.5">
                               <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Quantity required *</label>
                               <input
-                                type="number"
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
                                 value={createForm?.specs?.quantityRequired || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
                                     ...p,
-                                    specs: { ...(p.specs || {}), quantityRequired: e.target.value },
+                                    specs: { ...(p.specs || {}), quantityRequired: sanitizeDigitsInput(e.target.value, { maxLen: 6 }) },
                                   }))
                                 }
                                 className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
@@ -2462,19 +2614,57 @@ export default function Projects() {
                             </div>
                             <div className="space-y-1.5 md:col-span-2">
                               <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Preferred delivery timeline *</label>
-                              <input
-                                type="date"
-                                value={createForm?.specs?.preferredDeliveryTimeline || ''}
-                                min={toDateInputValue(startOfLocalDay(addDays(startOfLocalDay(new Date()) || new Date(), 20)) || new Date())}
-                                onChange={(e) =>
-                                  setCreateForm((p) => ({
-                                    ...p,
-                                    specs: { ...(p.specs || {}), preferredDeliveryTimeline: e.target.value },
-                                  }))
-                                }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                              />
-                              <p className="text-[12px] text-gray-400">Minimum selectable date is 20 days from today.</p>
+                              {(() => {
+                                const minDays = 20;
+                                const maxDays = 90;
+                                const days = clampNumber(createForm?.specs?.preferredDeliveryDays ?? 20, minDays, maxDays);
+                                const pct = ((days - minDays) / (maxDays - minDays)) * 100;
+                                const expectedDate = addDays(startOfLocalDay(new Date()) || new Date(), days);
+                                return (
+                                  <div className="mt-2">
+                                    <div className="relative">
+                                      <div
+                                        className="absolute -top-8 text-[12px] font-bold text-gray-800 bg-white border border-gray-100 rounded-lg px-2 py-0.5 shadow-sm"
+                                        style={{ left: `calc(${pct}% - 14px)` }}
+                                      >
+                                        {days}
+                                      </div>
+                                      <input
+                                        type="range"
+                                        min={minDays}
+                                        max={maxDays}
+                                        step={1}
+                                        value={days}
+                                        onChange={(e) => {
+                                          const nextDays = clampNumber(e.target.value, minDays, maxDays);
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: {
+                                              ...(p.specs || {}),
+                                              preferredDeliveryDays: nextDays,
+                                              preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(nextDays),
+                                            },
+                                          }));
+                                        }}
+                                        className="w-full accent-primary-dark"
+                                      />
+                                    </div>
+                                    <div className="mt-2 flex items-center justify-between text-[12px] text-gray-400">
+                                      <span>20 Days</span>
+                                      <span>90 Days</span>
+                                    </div>
+                                    <p className="mt-3 text-[12px] text-gray-500">
+                                      Your Expected delivery date is{' '}
+                                      <span className="font-semibold text-gray-800">{formatDateWithOrdinal(expectedDate)}</span>
+                                    </p>
+                                    {days < 30 ? (
+                                      <p className="mt-2 text-[12px] text-amber-700">
+                                        Selecting a shorter delivery timeline may have a minor impact on pricing due to priority handling
+                                      </p>
+                                    ) : null}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
@@ -2493,85 +2683,6 @@ export default function Projects() {
                             className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
                             placeholder="Any additional details you want to share"
                           />
-                        </div>
-
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <div className="flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra Fields</p>
-                              <p className="text-[12px] text-gray-400">Add custom label/value pairs for this project.</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  metaFields: [...(p.metaFields || []), { key: '', label: '', value: '' }],
-                                }))
-                              }
-                              className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-medium text-gray-700 hover:bg-gray-50 cursor-pointer"
-                            >
-                              Add field
-                            </button>
-                          </div>
-
-                          {(createForm.metaFields || []).length ? (
-                            <div className="mt-4 space-y-3">
-                              {(createForm.metaFields || []).map((ef, idx) => (
-                                <div key={`mf-${idx}`} className="rounded-xl border border-gray-100 p-3">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    <div className="space-y-1.5">
-                                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
-                                      <input
-                                        value={ef?.label ?? ''}
-                                        onChange={(e) => {
-                                          const label = e.target.value;
-                                          const key = normalizeExtraFieldKey(label);
-                                          setCreateForm((p) => ({
-                                            ...p,
-                                            metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), label, key } : x)),
-                                          }));
-                                        }}
-                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                                        placeholder="e.g. Material"
-                                      />
-                                    </div>
-                                    <div className="space-y-1.5">
-                                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
-                                      <input
-                                        value={ef?.value ?? ''}
-                                        onChange={(e) => {
-                                          const value = e.target.value;
-                                          setCreateForm((p) => ({
-                                            ...p,
-                                            metaFields: (p.metaFields || []).map((x, i) => (i === idx ? { ...(x || {}), value } : x)),
-                                          }));
-                                        }}
-                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-                                        placeholder="e.g. Gold"
-                                      />
-                                    </div>
-                                  </div>
-                                  <div className="mt-3 flex justify-end">
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        setCreateForm((p) => ({
-                                          ...p,
-                                          metaFields: (p.metaFields || []).filter((_, i) => i !== idx),
-                                        }))
-                                      }
-                                      className="text-[12px] font-semibold text-red-600 hover:underline cursor-pointer"
-                                    >
-                                      Remove
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="mt-4 text-[12px] text-gray-400">No extra fields added.</div>
-                          )}
                         </div>
 
                         <div className="rounded-2xl border border-gray-100 p-4">
@@ -2662,25 +2773,6 @@ export default function Projects() {
                             <div className="mt-4 text-[12px] text-gray-400">No attachments uploaded.</div>
                           )}
                         </div>
-
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <label className="flex items-start gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(createForm?.specs?.confirmSpecs)}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), confirmSpecs: e.target.checked },
-                                }))
-                              }
-                              className="mt-0.5 w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
-                            />
-                            <span className="font-medium text-gray-700">
-                              I confirm that all specifications provided are accurate and final. I understand that any changes after this stage may impact pricing and delivery timelines. I agree to the platform’s terms and conditions.
-                            </span>
-                          </label>
-                        </div>
                       </div>
                     ) : null}
 
@@ -2762,7 +2854,7 @@ export default function Projects() {
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
                             <div><span className="text-gray-400">Budget per piece:</span> <span className="font-semibold text-gray-800">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
                             <div><span className="text-gray-400">Quantity required:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.quantityRequired || '—'}</span></div>
-                            <div className="md:col-span-2"><span className="text-gray-400">Preferred delivery timeline:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.preferredDeliveryTimeline || '—'}</span></div>
+                            <div className="md:col-span-2"><span className="text-gray-400">Preferred delivery timeline:</span> <span className="font-semibold text-gray-800">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
                             {String(createForm?.specs?.additionalNotes || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-gray-400">Additional notes for the manufacturer:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.additionalNotes}</span></div>
                             ) : null}
@@ -2771,24 +2863,6 @@ export default function Projects() {
                               <span className="font-semibold text-gray-800">{createForm?.specs?.confirmSpecs ? 'Confirmed' : 'Not confirmed'}</span>
                             </div>
                           </div>
-                        </div>
-
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Extra fields</p>
-                          {Array.isArray(createForm?.metaFields) && createForm.metaFields.some((x) => String(x?.label || '').trim() || String(x?.value || '').trim()) ? (
-                            <div className="mt-3 space-y-2">
-                              {createForm.metaFields
-                                .filter((x) => String(x?.label || '').trim() || String(x?.value || '').trim())
-                                .map((x, idx) => (
-                                  <div key={`review-mf-${idx}`} className="flex items-start justify-between gap-3 text-[13px]">
-                                    <div className="text-gray-700 font-semibold">{String(x?.label || '').trim() || 'Label'}</div>
-                                    <div className="text-gray-600 text-right">{String(x?.value || '').trim() || '—'}</div>
-                                  </div>
-                                ))}
-                            </div>
-                          ) : (
-                            <div className="mt-2 text-[12px] text-gray-400">No extra fields added.</div>
-                          )}
                         </div>
 
                         <div className="rounded-2xl border border-gray-100 p-4">
@@ -2835,6 +2909,25 @@ export default function Projects() {
                             <div className="mt-2 text-[12px] text-gray-400">No attachments uploaded.</div>
                           )}
                         </div>
+
+                        <div className="rounded-2xl border border-gray-100 p-4">
+                          <label className="flex items-start gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(createForm?.specs?.confirmSpecs)}
+                              onChange={(e) =>
+                                setCreateForm((p) => ({
+                                  ...p,
+                                  specs: { ...(p.specs || {}), confirmSpecs: e.target.checked },
+                                }))
+                              }
+                              className="mt-0.5 w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                            />
+                            <span className="font-medium text-gray-700">
+                              I confirm that all specifications provided are accurate and final. I understand that any changes after this stage may impact pricing and delivery timelines. I agree to the platform’s terms and conditions.
+                            </span>
+                          </label>
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -2874,15 +2967,16 @@ export default function Projects() {
                           const err1 = validateStep(1);
                           const err2 = err1 ? null : validateStep(2);
                           const err3 = err1 || err2 ? null : validateStep(3);
-                          const err = err1 || err2 || err3;
+                          const err4 = err1 || err2 || err3 ? null : validateStep(4);
+                          const err = err1 || err2 || err3 || err4;
                           if (err) {
                             addToast(err, 'error');
-                            setCreateStep(err1 ? 1 : err2 ? 2 : 3);
+                            setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : 4);
                             return;
                           }
                           saveProject();
                         }}
-                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        disabled={createLoading || attachmentUploading || referenceUploading || !createForm?.specs?.confirmSpecs}
                         className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {createLoading ? 'Saving…' : editingId ? 'Update Project' : 'Create Project'}
