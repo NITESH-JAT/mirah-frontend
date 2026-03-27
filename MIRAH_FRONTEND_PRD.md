@@ -1880,11 +1880,33 @@ Response (200):
   "success": true,
   "message": "Project feasibility review completed",
   "data": {
-    "goodToGo": true,
-    "suggestions": []
+    "goodToGo": false,
+    "estimatedGoldWeightGrams": 7.5,
+    "goldRateUsed": 5400,
+    "effectiveGoldRate": 6048,
+    "breakdown": {
+      "metalCost": 45360,
+      "stoneCost": 0,
+      "baseCost": 45360,
+      "markup": 11340,
+      "labourAndShipping": 5000,
+      "estimatedCostPerPiece": 61700,
+      "discountedPricePerPiece": 58615,
+      "totalOrderCost": 586150,
+      "discountMultiplier": 0.95
+    },
+    "timelineFeasible": true,
+    "minimumProductionDays": 10,
+    "pricingAnomaly": null,
+    "tiersApplied": ["Tier 1 — Purity downgrade"],
+    "suggestions": ["Switching from 18kt to 14kt reduces metal cost by ~₹10,000 per piece, making the piece feasible."]
   }
 }
 ```
+
+Notes:
+- `estimatedGoldWeightGrams`, `goldRateUsed`, `effectiveGoldRate`, `minimumProductionDays`, `pricingAnomaly`, and numeric fields inside `breakdown` can be `null` if the AI response is missing/invalid (frontend should handle gracefully).
+- If `goodToGo === true`, backend normalizes `suggestions` and `tiersApplied` to empty arrays.
 
 #### Update project (customer)
 
@@ -2019,16 +2041,25 @@ Success response (200) example:
 
 `POST /api/user/projects/:id/start-bid`
 
-```json
-{ "finishingTimestamp": "2026-03-15T18:30:00.000Z" }
-```
-
-- creates an active bid window until `finishingTimestamp`
+- creates an active bid window until `now + bidCloseDuration days`
 - moderation enforced
 
 Notes:
-- `finishingTimestamp` (or `endsAt`) must be a **future datetime** (ISO string).
-- Backend stores `noOfDays` internally (computed from now→end) for reporting.
+- This endpoint no longer accepts `finishingTimestamp` / `endsAt` from the client.
+- Backend stores `noOfDays` and `finishingTimestamp` based on system config `bid_close_duration` (days).
+
+#### Get bid duration (customer)
+
+`GET /api/user/projects/bid-close-duration`
+
+Response (200):
+
+```json
+{
+  "success": true,
+  "data": { "bidCloseDuration": 3 }
+}
+```
 
 #### View bids
 
@@ -2406,4 +2437,3 @@ Returns:
 - `POST /api/public/payments/razorpay/webhook` (server-to-server Razorpay webhook)
 
 Frontend should **not** depend on these except possibly in internal QA tooling.
-

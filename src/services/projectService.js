@@ -82,6 +82,13 @@ export const projectService = {
     return unwrap(res);
   },
 
+  getBidCloseDuration: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/projects/bid-close-duration', { signal });
+    const data = unwrap(res) || {};
+    const days = Number(data?.bidCloseDuration ?? data?.data?.bidCloseDuration ?? data?.days ?? 0);
+    return Number.isFinite(days) && days > 0 ? days : null;
+  },
+
   cancel: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.post(`/api/user/projects/${projectId}/cancel`, {}, { signal });
@@ -94,15 +101,10 @@ export const projectService = {
     return unwrap(res);
   },
 
-  startBid: async (projectId, { finishingTimestamp, endsAt, noOfDays = 3 } = {}, { signal } = {}) => {
+  startBid: async (projectId, _opts = {}, { signal } = {}) => {
     if (!projectId) return null;
-    const tsRaw = finishingTimestamp ?? endsAt ?? null;
-    const ts =
-      tsRaw != null
-        ? new Date(tsRaw).toISOString()
-        : new Date(Date.now() + Math.max(1, Number(noOfDays) || 0) * 24 * 60 * 60 * 1000).toISOString();
-    const payload = { finishingTimestamp: ts };
-    const res = await api.post(`/api/user/projects/${projectId}/start-bid`, payload, { signal });
+    // Backend uses system configuration to determine bid end date/time.
+    const res = await api.post(`/api/user/projects/${projectId}/start-bid`, {}, { signal });
     return unwrap(res);
   },
 

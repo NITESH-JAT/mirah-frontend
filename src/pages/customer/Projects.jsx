@@ -40,18 +40,6 @@ function formatDateOnlyFromInput(value) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
-function toDateTimeLocalValue(date) {
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-}
-
 function normalizeExtraFieldKey(label) {
   return String(label || '')
     .trim()
@@ -619,6 +607,8 @@ export default function Projects() {
   const [listSearchDraft, setListSearchDraft] = useState('');
   const [listSearch, setListSearch] = useState('');
 
+  const [needsListRefresh, setNeedsListRefresh] = useState(false);
+
   const [editingId, setEditingId] = useState(null);
   const [createLoading, setCreateLoading] = useState(false);
   const [attachmentUploading, setAttachmentUploading] = useState(false);
@@ -790,74 +780,63 @@ export default function Projects() {
 
   const [feasibilityLoading, setFeasibilityLoading] = useState(false);
   const [feasibilitySuggestions, setFeasibilitySuggestions] = useState([]);
+  const [feasibilityReview, setFeasibilityReview] = useState(null);
   const feasibilityAbortRef = useRef(null);
 
-  const feasibilityPayload = useMemo(() => {
+  const projectApiPayload = useMemo(() => {
     const title = String(createForm?.title || '').trim();
+    const description = String(createForm?.description || '').trim();
     const referenceImage = String(createForm?.referenceImage || '').trim();
     const attachments = coerceUrlArray(createForm?.attachments);
     const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
     const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
-    return {
+
+    const budgetPerPieceRaw = String(createForm?.specs?.budgetPerPiece ?? '').trim();
+    const budgetPerPiece = Number(budgetPerPieceRaw || 0);
+
+    const minAmountRaw = String(createForm?.minAmount ?? '').trim();
+    const maxAmountRaw = String(createForm?.maxAmount ?? '').trim();
+    const minAmountParsed = minAmountRaw ? Number(minAmountRaw) : null;
+    const maxAmountParsed = maxAmountRaw ? Number(maxAmountRaw) : null;
+    const minAmount =
+      Number.isFinite(minAmountParsed) && minAmountParsed > 0
+        ? minAmountParsed
+        : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
+          ? budgetPerPiece
+          : null;
+    const maxAmount =
+      Number.isFinite(maxAmountParsed) && maxAmountParsed > 0
+        ? maxAmountParsed
+        : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
+          ? budgetPerPiece
+          : null;
+
+    const timelineExpectedRaw = String(createForm?.timelineExpected ?? '').trim();
+    const preferredDeliveryDays = Number(createForm?.specs?.preferredDeliveryDays ?? 0);
+    const timelineExpectedParsed = timelineExpectedRaw ? Number(timelineExpectedRaw) : null;
+    const timelineExpected =
+      Number.isFinite(timelineExpectedParsed) && timelineExpectedParsed > 0
+        ? timelineExpectedParsed
+        : Number.isFinite(preferredDeliveryDays) && preferredDeliveryDays > 0
+          ? preferredDeliveryDays
+          : null;
+
+    const payload = {
       title,
+      description,
       referenceImage,
       attachments,
       meta,
     };
+    if (minAmount != null) payload.minAmount = minAmount;
+    if (maxAmount != null) payload.maxAmount = maxAmount;
+    if (timelineExpected != null) payload.timelineExpected = timelineExpected;
+    return payload;
   }, [createForm]);
 
-  const feasibilityPayloadKey = useMemo(() => {
-    try {
-      return JSON.stringify(feasibilityPayload);
-    } catch {
-      return String(Date.now());
-    }
-  }, [feasibilityPayload]);
-
-  useEffect(() => {
-    if (!createModalOpen) return;
-    if (createStep !== 4) return;
-
-    // Only call once the form is valid (stepper enforces this before reaching Review).
-    const err1 = validateStep(1);
-    const err2 = err1 ? null : validateStep(2);
-    const err3 = err1 || err2 ? null : validateStep(3);
-    if (err1 || err2 || err3) return;
-
-    const timer = window.setTimeout(async () => {
-      try {
-        if (feasibilityAbortRef.current) {
-          try {
-            feasibilityAbortRef.current.abort();
-          } catch {
-            // ignore
-          }
-        }
-        const controller = new AbortController();
-        feasibilityAbortRef.current = controller;
-
-        setFeasibilityLoading(true);
-        const data = await projectService.reviewFeasibility(feasibilityPayload, { signal: controller.signal });
-        const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
-        setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
-      } catch {
-        // If review fails, don't block submit; just hide suggestions.
-        setFeasibilitySuggestions([]);
-      } finally {
-        setFeasibilityLoading(false);
-      }
-    }, 450);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [createModalOpen, createStep, feasibilityPayloadKey, validateStep]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Bidding / assignment UI
-  const [startBidOpen, setStartBidOpen] = useState(false);
-  const [startBidFor, setStartBidFor] = useState({ id: null, title: '' });
-  const [startBidEndsAt, setStartBidEndsAt] = useState('');
-  const [startBidMin, setStartBidMin] = useState('');
+  const [listMyProjectLoading, setListMyProjectLoading] = useState(false);
+  const [projectLiveOpen, setProjectLiveOpen] = useState(false);
+  const [projectLiveDays, setProjectLiveDays] = useState(null);
 
   const [forceStopOpen, setForceStopOpen] = useState(false);
   const [forceStopFor, setForceStopFor] = useState({ id: null, title: '' });
@@ -939,6 +918,13 @@ export default function Projects() {
     };
   }, [loadProjects]);
 
+  useEffect(() => {
+    if (activeTab !== 'list') return;
+    if (!needsListRefresh) return;
+    setNeedsListRefresh(false);
+    loadProjects({ nextPage: 1, append: false });
+  }, [activeTab, loadProjects, needsListRefresh]);
+
   const InfoBox = ({ label, value, tone = 'default' }) => {
     const toneClass =
       tone === 'danger'
@@ -955,6 +941,16 @@ export default function Projects() {
   };
 
   const startCreateNew = () => {
+    if (feasibilityAbortRef.current) {
+      try {
+        feasibilityAbortRef.current.abort();
+      } catch {
+        // ignore
+      }
+    }
+    setFeasibilityLoading(false);
+    setFeasibilitySuggestions([]);
+    setFeasibilityReview(null);
     setEditingId(null);
     setCreateStep(1);
     setCreateForm({
@@ -1002,6 +998,8 @@ export default function Projects() {
       return;
     }
     setEditingId(id);
+    setFeasibilitySuggestions([]);
+    setFeasibilityReview(null);
     setCreateStep(1);
     const metaRowsAll = extraFieldsToArray(p?.meta);
     const metaIndex = new Map(metaRowsAll.map((r) => [String(r?.key || '').trim(), String(r?.value ?? '').trim()]));
@@ -1055,8 +1053,20 @@ export default function Projects() {
     navigate('/customer/projects?tab=create');
   };
 
-  const closeCreateModal = () => {
+  const closeCreateModal = ({ refreshList = true } = {}) => {
     if (createLoading || attachmentUploading || referenceUploading) return;
+    const shouldRefresh = refreshList && Boolean(editingId);
+    if (feasibilityAbortRef.current) {
+      try {
+        feasibilityAbortRef.current.abort();
+      } catch {
+        // ignore
+      }
+    }
+    setFeasibilityLoading(false);
+    setFeasibilitySuggestions([]);
+    setFeasibilityReview(null);
+    if (shouldRefresh) setNeedsListRefresh(true);
     setEditingId(null);
     setCreateStep(1);
     setCreateForm({
@@ -1151,44 +1161,114 @@ export default function Projects() {
     }
   };
 
-  const saveProject = async () => {
-    const title = String(createForm?.title || '').trim();
-    const referenceImage = String(createForm?.referenceImage || '').trim();
-    const attachments = coerceUrlArray(createForm?.attachments);
-    const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
-    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
-
-    const err1 = validateStep(1);
-    const err2 = err1 ? null : validateStep(2);
-    const err3 = err1 || err2 ? null : validateStep(3);
-    const err4 = err1 || err2 || err3 ? null : validateStep(4);
+  const persistProject = async ({ validateUpToStep = 1, silent = true } = {}) => {
+    const maxStep = Math.max(1, Math.min(4, Number(validateUpToStep || 1)));
+    const err1 = maxStep >= 1 ? validateStep(1) : null;
+    const err2 = err1 ? null : maxStep >= 2 ? validateStep(2) : null;
+    const err3 = err1 || err2 ? null : maxStep >= 3 ? validateStep(3) : null;
+    const err4 = err1 || err2 || err3 ? null : maxStep >= 4 ? validateStep(4) : null;
     const err = err1 || err2 || err3 || err4;
-    if (err) return addToast(err, 'error');
+    if (err) {
+      addToast(err, 'error');
+      setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : 4);
+      return null;
+    }
 
-    if (createLoading) return;
+    if (createLoading) return null;
     setCreateLoading(true);
     try {
-      const payload = {
-        title,
-        referenceImage,
-        attachments,
-        meta,
-      };
+      const payload = projectApiPayload;
+      let saved = null;
       if (editingId) {
-        await projectService.update(editingId, payload);
-        addToast('Project updated.', 'success');
+        saved = await projectService.update(editingId, payload);
       } else {
-        await projectService.create(payload);
-        addToast('Project created.', 'success');
+        saved = await projectService.create(payload);
+        const newId = localProjectIdOf(saved);
+        if (newId) setEditingId(newId);
       }
-      setEditingId(null);
-      setActiveTab('list');
-      navigate('/customer/projects?tab=list');
-      await loadProjects({ nextPage: 1, append: false });
+      if (!silent) addToast(editingId ? 'Project updated.' : 'Project created.', 'success');
+      return saved;
     } catch (e) {
       addToast(e?.message || 'Failed to save project', 'error');
+      return null;
     } finally {
       setCreateLoading(false);
+    }
+  };
+
+  const persistAndAdvance = async (fromStep) => {
+    const step = Math.max(1, Math.min(3, Number(fromStep || createStep || 1)));
+    const saved = await persistProject({ validateUpToStep: step, silent: true });
+    if (!saved) return;
+    setCreateStep((s) => Math.min(4, Number(s || step) + 1));
+  };
+
+  const prepareReviewStep = async () => {
+    if (feasibilityLoading || createLoading) return;
+    const saved = await persistProject({ validateUpToStep: 3, silent: true });
+    if (!saved) return;
+
+    if (feasibilityAbortRef.current) {
+      try {
+        feasibilityAbortRef.current.abort();
+      } catch {
+        // ignore
+      }
+    }
+    const controller = new AbortController();
+    feasibilityAbortRef.current = controller;
+
+    setFeasibilityLoading(true);
+    let shouldAdvance = true;
+    try {
+      const data = await projectService.reviewFeasibility(projectApiPayload, { signal: controller.signal });
+      setFeasibilityReview(data || null);
+      const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
+    } catch (e) {
+      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') {
+        shouldAdvance = false;
+      } else {
+        setFeasibilityReview(null);
+        setFeasibilitySuggestions([]);
+      }
+    } finally {
+      setFeasibilityLoading(false);
+      if (shouldAdvance) setCreateStep(4);
+    }
+  };
+
+  const listMyProject = async () => {
+    if (listMyProjectLoading) return;
+    setListMyProjectLoading(true);
+    try {
+      setProjectLiveDays(null);
+      const saved = await persistProject({ validateUpToStep: 4, silent: true });
+      if (!saved) return;
+      const id = localProjectIdOf(saved) || editingId;
+      if (!id) return;
+
+      setActionLoading(id, 'startBid', true);
+      try {
+        await projectService.startBid(id);
+      } catch (e) {
+        addToast(e?.message || 'Failed to list project', 'error');
+        return;
+      } finally {
+        setActionLoading(id, 'startBid', false);
+      }
+
+      try {
+        const days = await projectService.getBidCloseDuration();
+        setProjectLiveDays(days);
+      } catch {
+        setProjectLiveDays(null);
+      }
+      setProjectLiveOpen(true);
+      closeCreateModal({ refreshList: false });
+      await loadProjects({ nextPage: 1, append: false });
+    } finally {
+      setListMyProjectLoading(false);
     }
   };
 
@@ -1305,49 +1385,6 @@ export default function Projects() {
       });
     }
   }, [activeTab]);
-
-  const openStartBid = (p) => {
-    const id = localProjectIdOf(p);
-    if (!id) return;
-    const windows = bidWindowsOf(p);
-    const guess = windows?.[0]?.noOfDays ?? windows?.[0]?.no_of_days ?? 3;
-    setStartBidFor({ id, title: String(p?.title ?? '') });
-    const minLocal = toDateTimeLocalValue(new Date());
-    setStartBidMin(minLocal);
-
-    const days = Math.max(1, Number(guess) || 3);
-    const end = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-    const endLocal = toDateTimeLocalValue(end);
-    setStartBidEndsAt(endLocal && minLocal && endLocal < minLocal ? minLocal : endLocal);
-    setStartBidOpen(true);
-  };
-
-  const confirmStartBid = async () => {
-    const id = startBidFor?.id;
-    if (!id) return;
-    const raw = String(startBidEndsAt || '').trim();
-    const end = raw ? new Date(raw) : null; // datetime-local parses as local time
-    if (!end || Number.isNaN(end.getTime())) {
-      addToast('Please select a valid finishing date/time.', 'error');
-      return;
-    }
-    if (end.getTime() <= Date.now() + 30_000) {
-      addToast('Finishing time must be in the future.', 'error');
-      return;
-    }
-    setActionLoading(id, 'startBid', true);
-    try {
-      const finishingTimestamp = end.toISOString();
-      await projectService.startBid(id, { finishingTimestamp });
-      addToast('Auction started.', 'success');
-      setStartBidOpen(false);
-      await refreshList();
-    } catch (e) {
-      addToast(e?.message || 'Failed to start auction', 'error');
-    } finally {
-      setActionLoading(id, 'startBid', false);
-    }
-  };
 
   const openForceStop = (p) => {
     const id = localProjectIdOf(p);
@@ -1622,7 +1659,6 @@ export default function Projects() {
                       const allWindowsFinished = allBidWindowsFinished(p);
                       const latestFinishedAt = latestFinishedBidAtOf(p);
                       const hasBidHistory = Boolean(latestBidWindowId != null) || windows.length > 0;
-                      const notStarted = statusKey === 'draft' && projectStatusKey === 'started';
                       const runningStarted = statusKey === 'running' && projectStatusKey === 'started';
                       const statusLabel = projectStatusCardLabel(p);
                       const statusCardValue =
@@ -1779,29 +1815,6 @@ export default function Projects() {
                                     {isActionLoading(id, 'cancel') ? 'Cancelling…' : 'Cancel Project'}
                                   </button>
                                 ) : null}
-                                {/* Only a single bid window per project. Once a bid window exists, do not show Start Auction again. */}
-                                {notStarted || (runningStarted && !hasBidHistory) ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => openStartBid(p)}
-                                    disabled={
-                                      isActionLoading(id, 'startBid') ||
-                                      biddingRunning ||
-                                      (runningStarted && !hasBidHistory)
-                                    }
-                                    title={
-                                      biddingRunning
-                                        ? 'Auction already running'
-                                        : runningStarted && !hasBidHistory
-                                          ? 'No bidding history found'
-                                          : undefined
-                                    }
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                                  >
-                                    {isActionLoading(id, 'startBid') ? 'Starting…' : 'Start Auction'}
-                                  </button>
-                                ) : null}
-
                                 {biddingRunning ? (
                                   <button
                                     type="button"
@@ -2783,6 +2796,81 @@ export default function Projects() {
                           <p className="mt-1 text-[12px] text-gray-400">Confirm all details before submitting.</p>
                         </div>
 
+                        {feasibilityReview ? (
+                          <div className="rounded-2xl border border-gray-100 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Feasibility</p>
+                                <p className="mt-1 text-[12px] text-gray-500">
+                                  {feasibilityReview?.goodToGo === true
+                                    ? 'Good to go based on the feasibility check.'
+                                    : 'Feasibility check suggests adjustments may be needed.'}
+                                </p>
+                              </div>
+                              <span
+                                className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                  feasibilityReview?.goodToGo === true
+                                    ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                                    : 'bg-amber-50 border-amber-100 text-amber-700'
+                                }`}
+                              >
+                                {feasibilityReview?.goodToGo === true ? 'Good to go' : 'Needs review'}
+                              </span>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
+                              <InfoBox
+                                label="Timeline feasible"
+                                value={
+                                  typeof feasibilityReview?.timelineFeasible === 'boolean'
+                                    ? feasibilityReview.timelineFeasible
+                                      ? 'Yes'
+                                      : 'No'
+                                    : '—'
+                                }
+                              />
+                              <InfoBox
+                                label="Minimum production"
+                                value={
+                                  Number.isFinite(Number(feasibilityReview?.minimumProductionDays))
+                                    ? `${Number(feasibilityReview.minimumProductionDays)} days`
+                                    : '—'
+                                }
+                              />
+                              <InfoBox
+                                label="Est. cost / piece"
+                                value={
+                                  Number.isFinite(Number(feasibilityReview?.breakdown?.estimatedCostPerPiece))
+                                    ? `₹ ${formatMoney(Number(feasibilityReview.breakdown.estimatedCostPerPiece))}`
+                                    : '—'
+                                }
+                              />
+                              <InfoBox
+                                label="Total order cost"
+                                value={
+                                  Number.isFinite(Number(feasibilityReview?.breakdown?.totalOrderCost))
+                                    ? `₹ ${formatMoney(Number(feasibilityReview.breakdown.totalOrderCost))}`
+                                    : '—'
+                                }
+                              />
+                            </div>
+
+                            {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
+                              <div className="mt-3">
+                                <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Tiers applied</p>
+                                <ul className="mt-2 space-y-1 text-[12px] text-gray-700">
+                                  {feasibilityReview.tiersApplied.map((t, idx) => (
+                                    <li key={`tier-${idx}`} className="flex items-start gap-2">
+                                      <span className="mt-[4px] w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                      <span>{String(t)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+                          </div>
+                        ) : null}
+
                         {Array.isArray(feasibilitySuggestions) && feasibilitySuggestions.length ? (
                           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
                             <div className="flex items-start justify-between gap-3">
@@ -2948,38 +3036,31 @@ export default function Projects() {
                       <button
                         type="button"
                         onClick={() => {
-                          const err = validateStep(createStep);
-                          if (err) {
-                            addToast(err, 'error');
+                          if (createStep === 3) {
+                            prepareReviewStep();
                             return;
                           }
-                          setCreateStep((s) => Math.min(4, Number(s || 1) + 1));
+                          persistAndAdvance(createStep);
                         }}
-                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        disabled={createLoading || attachmentUploading || referenceUploading || feasibilityLoading}
                         className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {createStep === 3 ? 'Review' : 'Next'}
+                        {createStep === 3 ? (feasibilityLoading || createLoading ? 'Reviewing…' : 'Review') : createLoading ? 'Saving…' : 'Next'}
                       </button>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => {
-                          const err1 = validateStep(1);
-                          const err2 = err1 ? null : validateStep(2);
-                          const err3 = err1 || err2 ? null : validateStep(3);
-                          const err4 = err1 || err2 || err3 ? null : validateStep(4);
-                          const err = err1 || err2 || err3 || err4;
-                          if (err) {
-                            addToast(err, 'error');
-                            setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : 4);
-                            return;
-                          }
-                          saveProject();
-                        }}
-                        disabled={createLoading || attachmentUploading || referenceUploading || !createForm?.specs?.confirmSpecs}
+                        onClick={listMyProject}
+                        disabled={
+                          createLoading ||
+                          listMyProjectLoading ||
+                          attachmentUploading ||
+                          referenceUploading ||
+                          !createForm?.specs?.confirmSpecs
+                        }
                         className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {createLoading ? 'Saving…' : editingId ? 'Update Project' : 'Create Project'}
+                        {listMyProjectLoading || createLoading ? 'Listing…' : 'List my project'}
                       </button>
                     )}
                   </div>
@@ -3035,65 +3116,35 @@ export default function Projects() {
         </div>
       ) : null}
 
-      {/* Start auction modal */}
-      {startBidOpen ? (
+      {/* Project listed modal */}
+      {projectLiveOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
-          onMouseDown={() => setStartBidOpen(false)}
+          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => {
+            setProjectLiveOpen(false);
+            setProjectLiveDays(null);
+          }}
         >
           <div
-            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Start Auction</p>
-                {startBidFor?.title ? (
-                  <p className="mt-1 text-[12px] text-gray-400 truncate">{startBidFor.title}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => setStartBidOpen(false)}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
-                aria-label="Close"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="px-5 py-5">
-              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Finishing date & time *</label>
-              <input
-                type="datetime-local"
-                value={startBidEndsAt}
-                onChange={(e) => setStartBidEndsAt(e.target.value)}
-                min={startBidMin || undefined}
-                className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
-              />
-              <p className="mt-2 text-[12px] text-gray-400">
-                Choose when bidding should end (must be a future time).
+            <div className="px-5 py-4 border-b border-gray-50">
+              <p className="text-[14px] font-extrabold text-gray-900">Congratulations! Your project is now live.</p>
+              <p className="mt-2 text-[12px] text-gray-600">
+                {`Over the next ${Math.max(1, Number(projectLiveDays) || 3)} ${Math.max(1, Number(projectLiveDays) || 3) === 1 ? 'day' : 'days'}, manufacturers will bid on your design. You’re free to review and choose a bid at any time, or wait until all bids are in.`}
               </p>
             </div>
-
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 flex items-center justify-end">
               <button
                 type="button"
-                onClick={() => setStartBidOpen(false)}
+                onClick={() => {
+                  setProjectLiveOpen(false);
+                  setProjectLiveDays(null);
+                }}
                 className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
               >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmStartBid}
-                disabled={Boolean(startBidFor?.id) && isActionLoading(startBidFor.id, 'startBid')}
-                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {Boolean(startBidFor?.id) && isActionLoading(startBidFor.id, 'startBid') ? 'Starting…' : 'Start'}
+                OK
               </button>
             </div>
           </div>
