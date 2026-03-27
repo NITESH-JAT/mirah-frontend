@@ -574,6 +574,9 @@ export default function Projects() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
+  const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
+
   const RESERVED_META_KEYS = useMemo(
     () =>
       new Set([
@@ -641,6 +644,14 @@ export default function Projects() {
   }, [urlTab]);
 
   useEffect(() => {
+    try {
+      sessionStorage.setItem(PROJECTS_TAB_KEY, String(activeTab || 'list'));
+    } catch {
+      // ignore
+    }
+  }, [PROJECTS_TAB_KEY, activeTab]);
+
+  useEffect(() => {
     if (!createModalOpen) return;
     const prev = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
@@ -657,6 +668,58 @@ export default function Projects() {
   const [listSearchDraft, setListSearchDraft] = useState('');
   const [listSearch, setListSearch] = useState('');
   const [listFilter, setListFilter] = useState('all'); // all | action_required | active | completed | drafts
+
+  const urlListFilter = useMemo(() => {
+    try {
+      const raw = String(new URLSearchParams(location.search || '').get('filter') || '').trim().toLowerCase();
+      if (!raw) return null;
+      return ['all', 'action_required', 'active', 'completed', 'drafts'].includes(raw) ? raw : null;
+    } catch {
+      return null;
+    }
+  }, [location.search]);
+
+  useEffect(() => {
+    if (urlListFilter) {
+      setListFilter(urlListFilter);
+      try {
+        sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, urlListFilter);
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    try {
+      const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
+      if (['all', 'action_required', 'active', 'completed', 'drafts'].includes(stored)) {
+        setListFilter(stored);
+      }
+    } catch {
+      // ignore
+    }
+  }, [PROJECTS_LIST_FILTER_KEY, urlListFilter]);
+
+  const setListFilterPersist = useCallback(
+    (next) => {
+      const n = String(next || '').trim().toLowerCase();
+      const normalized = ['all', 'action_required', 'active', 'completed', 'drafts'].includes(n) ? n : 'all';
+      setListFilter(normalized);
+      try {
+        sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, normalized);
+      } catch {
+        // ignore
+      }
+      try {
+        const params = new URLSearchParams(location.search || '');
+        params.set('tab', 'list');
+        params.set('filter', normalized);
+        navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+      } catch {
+        // ignore
+      }
+    },
+    [PROJECTS_LIST_FILTER_KEY, location.pathname, location.search, navigate],
+  );
 
   const [needsListRefresh, setNeedsListRefresh] = useState(false);
 
@@ -1465,7 +1528,15 @@ export default function Projects() {
   const goToBids = (p) => {
     const id = localProjectIdOf(p);
     if (!id) return;
-    navigate(`/customer/projects/${id}/bids`, { state: { projectTitle: p?.title ?? '' } });
+    try {
+      sessionStorage.setItem(PROJECTS_TAB_KEY, 'list');
+      sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, String(listFilter || 'all'));
+    } catch {
+      // ignore
+    }
+    navigate(`/customer/projects/${id}/bids`, {
+      state: { projectTitle: p?.title ?? '', fromProjectsTab: 'list', fromListFilter: listFilter || 'all' },
+    });
   };
 
   const openVendorReview = (p) => {
@@ -1492,6 +1563,17 @@ export default function Projects() {
       submitting: false,
     });
     setVendorReviewOpen(true);
+  };
+
+  const goToTrack = (id) => {
+    if (!id) return;
+    try {
+      sessionStorage.setItem(PROJECTS_TAB_KEY, 'list');
+      sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, String(listFilter || 'all'));
+    } catch {
+      // ignore
+    }
+    navigate(`/customer/projects/${id}`, { state: { fromProjectsTab: 'list', fromListFilter: listFilter || 'all' } });
   };
 
   const closeVendorReview = () => {
@@ -1741,7 +1823,7 @@ export default function Projects() {
                           <button
                             key={t.id}
                             type="button"
-                            onClick={() => setListFilter(t.id)}
+                            onClick={() => setListFilterPersist(t.id)}
                             className={`whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
                               active
                                 ? 'bg-primary-dark/10 border-primary-dark text-primary-dark'
@@ -1969,7 +2051,7 @@ export default function Projects() {
                                 {canTrack ? (
                                   <button
                                     type="button"
-                                    onClick={() => navigate(`/customer/projects/${id}`)}
+                                    onClick={() => goToTrack(id)}
                                     className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50"
                                   >
                                     Track

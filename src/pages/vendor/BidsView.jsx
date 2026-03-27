@@ -204,6 +204,12 @@ function metaRowsOf(project) {
         value = String(value);
       }
     }
+    const key = String(k).trim();
+    if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'custom') value = 'Custom';
+      else if (normalized === 'standard') value = 'Standard';
+    }
     rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
   }
   return rows;
@@ -232,6 +238,28 @@ export default function VendorBidsView() {
       return 'active';
     }
   }, [location.search]);
+
+  const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
+
+  const goBack = useCallback(() => {
+    const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
+    const t =
+      ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stateTab)
+        ? stateTab
+        : (() => {
+            try {
+              const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
+              return ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : null;
+            } catch {
+              return null;
+            }
+          })();
+    if (t) {
+      navigate(`/vendor/projects?tab=${encodeURIComponent(t)}`);
+      return;
+    }
+    navigate(`/vendor/bids?tab=${encodeURIComponent(backTab)}`);
+  }, [VENDOR_PROJECTS_TAB_KEY, backTab, location?.state, navigate]);
 
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
@@ -281,6 +309,14 @@ export default function VendorBidsView() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
+  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
+  const customSizeValueRaw = String(
+    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
+  ).trim();
+  const customSizeUnitRaw = String(
+    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
+  ).trim();
+  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -289,9 +325,23 @@ export default function VendorBidsView() {
       'quantity_required',
       'preferredDeliveryTimeline',
       'preferred_delivery_timeline',
+      'sizeCustomValue',
+      'size_custom_value',
+      'sizeCustomUnit',
+      'size_custom_unit',
     ]);
-    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-  }, [metaRows]);
+    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+    if (sizeModeRaw === 'custom') {
+      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
+      const sizeModeIndex = rows.findIndex((r) => {
+        const key = String(r?.key || '').trim();
+        return key === 'sizeMode' || key === 'size_mode';
+      });
+      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
+      else rows.unshift(customRow);
+    }
+    return rows;
+  }, [customSizeDisplay, metaRows, sizeModeRaw]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
 
   const load = useCallback(async () => {
@@ -454,7 +504,7 @@ export default function VendorBidsView() {
       <div className="w-full py-8">
         <button
           type="button"
-          onClick={() => navigate(`/vendor/bids?tab=${encodeURIComponent(backTab)}`)}
+          onClick={goBack}
           className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
         >
           Back
@@ -473,7 +523,7 @@ export default function VendorBidsView() {
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => navigate(`/vendor/bids?tab=${encodeURIComponent(backTab)}`)}
+                onClick={goBack}
                 className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
               >
                 Back

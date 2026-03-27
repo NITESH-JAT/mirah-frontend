@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 
@@ -279,6 +279,12 @@ function metaRowsOf(project) {
         value = String(value);
       }
     }
+    const key = String(k).trim();
+    if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'custom') value = 'Custom';
+      else if (normalized === 'standard') value = 'Standard';
+    }
     rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
   }
   return rows;
@@ -303,8 +309,10 @@ function customerIdOf(project, root) {
 
 export default function VendorManageProject() {
   const { addToast } = useOutletContext();
+  const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
+  const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
@@ -340,6 +348,14 @@ export default function VendorManageProject() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
+  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
+  const customSizeValueRaw = String(
+    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
+  ).trim();
+  const customSizeUnitRaw = String(
+    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
+  ).trim();
+  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const agreedPriceRaw = useMemo(() => {
     const root = details ?? {};
     const p = project ?? {};
@@ -416,9 +432,23 @@ export default function VendorManageProject() {
       'quantity_required',
       'preferredDeliveryTimeline',
       'preferred_delivery_timeline',
+      'sizeCustomValue',
+      'size_custom_value',
+      'sizeCustomUnit',
+      'size_custom_unit',
     ]);
-    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-  }, [metaRows]);
+    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+    if (sizeModeRaw === 'custom') {
+      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
+      const sizeModeIndex = rows.findIndex((r) => {
+        const key = String(r?.key || '').trim();
+        return key === 'sizeMode' || key === 'size_mode';
+      });
+      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
+      else rows.unshift(customRow);
+    }
+    return rows;
+  }, [customSizeDisplay, metaRows, sizeModeRaw]);
 
   const finishedLike = useMemo(() => isFinishedLike(project), [project]);
   const advanceStatus = useMemo(
@@ -652,8 +682,20 @@ export default function VendorManageProject() {
   }, [load, loadPaymentDetails]);
 
   const goBack = useCallback(() => {
-    navigate('/vendor/projects?tab=active');
-  }, [navigate]);
+    const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
+    const t =
+      ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stateTab)
+        ? stateTab
+        : (() => {
+            try {
+              const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
+              return ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
+            } catch {
+              return 'all';
+            }
+          })();
+    navigate(`/vendor/projects?tab=${encodeURIComponent(t)}`);
+  }, [VENDOR_PROJECTS_TAB_KEY, location?.state, navigate]);
 
   const chatWithCustomer = useCallback(() => {
     if (!customerId) return;

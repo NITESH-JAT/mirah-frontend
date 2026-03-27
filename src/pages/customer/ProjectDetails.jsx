@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
@@ -271,6 +271,12 @@ function metaRowsOf(project) {
         value = String(value);
       }
     }
+    const key = String(k).trim();
+    if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'custom') value = 'Custom';
+      else if (normalized === 'standard') value = 'Standard';
+    }
     rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
   }
   return rows;
@@ -414,6 +420,7 @@ export default function ProjectDetails() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
   const { id } = useParams();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(false);
   const [details, setDetails] = useState(null);
@@ -427,6 +434,7 @@ export default function ProjectDetails() {
   const abortRef = useRef(null);
   const vendorAbortRef = useRef(null);
   const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
+  const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
 
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
@@ -688,6 +696,14 @@ export default function ProjectDetails() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
+  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
+  const customSizeValueRaw = String(
+    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
+  ).trim();
+  const customSizeUnitRaw = String(
+    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
+  ).trim();
+  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -696,9 +712,23 @@ export default function ProjectDetails() {
       'quantity_required',
       'preferredDeliveryTimeline',
       'preferred_delivery_timeline',
+      'sizeCustomValue',
+      'size_custom_value',
+      'sizeCustomUnit',
+      'size_custom_unit',
     ]);
-    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-  }, [metaRows]);
+    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+    if (sizeModeRaw === 'custom') {
+      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
+      const sizeModeIndex = rows.findIndex((r) => {
+        const key = String(r?.key || '').trim();
+        return key === 'sizeMode' || key === 'size_mode';
+      });
+      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
+      else rows.unshift(customRow);
+    }
+    return rows;
+  }, [customSizeDisplay, metaRows, sizeModeRaw]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -765,6 +795,23 @@ export default function ProjectDetails() {
   }, [load]);
 
   const goBackToProjects = useCallback(() => {
+    const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
+    const stateFilter = String(location?.state?.fromListFilter ?? '').trim().toLowerCase();
+    const filterFromState = ['all', 'action_required', 'active', 'completed', 'drafts'].includes(stateFilter) ? stateFilter : null;
+    if (stateTab === 'list' || filterFromState) {
+      const f =
+        filterFromState ||
+        (() => {
+          try {
+            const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
+            return ['all', 'action_required', 'active', 'completed', 'drafts'].includes(stored) ? stored : 'all';
+          } catch {
+            return 'all';
+          }
+        })();
+      navigate(`/customer/projects?tab=list&filter=${encodeURIComponent(f)}`);
+      return;
+    }
     try {
       const raw = sessionStorage.getItem(PROJECTS_TAB_KEY);
       const t = String(raw || '').trim().toLowerCase();
@@ -777,7 +824,7 @@ export default function ProjectDetails() {
     }
     // Default: assignments (most common entry to tracking)
     navigate('/customer/projects?tab=assignments');
-  }, [navigate]);
+  }, [PROJECTS_LIST_FILTER_KEY, PROJECTS_TAB_KEY, location?.state, navigate]);
 
   const pay = async (type) => {
     if (!projectId) return;
@@ -1392,4 +1439,3 @@ export default function ProjectDetails() {
     </div>
   );
 }
-

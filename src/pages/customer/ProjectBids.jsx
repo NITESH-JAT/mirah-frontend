@@ -163,6 +163,12 @@ function metaRowsOf(project) {
         value = String(value);
       }
     }
+    const key = String(k).trim();
+    if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'custom') value = 'Custom';
+      else if (normalized === 'standard') value = 'Standard';
+    }
     rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
   }
   return rows;
@@ -204,6 +210,7 @@ export default function ProjectBids() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
 
   const projectId = id;
   const [loading, setLoading] = useState(false);
@@ -288,6 +295,14 @@ export default function ProjectBids() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
+  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
+  const customSizeValueRaw = String(
+    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
+  ).trim();
+  const customSizeUnitRaw = String(
+    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
+  ).trim();
+  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -296,9 +311,23 @@ export default function ProjectBids() {
       'quantity_required',
       'preferredDeliveryTimeline',
       'preferred_delivery_timeline',
+      'sizeCustomValue',
+      'size_custom_value',
+      'sizeCustomUnit',
+      'size_custom_unit',
     ]);
-    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-  }, [metaRows]);
+    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+    if (sizeModeRaw === 'custom') {
+      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
+      const sizeModeIndex = rows.findIndex((r) => {
+        const key = String(r?.key || '').trim();
+        return key === 'sizeMode' || key === 'size_mode';
+      });
+      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
+      else rows.unshift(customRow);
+    }
+    return rows;
+  }, [customSizeDisplay, metaRows, sizeModeRaw]);
 
   const referenceImage = useMemo(() => {
     const raw = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
@@ -538,12 +567,31 @@ export default function ProjectBids() {
     <div className="w-full pb-10 animate-fade-in">
       <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row gap-4 overflow-y-auto md:overflow-hidden pr-1">
         {/* Left column: project details */}
-        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
+        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start md:h-full md:overflow-y-auto md:pr-1 custom-scrollbar">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
-                onClick={() => navigate('/customer/projects')}
+                onClick={() => {
+                  const fromFilter = String(location?.state?.fromListFilter || '').trim().toLowerCase();
+                  const fromTab = String(location?.state?.fromProjectsTab || '').trim().toLowerCase();
+                  const filterFromState = ['all', 'action_required', 'active', 'completed', 'drafts'].includes(fromFilter) ? fromFilter : null;
+                  if (fromTab === 'list' || filterFromState) {
+                    const f =
+                      filterFromState ||
+                      (() => {
+                        try {
+                          const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
+                          return ['all', 'action_required', 'active', 'completed', 'drafts'].includes(stored) ? stored : 'all';
+                        } catch {
+                          return 'all';
+                        }
+                      })();
+                    navigate(`/customer/projects?tab=list&filter=${encodeURIComponent(f)}`);
+                    return;
+                  }
+                  navigate('/customer/projects');
+                }}
                 className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
               >
                 Back

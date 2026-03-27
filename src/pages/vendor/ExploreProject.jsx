@@ -120,6 +120,12 @@ function metaRowsOf(project) {
         value = String(value);
       }
     }
+    const key = String(k).trim();
+    if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'custom') value = 'Custom';
+      else if (normalized === 'standard') value = 'Standard';
+    }
     rows.push({ key: k, label: String(label || k), value: value == null || value === '' ? '—' : String(value) });
   }
   return rows;
@@ -274,6 +280,14 @@ export default function VendorExploreProject() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
+  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
+  const customSizeValueRaw = String(
+    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
+  ).trim();
+  const customSizeUnitRaw = String(
+    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
+  ).trim();
+  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -282,9 +296,23 @@ export default function VendorExploreProject() {
       'quantity_required',
       'preferredDeliveryTimeline',
       'preferred_delivery_timeline',
+      'sizeCustomValue',
+      'size_custom_value',
+      'sizeCustomUnit',
+      'size_custom_unit',
     ]);
-    return (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-  }, [metaRows]);
+    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
+    if (sizeModeRaw === 'custom') {
+      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
+      const sizeModeIndex = rows.findIndex((r) => {
+        const key = String(r?.key || '').trim();
+        return key === 'sizeMode' || key === 'size_mode';
+      });
+      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
+      else rows.unshift(customRow);
+    }
+    return rows;
+  }, [customSizeDisplay, metaRows, sizeModeRaw]);
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);

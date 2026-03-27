@@ -116,6 +116,7 @@ export default function VendorProjects() {
 
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('all'); // all | active | pending | rejected | overridden
+  const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmType, setConfirmType] = useState(null); // accept | reject
@@ -126,22 +127,37 @@ export default function VendorProjects() {
     (nextTab) => {
       const t = String(nextTab || '').trim().toLowerCase();
       const normalized = ['all', 'active', 'pending', 'rejected', 'overridden'].includes(t) ? t : 'all';
+      try {
+        sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, normalized);
+      } catch {
+        // ignore
+      }
       const params = new URLSearchParams(location.search || '');
       params.set('tab', normalized);
       navigate(`/vendor/projects?${params.toString()}`, { replace: true });
     },
-    [location.search, navigate],
+    [VENDOR_PROJECTS_TAB_KEY, location.search, navigate],
   );
 
   useEffect(() => {
     try {
       const fromUrl = String(new URLSearchParams(location.search || '').get('tab') || '').toLowerCase();
-      const normalized = ['all', 'active', 'pending', 'rejected', 'overridden'].includes(fromUrl) ? fromUrl : 'all';
+      if (['all', 'active', 'pending', 'rejected', 'overridden'].includes(fromUrl)) {
+        setTab(fromUrl);
+        try {
+          sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, fromUrl);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+      const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
+      const normalized = ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
       setTab(normalized);
     } catch {
       setTab('all');
     }
-  }, [location.search]);
+  }, [VENDOR_PROJECTS_TAB_KEY, location.search]);
 
   const load = useCallback(
     async ({ nextPage = 1, append = false } = {}) => {
@@ -481,7 +497,7 @@ export default function VendorProjects() {
                     ) : isAccepted ? (
                       <button
                         type="button"
-                        onClick={() => navigate(`/vendor/projects/${projectId}`)}
+                        onClick={() => navigate(`/vendor/projects/${projectId}`, { state: { fromProjectsTab: tab } })}
                         className="px-3 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
                       >
                         Manage Project
@@ -489,18 +505,18 @@ export default function VendorProjects() {
                     ) : isRejected || isOverridden ? (
                       <button
                         type="button"
-                        onClick={() => navigate(`/vendor/bids/${projectId}?tab=completed`)}
+                        onClick={() => navigate(`/vendor/bids/${projectId}?tab=completed`, { state: { fromProjectsTab: tab } })}
                         className="px-3 py-2 rounded-xl border border-gray-100 bg-white text-[12px] font-extrabold text-primary-dark hover:bg-gray-50"
                       >
-                        View biddings
+                        View Bids
                       </button>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => navigate(`/vendor/bids/${projectId}`)}
+                        onClick={() => navigate(`/vendor/bids/${projectId}`, { state: { fromProjectsTab: tab } })}
                         className="px-3 py-2 rounded-xl border border-gray-100 bg-white text-[12px] font-extrabold text-primary-dark hover:bg-gray-50"
                       >
-                        View biddings
+                        View Bids
                       </button>
                     )}
                   </div>

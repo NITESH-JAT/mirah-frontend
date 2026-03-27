@@ -134,6 +134,7 @@ export default function DashboardLayout() {
   const isVendorExplorePage = path.includes('/vendor/explore');
   const isVendorBidsPage = path.includes('/vendor/bids');
   const isVendorProjectsPage = path.includes('/vendor/projects');
+  const isVendorProjectsListPage = path === '/vendor/projects';
   const isShoppingPage = path.includes('/customer/shopping');
   const isShoppingListPage = path === '/customer/shopping';
   const isCartPage = path.includes('/customer/cart');
@@ -793,7 +794,7 @@ export default function DashboardLayout() {
         <div
           className={`flex-1 overflow-y-auto scroll-smooth custom-scrollbar ${
             isShoppingListPage ||
-            isVendorProjectsPage ||
+            isVendorProjectsListPage ||
             isVendorExplorePage ||
             isVendorBidsPage
               ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'

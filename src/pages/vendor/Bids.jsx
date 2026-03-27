@@ -66,20 +66,7 @@ function formatDateOnlyFromInput(value) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
-function budgetTextOf(project) {
-  if (!project) return '—';
-  const range = project?.amountRange ?? project?.amount_range ?? null;
-  const min = Number(range?.min ?? range?.minAmount ?? range?.min_amount ?? project?.minAmount ?? project?.min_amount ?? NaN);
-  const max = Number(range?.max ?? range?.maxAmount ?? range?.max_amount ?? project?.maxAmount ?? project?.max_amount ?? NaN);
-  if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
-  return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
-}
 
-function durationDaysOf(project) {
-  const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? project?.noOfDays ?? project?.no_of_days ?? NaN);
-  if (!Number.isFinite(t) || t <= 0) return null;
-  return t;
-}
 
 function isLikelyImageUrl(url) {
   const raw = String(url || '').trim();
@@ -436,7 +423,7 @@ export default function VendorBids() {
                         onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
                         className="w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
                       >
-                        {x.isActive ? 'Manage Bidding' : 'View Biddings'}
+                        {x.isActive ? 'Manage Bidding' : 'View Bids'}
                       </button>
                     </div>
                   </div>
