@@ -108,9 +108,10 @@ export const projectService = {
     return unwrap(res);
   },
 
-  manualEndBid: async (projectId, { signal } = {}) => {
+  manualEndBid: async (projectId, { endWithAutoWinner = true, signal } = {}) => {
     if (!projectId) return null;
-    const res = await api.post(`/api/user/projects/${projectId}/manual-end`, {}, { signal });
+    const body = { endWithAutoWinner: Boolean(endWithAutoWinner) };
+    const res = await api.post(`/api/user/projects/${projectId}/manual-end`, body, { signal });
     return unwrap(res);
   },
 

@@ -255,8 +255,36 @@ function pickPreviewUrl(attachments) {
 
 function projectStatusCardLabel(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
-  const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+  const statusModel = p?.statusModel ?? p?.status_model ?? p?.bidModel?.statusModel ?? p?.bid_model?.status_model ?? null;
+  const statusModelKey = String(statusModel?.projectStatus ?? statusModel?.project_status ?? '').trim().toLowerCase();
+  const projectStatusRaw = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+  const projectStatus = statusModelKey || projectStatusRaw;
   const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
+
+  // Payment-aware statuses (match Track page / ProjectDetails)
+  const finishedLike = isFinishedLike(p);
+  const completedLike = Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed' || statusModelKey === 'completed';
+  if (completedLike) return 'Completed';
+  const advancePayment = paymentBlockOf(p, 'advance');
+  const finalPayment = paymentBlockOf(p, 'final');
+  const adv = normalizePaymentStatus(advancePayment?.status, { finishedLike });
+  const fin = normalizePaymentStatus(finalPayment?.status, { finishedLike });
+
+  // If any payment is marked paid, prefer showing payment milestones over bidding labels.
+  if (fin === 'paid') return 'Final Paid';
+  if (adv === 'paid') return 'Advance Paid';
+
+  if (projectStatus === 'invoice') {
+    if (adv === 'due') return 'Invoice (Advance)';
+    if (fin === 'due') return 'Invoice (Final)';
+    return 'Invoice';
+  }
+
+  if (projectStatus === 'paid') {
+    if (fin === 'paid') return 'Final Paid';
+    if (adv === 'paid') return 'Advance Paid';
+    return 'Paid';
+  }
 
   // Rules requested:
   // - status=draft + projectStatus=started => Not Started
@@ -265,14 +293,6 @@ function projectStatusCardLabel(p) {
   if (status === 'draft' && projectStatus === 'started') return 'Not Started';
   if (status === 'running' && projectStatus === 'started') {
     return latestBidWindowId == null ? 'Not in Project Bid' : 'In Project Bid';
-  }
-
-  if (projectStatus === 'invoice') {
-    const finalPayment = p?.finalPayment ?? p?.final_payment ?? p?.payments?.final ?? null;
-    const fin = paymentStatusKey(finalPayment);
-    // List payload may not include payment blocks; default to Advance invoice.
-    if (fin === 'due') return 'Invoice (Final)';
-    return 'Invoice (Advance)';
   }
 
   // If project is running but operational status progressed (in_progress/qc/etc),
@@ -385,6 +405,38 @@ function paymentStatusKey(block) {
   return String(block?.status ?? '').trim().toLowerCase();
 }
 
+function isFinishedLike(p) {
+  const status = String(p?.status ?? '').trim().toLowerCase();
+  const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+  return Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed';
+}
+
+function normalizePaymentStatus(status, { finishedLike } = {}) {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'not_applicble') return 'not_applicable';
+  if (finishedLike && (!s || s === 'not_applicable')) return 'paid';
+  return s || '—';
+}
+
+function paymentBlockOf(p, type) {
+  const t = String(type || '').trim().toLowerCase();
+  if (t !== 'advance' && t !== 'final') return null;
+  const camel = t === 'advance' ? 'advancePayment' : 'finalPayment';
+  const snake = t === 'advance' ? 'advance_payment' : 'final_payment';
+  return (
+    p?.[camel] ??
+    p?.[snake] ??
+    p?.payments?.[t] ??
+    p?.payments?.[camel] ??
+    p?.payments?.[snake] ??
+    p?.payment?.[t] ??
+    p?.payment?.[camel] ??
+    p?.payment_details?.[t] ??
+    p?.paymentDetails?.[t] ??
+    null
+  );
+}
+
 function canDeleteProject(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
   const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
@@ -398,8 +450,8 @@ function canDeleteProject(p) {
   const assignments = coerceAssignments(p?.assignments ?? p?.assignmentRequests ?? p?.projectAssignments ?? []);
   if (assignments.length > 0) return false;
 
-  const advancePayment = p?.advancePayment ?? p?.advance_payment ?? null;
-  const finalPayment = p?.finalPayment ?? p?.final_payment ?? null;
+  const advancePayment = paymentBlockOf(p, 'advance');
+  const finalPayment = paymentBlockOf(p, 'final');
   if (isPaymentPaid(advancePayment) || isPaymentPaid(finalPayment)) return false;
 
   return true;
@@ -606,6 +658,7 @@ export default function Projects() {
   const [listPage, setListPage] = useState(1);
   const [listSearchDraft, setListSearchDraft] = useState('');
   const [listSearch, setListSearch] = useState('');
+  const [listFilter, setListFilter] = useState('all'); // all | action_required | active | completed | drafts
 
   const [needsListRefresh, setNeedsListRefresh] = useState(false);
 
@@ -839,6 +892,7 @@ export default function Projects() {
   const [projectLiveDays, setProjectLiveDays] = useState(null);
 
   const [forceStopOpen, setForceStopOpen] = useState(false);
+  const [forceStopEndWithAutoWinner, setForceStopEndWithAutoWinner] = useState(true);
   const [forceStopFor, setForceStopFor] = useState({ id: null, title: '' });
 
   const [referenceUploading, setReferenceUploading] = useState(false);
@@ -1390,6 +1444,7 @@ export default function Projects() {
     const id = localProjectIdOf(p);
     if (!id) return;
     setForceStopFor({ id, title: String(p?.title ?? '') });
+    setForceStopEndWithAutoWinner(true);
     setForceStopOpen(true);
   };
 
@@ -1398,7 +1453,7 @@ export default function Projects() {
     if (!id) return;
     setActionLoading(id, 'forceStop', true);
     try {
-      await projectService.manualEndBid(id);
+      await projectService.manualEndBid(id, { endWithAutoWinner: forceStopEndWithAutoWinner });
       addToast('Auction stopped.', 'success');
       setForceStopOpen(false);
       await refreshList();
@@ -1477,6 +1532,63 @@ export default function Projects() {
   const canLoadMore = listPage < Number(listMeta?.totalPages || 1);
   const empty = !listLoading && (projects || []).length === 0;
 
+  const projectCategories = useMemo(() => {
+    const list = Array.isArray(projects) ? projects : [];
+    const out = { all: list, actionRequired: [], active: [], completed: [], drafts: [] };
+
+    for (const p of list) {
+      const statusKey = String(p?.status ?? '').trim().toLowerCase();
+      const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
+      const windows = bidWindowsOf(p);
+      const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
+      const hasBidHistory = Boolean(latestBidWindowId != null) || (Array.isArray(windows) && windows.length > 0);
+      const activeWindow = activeBidWindowOf(p);
+      const biddingRunning = Boolean(activeWindow);
+      const allWindowsFinished = allBidWindowsFinished(p);
+
+      const isDraft =
+        statusKey === 'draft' &&
+        projectStatusKey === 'started' &&
+        !hasBidHistory;
+      const isActive =
+        statusKey === 'running' &&
+        projectStatusKey === 'started' &&
+        biddingRunning;
+      const isCompleted =
+        projectStatusKey === 'cancelled' ||
+        statusKey === 'cancelled' ||
+        statusKey === 'canceled' ||
+        isProjectCompletedLike(p) ||
+        (statusKey === 'running' && projectStatusKey === 'started' && allWindowsFinished && !hasBidHistory);
+      const isActionRequired =
+        !isDraft &&
+        !isActive &&
+        !isCompleted &&
+        (
+          statusKey === 'running' ||
+          projectStatusKey === 'invoice' ||
+          (statusKey === 'running' && projectStatusKey === 'started' && allWindowsFinished && hasBidHistory)
+        );
+
+      if (isDraft) out.drafts.push(p);
+      if (isActive) out.active.push(p);
+      if (isCompleted) out.completed.push(p);
+      if (isActionRequired) out.actionRequired.push(p);
+    }
+
+    return out;
+  }, [projects]);
+
+  const visibleProjects = useMemo(() => {
+    if (listFilter === 'action_required') return projectCategories.actionRequired;
+    if (listFilter === 'active') return projectCategories.active;
+    if (listFilter === 'completed') return projectCategories.completed;
+    if (listFilter === 'drafts') return projectCategories.drafts;
+    return projectCategories.all;
+  }, [listFilter, projectCategories]);
+
+  const filterEmpty = !listLoading && (projects || []).length > 0 && (visibleProjects || []).length === 0;
+
   const assignmentRows = useMemo(() => {
     const list = Array.isArray(projects) ? projects : [];
     const rows = [];
@@ -1550,7 +1662,7 @@ export default function Projects() {
                       Create Project
                     </button>
                   </div>
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 md:p-4">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
                         <input
@@ -1558,7 +1670,7 @@ export default function Projects() {
                           value={listSearchDraft}
                           onChange={(e) => setListSearchDraft(e.target.value)}
                           placeholder="Search by title…"
-                          className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                          className="w-full px-3 py-2 md:px-4 md:py-3 rounded-2xl border border-gray-100 bg-white text-[12px] md:text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
                         />
                       </div>
                       <div className="flex items-center justify-end gap-2">
@@ -1571,7 +1683,7 @@ export default function Projects() {
                             await loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           disabled={listLoading || !String(listSearch || '').trim()}
-                          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                           aria-label="Clear search"
                           title="Clear search"
                         >
@@ -1596,7 +1708,7 @@ export default function Projects() {
                             await loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           disabled={listLoading}
-                          className="w-10 h-10 flex items-center justify-center rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                           aria-label="Apply search"
                           title="Apply search"
                         >
@@ -1613,6 +1725,50 @@ export default function Projects() {
                           </svg>
                         </button>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 w-full">
+                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
+                      {[
+                        { id: 'all', label: 'All', count: null },
+                        { id: 'action_required', label: 'Action Required', count: projectCategories.actionRequired.length },
+                        { id: 'active', label: 'Active', count: null },
+                        { id: 'completed', label: 'Completed', count: null },
+                        { id: 'drafts', label: 'Drafts', count: null },
+                      ].map((t) => {
+                        const active = listFilter === t.id;
+                        return (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setListFilter(t.id)}
+                            className={`min-w-0 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                              active
+                                ? 'bg-primary-dark/10 border-primary-dark text-primary-dark'
+                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
+                            }`}
+                          >
+                            {t.id === 'action_required' ? (
+                              <span className="min-w-0 truncate">
+                                <span className="md:hidden">Action</span>
+                                <span className="hidden md:inline">{t.label}</span>
+                              </span>
+                            ) : (
+                              <span className="min-w-0 truncate">{t.label}</span>
+                            )}
+                            {typeof t.count === 'number' ? (
+                              <span
+                                className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
+                                  active ? 'bg-primary-dark text-white' : 'bg-gray-100 text-gray-600'
+                                }`}
+                              >
+                                {t.count}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -1639,9 +1795,25 @@ export default function Projects() {
                       <p className="mt-1 text-[12px] text-gray-500">Create your first project to start bidding.</p>
                     </div>
                   </div>
+                ) : filterEmpty ? (
+                  <>
+                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                      No projects found for this filter.
+                    </div>
+                    {canLoadMore ? (
+                      <button
+                        type="button"
+                        onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
+                        disabled={listMoreLoading}
+                        className="w-full mt-3 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                      >
+                        {listMoreLoading ? 'Loading…' : 'Load more'}
+                      </button>
+                    ) : null}
+                  </>
                 ) : (
                   <div className="space-y-4 pt-1">
-                    {projects.map((p) => {
+                    {visibleProjects.map((p) => {
                       const id = localProjectIdOf(p);
                       const attachments = coerceUrlArray(p?.attachments);
                       const referenceImageRaw = String(p?.referenceImage ?? p?.reference_image ?? '').trim();
@@ -1662,7 +1834,12 @@ export default function Projects() {
                       const runningStarted = statusKey === 'running' && projectStatusKey === 'started';
                       const statusLabel = projectStatusCardLabel(p);
                       const statusCardValue =
-                        runningStarted && hasBidHistory && allWindowsFinished ? 'Bid Ended' : statusLabel;
+                        runningStarted &&
+                        hasBidHistory &&
+                        allWindowsFinished &&
+                        (statusLabel === 'In Project Bid' || statusLabel === 'Not in Project Bid')
+                          ? 'Bid Ended'
+                          : statusLabel;
                       const metaRowsAll = extraFieldsToArray(p?.meta);
                       const metaIndex = new Map(metaRowsAll.map((r) => [String(r?.key || '').trim(), String(r?.value ?? '').trim()]));
                       const pickMeta = (...keys) => {
@@ -3166,22 +3343,37 @@ export default function Projects() {
               <p className="mt-1 text-[12px] text-gray-500">This will force-end the current bid window now (does not cancel the project).</p>
             </div>
 
-            <div className="px-5 py-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setForceStopOpen(false)}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
-              >
-                Keep running
-              </button>
-              <button
-                type="button"
-                onClick={confirmForceStop}
-                disabled={Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop')}
-                className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop') ? 'Ending…' : 'Force End'}
-              </button>
+            <div className="px-5 py-4">
+              <label className="flex items-start gap-3 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark"
+                  checked={forceStopEndWithAutoWinner}
+                  onChange={(e) => setForceStopEndWithAutoWinner(Boolean(e.target.checked))}
+                />
+                <div className="min-w-0">
+                  <p className="text-[12px] font-bold text-gray-800">Auto-pick a winner</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
+                </div>
+              </label>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForceStopOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                >
+                  Keep running
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmForceStop}
+                  disabled={Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop')}
+                  className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {Boolean(forceStopFor?.id) && isActionLoading(forceStopFor.id, 'forceStop') ? 'Ending…' : 'Force End'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

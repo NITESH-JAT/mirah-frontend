@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
+import SafeImage from '../../components/SafeImage';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -11,6 +12,23 @@ function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function formatDateTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return '—';
+  const datePart = new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(d);
+  const timePart = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(d);
+  return `${datePart}, ${timePart}`;
 }
 
 function formatCountdown(ms) {
@@ -202,6 +220,7 @@ export default function ProjectBids() {
   const actionBarRef = useRef(null);
 
   const [endOpen, setEndOpen] = useState(false);
+  const [endWithAutoWinner, setEndWithAutoWinner] = useState(true);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideFor, setOverrideFor] = useState(null); // { vendorName, bidEntryId, amount, noOfDays }
   const [actionLoading, setActionLoading] = useState({});
@@ -230,10 +249,38 @@ export default function ProjectBids() {
   const assignmentPending = useMemo(() => assignedStatus === 'pending', [assignedStatus]);
   const assignmentAccepted = useMemo(() => assignedStatus === 'accepted', [assignedStatus]);
   const finishedProject = useMemo(() => isProjectFinishedLike(project), [project]);
+  const showAssignmentLogs = useMemo(() => {
+    if (!project) return false;
+    // Hide only while bidding is actively running / early running stage.
+    if (hasActiveWindow) return false;
+    const status = String(project?.status ?? '').trim().toLowerCase();
+    const projectStatus = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
+    if (status === 'running' && projectStatus === 'started') return false;
+    if (status === 'draft' && projectStatus === 'started') return false;
+    return true;
+  }, [hasActiveWindow, project]);
   const advancePayment = project?.advancePayment ?? project?.advance_payment ?? project?.payments?.advance ?? null;
   const advancePaid = useMemo(() => isPaymentPaid(advancePayment), [advancePayment]);
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
+  const assignmentLogs = useMemo(() => {
+    const list = Array.isArray(assignments) ? assignments : [];
+    const whenOf = (a) =>
+      a?.createdAt ??
+      a?.created_at ??
+      a?.assignedAt ??
+      a?.assigned_at ??
+      a?.updatedAt ??
+      a?.updated_at ??
+      null;
+    return [...list]
+      .map((a) => ({ assignment: a, when: whenOf(a) }))
+      .sort((x, y) => {
+        const ax = x?.when ? new Date(x.when).getTime() : 0;
+        const ay = y?.when ? new Date(y.when).getTime() : 0;
+        return ay - ax;
+      });
+  }, [assignments]);
 
   const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
   const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
@@ -361,6 +408,7 @@ export default function ProjectBids() {
 
   const canEndBid = hasActiveWindow && !finishedProject;
   const ended = !hasActiveWindow;
+  // Allow overriding to another bid even after acceptance, but lock once payment has started.
   const overrideLocked = Boolean(assignmentAccepted && advancePaid);
   const canSelectBids = ended && !finishedProject && !overrideLocked;
 
@@ -474,7 +522,7 @@ export default function ProjectBids() {
     if (!projectId) return;
     setActionLoading((p) => ({ ...(p || {}), end: true }));
     try {
-      await projectService.manualEndBid(projectId);
+      await projectService.manualEndBid(projectId, { endWithAutoWinner });
       addToast('Bidding ended.', 'success');
       setEndOpen(false);
       await load();
@@ -488,7 +536,7 @@ export default function ProjectBids() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row gap-4">
+      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row gap-4 overflow-y-auto md:overflow-hidden pr-1">
         {/* Left column: project details */}
         <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
@@ -504,7 +552,10 @@ export default function ProjectBids() {
                 {canEndBid ? (
                   <button
                     type="button"
-                    onClick={() => setEndOpen(true)}
+                    onClick={() => {
+                      setEndWithAutoWinner(true);
+                      setEndOpen(true);
+                    }}
                     className="px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
                   >
                     Force End
@@ -552,7 +603,7 @@ export default function ProjectBids() {
 
               <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
                 {referenceImage ? (
-                  <img
+                  <SafeImage
                     src={referenceImage}
                     alt=""
                     className="w-full h-44 md:h-52 object-contain bg-white"
@@ -560,7 +611,7 @@ export default function ProjectBids() {
                   />
                 ) : (
                   <div className="w-full h-44 md:h-52 flex items-center justify-center text-gray-300 bg-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <path d="M21 15l-5-5L5 21" />
@@ -647,7 +698,7 @@ export default function ProjectBids() {
         </div>
 
         {/* Right column: 3 cards (search/sort, bids, override/assign) */}
-        <div className="flex-1 min-h-0 flex flex-col gap-4">
+        <div className="flex-1 flex flex-col gap-4 md:min-h-0">
           {/* Search/sort */}
           <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
             <div className="flex items-center justify-between gap-3">
@@ -751,10 +802,10 @@ export default function ProjectBids() {
             </div>
           </div>
 
-          {/* Bids list */}
-          <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
+          {/* Bids list + override */}
+          <div className="bg-white rounded-2xl border border-gray-100 md:flex-1 md:min-h-0 md:overflow-hidden md:flex md:flex-col">
             <div
-              className="p-4 md:p-6 h-full min-h-0 overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
+              className="p-4 md:p-6 md:flex-1 md:min-h-0 md:overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
               style={{ scrollbarGutter: 'stable' }}
             >
             {loading || bidsLoading ? (
@@ -794,7 +845,7 @@ export default function ProjectBids() {
                   const badge = assignmentBadge(vendorAsg);
                   const isAssigned =
                     vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                  const disableSelect = Boolean(canSelectBids && assignmentPending && isAssigned);
+                  const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
                   const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
 
                   return (
@@ -932,43 +983,114 @@ export default function ProjectBids() {
               </div>
             )}
           </div>
+
+            {/* Override/Assign (merged into bids card) */}
+            {ended && !finishedProject && !overrideLocked ? (
+              <div
+                ref={actionBarRef}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="border-t border-gray-100 bg-white p-3 md:p-4 shrink-0 flex items-center justify-end"
+              >
+                {(() => {
+                  const canProceed = Boolean(selectedBidId) && !actionLoading?.override;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedBidId || Boolean(actionLoading?.override)) return;
+                        const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
+                        if (!bid) return;
+                        const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
+                        const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                        if (assignmentPending && isAssigned) {
+                          addToast('Assignment is pending. Please wait for Jeweller response before overriding.', 'error');
+                          return;
+                        }
+                        if (assignmentAccepted && isAssigned) {
+                          addToast('This bid is already assigned and accepted.', 'error');
+                          return;
+                        }
+                        openOverride(bid);
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      disabled={!canProceed}
+                      title={!selectedBidId ? 'Select a bid to continue' : undefined}
+                      className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
+                        canProceed ? 'bg-primary-dark text-white hover:opacity-90' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
+                    </button>
+                  );
+                })()}
+              </div>
+            ) : null}
         </div>
 
-          {/* Override/Assign */}
-          {ended && !finishedProject && !overrideLocked ? (
-            <div
-              ref={actionBarRef}
-              onMouseDown={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl border border-gray-100 p-3 md:p-4 shrink-0 flex items-center justify-end"
-            >
-              {(() => {
-                const canProceed = Boolean(selectedBidId) && !actionLoading?.override;
-                return (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!selectedBidId || Boolean(actionLoading?.override)) return;
-                      const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
-                      if (!bid) return;
-                      const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
-                      const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                      if (assignmentPending && isAssigned) {
-                        addToast('Assignment is pending. Please wait for Jeweller response before overriding.', 'error');
-                        return;
-                      }
-                      openOverride(bid);
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    disabled={!canProceed}
-                    title={!selectedBidId ? 'Select a bid to continue' : undefined}
-                    className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
-                      canProceed ? 'bg-primary-dark text-white hover:opacity-90' : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    }`}
-                  >
-                    {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
-                  </button>
-                );
-              })()}
+          {/* Assignment request logs (hide once project is running) */}
+          {showAssignmentLogs ? (
+            <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[13px] font-extrabold text-gray-900">Assignment requests</p>
+                  <p className="mt-1 text-[12px] text-gray-400">Activity for this project.</p>
+                </div>
+                <div className="shrink-0 text-[12px] font-semibold text-gray-500">
+                  {assignmentLogs.length} {assignmentLogs.length === 1 ? 'record' : 'records'}
+                </div>
+              </div>
+
+              {assignmentLogs.length === 0 ? (
+                <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                  No assignment requests yet.
+                </div>
+              ) : (
+                <div className="mt-4 space-y-2">
+                  {assignmentLogs.map((row, idx) => {
+                    const a = row?.assignment || {};
+                    const status = assignmentStatusText(a) || 'pending';
+                    const statusText = status === 'reassigned' ? 'Overridden' : toTitleCase(status);
+                    const vendorJoined = `${a?.vendor?.firstName ?? ''} ${a?.vendor?.lastName ?? ''}`.trim();
+                    const vendorName =
+                      a?.vendorName ??
+                      a?.vendor_name ??
+                      a?.vendor?.fullName ??
+                      (vendorJoined || null);
+                    const vendorLabel = vendorName || 'Jeweller';
+                    const when = row?.when || null;
+                    const statusClass =
+                      status === 'accepted'
+                        ? 'bg-green-50 border-green-100 text-green-700'
+                        : status === 'rejected'
+                          ? 'bg-red-50 border-red-100 text-red-700'
+                          : status === 'reassigned'
+                            ? 'bg-gray-50 border-gray-100 text-gray-700'
+                            : 'bg-amber-50 border-amber-100 text-amber-700';
+                    return (
+                      <div key={String(a?.id ?? a?._id ?? idx)} className="rounded-2xl border border-gray-100 p-4 bg-white">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-[13px] font-bold text-gray-900 truncate">{vendorLabel}</p>
+                              <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${statusClass}`}>
+                                {statusText}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[12px] text-gray-400">
+                              {status === 'pending' ? 'Pending with' : status === 'accepted' ? 'Accepted by' : 'Rejected by'}{' '}
+                              <span className="font-semibold text-gray-600">{vendorLabel}</span>
+                            </p>
+                            {when ? <p className="mt-1 text-[12px] text-gray-400 sm:hidden">{formatDateTime(when)}</p> : null}
+                          </div>
+                          <div className="hidden sm:block shrink-0 text-[12px] text-gray-400 text-right whitespace-nowrap">
+                            {when ? formatDateTime(when) : '—'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : null}
         </div>
@@ -982,18 +1104,33 @@ export default function ProjectBids() {
               <p className="text-[14px] font-extrabold text-gray-900">Force End</p>
               <p className="mt-1 text-[12px] text-gray-500">This will force-end the current bid window now (does not cancel the project).</p>
             </div>
-            <div className="px-5 py-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setEndOpen(false)} className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50">
-                Keep running
-              </button>
-              <button
-                type="button"
-                onClick={confirmManualEnd}
-                disabled={Boolean(actionLoading?.end)}
-                className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {actionLoading?.end ? 'Ending…' : 'Force End'}
-              </button>
+            <div className="px-5 py-4">
+              <label className="flex items-start gap-3 select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark"
+                  checked={endWithAutoWinner}
+                  onChange={(e) => setEndWithAutoWinner(Boolean(e.target.checked))}
+                />
+                <div className="min-w-0">
+                  <p className="text-[12px] font-bold text-gray-800">Auto-pick a winner</p>
+                  <p className="mt-0.5 text-[11px] text-gray-500">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
+                </div>
+              </label>
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={() => setEndOpen(false)} className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50">
+                  Keep running
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmManualEnd}
+                  disabled={Boolean(actionLoading?.end)}
+                  className="px-4 py-2 rounded-xl border border-red-100 bg-red-50 text-[12px] font-bold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoading?.end ? 'Ending…' : 'Force End'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1047,4 +1184,3 @@ export default function ProjectBids() {
     </div>
   );
 }
-

@@ -2072,7 +2072,18 @@ Bid item fields include:
 
 #### Manual end bid window
 
-- `POST /api/user/projects/:id/manual-end` (ends active window + evaluates winner)
+`POST /api/user/projects/:id/manual-end`
+
+Body (optional):
+
+```json
+{ "endWithAutoWinner": true }
+```
+
+Notes:
+- `endWithAutoWinner` defaults to `true` if omitted.
+- If `endWithAutoWinner === true`: ends the active bid window **and** auto-picks winner (creates an assignment request).
+- If `endWithAutoWinner === false`: only ends the active bid window (no auto winner selection, no assignment request created). Customer can use `POST /api/user/projects/:id/select-winner` to pick a winner later.
 
 #### Select winner (customer)
 
