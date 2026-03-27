@@ -401,9 +401,7 @@ function isPaymentPaid(block) {
   return s === 'paid';
 }
 
-function paymentStatusKey(block) {
-  return String(block?.status ?? '').trim().toLowerCase();
-}
+
 
 function isFinishedLike(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
@@ -1649,15 +1647,15 @@ export default function Projects() {
             {mainTab === 'list' ? (
               <div className="h-full min-h-0 overflow-y-auto pr-1">
                 <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
-                  <div className="mb-3 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                  <div className="mb-3 flex flex-wrap items-start gap-2">
+                    <div className="min-w-0 flex-1">
                       <p className="text-[14px] md:text-[15px] font-extrabold text-gray-900">My projects</p>
                       <p className="mt-0.5 text-[12px] text-gray-400">Create and manage your projects.</p>
                     </div>
                     <button
                       type="button"
                       onClick={startCreateNew}
-                      className="shrink-0 px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                      className="ml-auto shrink-0 inline-flex items-center justify-center px-3 py-2 sm:px-4 rounded-xl bg-primary-dark text-white text-[11px] sm:text-[12px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer"
                     >
                       Create Project
                     </button>
@@ -1743,20 +1741,13 @@ export default function Projects() {
                             key={t.id}
                             type="button"
                             onClick={() => setListFilter(t.id)}
-                            className={`min-w-0 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                            className={`whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
                               active
                                 ? 'bg-primary-dark/10 border-primary-dark text-primary-dark'
                                 : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
                             }`}
                           >
-                            {t.id === 'action_required' ? (
-                              <span className="min-w-0 truncate">
-                                <span className="md:hidden">Action</span>
-                                <span className="hidden md:inline">{t.label}</span>
-                              </span>
-                            ) : (
-                              <span className="min-w-0 truncate">{t.label}</span>
-                            )}
+                            <span className="whitespace-nowrap">{t.label}</span>
                             {typeof t.count === 'number' ? (
                               <span
                                 className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
