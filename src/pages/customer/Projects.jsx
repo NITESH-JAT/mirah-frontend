@@ -1646,7 +1646,8 @@ export default function Projects() {
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
             {mainTab === 'list' ? (
               <div className="h-full min-h-0 overflow-y-auto pr-1">
-                <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
+                <div className="shrink-0 sticky top-0 z-30 isolate relative transform-gpu bg-white pb-4 border-b border-gray-100/80">
+                  <div className="pointer-events-none absolute inset-0 -z-10 bg-white" aria-hidden="true" />
                   <div className="mb-3 flex flex-wrap items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] md:text-[15px] font-extrabold text-gray-900">My projects</p>
@@ -1792,14 +1793,16 @@ export default function Projects() {
                       No projects found for this filter.
                     </div>
                     {canLoadMore ? (
-                      <button
-                        type="button"
-                        onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
-                        disabled={listMoreLoading}
-                        className="w-full mt-3 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {listMoreLoading ? 'Loading…' : 'Load more'}
-                      </button>
+                      <div className="mt-3 flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
+                          disabled={listMoreLoading}
+                          className="px-10 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {listMoreLoading ? 'Loading…' : 'Load more'}
+                        </button>
+                      </div>
                     ) : null}
                   </>
                 ) : (
@@ -2031,14 +2034,16 @@ export default function Projects() {
                     })}
 
                     {canLoadMore ? (
-                      <button
-                        type="button"
-                        onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
-                        disabled={listMoreLoading}
-                        className="w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                      >
-                        {listMoreLoading ? 'Loading…' : 'Load more'}
-                      </button>
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
+                          disabled={listMoreLoading}
+                          className="px-10 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {listMoreLoading ? 'Loading…' : 'Load more'}
+                        </button>
+                      </div>
                     ) : null}
                   </div>
                 )}

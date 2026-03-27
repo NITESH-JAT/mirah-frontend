@@ -101,7 +101,7 @@ export const projectService = {
     return unwrap(res);
   },
 
-  startBid: async (projectId, _opts = {}, { signal } = {}) => {
+  startBid: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     // Backend uses system configuration to determine bid end date/time.
     const res = await api.post(`/api/user/projects/${projectId}/start-bid`, {}, { signal });

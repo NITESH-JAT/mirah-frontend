@@ -652,7 +652,7 @@ export default function VendorManageProject() {
   }, [load, loadPaymentDetails]);
 
   const goBack = useCallback(() => {
-    navigate('/vendor/projects/assigned');
+    navigate('/vendor/projects?tab=active');
   }, [navigate]);
 
   const chatWithCustomer = useCallback(() => {
@@ -1254,4 +1254,3 @@ export default function VendorManageProject() {
     </div>
   );
 }
-

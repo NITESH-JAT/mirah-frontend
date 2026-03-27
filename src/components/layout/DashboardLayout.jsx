@@ -153,7 +153,7 @@ export default function DashboardLayout() {
     if (isShopPage) return 'Store';
     if (isVendorBidsPage) return path.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
-    if (isVendorProjectsPage) return path.includes('/vendor/projects/assigned') ? 'Assigned Projects' : 'Assignment Requests';
+    if (isVendorProjectsPage) return 'My Projects';
     if (isCartPage) return 'Cart';
     if (isCheckoutPage) return 'Checkout';
     if (isOrdersPage) return 'My Orders';
@@ -792,7 +792,12 @@ export default function DashboardLayout() {
         {/* CONTENT */}
         <div
           className={`flex-1 overflow-y-auto scroll-smooth custom-scrollbar ${
-            isShoppingListPage ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0' : 'p-4 lg:p-8'
+            isShoppingListPage ||
+            isVendorProjectsPage ||
+            isVendorExplorePage ||
+            isVendorBidsPage
+              ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
+              : 'p-4 lg:p-8'
           }`}
         >
           <div

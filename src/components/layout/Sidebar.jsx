@@ -37,24 +37,14 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const isVendorKycAccepted = ['accepted', 'approved', 'verified', 'success', 'completed'].includes(vendorKycStatus);
 
   const [storeOpen, setStoreOpen] = useState(false);
-  const [vendorProjectsOpen, setVendorProjectsOpen] = useState(false);
 
   const STORE_TAB_KEY = 'mirah_vendor_store_last_tab';
-  const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
   useEffect(() => {
     if (!isVendor) return;
     if (location.pathname.startsWith('/vendor/shop')) {
       // async to avoid "setState synchronously within effect" lint
       setTimeout(() => setStoreOpen(true), 0);
-    }
-  }, [isVendor, location.pathname]);
-
-  useEffect(() => {
-    if (!isVendor) return;
-    if (location.pathname.startsWith('/vendor/projects')) {
-      // async to avoid "setState synchronously within effect" lint
-      setTimeout(() => setVendorProjectsOpen(true), 0);
     }
   }, [isVendor, location.pathname]);
 
@@ -71,7 +61,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
     if (p.includes('/vendor/shop')) return 'Store';
     if (p.startsWith('/vendor/bids')) return p.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
-    if (p.startsWith('/vendor/projects')) return p.includes('/vendor/projects/assigned') ? 'Assigned Projects' : 'Assignment Requests';
+    if (p.startsWith('/vendor/projects')) return 'My Projects';
     if (p.includes('/customer/cart')) return 'Cart';
     if (p.includes('/customer/checkout')) return 'Checkout';
     if (p.includes('/customer/orders')) return 'My Orders';
@@ -114,44 +104,6 @@ export default function Sidebar({ isOpen = false, onClose }) {
       // ignore
     }
     navigate(`/vendor/shop?tab=${encodeURIComponent(t)}`);
-    onClose?.();
-  };
-
-  const vendorProjectsTab = (() => {
-    const normalize = (t) => {
-      const v = String(t || '').trim().toLowerCase();
-      return v === 'assignment-requests' || v === 'assigned' ? v : null;
-    };
-    try {
-      const fromUrl = normalize(new URLSearchParams(location.search || '').get('tab'));
-      if (fromUrl) {
-        try {
-          sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, fromUrl);
-        } catch {
-          // ignore
-        }
-        return fromUrl;
-      }
-    } catch {
-      // ignore
-    }
-    try {
-      const stored = normalize(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY));
-      return stored || 'assignment-requests';
-    } catch {
-      return 'assignment-requests';
-    }
-  })();
-
-  const goVendorProjectsTab = (tab) => {
-    const t = String(tab || '').trim().toLowerCase();
-    const next = t === 'assigned' ? 'assigned' : 'assignment-requests';
-    try {
-      sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, next);
-    } catch {
-      // ignore
-    }
-    navigate(`/vendor/projects/${encodeURIComponent(next)}`);
     onClose?.();
   };
 
@@ -237,83 +189,19 @@ export default function Sidebar({ isOpen = false, onClose }) {
             ) : null}
 
             {isVendorKycAccepted ? (
-              <div className="mx-4 mb-1">
-                <button
-                  type="button"
-                  onClick={() => setVendorProjectsOpen((v) => !v)}
-                  className={`w-full flex items-center justify-between gap-3 px-4 py-3 cursor-pointer transition-all duration-200 font-sans text-[14px] font-medium rounded-lg
-                    ${isVendorProjectsRoute ? 'bg-primary-dark text-white shadow-md' : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'}
-                  `}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className={`${isVendorProjectsRoute ? 'text-white' : 'text-gray-400'}`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <path d="M8 13h8"/>
-                        <path d="M8 17h8"/>
-                      </svg>
-                    </div>
-                    <span className="truncate">My Projects</span>
-                  </div>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className={`shrink-0 transition-transform ${vendorProjectsOpen ? 'rotate-180' : ''}`}
-                  >
-                    <path d="m6 9 6 6 6-6" />
+              <NavItem
+                active={isVendorProjectsRoute}
+                path="/vendor/projects"
+                label="My Projects"
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <path d="M8 13h8" />
+                    <path d="M8 17h8" />
                   </svg>
-                </button>
-
-                {vendorProjectsOpen ? (
-                  <div className="mt-1 space-y-1">
-                    <button
-                      type="button"
-                      onClick={() => goVendorProjectsTab('assignment-requests')}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
-                        ${
-                          isVendorProjectsRoute && vendorProjectsTab === 'assignment-requests'
-                            ? 'bg-primary-dark/10 text-primary-dark'
-                            : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
-                        }
-                      `}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-                        <path d="M8 10h8" />
-                        <path d="M8 14h5" />
-                      </svg>
-                      <span>Assignment Requests</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => goVendorProjectsTab('assigned')}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-left transition-colors font-sans text-[13px] font-medium
-                        ${
-                          isVendorProjectsRoute && vendorProjectsTab === 'assigned'
-                            ? 'bg-primary-dark/10 text-primary-dark'
-                            : 'text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
-                        }
-                      `}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" />
-                        <path d="M9 5a3 3 0 0 0 6 0" />
-                        <path d="M9 5h6" />
-                        <path d="M9 12h6" />
-                        <path d="M9 16h6" />
-                      </svg>
-                      <span>Assigned Projects</span>
-                    </button>
-                  </div>
-                ) : null}
-              </div>
+                }
+              />
             ) : null}
             {isVendorKycAccepted && (canSell ? (
               <div className="mx-4 mb-1">
