@@ -3,18 +3,19 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import './index.css'
 import logo from './assets/logo.png'
+import favicon from './assets/favicon.jpg'
 
 // Set favicon from bundled asset (works in dev + prod builds)
 const existing =
   document.querySelector("link[rel='icon']") ||
   document.querySelector("link[rel='shortcut icon']")
 if (existing) {
-  existing.setAttribute('href', logo)
+  existing.setAttribute('href', favicon)
 } else {
   const link = document.createElement('link')
   link.rel = 'icon'
-  link.type = 'image/png'
-  link.href = logo
+  link.type = 'image/jpeg'
+  link.href = favicon
   document.head.appendChild(link)
 }
 
