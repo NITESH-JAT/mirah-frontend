@@ -957,6 +957,7 @@ export default function Projects() {
   const [forceStopFor, setForceStopFor] = useState({ id: null, title: '' });
 
   const [referenceUploading, setReferenceUploading] = useState(false);
+  const [referenceDropActive, setReferenceDropActive] = useState(false);
   const attachmentInputRef = useRef(null);
   const referenceImageInputRef = useRef(null);
   const listAbortRef = useRef(null);
@@ -1274,6 +1275,31 @@ export default function Projects() {
       setReferenceUploading(false);
       if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
     }
+  };
+
+  const openReferenceFilePicker = () => {
+    if (referenceUploading) return;
+    referenceImageInputRef.current?.click();
+  };
+
+  const onReferenceDropZoneDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!referenceUploading) setReferenceDropActive(true);
+  };
+
+  const onReferenceDropZoneDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReferenceDropActive(false);
+  };
+
+  const onReferenceDropZoneDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setReferenceDropActive(false);
+    const f = e.dataTransfer?.files?.[0];
+    if (f) handleUploadReferenceImage(f);
   };
 
   const persistProject = async ({ validateUpToStep = 1, silent = true } = {}) => {
@@ -2357,24 +2383,14 @@ export default function Projects() {
                       {createStep !== 4 ? (
                       <div className="hidden md:block h-full overflow-y-auto border-r border-gray-100 bg-white px-5 py-5">
                         <div className="rounded-2xl border border-gray-100 p-4">
-                          <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div>
-                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
-                              <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => referenceImageInputRef.current?.click()}
-                              disabled={referenceUploading}
-                              className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                            >
-                              {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change image' : 'Upload image'}
-                            </button>
+                          <div>
+                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
+                            <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
                           </div>
 
                           <div className="mt-4">
                             {String(createForm.referenceImage || '').trim() ? (
-                              <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                              <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden group">
                                 <SafeImage
                                   src={String(createForm.referenceImage || '').trim()}
                                   alt="Reference"
@@ -2382,11 +2398,15 @@ export default function Projects() {
                                 />
                                 <button
                                   type="button"
-                                  onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setCreateForm((p) => ({ ...p, referenceImage: '' }));
+                                    if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
+                                  }}
                                   disabled={referenceUploading}
-                                  className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                  className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                                   aria-label="Remove reference image"
-                                  title="Remove"
+                                  title="Remove image"
                                 >
                                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                     <path d="M18 6 6 18" />
@@ -2395,16 +2415,52 @@ export default function Projects() {
                                 </button>
                               </div>
                             ) : (
-                              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[320px] flex flex-col items-center justify-center">
-                                <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                                    <circle cx="8.5" cy="8.5" r="1.5" />
-                                    <path d="M21 15l-5-5L5 21" />
-                                  </svg>
-                                </div>
-                                <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={openReferenceFilePicker}
+                                onDragOver={onReferenceDropZoneDragOver}
+                                onDragEnter={onReferenceDropZoneDragOver}
+                                onDragLeave={onReferenceDropZoneDragLeave}
+                                onDrop={onReferenceDropZoneDrop}
+                                disabled={referenceUploading}
+                                aria-busy={referenceUploading}
+                                aria-label="Upload reference image. You can also drag and drop a file here."
+                                className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center min-h-[320px] flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  referenceDropActive
+                                    ? 'border-primary-dark bg-primary-dark/[0.06] ring-2 ring-primary-dark/20'
+                                    : 'border-gray-200 bg-gray-50 hover:border-primary-dark/45 hover:bg-gray-50/90'
+                                }`}
+                              >
+                                <span className="pointer-events-none flex flex-col items-center gap-2 max-w-[280px]">
+                                  {referenceUploading ? (
+                                    <svg
+                                      className="animate-spin text-primary-dark"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      width="32"
+                                      height="32"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                    >
+                                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                    </svg>
+                                  ) : (
+                                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white border border-gray-100 text-primary-dark shadow-sm">
+                                      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                        <polyline points="17 8 12 3 7 8" />
+                                        <line x1="12" y1="3" x2="12" y2="15" />
+                                      </svg>
+                                    </span>
+                                  )}
+                                  <span className="mt-1 text-[13px] font-bold text-gray-800">
+                                    {referenceUploading ? 'Uploading…' : 'Add reference image'}
+                                  </span>
+                                  <span className="text-[12px] text-gray-500 leading-snug">
+                                    {referenceUploading ? 'Please wait' : 'Click to browse, or drag and drop an image here'}
+                                  </span>
+                                </span>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -2431,40 +2487,32 @@ export default function Projects() {
                               <div className="min-w-0">
                                 <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
                                 <p className="text-[12px] text-gray-400">
-                                  {String(createForm.referenceImage || '').trim() ? 'Reference image uploaded.' : 'No reference image uploaded.'}
+                                  {String(createForm.referenceImage || '').trim()
+                                    ? 'Reference image added. Tap × on the preview to remove, then add a new one.'
+                                    : 'Tap the area below to choose an image.'}
                                 </p>
                               </div>
 
-                              <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                  type="button"
-                                  onClick={() => referenceImageInputRef.current?.click()}
-                                  disabled={referenceUploading}
-                                  className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              <button
+                                type="button"
+                                onClick={() => setMobileRefCollapsed((v) => !v)}
+                                className="w-10 h-10 shrink-0 rounded-xl border border-gray-100 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                                aria-label={mobileRefCollapsed ? 'Expand reference image' : 'Collapse reference image'}
+                                title={mobileRefCollapsed ? 'Expand' : 'Collapse'}
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  width="18"
+                                  height="18"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  className={`transition-transform ${mobileRefCollapsed ? '' : 'rotate-180'}`}
                                 >
-                                  {referenceUploading ? 'Uploading…' : createForm.referenceImage ? 'Change' : 'Upload'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setMobileRefCollapsed((v) => !v)}
-                                  className="w-10 h-10 rounded-xl border border-gray-100 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
-                                  aria-label={mobileRefCollapsed ? 'Expand reference image' : 'Collapse reference image'}
-                                  title={mobileRefCollapsed ? 'Expand' : 'Collapse'}
-                                >
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="18"
-                                    height="18"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    className={`transition-transform ${mobileRefCollapsed ? '' : 'rotate-180'}`}
-                                  >
-                                    <path d="m6 9 6 6 6-6" />
-                                  </svg>
-                                </button>
-                              </div>
+                                  <path d="m6 9 6 6 6-6" />
+                                </svg>
+                              </button>
                             </div>
 
                             {!mobileRefCollapsed ? (
@@ -2478,11 +2526,15 @@ export default function Projects() {
                                     />
                                     <button
                                       type="button"
-                                      onClick={() => setCreateForm((p) => ({ ...p, referenceImage: '' }))}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCreateForm((p) => ({ ...p, referenceImage: '' }));
+                                        if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
+                                      }}
                                       disabled={referenceUploading}
-                                      className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/65 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                                       aria-label="Remove reference image"
-                                      title="Remove"
+                                      title="Remove image"
                                     >
                                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M18 6 6 18" />
@@ -2491,16 +2543,52 @@ export default function Projects() {
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center min-h-[220px] flex flex-col items-center justify-center">
-                                    <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
-                                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <rect x="3" y="3" width="18" height="18" rx="2" />
-                                        <circle cx="8.5" cy="8.5" r="1.5" />
-                                        <path d="M21 15l-5-5L5 21" />
-                                      </svg>
-                                    </div>
-                                    <p className="mt-3 text-[12px] text-gray-500">No reference image uploaded.</p>
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={openReferenceFilePicker}
+                                    onDragOver={onReferenceDropZoneDragOver}
+                                    onDragEnter={onReferenceDropZoneDragOver}
+                                    onDragLeave={onReferenceDropZoneDragLeave}
+                                    onDrop={onReferenceDropZoneDrop}
+                                    disabled={referenceUploading}
+                                    aria-busy={referenceUploading}
+                                    aria-label="Upload reference image"
+                                    className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center min-h-[220px] flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                                      referenceDropActive
+                                        ? 'border-primary-dark bg-primary-dark/[0.06] ring-2 ring-primary-dark/20'
+                                        : 'border-gray-200 bg-gray-50 hover:border-primary-dark/45 hover:bg-gray-50/90'
+                                    }`}
+                                  >
+                                    <span className="pointer-events-none flex flex-col items-center gap-2 max-w-[260px]">
+                                      {referenceUploading ? (
+                                        <svg
+                                          className="animate-spin text-primary-dark"
+                                          xmlns="http://www.w3.org/2000/svg"
+                                          width="28"
+                                          height="28"
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                        >
+                                          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                                          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                                        </svg>
+                                      ) : (
+                                        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-gray-100 text-primary-dark shadow-sm">
+                                          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                            <polyline points="17 8 12 3 7 8" />
+                                            <line x1="12" y1="3" x2="12" y2="15" />
+                                          </svg>
+                                        </span>
+                                      )}
+                                      <span className="mt-1 text-[13px] font-bold text-gray-800">
+                                        {referenceUploading ? 'Uploading…' : 'Add reference image'}
+                                      </span>
+                                      <span className="text-[12px] text-gray-500 leading-snug">
+                                        {referenceUploading ? 'Please wait' : 'Tap to browse. On desktop you can drag a file here.'}
+                                      </span>
+                                    </span>
+                                  </button>
                                 )}
                               </div>
                             ) : null}
