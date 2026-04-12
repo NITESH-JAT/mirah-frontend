@@ -744,7 +744,7 @@ export default function VendorManageProject() {
     return (
       <div className="w-full min-h-[calc(100vh-260px)] flex items-center justify-center">
         <svg
-          className="animate-spin text-primary-dark"
+          className="animate-spin text-ink"
           xmlns="http://www.w3.org/2000/svg"
           width="28"
           height="28"
@@ -764,11 +764,11 @@ export default function VendorManageProject() {
         <button
           type="button"
           onClick={goBack}
-          className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
+          className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream"
         >
           Back
         </button>
-        <p className="mt-4 text-[13px] text-gray-600">Unable to load project.</p>
+        <p className="mt-4 text-[13px] text-mid">Unable to load project.</p>
       </div>
     );
   }
@@ -778,28 +778,28 @@ export default function VendorManageProject() {
       <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row md:items-start gap-4">
         {/* Left column: overview */}
         <div className="w-full md:w-[420px] lg:w-[460px] shrink-0 md:self-start">
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={goBack}
-                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream whitespace-nowrap"
               >
                 Back
               </button>
-              <span className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap">
+              <span className="px-3 py-2 rounded-full bg-blush text-mid text-[12px] font-extrabold whitespace-nowrap">
                 {projectStatusLabel}
               </span>
             </div>
 
             <div className="mt-4">
-              <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
+              <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">
                 {project?.title || 'Project'}
               </p>
 
               {referenceImage ? (
                 <div className="mt-3">
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                  <div className="rounded-2xl border border-pale bg-cream overflow-hidden">
                     <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
                   </div>
                 </div>
@@ -807,8 +807,8 @@ export default function VendorManageProject() {
 
               <div className="mt-4 space-y-1.5">
                 {customerName ? (
-                  <p className="text-[12px] text-gray-500">
-                    Customer: <span className="font-extrabold text-gray-900">{customerName}</span>
+                  <p className="text-[12px] text-muted">
+                    Customer: <span className="font-extrabold text-ink">{customerName}</span>
                   </p>
                 ) : null}
               </div>
@@ -818,7 +818,7 @@ export default function VendorManageProject() {
                   type="button"
                   onClick={chatWithCustomer}
                   disabled={!customerId}
-                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                  className="w-full px-4 py-2.5 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-ink hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -837,8 +837,8 @@ export default function VendorManageProject() {
 
               <div className="mt-4 space-y-2">
                 <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-gray-500 font-semibold">Budget per piece</span>
-                  <span className="text-gray-900 font-extrabold text-right">
+                  <span className="text-muted font-semibold">Budget per piece</span>
+                  <span className="text-ink font-extrabold text-right">
                     {budgetPerPieceRaw
                       ? (() => {
                           const n = Number(budgetPerPieceRaw);
@@ -849,22 +849,22 @@ export default function VendorManageProject() {
                   </span>
                 </div>
                 <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-gray-500 font-semibold">Quantity required</span>
-                  <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+                  <span className="text-muted font-semibold">Quantity required</span>
+                  <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
                 </div>
                 <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-gray-500 font-semibold">Expected delivery</span>
-                  <span className="text-gray-900 font-extrabold text-right">
+                  <span className="text-muted font-semibold">Expected delivery</span>
+                  <span className="text-ink font-extrabold text-right">
                     {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
                   </span>
                 </div>
               </div>
 
               {agreedPriceRaw || agreedDaysToCompleteRaw ? (
-                <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                <div className="mt-4 rounded-2xl border border-pale bg-cream p-3 space-y-2">
                   <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="text-gray-500 font-semibold">Agreed amount</span>
-                    <span className="text-gray-900 font-extrabold text-right">
+                    <span className="text-muted font-semibold">Agreed amount</span>
+                    <span className="text-ink font-extrabold text-right">
                       {agreedPriceRaw
                         ? (() => {
                             const n = Number(agreedPriceRaw);
@@ -875,8 +875,8 @@ export default function VendorManageProject() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="text-gray-500 font-semibold">Agreed duration</span>
-                    <span className="text-gray-900 font-extrabold text-right">
+                    <span className="text-muted font-semibold">Agreed duration</span>
+                    <span className="text-ink font-extrabold text-right">
                       {agreedDaysToCompleteRaw ? `${agreedDaysToCompleteRaw} days` : '—'}
                     </span>
                   </div>
@@ -885,15 +885,15 @@ export default function VendorManageProject() {
 
               {remainingMetaRows.length > 0 ? (
                 <div className="mt-4">
-                  <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-50">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                  <div className="rounded-2xl border border-pale bg-white overflow-hidden">
+                    <div className="px-4 py-3 border-b border-pale">
+                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
                     </div>
                     <div className="px-4 py-3 space-y-3">
                       {remainingMetaRows.map((r) => (
                         <div key={r.key} className="space-y-1">
-                          <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
-                          <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                          <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                          <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
                         </div>
                       ))}
                     </div>
@@ -903,7 +903,7 @@ export default function VendorManageProject() {
 
               {attachments.length > 0 ? (
                 <div className="mt-4">
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Attachments</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Attachments</p>
                   <div className="mt-2 space-y-2">
                     {attachments.map((u, idx) => {
                       const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
@@ -913,14 +913,14 @@ export default function VendorManageProject() {
                           href={u}
                           target="_blank"
                           rel="noreferrer"
-                          className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                          className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
                           title="Open attachment"
                         >
-                          <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
-                            <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                          <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                            <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
                             <span className="truncate">{name}</span>
                           </span>
-                          <span className="shrink-0 text-gray-400">
+                          <span className="shrink-0 text-muted">
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
                               width="16"
@@ -950,10 +950,10 @@ export default function VendorManageProject() {
             {/* Payable + Change status cards side-by-side */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Payable card */}
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-pale overflow-hidden">
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">Payable to You</p>
+                    <p className="text-[12px] font-extrabold text-ink">Payable to You</p>
                     {paymentDetails?.vendorSettlementDone ? (
                       <span className="px-2 py-1 rounded-full border border-emerald-100 bg-emerald-50 text-[10px] font-extrabold text-emerald-700">
                         Payment Settled
@@ -961,16 +961,16 @@ export default function VendorManageProject() {
                     ) : null}
                   </div>
                   {paymentDetails ? (
-                    <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
+                    <div className="mt-3 space-y-1.5 text-[12px] text-mid">
                       <p>
                         Total Amount:{' '}
-                        <span className="font-extrabold text-gray-900">
+                        <span className="font-extrabold text-ink">
                           {paymentDetails.totalAmount != null ? `₹ ${formatMoney(paymentDetails.totalAmount)}` : '—'}
                         </span>
                       </p>
                       <p>
                         Total Commission:{' '}
-                        <span className="font-extrabold text-gray-900">
+                        <span className="font-extrabold text-ink">
                           {paymentDetails.totalCommission != null
                             ? `₹ ${formatMoney(paymentDetails.totalCommission)}`
                             : '—'}
@@ -978,7 +978,7 @@ export default function VendorManageProject() {
                       </p>
                       <p>
                         Net Payable:{' '}
-                        <span className="font-extrabold text-gray-900">
+                        <span className="font-extrabold text-ink">
                           {paymentDetails.totalPayableToVendor != null
                             ? `₹ ${formatMoney(paymentDetails.totalPayableToVendor)}`
                             : '—'}
@@ -986,7 +986,7 @@ export default function VendorManageProject() {
                       </p>
                     </div>
                   ) : (
-                    <p className="mt-3 text-[12px] text-gray-500">
+                    <p className="mt-3 text-[12px] text-muted">
                       Payable details are not available yet.
                     </p>
                   )}
@@ -994,12 +994,12 @@ export default function VendorManageProject() {
               </div>
 
               {/* Change status card */}
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-pale overflow-hidden">
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">Change Status</p>
+                    <p className="text-[12px] font-extrabold text-ink">Change Status</p>
                   </div>
-                  <p className="mt-1 text-[12px] text-gray-500">
+                  <p className="mt-1 text-[12px] text-muted">
                     Update the project operational status as work progresses.
                   </p>
                   <div className="mt-4 grid grid-cols-1 gap-3">
@@ -1007,7 +1007,7 @@ export default function VendorManageProject() {
                       type="button"
                       onClick={() => openStatusConfirm('in_progress')}
                       disabled={!canMarkInProgress || statusUpdating}
-                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-gray-100 bg-gray-50 text-gray-800 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-pale bg-cream text-ink hover:bg-blush disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Mark In Progress
                     </button>
@@ -1028,21 +1028,21 @@ export default function VendorManageProject() {
               (typeof document !== 'undefined'
                 ? createPortal(
                     <div
-                      className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                      className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
                       onMouseDown={closeStatusConfirm}
                     >
                       <div
-                        className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                        className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
                         onMouseDown={(e) => e.stopPropagation()}
                         role="dialog"
                         aria-modal="true"
                       >
-                        <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+                        <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[14px] font-extrabold text-gray-900">
+                            <p className="text-[14px] font-extrabold text-ink">
                               {statusConfirmType === 'in_progress' ? 'Mark as In Progress' : 'Put in QC Check'}
                             </p>
-                            <p className="mt-1 text-[12px] text-gray-500">
+                            <p className="mt-1 text-[12px] text-muted">
                               {statusConfirmType === 'in_progress'
                                 ? 'This will update the project status to In Progress and notify the system.'
                                 : 'This will move the project into Mirah QC checks.'}
@@ -1052,7 +1052,7 @@ export default function VendorManageProject() {
                             type="button"
                             onClick={closeStatusConfirm}
                             disabled={statusUpdating || statusConfirmSubmitting}
-                            className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                            className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                             aria-label="Close"
                           >
                             <svg
@@ -1074,7 +1074,7 @@ export default function VendorManageProject() {
                             type="button"
                             onClick={closeStatusConfirm}
                             disabled={statusUpdating || statusConfirmSubmitting}
-                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                           >
                             Cancel
                           </button>
@@ -1082,7 +1082,7 @@ export default function VendorManageProject() {
                             type="button"
                             onClick={confirmStatusChange}
                             disabled={statusUpdating || statusConfirmSubmitting}
-                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                           >
                             {statusUpdating || statusConfirmSubmitting ? 'Submitting…' : 'Confirm'}
                           </button>
@@ -1096,10 +1096,10 @@ export default function VendorManageProject() {
 
             {/* QC logs card (only show when logs exist) */}
             {qcEntries.length > 0 ? (
-              <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-2xl border border-pale overflow-hidden">
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">QC Updates</p>
+                    <p className="text-[12px] font-extrabold text-ink">QC Updates</p>
                   </div>
                   <div className="mt-3 space-y-2">
                     {qcEntries.map((entry, idx) => {
@@ -1117,16 +1117,16 @@ export default function VendorManageProject() {
                           ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
                           : statusKey === 'failed'
                             ? 'bg-red-50 border-red-100 text-red-700'
-                            : 'bg-gray-50 border-gray-100 text-gray-600';
+                            : 'bg-cream border-pale text-mid';
 
                       return (
-                        <div key={idx} className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2">
+                        <div key={idx} className="rounded-xl border border-pale bg-cream px-3 py-2">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-[12px] font-semibold text-gray-800">Mirah QC Reviews</p>
-                            {ts ? <p className="text-[11px] text-gray-400">{formatDateTime(ts)}</p> : null}
+                            <p className="text-[12px] font-semibold text-ink">Mirah QC Reviews</p>
+                            {ts ? <p className="text-[11px] text-muted">{formatDateTime(ts)}</p> : null}
                           </div>
                           {remarks ? (
-                            <p className="mt-1 text-[12px] text-gray-600 whitespace-pre-line">{String(remarks)}</p>
+                            <p className="mt-1 text-[12px] text-mid whitespace-pre-line">{String(remarks)}</p>
                           ) : null}
                           <span
                             className={`inline-flex mt-2 px-2 py-0.5 rounded-full border text-[10px] font-bold ${pillClass}`}
@@ -1142,11 +1142,11 @@ export default function VendorManageProject() {
             ) : null}
 
             {/* Project updates timeline */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {loading ? (
-                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
+                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
                   <svg
-                    className="animate-spin text-primary-dark"
+                    className="animate-spin text-ink"
                     xmlns="http://www.w3.org/2000/svg"
                     width="28"
                     height="28"
@@ -1158,11 +1158,11 @@ export default function VendorManageProject() {
                   </svg>
                 </div>
               ) : !project ? (
-                <div className="p-8 text-[13px] text-gray-600">Unable to load project updates.</div>
+                <div className="p-8 text-[13px] text-mid">Unable to load project updates.</div>
               ) : (
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">Project Updates</p>
+                    <p className="text-[12px] font-extrabold text-ink">Project Updates</p>
                   </div>
 
                   <div className="mt-4">
@@ -1245,12 +1245,12 @@ export default function VendorManageProject() {
 
                         const circleClass =
                           state === 'completed'
-                            ? 'bg-primary-dark text-white border-primary-dark'
+                            ? 'bg-walnut text-blush border-walnut'
                             : state === 'current'
-                              ? 'bg-primary-dark text-white border-primary-dark ring-2 ring-primary-dark/20'
-                              : 'bg-white text-gray-400 border-gray-200';
+                              ? 'bg-walnut text-blush border-walnut ring-2 ring-walnut/20'
+                              : 'bg-white text-muted border-pale';
 
-                        const lineClass = isCompleted || state === 'current' ? 'bg-primary-dark' : 'bg-gray-200';
+                        const lineClass = isCompleted || state === 'current' ? 'bg-walnut' : 'bg-pale';
 
                         const labelRaw = (() => {
                           const k = normalizeStatusKey(key);
@@ -1279,8 +1279,8 @@ export default function VendorManageProject() {
                               ) : null}
                             </div>
                             <div className="flex-1 min-w-0 pt-0.5">
-                              <p className="text-[11px] font-extrabold text-gray-900 tracking-wide">{label}</p>
-                              <p className="mt-0.5 text-[11px] text-gray-500">{sub}</p>
+                              <p className="text-[11px] font-extrabold text-ink tracking-wide">{label}</p>
+                              <p className="mt-0.5 text-[11px] text-muted">{sub}</p>
                             </div>
                           </div>
                         );

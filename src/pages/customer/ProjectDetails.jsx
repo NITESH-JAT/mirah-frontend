@@ -306,8 +306,8 @@ function paymentStatusPillClass(s) {
   const k = String(s ?? '').trim().toLowerCase();
   if (k === 'paid') return 'bg-green-50 text-green-700 border-green-200';
   if (k === 'due') return 'bg-amber-50 text-amber-700 border-amber-200';
-  if (k === 'not_applicable') return 'bg-gray-50 text-gray-700 border-gray-200';
-  return 'bg-gray-50 text-gray-700 border-gray-200';
+  if (k === 'not_applicable') return 'bg-cream text-mid border-pale';
+  return 'bg-cream text-mid border-pale';
 }
 
 function coerceAssignments(input) {
@@ -875,7 +875,7 @@ export default function ProjectDetails() {
             setVerifyingPayment(false);
           }
         },
-        theme: { color: '#0F2A4F' },
+        theme: { color: '#6B5545' },
       };
 
       const rz = new window.Razorpay(options);
@@ -902,19 +902,19 @@ export default function ProjectDetails() {
         ? (typeof document !== 'undefined'
             ? createPortal(
                 <div
-                  className="fixed inset-0 z-[210] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                  className="fixed inset-0 z-[210] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
                   onMouseDown={closeCompleteConfirm}
                 >
                   <div
-                    className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+                    className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
                     onMouseDown={(e) => e.stopPropagation()}
                     role="dialog"
                     aria-modal="true"
                   >
-                    <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+                    <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="text-[14px] font-extrabold text-gray-900">Mark project as completed</p>
-                        <p className="mt-1 text-[12px] text-gray-500">
+                        <p className="text-[14px] font-extrabold text-ink">Mark project as completed</p>
+                        <p className="mt-1 text-[12px] text-muted">
                           This will mark the project as completed. You won’t be able to undo this action.
                         </p>
                       </div>
@@ -922,7 +922,7 @@ export default function ProjectDetails() {
                         type="button"
                         onClick={closeCompleteConfirm}
                         disabled={completeLoading}
-                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                        className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                         aria-label="Close"
                       >
                         <svg
@@ -944,7 +944,7 @@ export default function ProjectDetails() {
                         type="button"
                         onClick={closeCompleteConfirm}
                         disabled={completeLoading}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -952,7 +952,7 @@ export default function ProjectDetails() {
                         type="button"
                         onClick={markAsCompleted}
                         disabled={completeLoading}
-                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                       >
                         {completeLoading ? 'Submitting…' : 'Confirm'}
                       </button>
@@ -965,23 +965,23 @@ export default function ProjectDetails() {
         : null}
 
       {verifyingPayment ? (
-        <div className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-[1px] flex items-center justify-center px-6">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-[200] bg-ink/25 backdrop-blur-[1px] flex items-center justify-center px-6">
+          <div className="w-full max-w-sm rounded-3xl border border-pale bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-primary-dark/10 border border-primary-dark/15 flex items-center justify-center text-primary-dark shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-walnut/10 border border-walnut/15 flex items-center justify-center text-ink shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-extrabold text-gray-900">Verifying payment…</p>
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <p className="text-[13px] font-extrabold text-ink">Verifying payment…</p>
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
-                <p className="mt-1 text-[12px] text-gray-400">Please wait, do not close the app.</p>
+                <p className="mt-1 text-[12px] text-muted">Please wait, do not close the app.</p>
               </div>
             </div>
           </div>
@@ -990,38 +990,38 @@ export default function ProjectDetails() {
       <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row md:items-start gap-4">
         {/* Left column: header + overview/object */}
         <div className="w-full md:w-[420px] lg:w-[460px] shrink-0 md:self-start">
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
             <div className="flex items-center justify-between gap-2">
               <button
                 type="button"
                 onClick={goBackToProjects}
-                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream whitespace-nowrap"
               >
                 Back
               </button>
-              <span className="px-3 py-2 rounded-full bg-gray-100 text-gray-700 text-[12px] font-extrabold whitespace-nowrap hidden">
+              <span className="px-3 py-2 rounded-full bg-blush text-mid text-[12px] font-extrabold whitespace-nowrap hidden">
                 {statusPillText}
               </span>
             </div>
 
             {loading ? (
               <div className="mt-8 flex items-center justify-center">
-                <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                   <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                 </svg>
               </div>
             ) : !project ? (
-              <div className="mt-6 text-[13px] text-gray-600">Unable to load project.</div>
+              <div className="mt-6 text-[13px] text-mid">Unable to load project.</div>
             ) : (
               <div className="mt-4">
-                <p className="text-[16px] md:text-[18px] font-extrabold text-gray-900 break-words">
+                <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">
                   {project?.title || 'Project'}
                 </p>
 
                 {referenceImage ? (
                   <div className="mt-3">
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                    <div className="rounded-2xl border border-pale bg-cream overflow-hidden">
                       <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
                     </div>
                   </div>
@@ -1029,8 +1029,8 @@ export default function ProjectDetails() {
 
                 <div className="mt-4 space-y-2">
                   <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="text-gray-500 font-semibold">Budget per piece</span>
-                    <span className="text-gray-900 font-extrabold text-right">
+                    <span className="text-muted font-semibold">Budget per piece</span>
+                    <span className="text-ink font-extrabold text-right">
                       {budgetPerPieceRaw
                         ? (() => {
                             const n = Number(budgetPerPieceRaw);
@@ -1041,12 +1041,12 @@ export default function ProjectDetails() {
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="text-gray-500 font-semibold">Quantity required</span>
-                    <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+                    <span className="text-muted font-semibold">Quantity required</span>
+                    <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3 text-[12px]">
-                    <span className="text-gray-500 font-semibold">Expected delivery</span>
-                    <span className="text-gray-900 font-extrabold text-right">
+                    <span className="text-muted font-semibold">Expected delivery</span>
+                    <span className="text-ink font-extrabold text-right">
                       {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
                     </span>
                   </div>
@@ -1054,16 +1054,16 @@ export default function ProjectDetails() {
 
                 <div className="mt-4 space-y-1.5">
                   {vendorFullName ? (
-                    <p className="text-[12px] text-gray-500">
+                    <p className="text-[12px] text-muted">
                       Jeweller:{' '}
-                      <span className="font-extrabold text-gray-900">
+                      <span className="font-extrabold text-ink">
                         {vendorLoading ? 'Loading…' : vendorFullName}
                       </span>
                     </p>
                   ) : vendorId ? (
-                    <p className="text-[12px] text-gray-500">
+                    <p className="text-[12px] text-muted">
                       Jeweller:{' '}
-                      <span className="font-extrabold text-gray-900">
+                      <span className="font-extrabold text-ink">
                         {vendorLoading ? 'Loading…' : `#${vendorId}`}
                       </span>
                     </p>
@@ -1075,7 +1075,7 @@ export default function ProjectDetails() {
                     <button
                       type="button"
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
-                      className="w-full px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-primary-dark hover:bg-gray-50 inline-flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-ink hover:bg-cream inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -1086,7 +1086,7 @@ export default function ProjectDetails() {
                     <button
                       type="button"
                       onClick={() => navigate('/customer/messages', { state: { openRecipientId: vendorId } })}
-                      className="w-full px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 inline-flex items-center justify-center gap-2"
+                      className="w-full px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -1097,18 +1097,18 @@ export default function ProjectDetails() {
                 ) : null}
 
                 {assignedAmount != null || assignedDays != null ? (
-                  <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 space-y-2">
+                  <div className="mt-4 rounded-2xl border border-pale bg-cream p-3 space-y-2">
                     <div className="flex items-start justify-between gap-3 text-[12px]">
-                      <span className="text-gray-500 font-semibold">Agreed amount</span>
-                      <span className="text-gray-900 font-extrabold text-right">
+                      <span className="text-muted font-semibold">Agreed amount</span>
+                      <span className="text-ink font-extrabold text-right">
                         {assignedAmount != null && Number.isFinite(Number(assignedAmount))
                           ? `₹ ${formatMoney(assignedAmount)}`
                           : '—'}
                       </span>
                     </div>
                     <div className="flex items-start justify-between gap-3 text-[12px]">
-                      <span className="text-gray-500 font-semibold">Agreed duration</span>
-                      <span className="text-gray-900 font-extrabold text-right">
+                      <span className="text-muted font-semibold">Agreed duration</span>
+                      <span className="text-ink font-extrabold text-right">
                         {assignedDays != null && Number.isFinite(Number(assignedDays))
                           ? `${Number(assignedDays)} days`
                           : '—'}
@@ -1119,15 +1119,15 @@ export default function ProjectDetails() {
 
                 {remainingMetaRows.length > 0 ? (
                   <div className="mt-4">
-                    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                      <div className="px-4 py-3 border-b border-gray-50">
-                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                    <div className="rounded-2xl border border-pale bg-white overflow-hidden">
+                      <div className="px-4 py-3 border-b border-pale">
+                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
                       </div>
                       <div className="px-4 py-3 space-y-3">
                         {remainingMetaRows.map((r) => (
                           <div key={r.key} className="space-y-1">
-                            <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
-                            <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                            <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                            <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
                           </div>
                         ))}
                       </div>
@@ -1137,7 +1137,7 @@ export default function ProjectDetails() {
 
                 {attachments.length > 0 ? (
                   <div className="mt-4">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Attachments</p>
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Attachments</p>
                     <div className="mt-2 space-y-2">
                       {attachments.map((u, idx) => {
                         const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
@@ -1147,14 +1147,14 @@ export default function ProjectDetails() {
                             href={u}
                             target="_blank"
                             rel="noreferrer"
-                            className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                            className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
                             title="Open attachment"
                           >
-                            <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
-                              <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                            <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                              <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
                               <span className="truncate">{name}</span>
                             </span>
-                            <span className="shrink-0 text-gray-400">
+                            <span className="shrink-0 text-muted">
                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M7 17 17 7" />
                                 <path d="M7 7h10v10" />
@@ -1168,9 +1168,9 @@ export default function ProjectDetails() {
                 ) : null}
 
                 {activeBidWindow ? (
-                  <div className="mt-4 text-[12px] text-gray-500">
+                  <div className="mt-4 text-[12px] text-muted">
                     Active auction ends at:{' '}
-                    <span className="font-semibold text-gray-700">
+                    <span className="font-semibold text-mid">
                       {formatDateTime(activeBidWindow?.finishingTimestamp ?? activeBidWindow?.finishingAt ?? activeBidWindow?.finishing_at)}
                     </span>
                   </div>
@@ -1183,41 +1183,41 @@ export default function ProjectDetails() {
         {/* Right column: payments */}
         <div className="flex-1 md:self-start">
           <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {loading ? (
-                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
               ) : !project ? (
-                <div className="p-8 text-[13px] text-gray-600">Unable to load project.</div>
+                <div className="p-8 text-[13px] text-mid">Unable to load project.</div>
               ) : (
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">Payments</p>
+                    <p className="text-[12px] font-extrabold text-ink">Payments</p>
                     <button
                       type="button"
                       onClick={downloadInvoice}
                       disabled={invoiceLoading || !projectId}
-                      className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {invoiceLoading ? 'Downloading…' : 'Download invoice'}
                     </button>
                   </div>
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-gray-100 p-4">
-                      <p className="text-[12px] font-bold text-gray-800">Advance</p>
-                      <p className="mt-1 text-[12px] text-gray-500">
+                    <div className="rounded-2xl border border-pale p-4">
+                      <p className="text-[12px] font-bold text-ink">Advance</p>
+                      <p className="mt-1 text-[12px] text-muted">
                         Status:{' '}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(advanceStatus)}`}>
                         {paymentStatusLabel(advanceStatus)}
                       </span>
                       </p>
                       {advancePayment?.suggestedAmount != null ? (
-                        <p className="mt-1 text-[12px] text-gray-500">
-                          Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                        <p className="mt-1 text-[12px] text-muted">
+                          Suggested: <span className="font-semibold text-mid">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
                         </p>
                       ) : null}
                       {advanceStatus === 'due' ? (
@@ -1225,24 +1225,24 @@ export default function ProjectDetails() {
                           type="button"
                           onClick={() => pay('advance')}
                           disabled={payLoading}
-                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {payLoading ? 'Processing…' : 'Pay Advance'}
                         </button>
                       ) : null}
                     </div>
 
-                    <div className="rounded-2xl border border-gray-100 p-4">
-                      <p className="text-[12px] font-bold text-gray-800">Final</p>
-                      <p className="mt-1 text-[12px] text-gray-500">
+                    <div className="rounded-2xl border border-pale p-4">
+                      <p className="text-[12px] font-bold text-ink">Final</p>
+                      <p className="mt-1 text-[12px] text-muted">
                         Status:{' '}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(finalStatus)}`}>
                         {paymentStatusLabel(finalStatus)}
                       </span>
                       </p>
                       {finalPayment?.suggestedAmount != null ? (
-                        <p className="mt-1 text-[12px] text-gray-500">
-                          Suggested: <span className="font-semibold text-gray-700">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
+                        <p className="mt-1 text-[12px] text-muted">
+                          Suggested: <span className="font-semibold text-mid">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
                         </p>
                       ) : null}
                       {finalStatus === 'due' ? (
@@ -1250,14 +1250,14 @@ export default function ProjectDetails() {
                           type="button"
                           onClick={() => pay('final')}
                           disabled={payLoading}
-                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {payLoading ? 'Processing…' : 'Pay Final'}
                         </button>
                       ) : null}
                     </div>
                   </div>
-                  <p className="mt-3 text-[11px] text-gray-400">
+                  <p className="mt-3 text-[11px] text-muted">
                     Note: Advance payment is required to start the project. Final payment can be paid after project completion.
                   </p>
                 </div>
@@ -1269,8 +1269,8 @@ export default function ProjectDetails() {
                 <div className="p-4 md:p-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[12px] font-extrabold text-gray-900">Project Delivered</p>
-                      <p className="mt-1 text-[12px] text-gray-600">
+                      <p className="text-[12px] font-extrabold text-ink">Project Delivered</p>
+                      <p className="mt-1 text-[12px] text-mid">
                         Your project is delivered. Please mark it as completed to finish the project.
                       </p>
                     </div>
@@ -1286,7 +1286,7 @@ export default function ProjectDetails() {
                       type="button"
                       onClick={openCompleteConfirm}
                       disabled={completeLoading}
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Mark as Completed
                     </button>
@@ -1295,20 +1295,20 @@ export default function ProjectDetails() {
               </div>
             ) : null}
 
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {loading ? (
-                <div className="p-10 md:p-14 bg-gray-50 flex items-center justify-center min-h-[220px]">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
               ) : !project ? (
-                <div className="p-8 text-[13px] text-gray-600">Unable to load project updates.</div>
+                <div className="p-8 text-[13px] text-mid">Unable to load project updates.</div>
               ) : (
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-gray-900">Project Updates</p>
+                    <p className="text-[12px] font-extrabold text-ink">Project Updates</p>
                   </div>
 
                   <div className="mt-4">
@@ -1380,12 +1380,12 @@ export default function ProjectDetails() {
 
                             const circleClass =
                               state === 'completed'
-                                ? 'bg-primary-dark text-white border-primary-dark'
+                                ? 'bg-walnut text-blush border-walnut'
                                 : state === 'current'
-                                  ? 'bg-primary-dark text-white border-primary-dark ring-2 ring-primary-dark/20'
-                                  : 'bg-white text-gray-400 border-gray-200';
+                                  ? 'bg-walnut text-blush border-walnut ring-2 ring-walnut/20'
+                                  : 'bg-white text-muted border-pale';
 
-                            const lineClass = isCompleted || state === 'current' ? 'bg-primary-dark' : 'bg-gray-200';
+                            const lineClass = isCompleted || state === 'current' ? 'bg-walnut' : 'bg-pale';
 
                             const labelRaw = (() => {
                               const k = normalizeStatusKey(key);
@@ -1418,10 +1418,10 @@ export default function ProjectDetails() {
                                 </span>
 
                                 <div className="space-y-0.5">
-                                  <p className={`text-[12px] font-extrabold tracking-wide ${state === 'upcoming' ? 'text-gray-400' : 'text-gray-900'}`}>
+                                  <p className={`text-[12px] font-extrabold tracking-wide ${state === 'upcoming' ? 'text-muted' : 'text-ink'}`}>
                                     {label}
                                   </p>
-                                  <p className={`text-[11px] ${state === 'upcoming' ? 'text-gray-400' : 'text-gray-500'}`}>{sub}</p>
+                                  <p className={`text-[11px] ${state === 'upcoming' ? 'text-muted' : 'text-muted'}`}>{sub}</p>
                                 </div>
                               </div>
                             );

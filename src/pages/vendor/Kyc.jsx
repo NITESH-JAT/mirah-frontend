@@ -299,7 +299,7 @@ export default function Kyc() {
       <div className="w-full pb-10 animate-fade-in">
         <div className="mt-5 min-h-[calc(100vh-260px)] flex items-center justify-center">
           <svg
-            className="animate-spin text-primary-dark"
+            className="animate-spin text-ink"
             xmlns="http://www.w3.org/2000/svg"
             width="28"
             height="28"
@@ -323,12 +323,12 @@ export default function Kyc() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
+      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
           <div>
-            <h2 className="font-sans text-lg font-bold text-gray-800">Jeweller KYC</h2>
-            <p className="text-[12px] text-gray-400">
-              Status: <span className="font-semibold text-gray-600">{toTitleCase(status)}</span>
+            <h2 className="font-sans text-lg font-bold text-ink">Jeweller KYC</h2>
+            <p className="text-[12px] text-muted">
+              Status: <span className="font-semibold text-mid">{toTitleCase(status)}</span>
             </p>
             {status === 'rejected' && kycStatus?.rejectionReason && (
               <p className="mt-2 text-[12px] text-red-500">
@@ -337,13 +337,13 @@ export default function Kyc() {
             )}
           </div>
 
-          <div className="text-[12px] text-gray-400">
-            Country: <span className="font-semibold text-gray-600">{country}</span>
+          <div className="text-[12px] text-muted">
+            Country: <span className="font-semibold text-mid">{country}</span>
           </div>
         </div>
 
         {isLocked && (
-          <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+          <div className="mb-6 rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
             {status === 'accepted'
               ? 'Your KYC is accepted. Editing is disabled.'
               : 'Your KYC is submitted and currently under review. Editing is locked until the status changes.'}
@@ -351,7 +351,7 @@ export default function Kyc() {
         )}
 
         {sections.length === 0 ? (
-          <div className="text-center text-gray-400 text-sm py-10">No KYC fields configured.</div>
+          <div className="text-center text-muted text-sm py-10">No KYC fields configured.</div>
         ) : (
           <>
             {/* Section tabs */}
@@ -364,9 +364,9 @@ export default function Kyc() {
                   onClick={() => isLocked && setActiveSectionIdx(idx)}
                   className={`px-3 py-2 rounded-xl border text-[12px] font-semibold transition-colors
                     ${idx === activeSectionIdx
-                      ? 'bg-primary-dark text-white border-primary-dark'
-                      : 'bg-white text-gray-500 border-gray-100'}
-                    ${isLocked ? 'cursor-pointer hover:bg-gray-50' : ''}
+                      ? 'bg-walnut text-blush border-walnut'
+                      : 'bg-white text-muted border-pale'}
+                    ${isLocked ? 'cursor-pointer hover:bg-cream' : ''}
                   `}
                 >
                   {s.title}
@@ -401,27 +401,27 @@ export default function Kyc() {
                   const isUploading = Boolean(uploadingByField[`${activeSection.key}:${fieldKey}`]);
                   return (
                     <div key={fieldKey} className="space-y-1.5 md:col-span-2">
-                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                      <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
                         {label}{required ? <span className="text-red-500">*</span> : null}
                       </label>
                       <div
                         className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold bg-white transition-all
-                          ${isMissing ? 'border-red-300' : 'border-gray-200'}
+                          ${isMissing ? 'border-red-300' : 'border-pale'}
                         `}
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                          <div className="text-gray-600 text-[13px] break-all">
+                          <div className="text-mid text-[13px] break-all">
                             {display ? (
                               <span>Uploaded: {display}</span>
                             ) : (
-                              <span className="text-gray-400">No file uploaded</span>
+                              <span className="text-muted">No file uploaded</span>
                             )}
                           </div>
                           <label
                             className={`inline-flex items-center justify-center px-4 py-2 rounded-lg text-[12px] font-bold cursor-pointer
                               ${(isLocked || isUploading)
-                                ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                : 'bg-primary-dark text-white hover:opacity-90'}
+                                ? 'bg-pale text-muted cursor-not-allowed'
+                                : 'bg-walnut text-blush hover:opacity-90'}
                             `}
                           >
                             {isUploading ? 'Uploading...' : 'Upload'}
@@ -449,15 +449,15 @@ export default function Kyc() {
                   const options = field.options || field.values || [];
                   return (
                     <div key={fieldKey} className="space-y-1.5">
-                      <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                      <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
                         {label}{required ? <span className="text-red-500">*</span> : null}
                       </label>
                       <select
                         disabled={isLocked}
                         value={value || ''}
                         onChange={(e) => updateField(activeSection.key, fieldKey, e.target.value)}
-                        className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none transition-all
-                          ${isLocked ? 'bg-[#F8F9FA] border-gray-100 text-gray-500' : 'bg-white border-gray-200 focus:border-primary-dark'}
+                        className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none transition-all
+                          ${isLocked ? 'bg-cream border-pale text-muted' : 'bg-white border-pale focus:border-walnut'}
                           ${isMissing ? 'border-red-300' : ''}
                         `}
                       >
@@ -481,7 +481,7 @@ export default function Kyc() {
 
                 return (
                   <div key={fieldKey} className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                    <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
                       {label}{required ? <span className="text-red-500">*</span> : null}
                     </label>
                     <input
@@ -489,8 +489,8 @@ export default function Kyc() {
                       disabled={isLocked}
                       value={value || ''}
                       onChange={(e) => updateField(activeSection.key, fieldKey, e.target.value)}
-                      className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 transition-all
-                        ${isLocked ? 'bg-[#F8F9FA] border-gray-100 text-gray-500' : 'bg-white border-gray-200 focus:border-primary-dark'}
+                      className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 transition-all
+                        ${isLocked ? 'bg-cream border-pale text-muted' : 'bg-white border-pale focus:border-walnut'}
                         ${isMissing ? 'border-red-300' : ''}
                       `}
                     />
@@ -508,7 +508,7 @@ export default function Kyc() {
                 type="button"
                 onClick={handlePrev}
                 disabled={isLocked || activeSectionIdx === 0}
-                className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="px-5 py-2.5 rounded-xl border border-pale text-xs font-bold text-mid hover:bg-cream transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 Back
               </button>
@@ -518,7 +518,7 @@ export default function Kyc() {
                   type="button"
                   onClick={saveCurrentSection}
                   disabled={isLocked || savingSection}
-                  className="px-5 py-2.5 rounded-xl bg-gray-100 text-xs font-bold text-gray-700 hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-blush text-xs font-bold text-mid hover:bg-pale transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {savingSection ? 'Saving...' : 'Save'}
                 </button>
@@ -528,7 +528,7 @@ export default function Kyc() {
                     type="button"
                     onClick={handleNext}
                     disabled={isLocked || savingSection}
-                    className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     Next
                   </button>
@@ -537,7 +537,7 @@ export default function Kyc() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={isLocked || submitting}
-                    className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {submitting ? 'Submitting...' : 'Submit KYC'}
                   </button>

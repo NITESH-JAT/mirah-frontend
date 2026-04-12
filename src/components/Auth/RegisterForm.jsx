@@ -2,15 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
-// --- GLOBAL STYLES ---
-const globalStyles = `
-  /* Custom Scrollbar */
-  .custom-scrollbar::-webkit-scrollbar { width: 8px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; margin-block: 8rem; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-`;
-
 // --- HELPER COMPONENTS ---
 
 function useClickOutside(ref, handler) {
@@ -46,7 +37,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[300px] sm:w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      relative w-[300px] sm:w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
       ${isError ? 'border-red-500' : 'border-green-500'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -61,16 +52,16 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
       {/* Content */}
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
           {isError ? 'Error' : 'Success'}
         </h4>
-        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
       </div>
 
       {/* Close Button */}
       <button 
         onClick={handleClose} 
-        className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1"
+        className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
           <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
@@ -83,7 +74,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 const InputField = ({ label, className, type="text", readOnly, required, error, onBlur, ...props }) => (
   <div className={`w-full ${className}`}>
     {label && (
-      <label className="block text-primary-dark text-sm font-medium mb-1">
+      <label className="block text-ink text-sm font-medium mb-1">
         {label} {required && <span className="text-red-500 text-sm ml-1">*</span>}
       </label>
     )}
@@ -92,11 +83,11 @@ const InputField = ({ label, className, type="text", readOnly, required, error, 
       readOnly={readOnly}
       onBlur={onBlur}
       {...props}
-      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans 
-        ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}
+      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans 
+        ${readOnly ? 'bg-cream text-muted' : 'bg-white'}
         ${error 
           ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-          : 'border-gray-200 focus:border-primary-dark focus:ring-primary-dark/10'
+          : 'border-pale focus:border-walnut focus:ring-walnut/10'
         }
       `}
     />
@@ -119,10 +110,10 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
           value={value}
           onChange={onChange}
           onBlur={onBlur}
-          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans pr-10
+          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans pr-10
             ${error 
               ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-              : 'border-gray-200 focus:border-primary-dark focus:ring-primary-dark/10'
+              : 'border-pale focus:border-walnut focus:ring-walnut/10'
             }
           `}
         />
@@ -136,7 +127,7 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
         <button 
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-dark transition-colors cursor-pointer"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors cursor-pointer"
         >
           {show ? (
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
@@ -196,28 +187,28 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
     <div className={`relative w-full ${className}`} ref={wrapperRef}>
       <div 
         onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-5 py-4 lg:px-4 lg:py-3 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-gray-200 text-[15px] lg:text-[14px] font-medium bg-white focus:outline-none focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 transition-all cursor-pointer flex items-center
-          ${disabled ? 'bg-gray-50 text-gray-400 cursor-not-allowed' : 'hover:border-gray-300'}
-          ${isPlaceholder ? 'text-gray-400' : 'text-gray-700'}
+        className={`w-full px-5 py-4 lg:px-4 lg:py-3 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-pale text-[15px] lg:text-[14px] font-medium bg-white focus:outline-none focus:border-walnut focus:ring-1 focus:ring-walnut/10 transition-all cursor-pointer flex items-center
+          ${disabled ? 'bg-cream text-muted cursor-not-allowed' : 'hover:border-pale'}
+          ${isPlaceholder ? 'text-muted' : 'text-mid'}
         `}
       >
         <span className="truncate">{selectedLabel}</span>
       </div>
-      <div className="absolute right-4 lg:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+      <div className="absolute right-4 lg:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 lg:w-3.5 lg:h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
         </svg>
       </div>
       {isOpen && !disabled && (
-        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-[12px] lg:rounded-[8px] shadow-xl z-50 overflow-hidden flex flex-col">
-          <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-pale rounded-[12px] lg:rounded-[8px] shadow-sm z-50 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-pale bg-cream/50">
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-1.5 text-[13px] lg:text-[12px] border border-gray-200 rounded-md focus:outline-none focus:border-primary-dark font-sans bg-white"
+              className="w-full px-3 py-1.5 text-[13px] lg:text-[12px] border border-pale rounded-md focus:outline-none focus:border-walnut font-sans bg-white"
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -230,8 +221,8 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
                   <li 
                     key={idx}
                     onClick={() => handleSelect(val)}
-                    className={`px-5 py-3 lg:px-4 lg:py-2.5 text-[15px] lg:text-[13px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0
-                      ${val === value ? 'bg-primary-dark/5 text-primary-dark font-semibold' : ''}
+                    className={`px-5 py-3 lg:px-4 lg:py-2.5 text-[15px] lg:text-[13px] text-mid hover:bg-cream cursor-pointer border-b border-pale last:border-0
+                      ${val === value ? 'bg-walnut/5 text-ink font-semibold' : ''}
                     `}
                   >
                     {lab}
@@ -239,7 +230,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
                 );
               })
             ) : (
-              <li className="px-5 py-3 lg:px-4 lg:py-2.5 text-[13px] text-gray-400 italic text-center">No results found</li>
+              <li className="px-5 py-3 lg:px-4 lg:py-2.5 text-[13px] text-muted italic text-center">No results found</li>
             )}
           </ul>
         </div>
@@ -447,8 +438,6 @@ export const RegisterForm = () => {
 
   return (
     <div className="w-full relative pb-20 lg:pb-0 overflow-x-hidden pt-2">
-      <style>{globalStyles}</style>
-
       <div className="fixed top-6 right-6 z-50 flex flex-col items-end pointer-events-none">
         <div className="pointer-events-auto">
              {toasts.map(toast => (
@@ -465,13 +454,13 @@ export const RegisterForm = () => {
 
       {/* HEADER */}
       <div className="shrink-0 text-center mb-6 lg:mb-6">
-        <h1 className="font-serif text-[30px] lg:text-[28px] font-bold text-primary-dark mb-1">Create Your Account</h1>
-        <p className="font-sans text-gray-400 text-[14px] lg:text-[13px] tracking-wide mb-4 lg:mb-4">Join our community of jewelry lovers.</p>
+        <h1 className="font-serif text-[30px] lg:text-[28px] font-bold text-ink mb-1">Create Your Account</h1>
+        <p className="font-sans text-muted text-[14px] lg:text-[13px] tracking-wide mb-4 lg:mb-4">Join our community of jewelry lovers.</p>
         
         {/* Role Switcher */}
-        <div className="bg-gray-100 p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
-          <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a User</button>
-          <button onClick={() => setFormData({...formData, userType: 'vendor'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'vendor' ? 'bg-white text-primary-dark shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}>As a Jeweller</button>
+        <div className="bg-blush p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
+          <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a User</button>
+          <button onClick={() => setFormData({...formData, userType: 'vendor'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'vendor' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a Jeweller</button>
         </div>
       </div>
 
@@ -523,15 +512,15 @@ export const RegisterForm = () => {
             name="termsAccepted"
             checked={formData.termsAccepted}
             onChange={handleChange}
-            className={`w-4 h-4 rounded border-gray-300 focus:ring-primary-dark cursor-pointer ${errors.termsAccepted ? 'ring-2 ring-red-500' : 'text-primary-dark'}`}
+            className={`w-4 h-4 rounded border-pale focus:ring-walnut cursor-pointer ${errors.termsAccepted ? 'ring-2 ring-red-500' : 'text-ink'}`}
           />
-          <label className={`text-[12px] font-sans ${errors.termsAccepted ? 'text-red-500' : 'text-primary-dark'}`}>
+          <label className={`text-[12px] font-sans ${errors.termsAccepted ? 'text-red-500' : 'text-ink'}`}>
               I agree to the 
               <a 
                 href="/terms" 
                 target="_blank" 
                 rel="noopener noreferrer" 
-                className="text-primary-dark font-medium cursor-pointer hover:underline mx-1"
+                className="text-ink font-medium cursor-pointer hover:underline mx-1"
               >
                 Terms & Conditions
               </a> 
@@ -542,13 +531,13 @@ export const RegisterForm = () => {
         <button 
           onClick={handleSubmit} 
           disabled={loading} 
-          className="w-full cursor-pointer bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[14px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full cursor-pointer bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[14px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {loading ? 'Creating...' : 'Next'}
         </button>
 
-        <p className="text-center text-[13px] lg:text-[14px] text-gray-500 mt-5 lg:mt-4 font-sans font-medium">
-          Already have an account? <span onClick={() => navigate('/login')} className="text-primary-dark font-bold cursor-pointer hover:underline">Login</span>
+        <p className="text-center text-[13px] lg:text-[14px] text-muted mt-5 lg:mt-4 font-sans font-medium">
+          Already have an account? <span onClick={() => navigate('/login')} className="text-ink font-bold cursor-pointer hover:underline">Login</span>
         </p>
       </div>
     </div>

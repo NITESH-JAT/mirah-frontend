@@ -2,8 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
-import { getVendorId, sourceBadgeText, vendorSourceText } from '../../utils/productSource';
+import { getVendorId, vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
+import ProductGridCard from '../../components/customer/ProductGridCard';
 
 function formatMoney(v) {
   const n = Number(v);
@@ -24,12 +25,6 @@ function coerceUrlArray(maybe) {
   if (Array.isArray(maybe)) return maybe.filter(Boolean);
   if (typeof maybe === 'string') return [maybe].filter(Boolean);
   return [];
-}
-
-function firstImageUrl(p) {
-  const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
-  const list = coerceUrlArray(images);
-  return list[0] ?? null;
 }
 
 function extractMedia(p) {
@@ -392,7 +387,7 @@ export default function ProductDetails() {
         fill={filled ? 'currentColor' : 'none'}
         stroke="currentColor"
         strokeWidth="2"
-        className={filled ? 'text-amber-400' : 'text-gray-200'}
+        className={filled ? 'text-amber-400' : 'text-soft'}
       >
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2Z" />
       </svg>
@@ -437,13 +432,13 @@ export default function ProductDetails() {
     };
 
     return (
-      <div className="mt-6 bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+      <div className="mt-6 bg-white rounded-2xl border border-pale p-4 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[13px] font-bold text-gray-900">Reviews</p>
-            <p className="text-[12px] text-gray-400 mt-1">What customers are saying</p>
+            <p className="text-[13px] font-bold text-ink">Reviews</p>
+            <p className="text-[12px] text-muted mt-1">What customers are saying</p>
           </div>
-          <div className="text-[12px] font-semibold text-gray-500">
+          <div className="text-[12px] font-semibold text-muted">
             {reviewsMeta?.total ? `${list.length} / ${reviewsMeta.total}` : list.length}
           </div>
         </div>
@@ -457,16 +452,16 @@ export default function ProductDetails() {
             return (
               <div
                 key={String(rev?.id ?? rev?._id ?? `${rev?.customerId ?? 'c'}-${rev?.createdAt ?? Math.random()}`)}
-                className="rounded-2xl border border-gray-100 bg-gray-50/60 p-4"
+                className="rounded-2xl border border-pale bg-cream/60 p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex items-start gap-2">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-primary-dark text-white flex items-center justify-center text-[11px] font-extrabold overflow-hidden border border-white shadow-sm">
+                    <div className="shrink-0 w-8 h-8 rounded-full bg-walnut text-blush flex items-center justify-center text-[11px] font-extrabold overflow-hidden border border-white shadow-sm">
                       <span>{initials}</span>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[12px] font-bold text-gray-800 truncate">{name}</p>
-                      {when ? <p className="text-[11px] text-gray-400 mt-0.5">{when}</p> : null}
+                      <p className="text-[12px] font-bold text-ink truncate">{name}</p>
+                      {when ? <p className="text-[11px] text-muted mt-0.5">{when}</p> : null}
                     </div>
                   </div>
                   <div className="shrink-0">
@@ -474,7 +469,7 @@ export default function ProductDetails() {
                   </div>
                 </div>
                 {comment ? (
-                  <p className="mt-3 text-[12px] text-gray-700 leading-relaxed whitespace-pre-line">{comment}</p>
+                  <p className="mt-3 text-[12px] text-mid leading-relaxed whitespace-pre-line">{comment}</p>
                 ) : null}
               </div>
             );
@@ -486,7 +481,7 @@ export default function ProductDetails() {
             type="button"
             onClick={() => loadReviews({ page: Number(reviewsMeta?.page || 1) + 1, append: true })}
             disabled={reviewsMoreLoading}
-            className="mt-4 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="mt-4 w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
           >
             {reviewsMoreLoading ? 'Loading…' : 'Load more reviews'}
           </button>
@@ -495,102 +490,22 @@ export default function ProductDetails() {
     );
   };
 
-  const OtherProductCard = ({ p }) => {
-    const img = firstImageUrl(p);
-    const pid = pickId(p);
-    const sourceText = sourceBadgeText(p);
-    const otherOff = discountPercent({ price: p?.price, compareAtPrice: p?.compareAtPrice });
-    const isFeatured =
-      p?.isFeatured === true || p?.isFeatured === 1 || String(p?.isFeatured).toLowerCase() === 'true';
-    return (
-      <div className="group">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate(`/customer/shopping/${pid}`)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') navigate(`/customer/shopping/${pid}`);
-          }}
-          className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 cursor-pointer"
-        >
-          {img ? (
-            <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
-              <div className="mt-2 text-[11px] font-bold text-gray-300">No image</div>
-            </div>
-          )}
-          {sourceText ? (
-            <div className="absolute top-2 right-2 max-w-[78%]">
-              <span className="block px-2 py-1 rounded-lg bg-white/95 backdrop-blur border border-gray-100 text-[10px] font-bold text-gray-600 shadow-sm line-clamp-1">
-                {sourceText}
-              </span>
-            </div>
-          ) : null}
-          {isFeatured ? (
-            <div className="absolute top-2 left-2 z-20 pointer-events-none">
-              <span className="w-7 h-7 rounded-full bg-amber-50 border border-amber-100 shadow-sm flex items-center justify-center text-amber-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </span>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setCartTarget(p);
-              setCartQty(1);
-              setCartOpen(true);
-            }}
-            className="absolute right-2 bottom-2 w-8 h-8 rounded-full bg-white/95 shadow-sm border border-gray-100 flex items-center justify-center text-primary-dark transition-colors hover:bg-primary-dark hover:text-white cursor-pointer"
-            aria-label="Add to cart"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </svg>
-          </button>
-        </div>
-        <div className="mt-2">
-          <p className="text-[12px] md:text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2">
-            {p?.name || 'Product'}
-          </p>
-        </div>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <div className="text-[13px] md:text-[14px] font-bold text-gray-900">₹{formatMoney(p?.price)}</div>
-          {otherOff != null ? (
-            <span className="shrink-0 px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
-              {otherOff}% off
-            </span>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full pb-[140px] md:pb-10 animate-fade-in">
       {loading ? (
-        <div className="text-[13px] text-gray-400">Loading…</div>
+        <div className="text-[13px] text-muted">Loading…</div>
       ) : !product ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">Product not found.</div>
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Product not found.</div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-4 md:gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-4 md:gap-6">
             {/* Media */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="rounded-2xl bg-white p-3 md:p-4 md:pr-5">
               <div className="flex items-center justify-between mb-3 md:hidden">
                 <button
                   type="button"
                   onClick={() => navigate(-1)}
-                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+                  className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
                   aria-label="Back"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -599,7 +514,7 @@ export default function ProductDetails() {
                 </button>
               </div>
 
-              <div className="relative w-full max-w-[380px] md:max-w-[420px] mx-auto aspect-square rounded-2xl overflow-hidden bg-gray-50 border border-gray-100">
+              <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-cream">
                 {mode === 'videos' && hasVideos ? (
                   <video
                     key={activeVideo || 'video'}
@@ -609,19 +524,19 @@ export default function ProductDetails() {
                     disablePictureInPicture
                     disableRemotePlayback
                     playsInline
-                    className="w-full h-full object-contain bg-black"
+                    className="h-full w-full object-contain bg-ink"
                     poster={activeImage || undefined}
                   />
                 ) : activeImage ? (
-                  <SafeImage src={activeImage} alt="" className="w-full h-full object-contain p-3 bg-white" />
+                  <SafeImage src={activeImage} alt="" className="h-full w-full bg-white object-contain p-2 md:p-3" />
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                  <div className="w-full h-full flex flex-col items-center justify-center text-muted">
                     <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <rect x="3" y="3" width="18" height="18" rx="2" />
                       <circle cx="8.5" cy="8.5" r="1.5" />
                       <path d="M21 15l-5-5L5 21" />
                     </svg>
-                    <div className="mt-2 text-[12px] font-bold text-gray-300">No image</div>
+                    <div className="mt-2 text-[12px] font-bold text-muted">No image</div>
                   </div>
                 )}
 
@@ -642,7 +557,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={() => setActiveIndex((i) => (i - 1 + media.images.length) % media.images.length)}
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center text-gray-700 hover:bg-white"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-pale shadow-sm flex items-center justify-center text-mid hover:bg-white"
                       aria-label="Previous"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -652,7 +567,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={() => setActiveIndex((i) => (i + 1) % media.images.length)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center text-gray-700 hover:bg-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-pale shadow-sm flex items-center justify-center text-mid hover:bg-white"
                       aria-label="Next"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -667,7 +582,7 @@ export default function ProductDetails() {
                       onClick={() =>
                         setActiveVideoIndex((i) => (i - 1 + media.videos.length) % media.videos.length)
                       }
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center text-gray-700 hover:bg-white"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-pale shadow-sm flex items-center justify-center text-mid hover:bg-white"
                       aria-label="Previous video"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -677,7 +592,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={() => setActiveVideoIndex((i) => (i + 1) % media.videos.length)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-gray-100 shadow-sm flex items-center justify-center text-gray-700 hover:bg-white"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/90 border border-pale shadow-sm flex items-center justify-center text-mid hover:bg-white"
                       aria-label="Next video"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -696,7 +611,7 @@ export default function ProductDetails() {
                       key={String(idx)}
                       type="button"
                       onClick={() => setActiveIndex(idx)}
-                      className={`w-2 h-2 rounded-full ${idx === activeIndex ? 'bg-primary-dark' : 'bg-gray-200'}`}
+                      className={`w-2 h-2 rounded-full ${idx === activeIndex ? 'bg-walnut' : 'bg-pale'}`}
                       aria-label={`Go to image ${idx + 1}`}
                     />
                   ))}
@@ -711,8 +626,8 @@ export default function ProductDetails() {
                     onClick={() => setMode('images')}
                     className={`w-11 h-11 rounded-xl border inline-flex items-center justify-center ${
                       mode === 'images'
-                        ? 'border-primary-dark text-primary-dark bg-primary-dark/5'
-                        : 'border-gray-100 text-gray-600 bg-white hover:bg-gray-50'
+                        ? 'border-walnut text-ink bg-walnut/5'
+                        : 'border-pale text-mid bg-white hover:bg-cream'
                     }`}
                     aria-label="View images"
                   >
@@ -727,8 +642,8 @@ export default function ProductDetails() {
                     onClick={() => setMode('videos')}
                     className={`w-11 h-11 rounded-xl border inline-flex items-center justify-center ${
                       mode === 'videos'
-                        ? 'border-primary-dark text-primary-dark bg-primary-dark/5'
-                        : 'border-gray-100 text-gray-600 bg-white hover:bg-gray-50'
+                        ? 'border-walnut text-ink bg-walnut/5'
+                        : 'border-pale text-mid bg-white hover:bg-cream'
                     }`}
                     aria-label="View videos"
                   >
@@ -741,27 +656,27 @@ export default function ProductDetails() {
               ) : null}
 
               {Array.isArray(product?.variants) && product.variants.length > 0 ? (
-                <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
+                <div className="mt-4 rounded-2xl border border-pale bg-cream/60 p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-bold text-gray-900">Size Options</p>
-                    <p className="text-[11px] text-gray-500 font-semibold">{product.variants.length} option{product.variants.length === 1 ? '' : 's'}</p>
+                    <p className="text-[12px] font-bold text-ink">Size Options</p>
+                    <p className="text-[11px] text-muted font-semibold">{product.variants.length} option{product.variants.length === 1 ? '' : 's'}</p>
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {product.variants.slice(0, 6).map((v, idx) => (
                       <span
                         key={String(idx)}
-                        className="px-3 py-1.5 rounded-full bg-white border border-gray-100 text-[11px] font-semibold text-gray-700"
+                        className="px-3 py-1.5 rounded-full bg-white border border-pale text-[11px] font-semibold text-mid"
                       >
                         {variantLabel(v)}
                       </span>
                     ))}
                     {product.variants.length > 6 ? (
-                      <span className="px-3 py-1.5 rounded-full bg-white border border-gray-100 text-[11px] font-semibold text-gray-500">
+                      <span className="px-3 py-1.5 rounded-full bg-white border border-pale text-[11px] font-semibold text-muted">
                         +{product.variants.length - 6} more
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-[11px] text-gray-500">
+                  <p className="mt-2 text-[11px] text-muted">
                     
                   </p>
                 </div>
@@ -770,14 +685,14 @@ export default function ProductDetails() {
               <button
                 type="button"
                 onClick={openAddToCart}
-                className="mt-5 w-full py-3 rounded-full bg-primary-dark text-white text-[12px] font-bold hover:opacity-90"
+                className="mt-5 w-full py-3 rounded-full bg-walnut text-blush text-[12px] font-bold hover:opacity-90"
               >
                 Add to cart
               </button>
             </div>
 
             {/* Details */}
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
               {(() => {
                 const total = Number(reviewsSummary?.totalReviews);
                 const avg = Number(reviewsSummary?.averageRating);
@@ -800,27 +715,27 @@ export default function ProductDetails() {
                           fill={filled ? 'currentColor' : 'none'}
                           stroke="currentColor"
                           strokeWidth="2"
-                          className={filled ? 'text-amber-400' : 'text-gray-200'}
+                          className={filled ? 'text-amber-400' : 'text-soft'}
                         >
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.77 5.82 22 7 14.14 2 9.27l6.91-1.01L12 2Z" />
                         </svg>
                       );
                     })}
                   </div>
-                  <div className="text-[12px] font-semibold text-gray-600">
+                  <div className="text-[12px] font-semibold text-mid">
                     {Number(reviewsSummary?.averageRating).toFixed(1)}
                   </div>
                 </div>
               ) : null}
-              <p className="text-[16px] md:text-[18px] font-bold text-gray-900">{product?.name || 'Product'}</p>
+              <p className="font-serif text-[18px] md:text-[20px] font-bold text-ink">{product?.name || 'Product'}</p>
               {vendorText ? (
                 <div className="mt-1 flex items-center gap-2 flex-wrap">
-                  <p className="text-[12px] md:text-[13px] text-gray-500 font-medium">{vendorText}</p>
+                  <p className="text-[12px] md:text-[13px] text-muted font-medium">{vendorText}</p>
                   {vendorId != null ? (
                     <button
                       type="button"
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
-                      className="text-[12px] md:text-[13px] font-extrabold text-primary-dark hover:underline"
+                      className="text-[12px] md:text-[13px] font-extrabold text-ink hover:underline"
                     >
                       View Jeweller profile →
                     </button>
@@ -829,9 +744,9 @@ export default function ProductDetails() {
               ) : null}
 
               <div className="mt-2 flex items-center flex-wrap gap-2">
-                <div className="text-[20px] md:text-[22px] font-extrabold text-gray-900">₹{formatMoney(product?.price)}</div>
+                <div className="text-[20px] md:text-[22px] font-extrabold text-ink">₹{formatMoney(product?.price)}</div>
                 {Number(product?.compareAtPrice || 0) > Number(product?.price || 0) ? (
-                  <div className="text-[13px] text-gray-400 line-through">M.R.P. ₹{formatMoney(product?.compareAtPrice)}</div>
+                  <div className="text-[13px] text-muted line-through">M.R.P. ₹{formatMoney(product?.compareAtPrice)}</div>
                 ) : null}
                 {off != null ? (
                   <span className="px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
@@ -839,13 +754,13 @@ export default function ProductDetails() {
                   </span>
                 ) : null}
               </div>
-              <div className="mt-1 text-[13px] text-gray-400">(Incl. of all taxes)</div>
+              <div className="mt-1 text-[13px] text-muted">(Incl. of all taxes)</div>
 
-              <div className="mt-4 border-t border-gray-100 pt-4">
+              <div className="mt-4 border-t border-pale pt-4">
                 <button
                   type="button"
                   onClick={() => setOpenDetails((v) => !v)}
-                  className="w-full flex items-center justify-between text-[13px] font-bold text-primary-dark"
+                  className="w-full flex items-center justify-between text-[13px] font-bold text-ink"
                 >
                   <span>View product details</span>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -858,16 +773,16 @@ export default function ProductDetails() {
                     {/* Basic fields */}
                     {detailsPairs.map((x) => (
                       <div key={x.label} className="grid grid-cols-[130px_1fr] md:grid-cols-[170px_1fr] gap-3 text-[13px] md:text-[14px]">
-                        <div className="text-gray-400">{x.label}</div>
-                        <div className="text-gray-800 font-medium">{x.value}</div>
+                        <div className="text-muted">{x.label}</div>
+                        <div className="text-ink font-medium">{x.value}</div>
                       </div>
                     ))}
 
                     {/* Description */}
                     {product?.description ? (
                       <div className="grid grid-cols-[130px_1fr] md:grid-cols-[170px_1fr] gap-3 text-[13px] md:text-[14px]">
-                        <div className="text-gray-400">Description</div>
-                        <div className="text-gray-800 font-medium whitespace-pre-line">{product.description}</div>
+                        <div className="text-muted">Description</div>
+                        <div className="text-ink font-medium whitespace-pre-line">{product.description}</div>
                       </div>
                     ) : null}
 
@@ -876,8 +791,8 @@ export default function ProductDetails() {
                       <>
                         {extraPairs.map((x) => (
                           <div key={x.key} className="grid grid-cols-[130px_1fr] md:grid-cols-[170px_1fr] gap-3 text-[13px] md:text-[14px]">
-                            <div className="text-gray-400">{x.label}</div>
-                            <div className="text-gray-800 font-medium whitespace-pre-line">{x.value}</div>
+                            <div className="text-muted">{x.label}</div>
+                            <div className="text-ink font-medium whitespace-pre-line">{x.value}</div>
                           </div>
                         ))}
                       </>
@@ -886,7 +801,7 @@ export default function ProductDetails() {
                     <button
                       type="button"
                       onClick={() => setOpenDetails(false)}
-                      className="text-[13px] font-bold text-primary-dark mt-2 inline-flex items-center gap-2"
+                      className="text-[13px] font-bold text-ink mt-2 inline-flex items-center gap-2"
                     >
                       View less
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -904,9 +819,9 @@ export default function ProductDetails() {
 
           {/* Other products (category only). Hide section if none. */}
           {otherItems.length > 0 ? (
-            <div className="mt-6 bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+            <div className="mt-6 bg-white rounded-2xl border border-pale p-4 md:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-gray-900">Other products</p>
+                <p className="text-[13px] font-bold text-ink">Other products</p>
                 {canViewAll ? (
                   <button
                     type="button"
@@ -915,7 +830,7 @@ export default function ProductDetails() {
                         state: { category: product?.category ?? null },
                       })
                     }
-                    className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                    className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                   >
                     View All
                   </button>
@@ -924,7 +839,18 @@ export default function ProductDetails() {
 
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
                 {featuredFirstOtherItems.map((p) => (
-                  <OtherProductCard key={String(pickId(p) ?? Math.random())} p={p} />
+                  <ProductGridCard
+                    key={String(pickId(p) ?? Math.random())}
+                    product={p}
+                    onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
+                    onAddToCart={() => {
+                      setCartTarget(p);
+                      setCartQty(1);
+                      const variants = Array.isArray(p?.variants) ? p.variants : [];
+                      setCartVariantIdx(variants.length === 1 ? 0 : null);
+                      setCartOpen(true);
+                    }}
+                  />
                 ))}
               </div>
             </div>
@@ -935,22 +861,22 @@ export default function ProductDetails() {
       {/* Add-to-cart quantity picker */}
       {cartOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeAddToCart}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[15px] font-bold text-gray-800">Add to cart</p>
-                <p className="text-[12px] text-gray-400 mt-1 truncate">{cartTarget?.name || product?.name || 'Product'}</p>
+                <p className="text-[15px] font-bold text-ink">Add to cart</p>
+                <p className="text-[13px] md:text-[14px] text-muted mt-1 truncate">{cartTarget?.name || product?.name || 'Product'}</p>
               </div>
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50"
                 aria-label="Close"
                 disabled={cartAdding}
               >
@@ -964,7 +890,7 @@ export default function ProductDetails() {
             <div className="px-5 py-5">
               {cartVariants.length ? (
                 <div className="mb-5">
-                  <p className="text-[13px] font-semibold text-gray-700">Size Options</p>
+                  <p className="text-[13px] font-semibold text-mid">Size Options</p>
                   <div className="mt-3 space-y-2">
                     {cartVariants.map((v, idx) => {
                       const checked = Number(cartVariantIdx) === idx;
@@ -973,24 +899,24 @@ export default function ProductDetails() {
                       return (
                         <label
                           key={String(idx)}
-                          className="flex items-start gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/60 cursor-pointer"
+                          className="flex items-start gap-3 p-3 rounded-2xl border border-pale bg-cream/60 cursor-pointer"
                         >
                           <input
                             type="radio"
                             name="cart_variant"
                             checked={checked}
                             onChange={() => setCartVariantIdx(idx)}
-                            className="mt-1 w-4 h-4 text-primary-dark focus:ring-primary-dark/30"
+                            className="mt-1 w-4 h-4 text-ink focus:ring-walnut/30"
                             disabled={cartAdding}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="text-[12px] font-bold text-gray-900 truncate">{variantLabel(v)}</p>
+                              <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-gray-900">₹{formatMoney(price)}</p>
+                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
                               ) : null}
                             </div>
-                            <p className="mt-0.5 text-[11px] text-gray-500">
+                            <p className="mt-0.5 text-[11px] text-muted">
                               Select this option to add this variant.
                             </p>
                           </div>
@@ -1002,8 +928,8 @@ export default function ProductDetails() {
               ) : null}
 
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-gray-700">Quantity</p>
-                <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                <p className="text-[13px] font-semibold text-mid">Quantity</p>
+                <div className="inline-flex items-center overflow-hidden rounded-xl bg-walnut text-blush">
                   <button
                     type="button"
                     onClick={() => setCartQty((v) => Math.max(1, (Number(v) || 1) - 1))}
@@ -1034,11 +960,11 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer disabled:opacity-50"
                 disabled={cartAdding}
               >
                 Cancel
@@ -1046,7 +972,7 @@ export default function ProductDetails() {
               <button
                 type="button"
                 onClick={confirmAddToCart}
-                className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                 disabled={cartAdding || (cartVariants.length > 0 && !selectedCartVariant)}
               >
                 {cartAdding ? 'Adding…' : 'Add'}

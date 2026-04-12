@@ -989,7 +989,7 @@ export default function VendorShop() {
         ? 'bg-red-50 border-red-100 text-red-700'
         : tone === 'warn'
           ? 'bg-yellow-50 border-yellow-100 text-yellow-700'
-          : 'bg-gray-50 border-gray-100 text-gray-700';
+          : 'bg-cream border-pale text-mid';
     return (
       <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
         <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">{label}</p>
@@ -1003,17 +1003,17 @@ export default function VendorShop() {
       {/* Delete product modal */}
       {deleteProductOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeDeleteProduct}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Delete product</p>
-              <p className="mt-1 text-[12px] text-gray-500">
-                Delete <span className="font-semibold text-gray-800">{deleteProductFor?.name || 'this product'}</span>?
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Delete product</p>
+              <p className="mt-1 text-[12px] text-muted">
+                Delete <span className="font-semibold text-ink">{deleteProductFor?.name || 'this product'}</span>?
                 This cannot be undone.
               </p>
             </div>
@@ -1023,7 +1023,7 @@ export default function VendorShop() {
                   type="button"
                   onClick={closeDeleteProduct}
                   disabled={Boolean(deleteProductFor?.id) && isActionLoading(deleteProductFor.id, 'delete')}
-                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancel
                 </button>
@@ -1044,25 +1044,25 @@ export default function VendorShop() {
       {/* Vendor order details modal */}
       {orderDetailsOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeVendorOrderDetails}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[min(86vh,720px)] flex flex-col"
+            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden max-h-[min(86vh,720px)] flex flex-col"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Order details</p>
+                <p className="text-[14px] font-extrabold text-ink">Order details</p>
                 {orderDetailsFor?.displayId ? (
-                  <p className="mt-1 text-[12px] text-gray-400 truncate">Order #{String(orderDetailsFor.displayId)}</p>
+                  <p className="mt-1 text-[12px] text-muted truncate">Order #{String(orderDetailsFor.displayId)}</p>
                 ) : null}
               </div>
               <button
                 type="button"
                 onClick={closeVendorOrderDetails}
                 disabled={orderDetailsLoading}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1074,35 +1074,35 @@ export default function VendorShop() {
 
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
               {orderDetailsLoading ? (
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <div className="rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
               ) : !orderDetails ? (
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+                <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
                   Unable to load order details.
                 </div>
               ) : (
                 <>
-                  <div className="rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-extrabold text-gray-900">Items</p>
+                  <div className="rounded-2xl border border-pale p-4">
+                    <p className="text-[12px] font-extrabold text-ink">Items</p>
                     <div className="mt-3 space-y-3">
                       {extractOrderItems(orderDetails).map((it, idx) => {
                         const qty = itemQty(it);
                         const price = itemUnitPrice(it);
                         const lineTotal = qty * price;
                         return (
-                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-pale bg-white p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[12px] font-bold text-gray-900 truncate">{itemName(it)}</p>
-                                <p className="mt-1 text-[11px] text-gray-400">
-                                  Qty: <span className="font-semibold text-gray-600">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>
+                                <p className="mt-1 text-[11px] text-muted">
+                                  Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
                                 </p>
                               </div>
-                              <div className="shrink-0 text-[12px] font-extrabold text-gray-900">₹{formatMoney(lineTotal)}</div>
+                              <div className="shrink-0 text-[12px] font-extrabold text-ink">₹{formatMoney(lineTotal)}</div>
                             </div>
                           </div>
                         );
@@ -1110,49 +1110,49 @@ export default function VendorShop() {
                     </div>
                   </div>
 
-                  <div className="mt-4 rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-extrabold text-gray-900">Totals</p>
+                  <div className="mt-4 rounded-2xl border border-pale p-4">
+                    <p className="text-[12px] font-extrabold text-ink">Totals</p>
                     <div className="mt-3 space-y-2 text-[12px]">
                       {payableToVendorOf(orderDetails) != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Payable to you (after commission)</span>
-                          <span className="font-extrabold text-gray-900">₹{formatMoney(payableToVendorOf(orderDetails))}</span>
+                          <span className="font-extrabold text-ink">₹{formatMoney(payableToVendorOf(orderDetails))}</span>
                         </div>
                       ) : null}
                       {adminCommissionOf(orderDetails) != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Platform commission</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(adminCommissionOf(orderDetails))}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(adminCommissionOf(orderDetails))}</span>
                         </div>
                       ) : null}
                       {orderDetails?.totalAmount != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Total</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.totalAmount)}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.totalAmount)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.onlineAmount != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Online amount</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.onlineAmount)}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.onlineAmount)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.offlineAmount != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Offline amount</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.offlineAmount)}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.offlineAmount)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.amountPaid != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Amount paid</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.amountPaid)}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.amountPaid)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.amountDue != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Amount due</span>
-                          <span className="font-bold text-gray-900">₹{formatMoney(orderDetails.amountDue)}</span>
+                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.amountDue)}</span>
                         </div>
                       ) : null}
                     </div>
@@ -1165,35 +1165,35 @@ export default function VendorShop() {
       ) : null}
 
       {!kycAccepted ? (
-          <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
-            <div className="font-semibold text-gray-800 mb-1">KYC not accepted yet</div>
-            <div className="text-gray-600">
+          <div className="rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
+            <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
+            <div className="text-mid">
               Please complete your KYC. Once it’s accepted, you’ll be able to access the Store module.
             </div>
             <div className="mt-4">
               <button
                 type="button"
                 onClick={() => navigate('/vendor/kyc')}
-                className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
               >
                 Go to KYC
               </button>
             </div>
           </div>
         ) : canSell ? (
-          <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col">
+          <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] bg-white rounded-2xl border border-pale overflow-hidden flex flex-col">
 
 
             <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
                 {activeTab === 'orders' ? (
                   <div className="h-full min-h-0 flex flex-col">
                     <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="rounded-2xl border border-pale bg-cream p-4">
                         <div className="md:hidden">
                           <button
                             type="button"
                             onClick={() => setOrdersFiltersOpen((v) => !v)}
-                            className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+                            className="w-full px-4 py-3 rounded-2xl bg-white border border-pale text-left text-[13px] font-bold text-ink flex items-center justify-between gap-3"
                           >
                             <span className="truncate">Filters</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1205,13 +1205,13 @@ export default function VendorShop() {
                         <div className={`${ordersFiltersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Status</p>
                               <select
                                 value={orderFilterDraft.status}
                                 onChange={(e) =>
                                   setOrderFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
                                 }
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink focus:outline-none focus:border-walnut"
                               >
                                 <option value="">All</option>
                                 <option value="paid">Paid</option>
@@ -1224,38 +1224,38 @@ export default function VendorShop() {
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">From</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">From</p>
                               <input
                                 type="date"
                                 value={orderFilterDraft.from}
                                 onChange={(e) =>
                                   setOrderFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))
                                 }
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink focus:outline-none focus:border-walnut"
                               />
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">To</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">To</p>
                               <input
                                 type="date"
                                 value={orderFilterDraft.to}
                                 onChange={(e) =>
                                   setOrderFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))
                                 }
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink focus:outline-none focus:border-walnut"
                               />
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Product name</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Product name</p>
                               <input
                                 value={orderFilterDraft.productName}
                                 onChange={(e) =>
                                   setOrderFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))
                                 }
                                 placeholder="Type product name…"
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                               />
                             </div>
                           </div>
@@ -1265,7 +1265,7 @@ export default function VendorShop() {
                               type="button"
                               onClick={clearOrderFilters}
                               disabled={ordersLoading || ordersMoreLoading}
-                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                             >
                               Clear
                             </button>
@@ -1273,7 +1273,7 @@ export default function VendorShop() {
                               type="button"
                               onClick={applyOrderFilters}
                               disabled={ordersLoading || ordersMoreLoading}
-                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                             >
                               Apply
                             </button>
@@ -1286,7 +1286,7 @@ export default function VendorShop() {
                       <div className="min-h-[calc(100vh-260px)] flex flex-col">
                       {ordersLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                           </svg>
@@ -1294,13 +1294,13 @@ export default function VendorShop() {
                       ) : orders.length === 0 ? (
                         <div className="flex-1 flex items-center justify-center px-4">
                           <div className="text-center">
-                            <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                            <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                               <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                               </svg>
                             </div>
-                            <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
-                            <p className="mt-1 text-[12px] text-gray-500">
+                            <p className="mt-4 text-[14px] font-bold text-ink">No orders yet</p>
+                            <p className="mt-1 text-[12px] text-muted">
                               {orderFilters?.status || orderFilters?.from || orderFilters?.to || orderFilters?.productName
                                 ? 'No orders match your filters.'
                                 : 'Customer orders for your products will appear here.'}
@@ -1330,14 +1330,14 @@ export default function VendorShop() {
                           const statusChipClass =
                             statusRaw === 'cancelled'
                               ? 'bg-red-50 border-red-100 text-red-600'
-                              : 'bg-gray-50 border-gray-100 text-gray-600';
+                              : 'bg-cream border-pale text-mid';
                           const busy = ordersActingId != null && String(ordersActingId) === String(internalId);
                           return (
-                            <div key={String(internalId ?? idLabel ?? Math.random())} className="rounded-2xl border border-gray-100 p-4">
+                            <div key={String(internalId ?? idLabel ?? Math.random())} className="rounded-2xl border border-pale p-4">
                               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2 flex-wrap">
-                                    <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                                    <p className="text-[13px] font-bold text-ink truncate max-w-[90vw] sm:max-w-none">
                                       Order #{String(idLabel)}
                                     </p>
                                     {pay ? (
@@ -1361,9 +1361,9 @@ export default function VendorShop() {
                                       </span>
                                     ) : null}
                                   </div>
-                                  {whenText ? <p className="mt-1 text-[12px] text-gray-400">{whenText}</p> : null}
+                                  {whenText ? <p className="mt-1 text-[12px] text-muted">{whenText}</p> : null}
                                   {total != null ? (
-                                    <p className="mt-2 text-[14px] font-extrabold text-gray-900">₹{formatMoney(total)}</p>
+                                    <p className="mt-2 text-[14px] font-extrabold text-ink">₹{formatMoney(total)}</p>
                                   ) : null}
                                 </div>
                                 <div className="w-full sm:w-auto shrink-0 flex flex-wrap justify-end gap-2">
@@ -1377,7 +1377,7 @@ export default function VendorShop() {
                                       })
                                     }
                                     disabled={busy}
-                                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                                   >
                                     View details
                                   </button>
@@ -1386,7 +1386,7 @@ export default function VendorShop() {
                                       type="button"
                                       onClick={() => onVendorCancel(o)}
                                       disabled={busy}
-                                      className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                      className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                                     >
                                       Cancel
                                     </button>
@@ -1402,7 +1402,7 @@ export default function VendorShop() {
                             type="button"
                             onClick={() => loadVendorOrders({ nextPage: ordersPage + 1, append: true })}
                             disabled={ordersMoreLoading}
-                            className="mt-2 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="mt-2 w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                           >
                             {ordersMoreLoading ? 'Loading…' : 'Load more'}
                           </button>
@@ -1414,15 +1414,15 @@ export default function VendorShop() {
                   </div>
                 ) : activeTab === 'reviews' ? (
                   <div className="h-full min-h-0 flex flex-col gap-4">
-                    <div className="shrink-0 rounded-2xl border border-gray-100 bg-white p-4">
-                      <p className="text-[13px] font-bold text-gray-900">Product reviews</p>
-                      <p className="mt-1 text-[12px] text-gray-400">Select a product to view its customer reviews.</p>
+                    <div className="shrink-0 rounded-2xl border border-pale bg-white p-4">
+                      <p className="text-[13px] font-bold text-ink">Product reviews</p>
+                      <p className="mt-1 text-[12px] text-muted">Select a product to view its customer reviews.</p>
 
                       <div className="mt-4 relative">
                         <button
                           type="button"
                           onClick={() => setReviewProductOpen((v) => !v)}
-                          className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-left text-[13px] font-semibold text-gray-800 flex items-center justify-between gap-3 hover:bg-gray-50"
+                          className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-left text-[13px] font-semibold text-ink flex items-center justify-between gap-3 hover:bg-cream"
                         >
                           <span className="truncate">
                             {reviewProduct?.name ? reviewProduct.name : productsLoading ? 'Loading products…' : 'Select product'}
@@ -1433,28 +1433,28 @@ export default function VendorShop() {
                         </button>
 
                         {reviewProductOpen ? (
-                          <div className="absolute z-50 mt-2 w-full rounded-2xl border border-gray-100 bg-white shadow-xl overflow-hidden">
-                            <div className="p-3 border-b border-gray-50">
+                          <div className="absolute z-50 mt-2 w-full rounded-2xl border border-pale bg-white shadow-sm overflow-hidden">
+                            <div className="p-3 border-b border-pale">
                               <input
                                 value={reviewProductQuery}
                                 onChange={(e) => setReviewProductQuery(e.target.value)}
                                 placeholder="Type product name…"
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-gray-50 text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-cream text-[13px] font-semibold text-ink focus:outline-none focus:border-walnut"
                               />
                             </div>
                             <div className="max-h-[280px] overflow-y-auto">
                               {productsLoading ? (
-                                <div className="p-4 text-[12px] text-gray-400">Loading products…</div>
+                                <div className="p-4 text-[12px] text-muted">Loading products…</div>
                               ) : filteredReviewProducts.length === 0 ? (
                                 <div className="p-6 text-center">
-                                  <div className="mx-auto w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                                  <div className="mx-auto w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                       <circle cx="11" cy="11" r="8" />
                                       <path d="m21 21-4.3-4.3" />
                                     </svg>
                                   </div>
-                                  <p className="mt-3 text-[13px] font-bold text-gray-900">No products found</p>
-                                  <p className="mt-1 text-[12px] text-gray-500">Try a different name.</p>
+                                  <p className="mt-3 text-[13px] font-bold text-ink">No products found</p>
+                                  <p className="mt-1 text-[12px] text-muted">Try a different name.</p>
                                 </div>
                               ) : (
                                 filteredReviewProducts.map((p) => {
@@ -1468,10 +1468,10 @@ export default function VendorShop() {
                                         setReviewProductOpen(false);
                                         setReviewProductQuery('');
                                       }}
-                                      className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-b-0"
+                                      className="w-full text-left px-4 py-3 hover:bg-cream border-b border-pale last:border-b-0"
                                     >
-                                      <p className="text-[13px] font-semibold text-gray-900 truncate">{p?.name || 'Product'}</p>
-                                      <p className="text-[11px] text-gray-400 mt-0.5 truncate">{p?.category || '\u00A0'}</p>
+                                      <p className="text-[15px] font-semibold text-ink truncate">{p?.name || 'Product'}</p>
+                                      <p className="text-[11px] text-muted mt-0.5 truncate">{p?.category || '\u00A0'}</p>
                                     </button>
                                   );
                                 })
@@ -1483,34 +1483,34 @@ export default function VendorShop() {
                     </div>
 
                     {!reviewProduct ? (
-                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
                         <div className="text-center">
-                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-pale flex items-center justify-center text-muted">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                             </svg>
                           </div>
-                          <p className="mt-4 text-[14px] font-bold text-gray-900">Select a product</p>
-                          <p className="mt-1 text-[12px] text-gray-500">Choose a product to view its reviews.</p>
+                          <p className="mt-4 text-[14px] font-bold text-ink">Select a product</p>
+                          <p className="mt-1 text-[12px] text-muted">Choose a product to view its reviews.</p>
                         </div>
                       </div>
                     ) : reviewsLoading ? (
-                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                        <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                         </svg>
                       </div>
                     ) : reviewItems.length === 0 ? (
-                      <div className="flex-1 min-h-0 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                      <div className="flex-1 min-h-0 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
                         <div className="text-center">
-                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-pale flex items-center justify-center text-muted">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                             </svg>
                           </div>
-                          <p className="mt-4 text-[14px] font-bold text-gray-900">No reviews yet</p>
-                          <p className="mt-1 text-[12px] text-gray-500">This product has no customer reviews.</p>
+                          <p className="mt-4 text-[14px] font-bold text-ink">No reviews yet</p>
+                          <p className="mt-1 text-[12px] text-muted">This product has no customer reviews.</p>
                         </div>
                       </div>
                     ) : (
@@ -1529,11 +1529,11 @@ export default function VendorShop() {
                           const when = whenRaw ? new Date(whenRaw) : null;
                           const whenText = when && !Number.isNaN(when.getTime()) ? when.toLocaleString() : '';
                           return (
-                            <div key={String(id)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                            <div key={String(id)} className="rounded-2xl border border-pale bg-white p-4">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-extrabold text-gray-900 truncate">{name}</p>
-                                  {whenText ? <p className="mt-1 text-[11px] text-gray-400">{whenText}</p> : null}
+                                  <p className="text-[13px] font-extrabold text-ink truncate">{name}</p>
+                                  {whenText ? <p className="mt-1 text-[11px] text-muted">{whenText}</p> : null}
                                 </div>
                                 <div className="shrink-0 inline-flex items-center gap-1">
                                   {Array.from({ length: 5 }).map((_, i) => {
@@ -1548,7 +1548,7 @@ export default function VendorShop() {
                                         fill={filled ? 'currentColor' : 'none'}
                                         stroke="currentColor"
                                         strokeWidth="2"
-                                        className={filled ? 'text-amber-400' : 'text-gray-200'}
+                                        className={filled ? 'text-amber-400' : 'text-soft'}
                                       >
                                         <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                                       </svg>
@@ -1557,9 +1557,9 @@ export default function VendorShop() {
                                 </div>
                               </div>
                               {comment ? (
-                                <p className="mt-3 text-[12px] text-gray-700 leading-relaxed whitespace-pre-line">{comment}</p>
+                                <p className="mt-3 text-[12px] text-mid leading-relaxed whitespace-pre-line">{comment}</p>
                               ) : (
-                                <p className="mt-3 text-[12px] text-gray-400">No comment.</p>
+                                <p className="mt-3 text-[12px] text-muted">No comment.</p>
                               )}
                             </div>
                           );
@@ -1572,7 +1572,7 @@ export default function VendorShop() {
                               fetchVendorReviews({ nextPage: Number(reviewMeta?.page || 1) + 1, append: true })
                             }
                             disabled={reviewsMoreLoading}
-                            className="w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                           >
                             {reviewsMoreLoading ? 'Loading…' : 'Load more'}
                           </button>
@@ -1583,12 +1583,12 @@ export default function VendorShop() {
                 ) : activeTab === 'list' ? (
                   <div className="h-full min-h-0 overflow-y-auto pr-1">
                     <div className="shrink-0 sticky top-0 z-10 bg-white pb-4">
-                      <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
+                      <div className="rounded-2xl border border-pale bg-cream p-4">
                         <div className="md:hidden">
                           <button
                             type="button"
                             onClick={() => setProductFiltersOpen((v) => !v)}
-                            className="w-full px-4 py-3 rounded-2xl bg-white border border-gray-100 text-left text-[13px] font-bold text-gray-800 flex items-center justify-between gap-3"
+                            className="w-full px-4 py-3 rounded-2xl bg-white border border-pale text-left text-[13px] font-bold text-ink flex items-center justify-between gap-3"
                           >
                             <span className="truncate">Filters</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1600,7 +1600,7 @@ export default function VendorShop() {
                         <div className={`${productFiltersOpen ? 'block' : 'hidden'} md:block mt-3 md:mt-0`}>
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Search</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Search</p>
                               <input
                                 type="text"
                                 value={productFilterDraft.search}
@@ -1608,18 +1608,18 @@ export default function VendorShop() {
                                   setProductFilterDraft((p) => ({ ...(p || {}), search: e.target.value }))
                                 }
                                 placeholder="Search by title…"
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                               />
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Status</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Status</p>
                               <select
                                 value={productFilterDraft.status}
                                 onChange={(e) =>
                                   setProductFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))
                                 }
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink focus:outline-none focus:border-walnut"
                               >
                                 <option value="">All</option>
                                 <option value="draft">Draft</option>
@@ -1632,7 +1632,7 @@ export default function VendorShop() {
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Min price</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Min price</p>
                               <input
                                 type="number"
                                 inputMode="decimal"
@@ -1641,12 +1641,12 @@ export default function VendorShop() {
                                   setProductFilterDraft((p) => ({ ...(p || {}), minPrice: e.target.value }))
                                 }
                                 placeholder="₹ Min"
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                               />
                             </div>
 
                             <div>
-                              <p className="text-[11px] font-bold text-gray-600 mb-1">Max price</p>
+                              <p className="text-[11px] font-bold text-mid mb-1">Max price</p>
                               <input
                                 type="number"
                                 inputMode="decimal"
@@ -1655,7 +1655,7 @@ export default function VendorShop() {
                                   setProductFilterDraft((p) => ({ ...(p || {}), maxPrice: e.target.value }))
                                 }
                                 placeholder="₹ Max"
-                                className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                               />
                             </div>
                           </div>
@@ -1665,7 +1665,7 @@ export default function VendorShop() {
                               type="button"
                               onClick={clearProductFilters}
                               disabled={productsLoading}
-                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                             >
                               Clear
                             </button>
@@ -1673,7 +1673,7 @@ export default function VendorShop() {
                               type="button"
                               onClick={applyProductFilters}
                               disabled={productsLoading}
-                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                             >
                               Apply
                             </button>
@@ -1684,7 +1684,7 @@ export default function VendorShop() {
 
                     {productsLoading ? (
                       <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                         </svg>
@@ -1692,15 +1692,15 @@ export default function VendorShop() {
                     ) : products.length === 0 ? (
                       <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
                         <div className="text-center">
-                          <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                          <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                             <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <rect x="3" y="3" width="18" height="18" rx="2" />
                               <circle cx="8.5" cy="8.5" r="1.5" />
                               <path d="M21 15l-5-5L5 21" />
                             </svg>
                           </div>
-                          <p className="mt-3 text-[14px] font-bold text-gray-900">No products yet</p>
-                          <p className="mt-1 text-[12px] text-gray-500">
+                          <p className="mt-3 text-[14px] font-bold text-ink">No products yet</p>
+                          <p className="mt-1 text-[12px] text-muted">
                             {productFilters?.search || productFilters?.status || productFilters?.minPrice || productFilters?.maxPrice
                               ? 'No products match your filters.'
                               : 'Create your first product to start selling.'}
@@ -1712,22 +1712,22 @@ export default function VendorShop() {
                         {products.map((p) => (
                           <div
                             key={String(p.id ?? p._id)}
-                            className="rounded-2xl border border-gray-100 bg-white overflow-hidden"
+                            className="rounded-2xl border border-pale bg-white overflow-hidden"
                           >
                             <div className="flex flex-col md:flex-row">
-                              <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                              <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-pale overflow-hidden shrink-0 flex items-center justify-center">
                                 {Array.isArray(p.images) && p.images[0] ? (
                                   <SafeImage src={p.images[0]} alt="" loading="lazy" className="w-full h-full object-contain p-2" />
                                 ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                  <div className="w-full h-full flex items-center justify-center text-muted">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
                                   </div>
                                 )}
                               </div>
 
                               <div className="flex-1 min-w-0 p-4 md:p-5">
-                                <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">{p.name}</p>
-                                <p className="text-[12px] text-gray-500 mt-1 line-clamp-2">
+                                <p className="text-[20px] md:text-[24px] font-bold text-ink truncate">{p.name}</p>
+                                <p className="text-[12px] text-muted mt-1 line-clamp-2">
                                   {p.description || p.category || '—'}
                                 </p>
 
@@ -1742,7 +1742,7 @@ export default function VendorShop() {
                                   <button
                                     type="button"
                                     onClick={() => startEdit(p)}
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                                   >
                                     Edit
                                   </button>
@@ -1754,7 +1754,7 @@ export default function VendorShop() {
                                       String(p?.approvalStatus || '').toLowerCase() === 'pending' ||
                                       String(p?.approvalStatus || '').toLowerCase() === 'approved'
                                     }
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                   >
                                     {isActionLoading(p?.id ?? p?._id, 'submit')
                                       ? 'Submitting…'
@@ -1783,7 +1783,7 @@ export default function VendorShop() {
                             type="button"
                             onClick={() => loadProducts({ nextPage: productsPage + 1, append: true })}
                             disabled={productsLoading}
-                            className="mt-2 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="mt-2 w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                           >
                             {productsLoading ? 'Loading…' : 'Load more'}
                           </button>
@@ -1795,10 +1795,10 @@ export default function VendorShop() {
                   <div className="w-full h-full min-h-0 overflow-y-auto pr-1">
                     <div className="sticky top-0 z-10 bg-white pb-2 flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-[13px] font-bold text-gray-800">
+                        <p className="text-[13px] font-bold text-ink">
                           {editingId ? 'Update product' : 'Create product'}
                         </p>
-                        <p className="text-[12px] text-gray-400">
+                        <p className="text-[12px] text-muted">
                           {editingId ? 'Editing an existing product.' : 'Creates a draft product.'}
                         </p>
                       </div>
@@ -1806,7 +1806,7 @@ export default function VendorShop() {
                         <button
                           type="button"
                           onClick={startCreateNew}
-                          className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                         >
                           New product
                         </button>
@@ -1814,121 +1814,121 @@ export default function VendorShop() {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Name *</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Name *</label>
                         <input
                           value={createForm.name}
                           onChange={(e) => setCreateForm((p) => ({ ...p, name: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="Product name"
                         />
                       </div>
                       <div className="space-y-1.5">
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Price *</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Price *</label>
                             <input
                               type="number"
                               value={createForm.price}
                               onChange={(e) => setCreateForm((p) => ({ ...p, price: e.target.value }))}
-                              className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                               placeholder="e.g. 1999.99"
                             />
                           </div>
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Compare at price</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Compare at price</label>
                             <input
                               type="number"
                               value={createForm.compareAtPrice}
                               onChange={(e) => setCreateForm((p) => ({ ...p, compareAtPrice: e.target.value }))}
-                              className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                               placeholder="e.g. 2499.99"
                             />
                           </div>
                         </div>
                       </div>
                       <div className="space-y-1.5 md:col-span-2">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Description</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Description</label>
                         <textarea
                           rows={3}
                           value={createForm.description}
                           onChange={(e) => setCreateForm((p) => ({ ...p, description: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="Describe the product"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">SKU</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">SKU</label>
                         <input
                           value={createForm.sku}
                           onChange={(e) => setCreateForm((p) => ({ ...p, sku: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="SKU"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stock</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stock</label>
                         <div className="grid grid-cols-2 gap-3">
                           <input
                             type="number"
                             value={createForm.stock}
                             onChange={(e) => setCreateForm((p) => ({ ...p, stock: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                            className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                             placeholder="10"
                           />
                           <input
                             value={createForm.unit}
                             onChange={(e) => setCreateForm((p) => ({ ...p, unit: e.target.value }))}
-                            className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                            className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                             placeholder="pcs"
                             aria-label="Stock unit"
                           />
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Category</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Category</label>
                         <input
                           value={createForm.category}
                           onChange={(e) => setCreateForm((p) => ({ ...p, category: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="Tiles"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Collection</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Collection</label>
                         <input
                           value={createForm.brand}
                           onChange={(e) => setCreateForm((p) => ({ ...p, brand: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="Mirah"
                         />
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Weight</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Weight</label>
                         <input
                           type="number"
                           value={createForm.weight}
                           onChange={(e) => setCreateForm((p) => ({ ...p, weight: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="e.g. 5"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Weight unit</label>
+                        <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Weight unit</label>
                         <input
                           value={createForm.weightUnit}
                           onChange={(e) => setCreateForm((p) => ({ ...p, weightUnit: e.target.value }))}
-                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                          className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                           placeholder="gm"
                         />
                       </div>
                     </div>
 
-                    <div className="mt-6 rounded-2xl border border-gray-100 p-4">
+                    <div className="mt-6 rounded-2xl border border-pale p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[13px] font-bold text-gray-800">Extra fields</p>
-                          <p className="text-[12px] text-gray-400">Add custom label/value pairs for this product.</p>
+                          <p className="text-[13px] font-bold text-ink">Extra fields</p>
+                          <p className="text-[12px] text-muted">Add custom label/value pairs for this product.</p>
                         </div>
                         <button
                           type="button"
@@ -1938,7 +1938,7 @@ export default function VendorShop() {
                               extraFields: [...(p.extraFields || []), { key: '', label: '', value: '' }],
                             }))
                           }
-                          className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                          className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                         >
                           Add field
                         </button>
@@ -1947,10 +1947,10 @@ export default function VendorShop() {
                       {(createForm.extraFields || []).length ? (
                         <div className="mt-4 space-y-3">
                           {(createForm.extraFields || []).map((ef, idx) => (
-                            <div key={`ef-${idx}`} className="rounded-xl border border-gray-100 p-3">
+                            <div key={`ef-${idx}`} className="rounded-xl border border-pale p-3">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 <div className="space-y-1.5">
-                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Label</label>
+                                  <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Label</label>
                                   <input
                                     value={ef?.label ?? ''}
                                     onChange={(e) => {
@@ -1963,13 +1963,13 @@ export default function VendorShop() {
                                         ),
                                       }));
                                     }}
-                                    className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                    className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                     placeholder="e.g. Finish"
                                   />
                                 </div>
 
                                 <div className="space-y-1.5">
-                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Value</label>
+                                  <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Value</label>
                                   <input
                                     value={ef?.value ?? ''}
                                     onChange={(e) => {
@@ -1981,7 +1981,7 @@ export default function VendorShop() {
                                         ),
                                       }));
                                     }}
-                                    className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                    className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                     placeholder="e.g. polished"
                                   />
                                 </div>
@@ -2005,21 +2005,21 @@ export default function VendorShop() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-4 text-[12px] text-gray-400">No extra fields added.</div>
+                        <div className="mt-4 text-[12px] text-muted">No extra fields added.</div>
                       )}
                     </div>
 
-                    <div className="mt-6 rounded-2xl border border-gray-100 p-4">
+                    <div className="mt-6 rounded-2xl border border-pale p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[13px] font-bold text-gray-800">Images</p>
-                          <p className="text-[12px] text-gray-400">Upload product images (optional).</p>
+                          <p className="text-[13px] font-bold text-ink">Images</p>
+                          <p className="text-[12px] text-muted">Upload product images (optional).</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => imageInputRef.current?.click()}
                           disabled={imageUploading}
-                          className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-walnut text-blush text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           {imageUploading ? 'Uploading…' : 'Upload Image'}
                         </button>
@@ -2039,14 +2039,14 @@ export default function VendorShop() {
                       {createForm.images?.length ? (
                         <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
                           {createForm.images.map((url, idx) => (
-                            <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50">
+                            <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-pale bg-cream">
                               <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
                               <button
                                 type="button"
                                 onClick={() =>
                                   setCreateForm((p) => ({ ...p, images: (p.images || []).filter((_, i) => i !== idx) }))
                                 }
-                                className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 text-white flex items-center justify-center hover:bg-black/60 cursor-pointer"
+                                className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-walnut/70 text-white flex items-center justify-center hover:bg-walnut/80 cursor-pointer"
                                 aria-label="Remove"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -2055,21 +2055,21 @@ export default function VendorShop() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-4 text-[12px] text-gray-400">No images uploaded.</div>
+                        <div className="mt-4 text-[12px] text-muted">No images uploaded.</div>
                       )}
                     </div>
 
-                    <div className="mt-6 rounded-2xl border border-gray-100 p-4">
+                    <div className="mt-6 rounded-2xl border border-pale p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="text-[13px] font-bold text-gray-800">Videos</p>
-                          <p className="text-[12px] text-gray-400">Upload product videos (optional).</p>
+                          <p className="text-[13px] font-bold text-ink">Videos</p>
+                          <p className="text-[12px] text-muted">Upload product videos (optional).</p>
                         </div>
                         <button
                           type="button"
                           onClick={() => videoInputRef.current?.click()}
                           disabled={imageUploading}
-                          className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-walnut text-blush text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           {imageUploading ? 'Uploading…' : 'Upload Video'}
                         </button>
@@ -2089,14 +2089,14 @@ export default function VendorShop() {
                       {createForm.videos?.length ? (
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
                           {createForm.videos.map((url, idx) => (
-                            <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-gray-100 bg-black">
+                            <div key={`${url}-${idx}`} className="relative rounded-xl overflow-hidden border border-pale bg-ink">
                               <video src={url} className="w-full h-44 object-contain" controls />
                               <button
                                 type="button"
                                 onClick={() =>
                                   setCreateForm((p) => ({ ...p, videos: (p.videos || []).filter((_, i) => i !== idx) }))
                                 }
-                                className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 text-white flex items-center justify-center hover:bg-black/60 cursor-pointer"
+                                className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-walnut/70 text-white flex items-center justify-center hover:bg-walnut/80 cursor-pointer"
                                 aria-label="Remove"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -2105,7 +2105,7 @@ export default function VendorShop() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-4 text-[12px] text-gray-400">No videos uploaded.</div>
+                        <div className="mt-4 text-[12px] text-muted">No videos uploaded.</div>
                       )}
                     </div>
 
@@ -2114,7 +2114,7 @@ export default function VendorShop() {
                         type="button"
                         onClick={handleSave}
                         disabled={createLoading || imageUploading}
-                        className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         {createLoading ? (editingId ? 'Saving…' : 'Creating…') : (editingId ? 'Save Changes' : 'Create Product')}
                       </button>
@@ -2142,12 +2142,12 @@ export default function VendorShop() {
                           });
                         }}
                         disabled={createLoading || imageUploading}
-                        className="px-5 py-2.5 rounded-xl border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        className="px-5 py-2.5 rounded-xl border border-pale text-xs font-bold text-mid hover:bg-cream transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                       >
                         Reset
                       </button>
                     </div>
-                    <p className="mt-3 text-[11px] text-gray-400 text-center md:text-right">
+                    <p className="mt-3 text-[11px] text-muted text-center md:text-right">
                       Note: Products are created as <span className="font-semibold">draft</span>. Submit when ready for admin approval.
                     </p>
                   </div>
@@ -2155,19 +2155,19 @@ export default function VendorShop() {
               </div>
             </div>
         ) : vendorSellingLoading ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 min-h-screen flex items-center justify-center">
-            <div className="w-10 h-10 border-4 border-gray-200 border-t-primary-dark rounded-full animate-spin" aria-label="Loading" />
+          <div className="rounded-xl border border-pale bg-white p-8 min-h-screen flex items-center justify-center">
+            <div className="w-10 h-10 border-4 border-pale border-t-walnut rounded-full animate-spin" aria-label="Loading" />
           </div>
         ) : !vendorSellingEnabled ? (
-          <div className="rounded-xl border border-gray-200 bg-white p-8 min-h-[85vh] flex flex-col items-center justify-center text-center">
-            <div className="w-24 h-24 rounded-3xl bg-primary-light/20 text-primary-dark flex items-center justify-center mb-4">
+          <div className="rounded-xl border border-pale bg-white p-8 min-h-[85vh] flex flex-col items-center justify-center text-center">
+            <div className="w-24 h-24 rounded-3xl bg-primary-light/20 text-ink flex items-center justify-center mb-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 8v4l2.5 2.5" />
                 <circle cx="12" cy="12" r="9" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900">Coming soon</h3>
-            <p className="mt-1 text-[13px] text-gray-500 max-w-md">
+            <h3 className="text-lg font-semibold text-ink">Coming soon</h3>
+            <p className="mt-1 text-[13px] text-muted max-w-md">
               This feature is coming soon.
             </p>
           </div>
@@ -2178,26 +2178,26 @@ export default function VendorShop() {
               For safety, selling is enabled only after admin approval. You can submit a request to enable selling.
             </div>
 
-            <div className="mt-4 rounded-xl border border-red-100 bg-white/60 p-4 text-[13px] text-gray-700">
-              <div className="font-semibold text-gray-800">Request selling enablement</div>
+            <div className="mt-4 rounded-xl border border-red-100 bg-white/60 p-4 text-[13px] text-mid">
+              <div className="font-semibold text-ink">Request selling enablement</div>
 
               {sellingRequest?.id ? (
                 <div className="mt-2">
-                  <div className="text-[12px] text-gray-500">
+                  <div className="text-[12px] text-muted">
                     Request status:{' '}
-                    <span className="font-semibold text-gray-700">{toTitleCase(requestStatus || 'pending')}</span>
+                    <span className="font-semibold text-mid">{toTitleCase(requestStatus || 'pending')}</span>
                   </div>
                   {sellingRequest?.createdAt ? (
-                    <div className="mt-1 text-[12px] text-gray-500">
-                      Requested on: <span className="font-medium text-gray-700">{formatDate(sellingRequest.createdAt)}</span>
+                    <div className="mt-1 text-[12px] text-muted">
+                      Requested on: <span className="font-medium text-mid">{formatDate(sellingRequest.createdAt)}</span>
                     </div>
                   ) : null}
                   {sellingRequest?.reviewedAt ? (
-                    <div className="mt-1 text-[12px] text-gray-500">
-                      Reviewed on: <span className="font-medium text-gray-700">{formatDate(sellingRequest.reviewedAt)}</span>
+                    <div className="mt-1 text-[12px] text-muted">
+                      Reviewed on: <span className="font-medium text-mid">{formatDate(sellingRequest.reviewedAt)}</span>
                     </div>
                   ) : null}
-                  <div className="mt-3 text-[12px] text-gray-500">
+                  <div className="mt-3 text-[12px] text-muted">
                     {requestStatus === 'pending'
                       ? 'Your request has been submitted and is pending admin review.'
                       : requestStatus === 'rejected'
@@ -2208,7 +2208,7 @@ export default function VendorShop() {
                   </div>
                 </div>
               ) : (
-                <div className="mt-2 text-[12px] text-gray-500">
+                <div className="mt-2 text-[12px] text-muted">
                   Submit your request to the admin panel for review.
                 </div>
               )}
@@ -2218,7 +2218,7 @@ export default function VendorShop() {
                   type="button"
                   onClick={handleRaise}
                   disabled={submitting || !canRaise}
-                  className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   {submitting
                     ? 'Submitting…'
@@ -2229,7 +2229,7 @@ export default function VendorShop() {
                         : 'Submit Request'}
                 </button>
                 {!canRaise ? (
-                  <div className="mt-2 text-[11px] text-gray-500">
+                  <div className="mt-2 text-[11px] text-muted">
                     {isPending
                       ? 'Your request is pending admin review.'
                       : cooldown?.message || 'You can’t raise a new request right now.'}

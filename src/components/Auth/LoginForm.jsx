@@ -33,7 +33,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      relative w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
       ${isError ? 'border-red-500' : 'border-green-500'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -45,12 +45,12 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         )}
       </div>
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
           {isError ? 'Error' : 'Success'}
         </h4>
-        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
       </div>
-      <button onClick={handleClose} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1">
+      <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
           <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
         </svg>
@@ -83,7 +83,7 @@ const MainLayout = ({ children }) => (
 const InputField = ({ label, className, type="text", readOnly, required, error, ...props }) => (
   <div className={`w-full ${className}`}>
     {label && (
-      <label className="block text-primary-dark text-sm font-medium mb-1">
+      <label className="block text-ink text-sm font-medium mb-1">
         {label} {required && <span className="text-red-500 text-sm ml-1">*</span>}
       </label>
     )}
@@ -91,11 +91,11 @@ const InputField = ({ label, className, type="text", readOnly, required, error, 
       type={type}
       readOnly={readOnly}
       {...props}
-      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans 
-        ${readOnly ? 'bg-gray-50 text-gray-500' : 'bg-white'}
+      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans 
+        ${readOnly ? 'bg-cream text-muted' : 'bg-white'}
         ${error 
           ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-          : 'border-gray-200 focus:border-primary-dark focus:ring-primary-dark/10'
+          : 'border-pale focus:border-walnut focus:ring-walnut/10'
         }
       `}
     />
@@ -115,17 +115,17 @@ const PasswordInput = ({ placeholder, value, onChange, name, required, error }) 
           placeholder={required ? `${placeholder} *` : placeholder}
           value={value}
           onChange={onChange}
-          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-gray-700 text-[15px] lg:text-[14px] font-medium placeholder:text-gray-400 focus:outline-none focus:ring-1 transition-all font-sans pr-10
+          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans pr-10
             ${error 
               ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-              : 'border-gray-200 focus:border-primary-dark focus:ring-primary-dark/10'
+              : 'border-pale focus:border-walnut focus:ring-walnut/10'
             }
           `}
         />
         <button 
           type="button"
           onClick={() => setShow(!show)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary-dark transition-colors cursor-pointer"
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors cursor-pointer"
         >
           {show ? (
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
@@ -172,22 +172,22 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
     <div className="relative w-full" ref={wrapperRef}>
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-4 lg:px-3 lg:py-3 pr-8 rounded-[12px] border border-gray-200 text-[15px] lg:text-[14px] font-medium bg-white cursor-pointer flex items-center hover:border-gray-300 transition-colors"
+        className="w-full px-3 py-4 lg:px-3 lg:py-3 pr-8 rounded-[12px] border border-pale text-[15px] lg:text-[14px] font-medium bg-white cursor-pointer flex items-center hover:border-pale transition-colors"
       >
         <span className="truncate">{selectedLabel}</span>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
            <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
         </div>
       </div>
       
       {isOpen && (
-        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-100 rounded-[12px] shadow-xl z-50 overflow-hidden">
-          <div className="p-2 border-b border-gray-50 bg-gray-50/50">
+        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-pale rounded-[12px] shadow-sm z-50 overflow-hidden">
+          <div className="p-2 border-b border-pale bg-cream/50">
              <input 
                ref={searchInputRef}
                type="text" 
                placeholder="Search country..." 
-               className="w-full px-2 py-2 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:border-primary-dark"
+               className="w-full px-2 py-2 text-[13px] border border-pale rounded-md focus:outline-none focus:border-walnut"
                value={searchTerm}
                onChange={(e) => setSearchTerm(e.target.value)}
                onClick={(e) => e.stopPropagation()}
@@ -199,13 +199,13 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
                     <li 
                         key={idx} 
                         onClick={() => { onChange({ target: { value: opt.value } }); setIsOpen(false); setSearchTerm(""); }} 
-                        className="px-3 py-3 text-[13px] text-gray-700 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0"
+                        className="px-3 py-3 text-[13px] text-mid hover:bg-cream cursor-pointer border-b border-pale last:border-0"
                     >
                     {opt.label}
                     </li>
                 ))
             ) : (
-                <li className="px-3 py-3 text-[12px] text-gray-400 text-center italic">No results found</li>
+                <li className="px-3 py-3 text-[12px] text-muted text-center italic">No results found</li>
             )}
           </ul>
         </div>
@@ -215,7 +215,7 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
 };
 
 const VerificationTab = ({ label, isActive, onClick }) => (
-  <button onClick={onClick} className={`flex-1 flex items-center justify-center py-3.5 px-6 lg:py-2.5 rounded-full border transition-all duration-300 cursor-pointer ${isActive ? 'border-primary-dark bg-white shadow-md shadow-blue-900/5 text-primary-dark font-bold' : 'border-gray-100 bg-gray-50 text-gray-400 hover:bg-white hover:border-gray-200'}`}>
+  <button onClick={onClick} className={`flex-1 flex items-center justify-center py-3.5 px-6 lg:py-2.5 rounded-full border transition-all duration-300 cursor-pointer ${isActive ? 'border-walnut bg-white shadow-sm shadow-walnut/5 text-ink font-bold' : 'border-pale bg-cream text-muted hover:bg-white hover:border-pale'}`}>
     <span className="text-[14px]">{label}</span>
   </button>
 );
@@ -400,8 +400,8 @@ export const LoginForm = () => {
 
   const renderHeader = (title, sub) => (
     <div className="shrink-0 text-center px-4 mb-6 lg:mb-8">
-      <h1 className="font-serif text-[30px] lg:text-[36px] font-bold text-primary-dark mb-2">{title}</h1>
-      <p className="font-sans text-gray-400 text-[14px] leading-relaxed">{sub}</p>
+      <h1 className="font-serif text-[30px] lg:text-[36px] font-bold text-ink mb-2">{title}</h1>
+      <p className="font-sans text-muted text-[14px] leading-relaxed">{sub}</p>
     </div>
   );
 
@@ -478,18 +478,18 @@ export const LoginForm = () => {
                       />
                   </div>
                   <div className="flex justify-end pt-1">
-                      <button onClick={() => setView('forgot-request')} className="text-[13px] text-gray-500 font-medium hover:text-primary-dark transition-colors px-2 py-1 cursor-pointer">
+                      <button onClick={() => setView('forgot-request')} className="text-[13px] text-muted font-medium hover:text-ink transition-colors px-2 py-1 cursor-pointer">
                       Forgot Password?
                       </button>
                   </div>
               </div>
           </div>
           <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleLogin} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+            <button onClick={handleLogin} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
               {loading ? 'Logging in...' : 'Login'}
             </button>
-            <p className="text-center text-[14px] text-gray-500 mt-6 font-sans font-medium">
-              Don't have an account? <span onClick={() => navigate('/register')} className="text-primary-dark font-bold cursor-pointer hover:underline">Sign Up</span>
+            <p className="text-center text-[14px] text-muted mt-6 font-sans font-medium">
+              Don't have an account? <span onClick={() => navigate('/register')} className="text-ink font-bold cursor-pointer hover:underline">Sign Up</span>
             </p>
           </div>
         </MainLayout>
@@ -503,10 +503,10 @@ export const LoginForm = () => {
              {renderContactInputs()}
           </div>
           <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleForgotRequest} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+            <button onClick={handleForgotRequest} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
               {loading ? 'Sending Code...' : 'Send OTP'}
             </button>
-            <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Cancel</button>
+            <button onClick={() => setView('login')} className="w-full mt-4 text-muted text-[14px] hover:text-mid py-2 font-medium cursor-pointer">Cancel</button>
           </div>
         </MainLayout>
       )}
@@ -523,10 +523,10 @@ export const LoginForm = () => {
             </div>
           </div>
           <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleResetPassword} disabled={loading} className="w-full bg-primary-dark text-white py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all disabled:opacity-70 cursor-pointer">
+            <button onClick={handleResetPassword} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>
-             <button onClick={() => setView('login')} className="w-full mt-4 text-gray-500 text-[14px] hover:text-gray-700 py-2 font-medium cursor-pointer">Back to Login</button>
+             <button onClick={() => setView('login')} className="w-full mt-4 text-muted text-[14px] hover:text-mid py-2 font-medium cursor-pointer">Back to Login</button>
           </div>
         </MainLayout>
       )}

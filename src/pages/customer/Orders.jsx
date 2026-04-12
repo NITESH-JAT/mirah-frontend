@@ -472,8 +472,8 @@ export default function Orders() {
     const t = meta?.total;
     if (t == null) return null;
     return (
-      <div className="text-[12px] font-semibold text-gray-400">
-        Total: <span className="text-gray-700">{t}</span>
+      <div className="text-[12px] font-semibold text-muted">
+        Total: <span className="text-mid">{t}</span>
       </div>
     );
   }, [meta?.total]);
@@ -481,11 +481,11 @@ export default function Orders() {
   return (
     <div className="w-full h-[calc(100dvh-60px)] lg:h-[calc(100dvh-128px)] flex flex-col">
       {/* Top header card (title + count) */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+      <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-[16px] md:text-[18px] font-bold text-gray-900">My Orders</p>
-            <p className="text-[12px] text-gray-400 mt-1">Track status, cancel, and download invoices.</p>
+            <p className="text-[16px] md:text-[18px] font-bold text-ink">My Orders</p>
+            <p className="text-[12px] text-muted mt-1">Track status, cancel, and download invoices.</p>
           </div>
           <div className="flex items-center gap-3">
             {headerRight}
@@ -495,7 +495,7 @@ export default function Orders() {
                 if (filtersOpen) setFiltersOpen(false);
                 else openFilterModal();
               }}
-              className="hidden md:inline-flex px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 items-center gap-2"
+              className="hidden md:inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream items-center gap-2"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
               Filters
@@ -504,7 +504,7 @@ export default function Orders() {
             <button
               type="button"
               onClick={openFilterModal}
-              className="md:hidden w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              className="md:hidden w-10 h-10 rounded-xl border border-pale bg-white text-mid hover:bg-cream flex items-center justify-center"
               aria-label="Filters"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
@@ -515,26 +515,26 @@ export default function Orders() {
 
       {/* Orders container */}
       <div className="flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
-        <div className="mt-3 bg-white rounded-2xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="mt-3 bg-white rounded-2xl border border-pale overflow-hidden flex-1 min-h-0 flex flex-col">
           {/* Filters panel (mobile bottom-sheet, desktop right drawer) */}
           {filtersOpen ? (
             <div
-              className="fixed inset-0 z-[80] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
+              className="fixed inset-0 z-[80] bg-ink/25 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
               onMouseDown={() => setFiltersOpen(false)}
             >
               <div
-                className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
+                className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[15px] font-bold text-gray-800">Filters</p>
-                    <p className="text-[12px] text-gray-400 mt-1">Refine results</p>
+                    <p className="text-[15px] font-bold text-ink">Filters</p>
+                    <p className="text-[12px] text-muted mt-1">Refine results</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setFiltersOpen(false)}
-                    className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                    className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer"
                     aria-label="Close"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -544,11 +544,11 @@ export default function Orders() {
                 <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
                   <div className="grid grid-cols-1 gap-4">
                     <div className="space-y-1.5">
-                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Status</label>
+                      <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Status</label>
                       <select
                         value={filterDraft.status}
                         onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), status: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-ink bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                       >
                         <option value="">All</option>
                         <option value="paid">Paid</option>
@@ -561,43 +561,43 @@ export default function Orders() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">From</label>
+                      <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">From</label>
                       <input
                         type="date"
                         value={filterDraft.from}
                         onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), from: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-ink bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">To</label>
+                      <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">To</label>
                       <input
                         type="date"
                         value={filterDraft.to}
                         onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), to: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-ink bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                       />
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Product name</label>
+                      <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Product name</label>
                       <input
                         value={filterDraft.productName}
                         onChange={(e) => setFilterDraft((p) => ({ ...(p || {}), productName: e.target.value }))}
                         placeholder="Type product name…"
-                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-800 bg-white border-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-ink bg-white border-pale placeholder:text-muted focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                   <button
                     type="button"
                     onClick={clearFilters}
                     disabled={loading || moreLoading}
-                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer disabled:opacity-50"
                   >
                     Clear
                   </button>
@@ -605,7 +605,7 @@ export default function Orders() {
                     type="button"
                     onClick={applyFilters}
                     disabled={loading || moreLoading}
-                    className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                    className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                   >
                     Apply
                   </button>
@@ -618,7 +618,7 @@ export default function Orders() {
         <div className="min-h-[calc(100vh-260px)] flex flex-col">
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
@@ -626,13 +626,13 @@ export default function Orders() {
         ) : empty ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                 </svg>
               </div>
-              <p className="mt-4 text-[14px] font-bold text-gray-900">No orders yet</p>
-              <p className="mt-1 text-[12px] text-gray-500">
+              <p className="mt-4 text-[14px] font-bold text-ink">No orders yet</p>
+              <p className="mt-1 text-[12px] text-muted">
                 {filters?.status || filters?.from || filters?.to || filters?.productName
                   ? 'No orders match your filters.'
                   : 'Shop products and place an order to see it here.'}
@@ -640,7 +640,7 @@ export default function Orders() {
               <button
                 type="button"
                 onClick={() => navigate('/customer/shopping')}
-                className="mt-4 inline-flex px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                className="mt-4 inline-flex px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
               >
                 Go to shop
               </button>
@@ -672,14 +672,14 @@ export default function Orders() {
               const statusChipClass =
                 statusRaw === 'cancelled'
                   ? 'bg-red-50 border-red-100 text-red-600'
-                  : 'bg-gray-50 border-gray-100 text-gray-600';
+                  : 'bg-cream border-pale text-mid';
               const busy = actingId != null && String(actingId) === String(idForActions);
               return (
-                <div key={String(idForActions || Math.random())} className="rounded-2xl border border-gray-100 p-4">
+                <div key={String(idForActions || Math.random())} className="rounded-2xl border border-pale p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                        <p className="text-[13px] font-bold text-ink truncate max-w-[90vw] sm:max-w-none">
                           Order #{String(idLabel)}
                         </p>
                         {pay ? (
@@ -699,9 +699,9 @@ export default function Orders() {
                           </span>
                         ) : null}
                       </div>
-                      {whenText ? <p className="mt-1 text-[12px] text-gray-400">{whenText}</p> : null}
+                      {whenText ? <p className="mt-1 text-[12px] text-muted">{whenText}</p> : null}
                       {total != null ? (
-                        <p className="mt-2 text-[14px] font-extrabold text-gray-900">₹{formatMoney(total)}</p>
+                        <p className="mt-2 text-[14px] font-extrabold text-ink">₹{formatMoney(total)}</p>
                       ) : null}
                     </div>
                     <div className="w-full sm:w-auto shrink-0 flex flex-wrap justify-end gap-2">
@@ -709,7 +709,7 @@ export default function Orders() {
                         type="button"
                         onClick={() => openDetails({ internalId, displayId: idLabel })}
                         disabled={busy}
-                        className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                       >
                         View details
                       </button>
@@ -717,7 +717,7 @@ export default function Orders() {
                         type="button"
                         onClick={() => onInvoice({ ...o, id: idForActions })}
                         disabled={busy}
-                        className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                       >
                         Invoice
                       </button>
@@ -729,7 +729,7 @@ export default function Orders() {
                             navigate('/customer/messages', { state: { openSupport: true, supportPrefill: msg } });
                           }}
                           disabled={busy}
-                          className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-primary-dark hover:bg-gray-50 disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-ink hover:bg-cream disabled:opacity-50"
                         >
                           Raise dispute
                         </button>
@@ -739,7 +739,7 @@ export default function Orders() {
                           type="button"
                           onClick={() => onCancel({ ...o, id: idForActions })}
                           disabled={busy}
-                          className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                         >
                           Cancel
                         </button>
@@ -755,7 +755,7 @@ export default function Orders() {
                 type="button"
                 onClick={() => load({ nextPage: page + 1, append: true })}
                 disabled={moreLoading}
-                className="mt-2 w-full py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="mt-2 w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
               >
                 {moreLoading ? 'Loading…' : 'Load more'}
               </button>
@@ -770,17 +770,17 @@ export default function Orders() {
       {/* Order details modal */}
       {detailsOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeDetails}
         >
           <div
-            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[15px] font-extrabold text-gray-900">Order details</p>
-                <p className="text-[12px] text-gray-400 mt-1 truncate">
+                <p className="text-[15px] font-extrabold text-ink">Order details</p>
+                <p className="text-[12px] text-muted mt-1 truncate">
                   Order #{String(detailsFor?.displayId ?? detailsFor?.internalId ?? '')}
                 </p>
               </div>
@@ -788,7 +788,7 @@ export default function Orders() {
                 type="button"
                 onClick={closeDetails}
                 disabled={detailsLoading}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -800,14 +800,14 @@ export default function Orders() {
 
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
               {detailsLoading ? (
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <div className="rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
               ) : !detailsOrder ? (
-                <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+                <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
                   Unable to load order details.
                 </div>
               ) : (
@@ -820,8 +820,8 @@ export default function Orders() {
                     </div>
                   ) : null}
 
-                  <div className="rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-extrabold text-gray-900">Products</p>
+                  <div className="rounded-2xl border border-pale p-4">
+                    <p className="text-[12px] font-extrabold text-ink">Products</p>
                     <div className="mt-3 space-y-3">
                       {extractOrderItems(detailsOrder).map((it, idx) => {
                         const qty = itemQty(it);
@@ -829,18 +829,18 @@ export default function Orders() {
                         const lineTotal = qty * price;
                         const variantsText = variantTextOf(itemVariants(it));
                         return (
-                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-pale bg-white p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[12px] font-bold text-gray-900 truncate">{itemName(it)}</p>
+                                <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>
                                 {variantsText ? (
-                                  <p className="mt-1 text-[11px] text-gray-500 font-semibold truncate">{variantsText}</p>
+                                  <p className="mt-1 text-[11px] text-muted font-semibold truncate">{variantsText}</p>
                                 ) : null}
-                                <p className="mt-1 text-[11px] text-gray-400">
-                                  Qty: <span className="font-semibold text-gray-600">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                <p className="mt-1 text-[11px] text-muted">
+                                  Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
                                 </p>
                               </div>
-                              <div className="shrink-0 text-[12px] font-extrabold text-gray-900">₹{formatMoney(lineTotal)}</div>
+                              <div className="shrink-0 text-[12px] font-extrabold text-ink">₹{formatMoney(lineTotal)}</div>
                             </div>
                           </div>
                         );
@@ -851,19 +851,19 @@ export default function Orders() {
                   {String(detailsOrder?.status ?? detailsOrder?.orderStatus ?? detailsOrder?.order_status ?? '')
                     .trim()
                     .toLowerCase() === 'delivered' ? (
-                    <div className="mt-4 rounded-2xl border border-gray-100 p-4">
-                      <p className="text-[12px] font-extrabold text-gray-900">Reviews</p>
-                      <p className="mt-1 text-[11px] text-gray-400">Rate products from this order. You can update anytime.</p>
+                    <div className="mt-4 rounded-2xl border border-pale p-4">
+                      <p className="text-[12px] font-extrabold text-ink">Reviews</p>
+                      <p className="mt-1 text-[11px] text-muted">Rate products from this order. You can update anytime.</p>
 
                       {orderReviewLoading ? (
-                        <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                        <div className="mt-3 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                           </svg>
                         </div>
                       ) : orderReviewItems.length === 0 ? (
-                        <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[12px] text-gray-600">
+                        <div className="mt-3 rounded-2xl border border-pale bg-cream p-6 text-[12px] text-mid">
                           No reviewable products found for this order.
                         </div>
                       ) : (
@@ -875,25 +875,25 @@ export default function Orders() {
                           const draft = key ? reviewDrafts?.[key] : null;
                           const img = Array.isArray(p?.images) && p.images[0] ? p.images[0] : null;
                           return (
-                            <div key={String(pid ?? idx)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                            <div key={String(pid ?? idx)} className="rounded-2xl border border-pale bg-white p-4">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0 flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
+                                  <div className="w-12 h-12 rounded-2xl bg-cream border border-pale overflow-hidden shrink-0">
                                     <SafeImage src={img} alt="" className="w-full h-full object-contain p-1 bg-white" loading="lazy" />
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-[12px] font-bold text-gray-900 truncate">{p?.name || 'Product'}</p>
+                                    <p className="text-[14px] font-bold text-ink truncate">{p?.name || 'Product'}</p>
                                     {draft?.hasReview ? (
-                                      <p className="mt-1 text-[11px] text-gray-400">Already reviewed • Update anytime</p>
+                                      <p className="mt-1 text-[11px] text-muted">Already reviewed • Update anytime</p>
                                     ) : (
-                                      <p className="mt-1 text-[11px] text-gray-400">Not reviewed yet</p>
+                                      <p className="mt-1 text-[11px] text-muted">Not reviewed yet</p>
                                     )}
                                   </div>
                                 </div>
                               </div>
 
-                              <div className="mt-4 border-t border-gray-100 pt-4">
-                                <p className="text-[11px] font-extrabold text-gray-700">Your rating</p>
+                              <div className="mt-4 border-t border-pale pt-4">
+                                <p className="text-[11px] font-extrabold text-mid">Your rating</p>
                                 <div className="mt-2 inline-flex items-center gap-1">
                                   {Array.from({ length: 5 }).map((_, i) => {
                                     const val = i + 1;
@@ -904,7 +904,7 @@ export default function Orders() {
                                         type="button"
                                         onClick={() => pid && setDraft(pid, { rating: val })}
                                         disabled={Boolean(draft?.submitting)}
-                                        className={`p-1 rounded-md ${filled ? 'text-amber-400' : 'text-gray-200'} disabled:opacity-50`}
+                                        className={`p-1 rounded-md ${filled ? 'text-amber-400' : 'text-soft'} disabled:opacity-50`}
                                         aria-label={`Rate ${val} star${val === 1 ? '' : 's'}`}
                                       >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -921,18 +921,18 @@ export default function Orders() {
                                     onChange={(e) => pid && setDraft(pid, { comment: e.target.value })}
                                     disabled={Boolean(draft?.submitting)}
                                     rows={3}
-                                    className="mt-1 w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-medium text-gray-700 focus:outline-none focus:border-primary-dark disabled:opacity-60"
+                                    className="mt-1 w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[12px] font-medium text-mid focus:outline-none focus:border-walnut disabled:opacity-60"
                                     placeholder="Review (optional)"
                                   />
                                 </div>
 
-                                <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
+                                <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-ink select-none">
                                   <input
                                     type="checkbox"
                                     checked={Boolean(draft?.isAnonymous)}
                                     onChange={(e) => pid && setDraft(pid, { isAnonymous: e.target.checked })}
                                     disabled={Boolean(draft?.submitting)}
-                                    className="w-4 h-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark/30"
+                                    className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                                   />
                                   Post as anonymous
                                 </label>
@@ -942,7 +942,7 @@ export default function Orders() {
                                     type="button"
                                     onClick={() => pid && submitReview(pid)}
                                     disabled={Boolean(draft?.submitting)}
-                                    className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                                    className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
                                   >
                                     {draft?.submitting ? 'Saving…' : draft?.hasReview ? 'Update' : 'Submit'}
                                   </button>
@@ -956,19 +956,19 @@ export default function Orders() {
                     </div>
                   ) : null}
 
-                  <div className="mt-4 rounded-2xl border border-gray-100 p-4">
-                    <p className="text-[12px] font-extrabold text-gray-900">Amount</p>
+                  <div className="mt-4 rounded-2xl border border-pale p-4">
+                    <p className="text-[12px] font-extrabold text-ink">Amount</p>
                     <div className="mt-3 space-y-2 text-[12px]">
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Total</span>
-                        <span className="font-extrabold text-gray-900">
+                        <span className="font-extrabold text-ink">
                           ₹{formatMoney(detailsOrder?.totalAmount ?? detailsOrder?.total ?? detailsOrder?.amount ?? detailsOrder?.grandTotal ?? 0)}
                         </span>
                       </div>
                       {detailsOrder?.amountDue != null || detailsOrder?.amount_due != null ? (
-                        <div className="flex items-center justify-between text-gray-600">
+                        <div className="flex items-center justify-between text-mid">
                           <span>Amount due</span>
-                          <span className="font-extrabold text-gray-900">
+                          <span className="font-extrabold text-ink">
                             ₹{formatMoney(detailsOrder?.amountDue ?? detailsOrder?.amount_due ?? 0)}
                           </span>
                         </div>
@@ -979,12 +979,12 @@ export default function Orders() {
               )}
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={closeDetails}
                 disabled={detailsLoading}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
               >
                 Close
               </button>

@@ -5,7 +5,7 @@ import { addressService } from '../../services/addressService';
 
 const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text", inputMode }) => (
   <div className="space-y-1.5">
-    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">{label}</label>
+    <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{label}</label>
     <input
       type={type}
       name={name}
@@ -14,20 +14,20 @@ const InputField = ({ label, value, onChange, name, readOnly, placeholder, type 
       readOnly={readOnly}
       placeholder={placeholder}
       inputMode={inputMode}
-      className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 transition-all
-        ${readOnly ? 'bg-[#F8F9FA] border-gray-100 text-gray-500' : 'bg-white border-gray-200 focus:border-primary-dark'}
+      className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 transition-all
+        ${readOnly ? 'bg-cream border-pale text-muted' : 'bg-white border-pale focus:border-walnut'}
       `}
     />
   </div>
 );
 
 const CheckboxField = ({ checked, onChange, label }) => (
-  <label className="flex items-center gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
+  <label className="flex items-center gap-2 text-[12px] text-ink cursor-pointer select-none">
     <input
       type="checkbox"
       checked={Boolean(checked)}
       onChange={(e) => onChange(e.target.checked)}
-      className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+      className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
     />
     <span className="font-medium">{label}</span>
   </label>
@@ -35,19 +35,19 @@ const CheckboxField = ({ checked, onChange, label }) => (
 
 const MobileNumberField = ({ countryCode, phone }) => (
   <div className="space-y-1.5">
-    <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Mobile Number</label>
+    <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Mobile Number</label>
     <div className="flex gap-3">
       <input
         type="text"
         value={countryCode || ''}
         readOnly
-        className="w-[110px] px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-[#F8F9FA] border-gray-100 text-gray-500"
+        className="w-[110px] px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-cream border-pale text-muted"
       />
       <input
         type="text"
         value={phone || ''}
         readOnly
-        className="flex-1 px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-[#F8F9FA] border-gray-100 text-gray-500"
+        className="flex-1 px-4 py-3 rounded-xl border text-sm font-semibold focus:outline-none transition-all bg-cream border-pale text-muted"
       />
     </div>
   </div>
@@ -273,7 +273,7 @@ export default function Profile() {
     return (
       <div className="w-full pb-10 animate-fade-in">
         <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
@@ -394,11 +394,11 @@ export default function Profile() {
     <div className="w-full pb-10 animate-fade-in">
       
       {/* 1. BASIC INFO CARD */}
-      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-6">
+      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-6">
         <div className="flex items-center justify-between mb-6 lg:mb-8">
-          <h2 className="font-sans text-lg font-bold text-gray-800">Basic Information</h2>
+          <h2 className="font-sans text-lg font-bold text-ink">Basic Information</h2>
           {!isEditing ? (
-            <button onClick={() => setIsEditing(true)} className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer">
+            <button onClick={() => setIsEditing(true)} className="px-4 py-1.5 rounded-full border border-pale text-xs font-semibold text-mid hover:bg-cream transition-colors cursor-pointer">
               Edit Profile
             </button>
           ) : (
@@ -406,7 +406,7 @@ export default function Profile() {
                 <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 rounded-full border border-red-100 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors cursor-pointer">
                 Cancel
                 </button>
-                <button onClick={handleUpdate} className="px-4 py-1.5 rounded-full bg-primary-dark text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer">
+                <button onClick={handleUpdate} className="px-4 py-1.5 rounded-full bg-walnut text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer">
                 Save Changes
                 </button>
             </div>
@@ -416,7 +416,7 @@ export default function Profile() {
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Avatar Section */}
           <div className="w-full lg:w-auto flex flex-col items-center gap-3">
-            <div className="w-24 h-24 rounded-full p-1 border border-gray-100 relative group">
+            <div className="w-24 h-24 rounded-full p-1 border border-pale relative group">
               <img 
                 src={
                   profile?.profileImageUrl ||
@@ -437,13 +437,13 @@ export default function Profile() {
               type="button"
               onClick={() => document.getElementById('profile_picture_input')?.click()}
               disabled={pictureUploading}
-              className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-4 py-1.5 rounded-full border border-pale text-xs font-semibold text-mid hover:bg-cream transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {pictureUploading ? 'Uploading…' : 'Change Photo'}
             </button>
             <div className="text-center">
-              <h3 className="font-bold text-gray-800 text-lg">{profile.firstName} {profile.lastName}</h3>
-              <p className="text-xs text-gray-400 capitalize">{isJeweller ? 'Jeweller' : 'Customer'}</p>
+              <h3 className="font-bold text-ink text-lg">{profile.firstName} {profile.lastName}</h3>
+              <p className="text-xs text-muted capitalize">{isJeweller ? 'Jeweller' : 'Customer'}</p>
             </div>
           </div>
 
@@ -468,9 +468,9 @@ export default function Profile() {
       </div>
 
       {/* 2. CHANGE PASSWORD */}
-      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-8">
+      <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-8">
         <div className="flex items-center justify-between mb-6">
-          <h3 className="font-sans text-lg font-bold text-gray-800">Change Password</h3>
+          <h3 className="font-sans text-lg font-bold text-ink">Change Password</h3>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 items-start">
@@ -513,7 +513,7 @@ export default function Profile() {
           <button
             onClick={handleChangePassword}
             disabled={passwordLoading}
-            className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
             {passwordLoading ? 'Saving...' : 'Update Password'}
           </button>
@@ -522,13 +522,13 @@ export default function Profile() {
 
       {/* 3. ADDRESSES (CUSTOMER ONLY) */}
       {isCustomer ? (
-        <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-gray-100 mb-8">
+        <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="font-sans text-lg font-bold text-gray-800">Addresses</h3>
+            <h3 className="font-sans text-lg font-bold text-ink">Addresses</h3>
             <button
               type="button"
               onClick={() => openCreateAddress(addressTab)}
-              className="px-4 py-1.5 rounded-full border border-gray-200 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors cursor-pointer"
+              className="px-4 py-1.5 rounded-full border border-pale text-xs font-semibold text-mid hover:bg-cream transition-colors cursor-pointer"
             >
               Add Address
             </button>
@@ -538,12 +538,12 @@ export default function Profile() {
             <div className="hidden lg:block w-[168px]" />
 
             <div className="flex-1 w-full">
-              <div className="inline-flex rounded-2xl border border-gray-100 bg-gray-50 p-1">
+              <div className="inline-flex rounded-2xl border border-pale bg-cream p-1">
                 <button
                   type="button"
                   onClick={() => setAddressTab('billing')}
                   className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer ${
-                    addressTab === 'billing' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    addressTab === 'billing' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                   }`}
                 >
                   Billing
@@ -552,7 +552,7 @@ export default function Profile() {
                   type="button"
                   onClick={() => setAddressTab('shipping')}
                   className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer ${
-                    addressTab === 'shipping' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    addressTab === 'shipping' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                   }`}
                 >
                   Shipping
@@ -561,26 +561,26 @@ export default function Profile() {
 
               <div className="mt-5">
                 {addressesLoading ? (
-                  <div className="text-[13px] text-gray-400">Loading addresses…</div>
+                  <div className="text-[13px] text-muted">Loading addresses…</div>
                 ) : (addressesByType?.[addressTab] || []).length === 0 ? (
-                  <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                  <div className="rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
                     No {addressTab} addresses yet. Add one to continue.
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {(addressesByType?.[addressTab] || []).map((a) => (
-                      <div key={String(a.id)} className="rounded-2xl border border-gray-100 p-4 bg-white">
+                      <div key={String(a.id)} className="rounded-2xl border border-pale p-4 bg-white">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-[13px] font-bold text-gray-800 truncate">{a.name || 'Address'}</p>
+                              <p className="text-[13px] font-bold text-ink truncate">{a.name || 'Address'}</p>
                               {a.isDefault ? (
                                 <span className="px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-[11px] font-bold text-green-700">
                                   Default
                                 </span>
                               ) : null}
                             </div>
-                            <p className="text-[12px] text-gray-500 mt-1">
+                            <p className="text-[12px] text-muted mt-1">
                               {[
                                 a.address,
                                 a.addressLine2,
@@ -593,7 +593,7 @@ export default function Profile() {
                                 .join(', ')}
                             </p>
                             {(a.countryCode || a.phone) ? (
-                              <p className="text-[12px] text-gray-400 mt-1">
+                              <p className="text-[12px] text-muted mt-1">
                                 {`${a.countryCode || ''} ${a.phone || ''}`.trim()}
                               </p>
                             ) : null}
@@ -604,7 +604,7 @@ export default function Profile() {
                               <button
                                 type="button"
                                 onClick={() => setDefaultAddress(a)}
-                                className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                className="px-3 py-1.5 rounded-lg border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                               >
                                 Set default
                               </button>
@@ -612,7 +612,7 @@ export default function Profile() {
                             <button
                               type="button"
                               onClick={() => openEditAddress(a)}
-                              className="px-3 py-1.5 rounded-lg border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                              className="px-3 py-1.5 rounded-lg border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                             >
                               Edit
                             </button>
@@ -635,21 +635,21 @@ export default function Profile() {
 
           {addressModalOpen ? (
             <div
-              className="fixed inset-0 z-[80] bg-black/40 flex items-end sm:items-center justify-center px-3 sm:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+              className="fixed inset-0 z-[80] bg-ink/25 flex items-end sm:items-center justify-center px-3 sm:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
               onMouseDown={() => {
                 if (!addressSaving) setAddressModalOpen(false);
               }}
             >
               <div
-                className="w-full max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+                className="w-full max-w-xl bg-white rounded-t-2xl sm:rounded-2xl shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+                <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[15px] font-bold text-gray-800">
+                    <p className="text-[15px] font-bold text-ink">
                       {addressEditingId ? 'Edit address' : 'Add address'}
                     </p>
-                    <p className="text-[12px] text-gray-400 mt-1">
+                    <p className="text-[12px] text-muted mt-1">
                       {addressForm.type === 'billing' ? 'Billing address' : 'Shipping address'}
                     </p>
                   </div>
@@ -657,7 +657,7 @@ export default function Profile() {
                     type="button"
                     onClick={() => setAddressModalOpen(false)}
                     disabled={addressSaving}
-                    className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     aria-label="Close"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -667,14 +667,14 @@ export default function Profile() {
                 <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5 md:col-span-2">
-                    <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Type</label>
+                    <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Type</label>
 
-                    <div className="mt-2 inline-flex rounded-2xl border border-gray-100 bg-gray-50 p-1">
+                    <div className="mt-2 inline-flex rounded-2xl border border-pale bg-cream p-1">
                       <button
                         type="button"
                         onClick={() => setAddressForm((p) => ({ ...p, type: 'billing' }))}
                         className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer ${
-                          addressForm.type === 'billing' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          addressForm.type === 'billing' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                         }`}
                       >
                         Billing
@@ -683,7 +683,7 @@ export default function Profile() {
                         type="button"
                         onClick={() => setAddressForm((p) => ({ ...p, type: 'shipping' }))}
                         className={`px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer ${
-                          addressForm.type === 'shipping' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          addressForm.type === 'shipping' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                         }`}
                       >
                         Shipping
@@ -779,12 +779,12 @@ export default function Profile() {
                 </div>
                 </div>
 
-                <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                   <button
                     type="button"
                     onClick={() => setAddressModalOpen(false)}
                     disabled={addressSaving}
-                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -792,7 +792,7 @@ export default function Profile() {
                     type="button"
                     onClick={saveAddress}
                     disabled={addressSaving}
-                    className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                   >
                     {addressSaving ? 'Saving…' : 'Save'}
                   </button>
@@ -828,30 +828,30 @@ export default function Profile() {
       {/* Delete Account Modal */}
       {deleteAccountModalOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-center justify-center px-3 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-center justify-center px-3 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => !deleteAccountLoading && setDeleteAccountModalOpen(false)}
         >
           <div
-            className="w-full max-w-sm bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-sm bg-white rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Delete Account</p>
-              <p className="mt-1 text-[12px] text-gray-400">This action cannot be undone</p>
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Delete Account</p>
+              <p className="mt-1 text-[12px] text-muted">This action cannot be undone</p>
             </div>
 
             <div className="px-5 py-4">
-              <p className="text-[13px] text-gray-700">
+              <p className="text-[13px] text-mid">
                 Are you sure you want to delete your account? This will permanently remove all your data, addresses, and orders.
               </p>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-50 flex gap-2">
+            <div className="px-5 py-4 border-t border-pale flex gap-2">
               <button
                 type="button"
                 onClick={() => setDeleteAccountModalOpen(false)}
                 disabled={deleteAccountLoading}
-                className="flex-1 px-4 py-3 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="flex-1 px-4 py-3 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
               >
                 Cancel
               </button>

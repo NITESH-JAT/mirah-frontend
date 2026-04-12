@@ -78,7 +78,7 @@ function myProjectsIcon() {
 
 function Thumbnail({ src, alt }) {
   return (
-    <div className="relative h-40 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 overflow-hidden">
+    <div className="relative h-40 bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
       <SafeImage src={src} alt={alt} className="absolute inset-0 w-full h-full object-cover" />
     </div>
   );
@@ -215,14 +215,14 @@ export default function VendorAssignedProjects() {
   if (!kycAccepted) {
     return (
       <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
-          <div className="font-semibold text-gray-900 mb-1">KYC not accepted yet</div>
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
+          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
           <div>Please complete your KYC to access assigned projects.</div>
           <div className="mt-4">
             <button
               type="button"
               onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
               Go to KYC
             </button>
@@ -242,16 +242,16 @@ export default function VendorAssignedProjects() {
 
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
-      <div className="sticky top-0 z-30 isolate bg-[#F8F9FA] -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-gray-100/60">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="relative flex-1 min-w-[160px] max-w-full">
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search projects…"
-              className="w-full bg-white border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+              className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
@@ -264,7 +264,7 @@ export default function VendorAssignedProjects() {
               <button
                 type="button"
                 onClick={() => setOpenSort((v) => !v)}
-                className="px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 inline-flex items-center gap-2"
+                className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
               >
                 <span className="hidden xs:inline">Sort</span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -273,7 +273,7 @@ export default function VendorAssignedProjects() {
               </button>
               {openSort ? (
                 <div
-                  className="absolute right-0 mt-2 w-64 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-40"
+                  className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   {sortOptions.map((opt) => (
@@ -284,8 +284,8 @@ export default function VendorAssignedProjects() {
                         setSortKey(opt.id);
                         setOpenSort(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-gray-50 ${
-                        sortKey === opt.id ? 'text-primary-dark' : 'text-gray-700'
+                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-cream ${
+                        sortKey === opt.id ? 'text-ink' : 'text-mid'
                       }`}
                     >
                       {opt.label}
@@ -299,7 +299,7 @@ export default function VendorAssignedProjects() {
               type="button"
               onClick={() => load({ nextPage: currentPage })}
               disabled={loading}
-              className="w-10 h-10 rounded-xl border border-gray-100 bg-white flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-10 h-10 rounded-xl border border-pale bg-white flex items-center justify-center text-muted hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Refresh"
             >
               <svg
@@ -324,7 +324,7 @@ export default function VendorAssignedProjects() {
       <div className="mt-5 min-h-[calc(100vh-260px)] flex flex-col">
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
@@ -332,11 +332,11 @@ export default function VendorAssignedProjects() {
         ) : empty ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 {myProjectsIcon()}
               </div>
-              <p className="mt-3 text-[14px] font-bold text-gray-900">No assigned projects yet</p>
-              <p className="mt-1 text-[12px] text-gray-500">Accepted assignments will appear here.</p>
+              <p className="mt-3 text-[14px] font-bold text-ink">No assigned projects yet</p>
+              <p className="mt-1 text-[12px] text-muted">Accepted assignments will appear here.</p>
             </div>
           </div>
         ) : (
@@ -345,26 +345,26 @@ export default function VendorAssignedProjects() {
               const agreedAmountNum = Number(x?.agreedAmount ?? NaN);
               const agreedDaysNum = Number(x?.agreedDaysToComplete ?? NaN);
               return (
-                <div key={String(x.id)} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <div key={String(x.id)} className="bg-white rounded-2xl border border-pale overflow-hidden">
                   <div className="relative">
                     <Thumbnail src={x.thumbnailUrl} alt={x.title} />
                   </div>
                   <div className="p-4">
-                    <p className="text-[14px] font-extrabold text-gray-900 truncate">{x.title}</p>
+                    <p className="text-[14px] font-extrabold text-ink truncate">{x.title}</p>
 
-                    <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
+                    <div className="mt-3 space-y-1.5 text-[12px] text-mid">
                       {x.customerName ? (
                         <p>
-                          Customer: <span className="font-extrabold text-gray-900">{x.customerName}</span>
+                          Customer: <span className="font-extrabold text-ink">{x.customerName}</span>
                         </p>
                       ) : null}
                       <p>
                         Agreed No. of Duration:{' '}
-                        <span className="font-extrabold text-gray-900">{Number.isFinite(agreedDaysNum) && agreedDaysNum > 0 ? `${agreedDaysNum} days` : '—'}</span>
+                        <span className="font-extrabold text-ink">{Number.isFinite(agreedDaysNum) && agreedDaysNum > 0 ? `${agreedDaysNum} days` : '—'}</span>
                       </p>
                       <p>
                         Agreed Amount:{' '}
-                        <span className="font-extrabold text-gray-900">
+                        <span className="font-extrabold text-ink">
                           {Number.isFinite(agreedAmountNum) && agreedAmountNum > 0 ? `₹ ${formatMoney(agreedAmountNum)}` : '—'}
                         </span>
                       </p>
@@ -374,7 +374,7 @@ export default function VendorAssignedProjects() {
                       <button
                         type="button"
                         onClick={() => navigate(`/vendor/projects/${x.id}`)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
+                        className="w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
                       >
                         Manage Project
                       </button>
@@ -404,14 +404,14 @@ export default function VendorAssignedProjects() {
                     const next = Math.max(1, currentPage - 1);
                     load({ nextPage: next });
                   }}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Prev
                 </button>
 
-                <div className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] text-gray-500 shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-gray-800">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-gray-800">{totalPages}</span>
+                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
+                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
+                  <span className="font-semibold text-ink">{totalPages}</span>
                 </div>
 
                 <button
@@ -421,7 +421,7 @@ export default function VendorAssignedProjects() {
                     const next = currentPage + 1;
                     load({ nextPage: next });
                   }}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Next
                 </button>

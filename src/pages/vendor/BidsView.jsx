@@ -491,7 +491,7 @@ export default function VendorBidsView() {
   if (loading && !details) {
     return (
       <div className="w-full min-h-[calc(100vh-260px)] flex items-center justify-center">
-        <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
           <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
         </svg>
@@ -505,11 +505,11 @@ export default function VendorBidsView() {
         <button
           type="button"
           onClick={goBack}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
         >
           Back
         </button>
-        <p className="mt-4 text-[14px] text-gray-500">Project not found.</p>
+        <p className="mt-4 text-[14px] text-muted">Project not found.</p>
       </div>
     );
   }
@@ -519,37 +519,37 @@ export default function VendorBidsView() {
       <div className="w-full flex flex-col lg:flex-row gap-4">
         {/* Left: project card */}
         <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={goBack}
-                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
               >
                 Back
               </button>
             </div>
 
             <div className="mt-4">
-              <p className="text-[16px] font-extrabold text-gray-900 break-words">{project?.title ?? 'Project'}</p>
+              <p className="text-[16px] font-extrabold text-ink break-words">{project?.title ?? 'Project'}</p>
             </div>
 
             {finishesMs != null ? (
               <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-[12px] text-gray-500 font-semibold">Biddings Ends in</p>
+                <p className="text-[12px] text-muted font-semibold">Biddings Ends in</p>
                 {isActive ? (
-                  <span className="px-3 py-1.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold tabular-nums">
+                  <span className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold tabular-nums">
                     {formatCountdown(timeLeftMs)}
                   </span>
                 ) : (
-                  <span className="px-3 py-1.5 rounded-xl bg-gray-500 text-white text-[12px] font-extrabold">
+                  <span className="px-3 py-1.5 rounded-xl bg-cream0 text-white text-[12px] font-extrabold">
                     Bid Ended
                   </span>
                 )}
               </div>
             ) : null}
 
-            <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+            <div className="mt-3 rounded-2xl border border-pale bg-cream overflow-hidden">
               <SafeImage
                 src={thumbnailUrl}
                 alt={project?.title ?? 'Project'}
@@ -559,18 +559,18 @@ export default function VendorBidsView() {
 
             <div className="mt-4 space-y-2">
               <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-gray-500 font-semibold">Budget per piece</span>
-                <span className="text-gray-900 font-extrabold text-right">
+                <span className="text-muted font-semibold">Budget per piece</span>
+                <span className="text-ink font-extrabold text-right">
                   {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
                 </span>
               </div>
               <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-gray-500 font-semibold">Quantity required</span>
-                <span className="text-gray-900 font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
+                <span className="text-muted font-semibold">Quantity required</span>
+                <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
               </div>
               <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-gray-500 font-semibold">Expected delivery</span>
-                <span className="text-gray-900 font-extrabold text-right">
+                <span className="text-muted font-semibold">Expected delivery</span>
+                <span className="text-ink font-extrabold text-right">
                   {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
                 </span>
               </div>
@@ -581,7 +581,7 @@ export default function VendorBidsView() {
                 type="button"
                 onClick={chatWithCustomer}
                 disabled={!customerId}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -592,15 +592,15 @@ export default function VendorBidsView() {
 
             {remainingMetaRows.length > 0 ? (
               <div className="mt-4">
-                <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                  <div className="px-4 py-3 border-b border-gray-50">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+                <div className="rounded-2xl border border-pale bg-white overflow-hidden">
+                  <div className="px-4 py-3 border-b border-pale">
+                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
                   </div>
                   <div className="px-4 py-3 space-y-3">
                     {remainingMetaRows.map((r) => (
                       <div key={r.key} className="space-y-1">
-                        <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
-                        <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                        <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                        <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
                       </div>
                     ))}
                   </div>
@@ -610,7 +610,7 @@ export default function VendorBidsView() {
 
             {attachments.length > 0 ? (
               <div className="mt-4">
-                <p className="text-[12px] font-extrabold text-gray-900">Attachments</p>
+                <p className="text-[12px] font-extrabold text-ink">Attachments</p>
                 <div className="mt-3 space-y-2">
                   {attachments.map((u, idx) => {
                     const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
@@ -620,15 +620,15 @@ export default function VendorBidsView() {
                         href={u}
                         target="_blank"
                         rel="noreferrer"
-                        className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
                         title="Open attachment"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
-                          <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                        <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                          <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
                           <span className="truncate">{name}</span>
                         </span>
-                        <span className="shrink-0 text-gray-400">
+                        <span className="shrink-0 text-muted">
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M7 17 17 7" />
                             <path d="M7 7h10v10" />
@@ -645,9 +645,9 @@ export default function VendorBidsView() {
 
         {/* Right: Biddings */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 shrink-0">
+          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 shrink-0">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[14px] font-extrabold text-gray-900">Biddings</p>
+              <p className="text-[14px] font-extrabold text-ink">Biddings</p>
             </div>
 
             <div className="mt-4 flex items-center gap-3 md:justify-between">
@@ -656,7 +656,7 @@ export default function VendorBidsView() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder='Search "Jewellers"'
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                  className="w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                 />
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -664,7 +664,7 @@ export default function VendorBidsView() {
                   <button
                     type="button"
                     onClick={() => setSortOpen((v) => !v)}
-                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream inline-flex items-center gap-2"
                   >
                     Sort
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -673,13 +673,13 @@ export default function VendorBidsView() {
                   </button>
                   {sortOpen ? (
                     <div
-                      className="absolute right-0 mt-2 w-56 rounded-2xl border border-gray-100 bg-white shadow-lg overflow-hidden z-20"
+                      className="absolute right-0 mt-2 w-56 rounded-2xl border border-pale bg-white shadow-sm overflow-hidden z-20"
                       onMouseDown={(e) => e.stopPropagation()}
                     >
-                      <button type="button" onClick={() => { setSortBy('amount_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50">Low amount</button>
-                      <button type="button" onClick={() => { setSortBy('amount_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50">High amount</button>
-                      <button type="button" onClick={() => { setSortBy('delivery_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50">Low delivery duration</button>
-                      <button type="button" onClick={() => { setSortBy('delivery_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-gray-50">High delivery duration</button>
+                      <button type="button" onClick={() => { setSortBy('amount_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">Low amount</button>
+                      <button type="button" onClick={() => { setSortBy('amount_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">High amount</button>
+                      <button type="button" onClick={() => { setSortBy('delivery_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">Low delivery duration</button>
+                      <button type="button" onClick={() => { setSortBy('delivery_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">High delivery duration</button>
                     </div>
                   ) : null}
                 </div>
@@ -688,7 +688,7 @@ export default function VendorBidsView() {
                   onClick={loadBids}
                   disabled={bidsLoading}
                   title="Reload bids"
-                  className="p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50"
                 >
                   {bidsLoading ? (
                     <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -706,9 +706,9 @@ export default function VendorBidsView() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 flex-1 min-h-0 overflow-hidden">
-            <div className="px-4 md:px-6 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
-              <p className="text-[12px] font-extrabold text-gray-900">Bids</p>
+          <div className="bg-white rounded-2xl border border-pale flex-1 min-h-0 overflow-hidden">
+            <div className="px-4 md:px-6 py-4 border-b border-pale flex items-center justify-between gap-3">
+              <p className="text-[12px] font-extrabold text-ink">Bids</p>
               <div className="flex items-center gap-2 flex-wrap">
                 {isActive ? (
                   <>
@@ -724,7 +724,7 @@ export default function VendorBidsView() {
                       type="button"
                       onClick={() => setBidModalOpen(true)}
                       disabled={bidEnded}
-                      className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                      className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
                     >
                       Update Bid
                     </button>
@@ -735,7 +735,7 @@ export default function VendorBidsView() {
             <div className="p-4 md:p-6 min-h-0 overflow-y-auto">
               {bidsLoading && bids.length === 0 ? (
                 <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
@@ -743,8 +743,8 @@ export default function VendorBidsView() {
               ) : filteredBids.length === 0 ? (
                 <div className="min-h-[200px] flex items-center justify-center">
                   <div className="text-center">
-                    <p className="text-[13px] font-bold text-gray-700">No bids found</p>
-                    <p className="mt-1 text-[12px] text-gray-400">Try adjusting search or sorting.</p>
+                    <p className="text-[13px] font-bold text-mid">No bids found</p>
+                    <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
                   </div>
                 </div>
               ) : (
@@ -765,25 +765,25 @@ export default function VendorBidsView() {
                       <div
                         key={bidId || idx}
                         className={`rounded-2xl border p-4 bg-white ${
-                          isMe ? 'border-primary-dark/30 bg-primary-dark/5' : isLowest ? 'border-green-300 bg-green-50/40' : 'border-gray-100'
+                          isMe ? 'border-walnut/30 bg-walnut/5' : isLowest ? 'border-green-300 bg-green-50/40' : 'border-pale'
                         }`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-100 bg-white shrink-0">
+                            <div className="w-9 h-9 rounded-full overflow-hidden border border-pale bg-white shrink-0">
                               <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-[13px] font-extrabold text-gray-900 truncate">
+                                <p className="text-[13px] font-extrabold text-ink truncate">
                                   {isMe ? `${vendorName || 'Me'} (me)` : vendorName}
                                 </p>
                               </div>
-                              <div className="mt-1 text-[12px] text-gray-500 space-y-1">
+                              <div className="mt-1 text-[12px] text-muted space-y-1">
                                 <span className="flex items-center gap-1">
                                   Delivery In: {daysLabel(days)}
                                 </span>
-                                <p className="text-[12px] font-extrabold text-gray-800">
+                                <p className="text-[12px] font-extrabold text-ink">
                                   ₹{amount != null ? formatMoney(amount) : '—'} Bidding Price
                                 </p>
                               </div>
@@ -832,20 +832,20 @@ export default function VendorBidsView() {
       {/* Update bid modal */}
       {bidModalOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => !bidSubmitting && setBidModalOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
-              <p className="text-[14px] font-extrabold text-gray-900">Update Bid</p>
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
+              <p className="text-[14px] font-extrabold text-ink">Update Bid</p>
               <button
                 type="button"
                 onClick={() => setBidModalOpen(false)}
                 disabled={bidSubmitting}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -857,7 +857,7 @@ export default function VendorBidsView() {
             <div className="px-5 py-4">
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500 mb-1">Bid amount</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount</p>
                   <input
                     type="number"
                     value={bidForm.price}
@@ -866,11 +866,11 @@ export default function VendorBidsView() {
                     inputMode="numeric"
                     min="0"
                     step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
                 </div>
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500 mb-1">Delivery duration (days)</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Delivery duration (days)</p>
                   <input
                     type="number"
                     value={bidForm.daysToComplete}
@@ -879,19 +879,19 @@ export default function VendorBidsView() {
                     inputMode="numeric"
                     min="1"
                     step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setBidModalOpen(false)} disabled={bidSubmitting} className="px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-600 hover:bg-gray-50 disabled:opacity-50">
+                <button type="button" onClick={() => setBidModalOpen(false)} disabled={bidSubmitting} className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50">
                   Cancel
                 </button>
-                <button type="button" onClick={submitBid} disabled={bidSubmitting || bidEnded} className="px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
+                <button type="button" onClick={submitBid} disabled={bidSubmitting || bidEnded} className="px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
                   {bidSubmitting ? 'Submitting…' : 'Update Bid'}
                 </button>
               </div>
-              {bidEnded ? <p className="mt-3 text-[11px] text-gray-400">Bidding window has ended.</p> : null}
+              {bidEnded ? <p className="mt-3 text-[11px] text-muted">Bidding window has ended.</p> : null}
             </div>
           </div>
         </div>
@@ -900,17 +900,17 @@ export default function VendorBidsView() {
       {/* Withdraw all bids confirm modal */}
       {withdrawAllModalOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => !withdrawingAll && setWithdrawAllModalOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Withdraw All Bids</p>
-                <p className="mt-1 text-[12px] text-gray-500">
+                <p className="text-[14px] font-extrabold text-ink">Withdraw All Bids</p>
+                <p className="mt-1 text-[12px] text-muted">
                   This will withdraw all your bids for this project. This cannot be undone.
                 </p>
               </div>
@@ -918,7 +918,7 @@ export default function VendorBidsView() {
                 type="button"
                 onClick={() => setWithdrawAllModalOpen(false)}
                 disabled={withdrawingAll}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -934,7 +934,7 @@ export default function VendorBidsView() {
                   type="button"
                   onClick={() => setWithdrawAllModalOpen(false)}
                   disabled={withdrawingAll}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
                 >
                   Keep
                 </button>
@@ -955,17 +955,17 @@ export default function VendorBidsView() {
       {/* Cancel bid confirm modal */}
       {cancelModalOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => !cancelSubmitting && setCancelModalOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Cancel Bid</p>
-                <p className="mt-1 text-[12px] text-gray-500">
+                <p className="text-[14px] font-extrabold text-ink">Cancel Bid</p>
+                <p className="mt-1 text-[12px] text-muted">
                   This will withdraw your latest bid for this project.
                 </p>
               </div>
@@ -973,7 +973,7 @@ export default function VendorBidsView() {
                 type="button"
                 onClick={() => setCancelModalOpen(false)}
                 disabled={cancelSubmitting}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -989,7 +989,7 @@ export default function VendorBidsView() {
                   type="button"
                   onClick={() => setCancelModalOpen(false)}
                   disabled={cancelSubmitting}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
                 >
                   Keep
                 </button>

@@ -16,43 +16,72 @@
   font-display: swap;
 }
 
+/* Luxury jewellery — warm editorial palette */
 @theme {
   --font-serif: 'Cormorant Garamond', serif;
   --font-sans: 'Inter', sans-serif;
-  --color-primary-dark: #0F3456;
+
+  --color-ink: #3a2a1e;
+  --color-walnut: #6b5545;
+  --color-mid: #8c7060;
+  --color-muted: #b09880;
+  --color-soft: #d4c0a8;
+  --color-pale: #e8d8c4;
+  --color-blush: #f2e6d4;
+  --color-cream: #faf5ee;
+  --color-white: #fffdf9;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  background: #F6F7F9;
+  background-color: var(--color-cream);
   font-family: var(--font-sans);
-  color: #1A1A1A;
-  margin: 0;
-  padding: 0;
-  overflow: hidden; 
+  color: var(--color-ink);
+  overflow: hidden;
 }
 
-/* Brand-consistent form styling across the app */
+#root {
+  min-height: 100dvh;
+}
+
+/* Base form controls — soft, bordered (Tailwind utilities often override; this sets defaults) */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+textarea,
+select {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-pale);
+}
+
 input::placeholder,
 textarea::placeholder {
   font-weight: 400 !important;
+  color: var(--color-muted);
 }
 
-input:focus:not(:disabled),
+input:focus:not(:disabled):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
 textarea:focus:not(:disabled),
 select:focus:not(:disabled) {
   outline: none !important;
-  box-shadow: 0 0 0 2px rgba(15, 52, 86, 0.25) !important;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-walnut) 35%, transparent) !important;
+  border-color: var(--color-soft) !important;
 }
 
+/* Auth & marketing headings */
 .auth-heading {
   font-family: var(--font-serif);
-  color: #0F3456;
+  color: var(--color-ink);
 }
 
 .auth-body {
   font-family: var(--font-sans);
 }
-
 
 .no-scrollbar::-webkit-scrollbar {
   display: none;
@@ -64,7 +93,7 @@ select:focus:not(:disabled) {
 
 .custom-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: var(--color-soft) transparent;
 }
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
@@ -73,11 +102,29 @@ select:focus:not(:disabled) {
   background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--color-soft);
   border-radius: 10px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--color-muted);
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-pale bg-white p-4 md:p-5;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-walnut px-4 py-2 text-sm font-semibold text-blush transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-pale bg-white px-4 py-2 text-sm font-semibold text-mid transition-colors hover:bg-blush disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .input-field {
+    @apply w-full rounded-xl border border-pale bg-cream px-4 py-3 text-sm font-medium text-ink placeholder:text-muted focus:border-soft focus:outline-none focus:ring-1 focus:ring-walnut/25;
+  }
 }
 
 @layer utilities {
@@ -87,18 +134,34 @@ select:focus:not(:disabled) {
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideIn {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 @keyframes fadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 
 .animate-slide-in {

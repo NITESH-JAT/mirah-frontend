@@ -8,10 +8,10 @@ const MobileNavItem = ({ icon, label, path, active }) => {
       onClick={() => navigate(path)}
       className="flex flex-col items-center justify-center gap-1 flex-1 py-3 cursor-pointer active:scale-95 transition-transform"
     >
-      <div className={`${active ? 'text-primary-dark' : 'text-gray-400'}`}>
+      <div className={`${active ? 'text-ink' : 'text-muted'}`}>
         {icon}
       </div>
-      <span className={`text-[10px] font-medium ${active ? 'text-primary-dark' : 'text-gray-400'}`}>
+      <span className={`text-[10px] font-medium ${active ? 'text-ink' : 'text-muted'}`}>
         {label}
       </span>
     </div>
@@ -22,7 +22,7 @@ export default function BottomNav() {
   const location = useLocation();
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex items-center justify-between px-2 pb-safe z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
+    <div className="lg:hidden fixed bottom-0 left-0 w-full bg-white border-t border-pale flex items-center justify-between px-2 pb-safe z-50 shadow-[0_-4px_20px_rgba(58,42,30,0.06)]">
       <MobileNavItem 
         active={location.pathname.includes('shopping')}
         path="/customer/shopping"

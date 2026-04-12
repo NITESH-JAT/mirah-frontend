@@ -174,7 +174,7 @@ export default function VendorAssignmentRequests() {
   if (!isVendor) {
     return (
       <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
           This page is available for vendors only.
         </div>
       </div>
@@ -184,14 +184,14 @@ export default function VendorAssignmentRequests() {
   if (!kycAccepted) {
     return (
       <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
-          <div className="font-semibold text-gray-900 mb-1">KYC not accepted yet</div>
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
+          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
           <div>Please complete your KYC to access assignments.</div>
           <div className="mt-4">
             <button
               type="button"
               onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
               Go to KYC
             </button>
@@ -208,16 +208,16 @@ export default function VendorAssignmentRequests() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="sticky top-0 z-30 isolate bg-[#F8F9FA] -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-gray-100/60">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
         <div className="flex items-center justify-between gap-3">
           <div className="relative w-full md:w-[420px] max-w-full">
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder='Search by project, customer, or status…'
-              className="w-full bg-white border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+              className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
@@ -229,7 +229,7 @@ export default function VendorAssignmentRequests() {
             type="button"
             onClick={load}
             disabled={loading}
-            className="shrink-0 px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="shrink-0 px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Refreshing…' : 'Refresh'}
           </button>
@@ -239,7 +239,7 @@ export default function VendorAssignmentRequests() {
       <div className="mt-5 min-h-[calc(100vh-260px)] flex flex-col">
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
-            <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
@@ -247,11 +247,11 @@ export default function VendorAssignmentRequests() {
         ) : empty ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 {myProjectsIcon()}
               </div>
-              <p className="mt-3 text-[14px] font-bold text-gray-900">No assignment requests yet</p>
-              <p className="mt-1 text-[12px] text-gray-500">When customers assign you a project, it’ll appear here.</p>
+              <p className="mt-3 text-[14px] font-bold text-ink">No assignment requests yet</p>
+              <p className="mt-1 text-[12px] text-muted">When customers assign you a project, it’ll appear here.</p>
             </div>
           </div>
         ) : (
@@ -281,17 +281,17 @@ export default function VendorAssignmentRequests() {
                   : isRejected
                     ? 'bg-red-50 border-red-100 text-red-700'
                     : status === 'reassigned'
-                      ? 'bg-gray-50 border-gray-100 text-gray-700'
+                      ? 'bg-cream border-pale text-mid'
                       : 'bg-amber-50 border-amber-100 text-amber-700';
 
               const busy = actingId != null && String(actingId) === String(id);
 
               return (
-                <div key={String(id)} className="rounded-2xl border border-gray-100 bg-white p-4">
+                <div key={String(id)} className="rounded-2xl border border-pale bg-white p-4">
                   <div className="flex flex-col sm:flex-row items-start sm:items-center sm:justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                        <p className="text-[13px] font-bold text-ink truncate max-w-[90vw] sm:max-w-none">
                           {p?.title || p?.name || 'Project'}
                         </p>
                         <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${statusClass}`}>
@@ -299,13 +299,13 @@ export default function VendorAssignmentRequests() {
                         </span>
                       </div>
                       {customerName ? (
-                        <p className="mt-1 text-[12px] text-gray-500">
-                          Customer: <span className="font-semibold text-gray-700">{customerName}</span>
+                        <p className="mt-1 text-[12px] text-muted">
+                          Customer: <span className="font-semibold text-mid">{customerName}</span>
                         </p>
                       ) : null}
                       {/* Mobile timestamp */}
                       {when ? (
-                        <p className="mt-1 text-[12px] text-gray-400 sm:hidden">
+                        <p className="mt-1 text-[12px] text-muted sm:hidden">
                           {new Date(when).toLocaleString()}
                         </p>
                       ) : null}
@@ -314,7 +314,7 @@ export default function VendorAssignmentRequests() {
                     <div className="shrink-0 flex flex-col items-end gap-2">
                       {/* Desktop timestamp */}
                       {when ? (
-                        <p className="hidden sm:block text-[12px] text-gray-400 text-right">
+                        <p className="hidden sm:block text-[12px] text-muted text-right">
                           {new Date(when).toLocaleString()}
                         </p>
                       ) : null}
@@ -345,7 +345,7 @@ export default function VendorAssignmentRequests() {
                             if (!projectId) return;
                             navigate(`/vendor/projects/${projectId}`);
                           }}
-                          className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
+                          className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
                         >
                           Manage Project
                         </button>
@@ -362,7 +362,7 @@ export default function VendorAssignmentRequests() {
                   type="button"
                   onClick={() => load({ nextPage: (meta.page || 1) + 1, append: true })}
                   disabled={moreLoading}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                 >
                   {moreLoading ? 'Loading…' : 'Load more'}
                 </button>
@@ -374,19 +374,19 @@ export default function VendorAssignmentRequests() {
 
       {confirmOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeConfirm}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">
+                <p className="text-[14px] font-extrabold text-ink">
                   {confirmType === 'accept' ? 'Accept Assignment' : 'Reject Assignment'}
                 </p>
-                <p className="mt-1 text-[12px] text-gray-500">
+                <p className="mt-1 text-[12px] text-muted">
                   {confirmType === 'accept'
                     ? 'You will be marked as the assigned Jeweller for this project.'
                     : 'You will decline this assignment request.'}
@@ -396,7 +396,7 @@ export default function VendorAssignmentRequests() {
                 type="button"
                 onClick={closeConfirm}
                 disabled={Boolean(actingId)}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -412,7 +412,7 @@ export default function VendorAssignmentRequests() {
                   type="button"
                   onClick={closeConfirm}
                   disabled={Boolean(actingId)}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
                 >
                   Keep
                 </button>

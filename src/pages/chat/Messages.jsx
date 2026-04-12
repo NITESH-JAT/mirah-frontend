@@ -38,7 +38,7 @@ function avatarUrlFor(user) {
     user?.photoUrl ||
     null;
   if (direct) return direct;
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0D8ABC&color=fff`;
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6B5545&color=F2E6D4`;
 }
 
 function timeAgoLabel(ts) {
@@ -752,11 +752,11 @@ export default function Messages() {
   const threadPaneClass = mobileView === 'list' ? 'hidden md:flex' : 'flex';
 
   return (
-    <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden min-h-0">
+    <div className="flex h-full min-h-0 w-full gap-0 overflow-hidden bg-cream">
       {/* Conversations list */}
-      <div className={`w-full md:w-[340px] shrink-0 border-r border-gray-100 ${listPaneClass} flex-col min-h-0`}>
+      <div className={`w-full md:w-[340px] shrink-0 border-r border-pale ${listPaneClass} flex-col min-h-0`}>
         <div className="px-6 pt-6 pb-3">
-          <h2 className="font-serif text-[18px] font-bold text-gray-800">All messages</h2>
+          <h2 className="font-serif text-[18px] font-bold text-ink">All messages</h2>
         </div>
 
         <div className="px-6 pb-4 relative">
@@ -765,30 +765,30 @@ export default function Messages() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={`Search ${isVendor ? 'customers' : 'jewellers'}`}
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+              className="w-full bg-cream border border-pale rounded-xl px-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
             />
             {searching && (
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 text-[12px]">…</div>
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted text-[12px]">…</div>
             )}
           </div>
 
           {search.trim() && (
-            <div className="absolute left-6 right-6 top-[64px] bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-30">
+            <div className="absolute left-6 right-6 top-[64px] bg-white border border-pale rounded-xl shadow-sm overflow-hidden z-30">
               {searchResults.length === 0 ? (
-                <div className="px-4 py-3 text-[12px] text-gray-400">No results</div>
+                <div className="px-4 py-3 text-[12px] text-muted">No results</div>
               ) : (
                 searchResults.map((u) => (
                   <button
                     key={String(getEntityId(u) ?? u.email ?? fullName(u))}
                     type="button"
                     onClick={() => handleSelectSearchUser(u)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-50 last:border-0 cursor-pointer"
+                    className="w-full text-left px-4 py-3 hover:bg-cream border-b border-pale last:border-0 cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <img src={avatarUrlFor(u)} alt="" className="w-9 h-9 rounded-full" />
                       <div>
-                        <p className="text-[13px] font-bold text-gray-800">{fullName(u) || u.email}</p>
-                        <p className="text-[11px] text-gray-400 capitalize">{u.userType}</p>
+                        <p className="text-[13px] font-bold text-ink">{fullName(u) || u.email}</p>
+                        <p className="text-[11px] text-muted capitalize">{u.userType}</p>
                       </div>
                     </div>
                   </button>
@@ -802,7 +802,7 @@ export default function Messages() {
           {loadingConvos ? (
             <div className="min-h-[240px] px-6 py-10 flex items-center justify-center">
               <svg
-                className="animate-spin text-primary-dark"
+                className="animate-spin text-ink"
                 xmlns="http://www.w3.org/2000/svg"
                 width="28"
                 height="28"
@@ -833,21 +833,21 @@ export default function Messages() {
                     setMessages([]);
                     if (window.innerWidth < 768) setMobileView('thread');
                   }}
-                  className={`w-full px-6 py-4 flex items-start gap-3 text-left border-b border-gray-50 cursor-pointer transition-colors
-                    ${isActive ? 'bg-gray-50' : 'hover:bg-gray-50'}
+                  className={`w-full px-6 py-4 flex items-start gap-3 text-left border-b border-pale cursor-pointer transition-colors
+                    ${isActive ? 'bg-blush' : 'hover:bg-blush/70'}
                   `}
                 >
                   <img src={avatarUrlFor(who)} alt="" className="w-10 h-10 rounded-full" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-bold text-gray-800 truncate">{name}</p>
-                      <p className="text-[11px] text-gray-400 shrink-0">{timeAgoLabel(ts)}</p>
+                      <p className="text-[13px] font-bold text-ink truncate">{name}</p>
+                      <p className="text-[11px] text-muted shrink-0">{timeAgoLabel(ts)}</p>
                     </div>
                     <div className="mt-0.5 flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${c.isOnline ? 'bg-green-500' : 'bg-red-400'}`} />
-                      <span className="text-[11px] text-gray-400">{c.isOnline ? 'Online' : 'Offline'}</span>
+                      <span className="text-[11px] text-muted">{c.isOnline ? 'Online' : 'Offline'}</span>
                     </div>
-                    <p className="text-[12px] text-gray-400 truncate">{last}</p>
+                    <p className="text-[12px] text-muted truncate">{last}</p>
                   </div>
                   {c.unreadCount > 0 && (
                     <div className="mt-1 w-2.5 h-2.5 bg-green-500 rounded-full shrink-0" />
@@ -864,17 +864,17 @@ export default function Messages() {
         {!activeConvoId ? (
           <div className="flex-1 flex items-center justify-center bg-white">
             <div className="text-center px-8 max-w-md">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-400">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
               </div>
-              <h3 className="mt-4 font-serif text-[18px] font-bold text-gray-800">Select a chat</h3>
-              <p className="mt-1 text-[13px] text-gray-400">
+              <h3 className="mt-4 font-serif text-[18px] font-bold text-ink">Select a chat</h3>
+              <p className="mt-1 text-[13px] text-muted">
                 Choose a conversation from the left to start messaging.
               </p>
               <button
                 type="button"
                 onClick={() => setMobileView('list')}
-                className="mt-6 md:hidden inline-flex items-center justify-center px-4 py-2 rounded-xl border border-gray-100 text-gray-700 hover:bg-gray-50 cursor-pointer"
+                className="mt-6 md:hidden inline-flex items-center justify-center px-4 py-2 rounded-xl border border-pale text-mid hover:bg-cream cursor-pointer"
               >
                 Back to chats
               </button>
@@ -882,22 +882,22 @@ export default function Messages() {
           </div>
         ) : (
           <>
-            <div className="h-14 border-b border-gray-100 px-5 flex items-center justify-between">
+            <div className="h-14 border-b border-pale px-5 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={() => setMobileView('list')}
-                  className="md:hidden p-2 -ml-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                  className="md:hidden p-2 -ml-2 rounded-lg hover:bg-cream text-mid transition-colors cursor-pointer"
                   aria-label="Back to chats"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
                 <img src={avatarUrlFor(activeHeaderUser)} alt="" className="w-9 h-9 rounded-full" />
                 <div>
-                  <p className="text-[13px] font-bold text-gray-800">{activeConvo?.admin ? 'Support' : fullName(activeHeaderUser) || 'Conversation'}</p>
+                  <p className="text-[13px] font-bold text-ink">{activeConvo?.admin ? 'Support' : fullName(activeHeaderUser) || 'Conversation'}</p>
                   <div className="mt-0.5 flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${activeConvo?.isOnline ? 'bg-green-500' : 'bg-red-400'}`} />
-                    <span className="text-[11px] text-gray-400">{activeConvo?.isOnline ? 'Online' : 'Offline'}</span>
+                    <span className="text-[11px] text-muted">{activeConvo?.isOnline ? 'Online' : 'Offline'}</span>
                   </div>
                 </div>
               </div>
@@ -924,12 +924,12 @@ export default function Messages() {
               </div>
             ) : null}
 
-            <div className="flex-1 min-h-0 relative bg-white overflow-hidden">
+            <div className="flex-1 min-h-0 relative bg-cream overflow-hidden">
               <div className="h-full overflow-y-auto px-5 py-6 space-y-3 relative z-10">
                 {loadingMessages ? (
-                  <div className="text-[13px] text-gray-400">Loading messages…</div>
+                  <div className="text-[13px] text-muted">Loading messages…</div>
                 ) : visibleMessages.length === 0 ? (
-                  <div className="text-[13px] text-gray-400">No messages yet.</div>
+                  <div className="text-[13px] text-muted">No messages yet.</div>
                 ) : (
                   visibleMessages.map((m) => {
                     const isAdminMsg = String(m.senderType || '').toLowerCase() === 'admin';
@@ -955,10 +955,10 @@ export default function Messages() {
                           <div className={`max-w-[92%] md:max-w-[84%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
                             ${
                               mine
-                                ? 'bg-primary-dark text-white rounded-br-md'
+                                ? 'bg-walnut text-blush rounded-br-md'
                                 : isAdminMsg
-                                  ? 'bg-red-50 text-red-800 border border-red-100 rounded-bl-md'
-                                  : 'bg-gray-100 text-gray-700 rounded-bl-md'
+                                  ? 'bg-blush text-ink border border-pale rounded-bl-md'
+                                  : 'bg-white text-ink border border-pale rounded-bl-md'
                             }
                           `}>
                             {hasAttachment && isImage ? (
@@ -970,7 +970,7 @@ export default function Messages() {
                                     className="max-h-[220px] w-auto rounded-xl"
                                   />
                                 </a>
-                                {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
+                                {m.content ? <div className={`${mine ? 'text-blush/95' : 'text-ink'}`}>{m.content}</div> : null}
                               </div>
                             ) : hasAttachment ? (
                               <div className="space-y-2">
@@ -978,11 +978,11 @@ export default function Messages() {
                                   href={m.attachmentUrl}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className={`${mine ? 'text-white/90' : 'text-gray-700'} underline break-all`}
+                                  className={`${mine ? 'text-blush/90' : 'text-ink'} underline break-all`}
                                 >
                                   {filenameFromUrl(m.attachmentUrl) || 'Attachment'}
                                 </a>
-                                {m.content ? <div className={`${mine ? 'text-white/95' : 'text-gray-700'}`}>{m.content}</div> : null}
+                                {m.content ? <div className={`${mine ? 'text-blush/95' : 'text-ink'}`}>{m.content}</div> : null}
                               </div>
                             ) : m.content ? (
                               m.content
@@ -991,7 +991,7 @@ export default function Messages() {
                             )}
                             {when ? (
                             <div
-                              className={`mt-1 text-[10px] ${mine ? 'text-white/70' : 'text-gray-500'} text-right whitespace-nowrap`}
+                              className={`mt-1 text-[10px] ${mine ? 'text-blush/70' : 'text-muted'} text-right whitespace-nowrap`}
                             >
                                 {when}
                               </div>
@@ -1007,12 +1007,12 @@ export default function Messages() {
 
             </div>
 
-            <div className="border-t border-gray-100 p-4">
+            <div className="shrink-0 border-t border-pale bg-cream px-3 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:pt-4">
               <div className="relative">
                 {showEmoji && (
                   <div
                     ref={emojiMenuRef}
-                    className="absolute bottom-[56px] right-0 w-[280px] max-w-[calc(100vw-32px)] bg-white border border-gray-100 rounded-2xl shadow-xl p-3 z-30"
+                    className="absolute bottom-[calc(100%+10px)] right-0 w-[280px] max-w-[calc(100vw-32px)] bg-white border border-pale rounded-2xl shadow-sm p-3 z-30"
                   >
                 <EmojiPicker
                   width={260}
@@ -1026,7 +1026,7 @@ export default function Messages() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 pb-3 sm:gap-3">
                   <input
                     ref={composerRef}
                     value={composer}
@@ -1040,7 +1040,7 @@ export default function Messages() {
                       }
                     }}
                     placeholder="Write your message..."
-                    className="flex-1 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+                    className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-pale bg-white px-3 py-2.5 text-[13px] font-medium focus:border-walnut focus:outline-none sm:min-h-[46px] sm:px-4 sm:text-[14px]"
                   />
 
                   {/* Single attachment input (images + pdf) */}
@@ -1057,25 +1057,25 @@ export default function Messages() {
                     }}
                   />
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex shrink-0 items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => attachmentInputRef.current?.click()}
                       disabled={sending}
-                      className="w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer"
+                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-pale bg-white text-muted hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10 sm:rounded-xl"
                       aria-label="Upload attachment"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05 12.25 20.24a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                     </button>
                     <button
                       type="button"
                       data-emoji-trigger="true"
                       onClick={() => setShowEmoji((v) => !v)}
                       disabled={sending}
-                      className="w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center cursor-pointer"
+                      className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-pale bg-white text-muted hover:bg-cream disabled:cursor-not-allowed disabled:opacity-50 sm:h-10 sm:w-10 sm:rounded-xl"
                       aria-label="Emoji"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10" />
                         <path d="M8.5 15s1.5 2 3.5 2 3.5-2 3.5-2" />
                         <path d="M9 9h.01" />
@@ -1088,7 +1088,7 @@ export default function Messages() {
                     type="button"
                     onClick={handleSend}
                     disabled={sending || !composer.trim()}
-                    className="w-10 h-10 rounded-xl bg-primary-dark text-white flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl bg-walnut text-blush disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:w-11"
                     aria-label="Send"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.6 21 12 3.4 3.4 3 10l12 2-12 2z"/></svg>

@@ -297,12 +297,12 @@ export default function Cart() {
   return (
     <div className="w-full h-[calc(100dvh-96px)] lg:h-[calc(100dvh-128px)] flex flex-col">
       {/* Top header card (title + select all) */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+      <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="md:hidden p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+            className="md:hidden p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
             aria-label="Back"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -310,18 +310,18 @@ export default function Cart() {
             </svg>
           </button>
           <div className="flex-1">
-            <p className="text-[16px] md:text-[18px] font-bold text-gray-900">Cart</p>
+            <p className="text-[16px] md:text-[18px] font-bold text-ink">Cart</p>
           </div>
         </div>
 
         {!loading && items.length > 0 ? (
           <div className="flex items-center justify-between gap-3 mt-4">
-              <label className="flex items-center gap-2 text-[12px] text-primary-dark select-none cursor-pointer">
+              <label className="flex items-center gap-2 text-[12px] text-ink select-none cursor-pointer">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                  className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                 />
                 <span className="font-medium">Select all</span>
               </label>
@@ -340,11 +340,11 @@ export default function Cart() {
 
       {/* Cart items card */}
       <div className="flex-1 min-h-0 flex flex-col pb-[96px] md:pb-0">
-        <div className="mt-4 bg-white rounded-2xl border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
+        <div className="mt-4 bg-white rounded-2xl border border-pale overflow-hidden flex-1 min-h-0 flex flex-col">
           {loading ? (
-            <div className="p-10 md:p-14 bg-gray-50 flex-1 flex items-center justify-center">
+            <div className="p-10 md:p-14 bg-cream flex-1 flex items-center justify-center">
               <svg
-                className="animate-spin text-primary-dark"
+                className="animate-spin text-ink"
                 xmlns="http://www.w3.org/2000/svg"
                 width="28"
                 height="28"
@@ -361,9 +361,9 @@ export default function Cart() {
               </svg>
             </div>
           ) : items.length === 0 ? (
-            <div className="p-10 md:p-14 bg-gray-50 flex-1 flex items-center justify-center">
+            <div className="p-10 md:p-14 bg-cream flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-pale flex items-center justify-center text-muted">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="26"
@@ -380,8 +380,8 @@ export default function Cart() {
                     <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
                   </svg>
                 </div>
-                <p className="mt-4 text-[14px] font-bold text-gray-900">Empty cart</p>
-                <p className="mt-1 text-[12px] text-gray-500">Add items from Shop to place an order.</p>
+                <p className="mt-4 text-[14px] font-bold text-ink">Empty cart</p>
+                <p className="mt-1 text-[12px] text-muted">Add items from Shop to place an order.</p>
               </div>
             </div>
           ) : (
@@ -408,13 +408,13 @@ export default function Cart() {
                 return (
                   <div
                     key={key}
-                    className="flex items-center gap-3 md:gap-4 px-4 py-6 border-b border-gray-100 last:border-b-0"
+                    className="flex items-center gap-3 md:gap-4 px-4 py-6 border-b border-pale last:border-b-0"
                   >
                     <input
                       type="checkbox"
                       checked={checked}
                       onChange={() => toggleOne(key)}
-                      className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                      className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                       aria-label="Select item"
                     />
 
@@ -425,7 +425,7 @@ export default function Cart() {
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') openProduct(it.productId);
                       }}
-                      className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-gray-100 shrink-0 cursor-pointer"
+                      className="w-16 h-16 rounded-2xl overflow-hidden bg-white border border-pale shrink-0 cursor-pointer"
                       aria-label="Open product"
                     >
                       <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
@@ -441,16 +441,16 @@ export default function Cart() {
                       className="flex-1 min-w-0 cursor-pointer"
                       aria-label="Open product"
                     >
-                      <p className="text-[13px] md:text-[14px] font-bold text-gray-900 truncate">
+                      <p className="text-[15px] md:text-[16px] font-bold text-ink truncate">
                         {p?.name || 'Product'}
                       </p>
                       {vendorText ? (
-                        <p className="mt-0.5 text-[11px] text-gray-400 font-medium line-clamp-1">{vendorText}</p>
+                        <p className="mt-0.5 text-[11px] text-muted font-medium line-clamp-1">{vendorText}</p>
                       ) : null}
                       {variantText ? (
-                        <p className="mt-0.5 text-[11px] text-gray-500 font-semibold line-clamp-1">{variantText}</p>
+                        <p className="mt-0.5 text-[11px] text-muted font-semibold line-clamp-1">{variantText}</p>
                       ) : null}
-                      <p className="text-[12px] text-gray-500 mt-0.5">
+                      <p className="text-[12px] text-muted mt-0.5">
                         {it.quantity} {unitLabel(unit)}
                       </p>
                       <button
@@ -468,7 +468,7 @@ export default function Cart() {
                     </div>
 
                     <div className="flex flex-col items-end gap-2">
-                      <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                      <div className="inline-flex items-center overflow-hidden rounded-xl bg-walnut text-blush">
                         <button
                           type="button"
                           onClick={(e) => {
@@ -503,9 +503,9 @@ export default function Cart() {
 
                       <div className="text-right">
                         {hasCompare ? (
-                          <div className="text-[12px] text-gray-400 line-through">₹{formatMoney(lineCompare)}</div>
+                          <div className="text-[12px] text-muted line-through">₹{formatMoney(lineCompare)}</div>
                         ) : null}
-                        <div className="text-[14px] font-bold text-gray-900">₹{formatMoney(linePrice)}</div>
+                        <div className="text-[14px] font-bold text-ink">₹{formatMoney(linePrice)}</div>
                       </div>
 
                       <button
@@ -530,13 +530,13 @@ export default function Cart() {
 
         {/* Desktop: action card below products (not fixed) */}
         {!loading && items.length > 0 ? (
-          <div className="hidden md:block mt-4 bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div className="hidden md:block mt-4 bg-white rounded-2xl border border-pale p-4 md:p-6">
             <div className="flex items-center justify-end">
               <button
                 type="button"
                 onClick={proceedCheckout}
                 disabled={!selectedKeys.length}
-                className="px-6 py-3 rounded-full bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 rounded-full bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Place Order
               </button>
@@ -552,7 +552,7 @@ export default function Cart() {
             type="button"
             onClick={proceedCheckout}
             disabled={!selectedKeys.length}
-            className="w-full py-4 rounded-full bg-primary-dark text-white text-[13px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full py-4 rounded-full bg-walnut text-blush text-[13px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Place Order
           </button>

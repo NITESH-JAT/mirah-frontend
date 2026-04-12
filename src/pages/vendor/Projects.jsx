@@ -304,7 +304,7 @@ export default function VendorProjects() {
   if (!isVendor) {
     return (
       <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
           This page is available for vendors only.
         </div>
       </div>
@@ -314,14 +314,14 @@ export default function VendorProjects() {
   if (!kycAccepted) {
     return (
       <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
-          <div className="font-semibold text-gray-900 mb-1">KYC not accepted yet</div>
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
+          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
           <div>Please complete your KYC to access projects.</div>
           <div className="mt-4">
             <button
               type="button"
               onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-primary-dark text-white text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
             >
               Go to KYC
             </button>
@@ -333,80 +333,91 @@ export default function VendorProjects() {
 
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
-      <div className="sticky top-0 z-30 isolate bg-[#F8F9FA] -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-gray-100/60">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[160px] max-w-full">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search projects…"
-              className="w-full bg-white border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
-            />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.3-4.3" />
-              </svg>
-            </div>
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 lg:shrink-0">
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'active', label: 'Active' },
+              { id: 'pending', label: 'Pending' },
+              { id: 'rejected', label: 'Rejected' },
+              { id: 'overridden', label: 'Overridden' },
+            ].map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setUrlTab(t.id)}
+                  className={`min-w-0 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                    active
+                      ? 'bg-walnut/10 border-walnut text-ink'
+                      : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{t.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <button
-            type="button"
-            onClick={() => load({ nextPage: 1, append: false })}
-            disabled={loading || moreLoading}
-            title="Reload"
-            className="shrink-0 p-3 rounded-2xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {loading || moreLoading ? (
-              <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                <path d="M21 3v6h-6" />
-              </svg>
-            )}
-          </button>
-        </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-1.5 md:gap-2">
-          {[
-            { id: 'all', label: 'All' },
-            { id: 'active', label: 'Active' },
-            { id: 'pending', label: 'Pending' },
-            { id: 'rejected', label: 'Rejected' },
-            { id: 'overridden', label: 'Overridden' },
-          ].map((t) => {
-            const active = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setUrlTab(t.id)}
-                className={`min-w-0 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
-                  active
-                    ? 'bg-primary-dark/10 border-primary-dark text-primary-dark'
-                    : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
-                }`}
-              >
-                <span className="min-w-0 truncate">{t.label}</span>
-              </button>
-            );
-          })}
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="relative min-w-0 flex-1">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search projects…"
+                className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
+              />
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => load({ nextPage: 1, append: false })}
+              disabled={loading || moreLoading}
+              title="Reload"
+              className="shrink-0 p-3 rounded-2xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading || moreLoading ? (
+                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                  <path d="M21 3v6h-6" />
+                </svg>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
       {loading && items.length === 0 ? (
         <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
         </div>
       ) : empty ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">
-          No projects found for this filter.
+        <div className="mt-4 flex min-h-[min(420px,calc(100vh-280px))] flex-col items-center justify-center rounded-2xl bg-cream px-6 py-16 text-center">
+          <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-pale bg-white text-muted">
+            <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+              <polyline points="14 2 14 8 20 8" />
+              <path d="M8 13h8" />
+              <path d="M8 17h8" />
+            </svg>
+          </div>
+          <p className="mt-4 text-[14px] font-bold text-ink">No projects found for this filter.</p>
+          <p className="mt-1 max-w-sm text-[12px] text-muted">Try another tab or adjust your search.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-4">
@@ -431,27 +442,27 @@ export default function VendorProjects() {
             const isOverridden = Boolean(row.overridden) || ['reassigned', 'replaced', 'overridden'].includes(status);
 
             return (
-              <div key={String(assignmentIdOf(assignment) ?? projectId)} className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-                <div className="relative h-40 bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 overflow-hidden">
+              <div key={String(assignmentIdOf(assignment) ?? projectId)} className="rounded-2xl border border-pale bg-white overflow-hidden">
+                <div className="relative h-40 bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
                   <SafeImage src={row.thumbnailUrl} alt={row.title} className="absolute inset-0 w-full h-full object-cover" />
                 </div>
 
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14px] font-extrabold text-gray-900 truncate">{row.title}</p>
-                      <div className="mt-2 space-y-1 text-[12px] text-gray-600">
+                      <p className="text-[14px] font-extrabold text-ink truncate">{row.title}</p>
+                      <div className="mt-2 space-y-1 text-[12px] text-mid">
                         <p className="truncate">
                           Customer:{' '}
-                          <span className="font-semibold text-gray-900">{row.customerName || '—'}</span>
+                          <span className="font-semibold text-ink">{row.customerName || '—'}</span>
                         </p>
                         <p className="truncate">
                           Agreed No. of Duration:{' '}
-                          <span className="font-semibold text-gray-900">{days ? `${days} days` : '—'}</span>
+                          <span className="font-semibold text-ink">{days ? `${days} days` : '—'}</span>
                         </p>
                         <p className="truncate">
                           Agreed Amount:{' '}
-                          <span className="font-semibold text-gray-900">
+                          <span className="font-semibold text-ink">
                             {agreedAmount != null ? `₹ ${formatMoney(agreedAmount)}` : '—'}
                           </span>
                         </p>
@@ -466,7 +477,7 @@ export default function VendorProjects() {
                               ? 'bg-red-50 border-red-100 text-red-700'
                               : badge.tone === 'warn'
                                 ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                : 'bg-gray-50 border-gray-100 text-gray-700'
+                                : 'bg-cream border-pale text-mid'
                         }`}
                       >
                         {badge.text}
@@ -481,7 +492,7 @@ export default function VendorProjects() {
                           type="button"
                           onClick={() => openConfirm('reject', { assignment, project })}
                           disabled={Boolean(actingId)}
-                          className="px-3 py-2 rounded-xl border border-gray-200 bg-white text-[12px] font-extrabold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
                         >
                           Reject
                         </button>
@@ -489,7 +500,7 @@ export default function VendorProjects() {
                           type="button"
                           onClick={() => openConfirm('accept', { assignment, project })}
                           disabled={Boolean(actingId)}
-                          className="px-3 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                          className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
                         >
                           Accept
                         </button>
@@ -498,7 +509,7 @@ export default function VendorProjects() {
                       <button
                         type="button"
                         onClick={() => navigate(`/vendor/projects/${projectId}`, { state: { fromProjectsTab: tab } })}
-                        className="px-3 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90"
+                        className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
                       >
                         Manage Project
                       </button>
@@ -506,7 +517,7 @@ export default function VendorProjects() {
                       <button
                         type="button"
                         onClick={() => navigate(`/vendor/bids/${projectId}?tab=completed`, { state: { fromProjectsTab: tab } })}
-                        className="px-3 py-2 rounded-xl border border-gray-100 bg-white text-[12px] font-extrabold text-primary-dark hover:bg-gray-50"
+                        className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-ink hover:bg-cream"
                       >
                         View Bids
                       </button>
@@ -514,7 +525,7 @@ export default function VendorProjects() {
                       <button
                         type="button"
                         onClick={() => navigate(`/vendor/bids/${projectId}`, { state: { fromProjectsTab: tab } })}
-                        className="px-3 py-2 rounded-xl border border-gray-100 bg-white text-[12px] font-extrabold text-primary-dark hover:bg-gray-50"
+                        className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-ink hover:bg-cream"
                       >
                         View Bids
                       </button>
@@ -533,7 +544,7 @@ export default function VendorProjects() {
             type="button"
             onClick={() => load({ nextPage: Number(meta?.page || 1) + 1, append: true })}
             disabled={moreLoading}
-            className="px-10 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="px-10 py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
           >
             {moreLoading ? 'Loading…' : 'Load more'}
           </button>
@@ -541,13 +552,13 @@ export default function VendorProjects() {
       ) : null}
 
       {confirmOpen ? (
-        <div className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={closeConfirm}>
-          <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">
+        <div className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={closeConfirm}>
+          <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">
                 {confirmType === 'accept' ? 'Accept assignment?' : 'Reject assignment?'}
               </p>
-              <p className="mt-1 text-[12px] text-gray-500">
+              <p className="mt-1 text-[12px] text-muted">
                 {confirmType === 'accept'
                   ? 'You will accept this assignment request.'
                   : 'You will decline this assignment request.'}
@@ -558,7 +569,7 @@ export default function VendorProjects() {
                 type="button"
                 onClick={closeConfirm}
                 disabled={Boolean(actingId)}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -568,7 +579,7 @@ export default function VendorProjects() {
                 disabled={Boolean(actingId)}
                 className={`px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50 ${
                   confirmType === 'accept'
-                    ? 'bg-primary-dark text-white hover:opacity-90'
+                    ? 'bg-walnut text-blush hover:opacity-90'
                     : 'border border-red-100 bg-red-50 text-red-700 hover:bg-red-100'
                 }`}
               >

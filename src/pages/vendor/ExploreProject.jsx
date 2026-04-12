@@ -392,36 +392,36 @@ export default function VendorExploreProject() {
   };
 
   const DetailsCard = ({ className = '' }) => (
-    <div className={`rounded-2xl border border-gray-100 bg-white p-5 ${className}`}>
+    <div className={`rounded-2xl border border-pale bg-white p-5 ${className}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[16px] font-extrabold text-gray-900 break-words">{project?.title ?? 'Project'}</p>
-          <div className="mt-3 space-y-1.5 text-[12px] text-gray-600">
+          <p className="text-[16px] font-extrabold text-ink break-words">{project?.title ?? 'Project'}</p>
+          <div className="mt-3 space-y-1.5 text-[12px] text-mid">
             <p>
               Budget per piece:{' '}
-              <span className="font-extrabold text-gray-900">
+              <span className="font-extrabold text-ink">
                 {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
               </span>
             </p>
             <p>
               Quantity required:{' '}
-              <span className="font-extrabold text-gray-900">{quantityRequiredRaw || '—'}</span>
+              <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
             </p>
             <p>
               Expected delivery:{' '}
-              <span className="font-extrabold text-gray-900">
+              <span className="font-extrabold text-ink">
                 {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
               </span>
             </p>
             {customerName ? (
               <p>
-                Customer: <span className="font-extrabold text-gray-900">{customerName}</span>
+                Customer: <span className="font-extrabold text-ink">{customerName}</span>
               </p>
             ) : null}
           </div>
         </div>
 
-        <span className="shrink-0 px-3 py-1.5 rounded-full bg-primary-dark text-white text-[11px] font-extrabold inline-flex items-center tabular-nums">
+        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
           {timeLeftMs == null ? '—' : bidEnded ? 'Bid Ended' : formatCountdown(timeLeftMs)}
         </span>
       </div>
@@ -430,15 +430,15 @@ export default function VendorExploreProject() {
 
   const MetaCard = ({ className = '' }) =>
     remainingMetaRows.length > 0 ? (
-      <div className={`rounded-2xl border border-gray-100 bg-white overflow-hidden ${className}`}>
-        <div className="px-5 py-4 border-b border-gray-50">
-          <p className="text-[12px] font-extrabold uppercase tracking-wide text-gray-500">Details</p>
+      <div className={`rounded-2xl border border-pale bg-white overflow-hidden ${className}`}>
+        <div className="px-5 py-4 border-b border-pale">
+          <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
         </div>
         <div className="px-5 py-4 space-y-3">
           {remainingMetaRows.map((r) => (
             <div key={r.key} className="space-y-1">
-              <p className="text-[12px] text-gray-500 font-semibold">{r.label}</p>
-              <p className="text-[12px] text-gray-800 font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+              <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+              <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
             </div>
           ))}
         </div>
@@ -447,8 +447,8 @@ export default function VendorExploreProject() {
 
   const AttachmentsCard = ({ className = '' }) =>
     attachments.length > 0 ? (
-      <div className={`rounded-2xl border border-gray-100 bg-white p-5 ${className}`}>
-        <p className="text-[12px] font-extrabold text-gray-900">Attachments</p>
+      <div className={`rounded-2xl border border-pale bg-white p-5 ${className}`}>
+        <p className="text-[12px] font-extrabold text-ink">Attachments</p>
         <div className="mt-3 space-y-2">
           {attachments.map((u, idx) => {
             const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
@@ -458,14 +458,14 @@ export default function VendorExploreProject() {
                 href={u}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors"
+                className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
                 title="Open attachment"
               >
-                <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-gray-700">
-                  <span className="text-gray-500 shrink-0">{attachmentIcon(name)}</span>
+                <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                  <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
                   <span className="truncate">{name}</span>
                 </span>
-                <span className="shrink-0 text-gray-400">
+                <span className="shrink-0 text-muted">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M7 17 17 7" />
                     <path d="M7 7h10v10" />
@@ -484,7 +484,7 @@ export default function VendorExploreProject() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-extrabold text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2"
+          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream inline-flex items-center gap-2"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M15 18l-6-6 6-6" />
@@ -495,28 +495,28 @@ export default function VendorExploreProject() {
 
       {loading ? (
         <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
         </div>
       ) : !project ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">Unable to load project.</div>
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Unable to load project.</div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-5 items-start">
           {/* Match customer View Bids ratio: fixed left, fluid right */}
           <div className="w-full lg:w-[400px] shrink-0 lg:self-start">
-            <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden">
-              <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 overflow-hidden">
+            <div className="rounded-2xl border border-pale bg-white overflow-hidden">
+              <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
                 <SafeImage src={thumbnailUrl} alt={project?.title ?? 'Project'} className="absolute inset-0 w-full h-full object-cover" />
               </div>
-              <div className="p-4 border-t border-gray-100">
+              <div className="p-4 border-t border-pale">
                 <div className="flex flex-col gap-2">
                   {customerId ? (
                     <button
                       type="button"
                       onClick={() => navigate('/vendor/messages', { state: { openRecipientId: customerId } })}
-                      className="w-full px-5 py-3 rounded-2xl bg-white border border-gray-100 text-[13px] font-extrabold text-gray-700 hover:bg-gray-50 inline-flex items-center justify-center gap-2"
+                      className="w-full px-5 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -528,12 +528,12 @@ export default function VendorExploreProject() {
                     type="button"
                     onClick={() => setBidModalOpen(true)}
                     disabled={bidEnded || bidSubmitting}
-                    className="w-full px-5 py-3 rounded-2xl bg-primary-dark text-white text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Bid Now
                   </button>
                 </div>
-                {bidEnded ? <p className="mt-2 text-[11px] text-gray-400 text-center">Bidding window has ended.</p> : null}
+                {bidEnded ? <p className="mt-2 text-[11px] text-muted text-center">Bidding window has ended.</p> : null}
               </div>
             </div>
 
@@ -563,16 +563,16 @@ export default function VendorExploreProject() {
               <DetailsCard />
             </div>
 
-            <div className="rounded-2xl border border-gray-100 bg-white p-5">
+            <div className="rounded-2xl border border-pale bg-white p-5">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[12px] font-extrabold text-gray-900">Bids</p>
+                <p className="text-[12px] font-extrabold text-ink">Bids</p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={loadBids}
                     disabled={bidsLoading}
                     title="Reload bids"
-                    className="p-2 rounded-xl bg-white border border-gray-100 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {bidsLoading ? (
                       <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
@@ -590,23 +590,23 @@ export default function VendorExploreProject() {
               </div>
 
               {bidsLoading ? (
-                <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                <div className="mt-4 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
               ) : bids.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
+                <div className="mt-4 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
                   <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-gray-100 flex items-center justify-center text-gray-300">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-pale flex items-center justify-center text-muted">
                       <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M9 11l3 3L22 4" />
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                       </svg>
                     </div>
-                    <p className="mt-3 text-[14px] font-bold text-gray-900">No bids yet</p>
-                    <p className="mt-1 text-[12px] text-gray-500">Be the first to place a bid.</p>
+                    <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
+                    <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
                   </div>
                 </div>
               ) : (
@@ -619,18 +619,18 @@ export default function VendorExploreProject() {
                     const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
                     const isWinning = winningBid && String(winningBid?.id ?? winningBid?._id ?? idx) === String(b?.id ?? b?._id ?? idx);
                     return (
-                      <div key={String(b?.id ?? b?._id ?? idx)} className="rounded-2xl border border-gray-100 p-4">
+                      <div key={String(b?.id ?? b?._id ?? idx)} className="rounded-2xl border border-pale p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[13px] font-extrabold text-gray-900 truncate">
+                            <p className="text-[13px] font-extrabold text-ink truncate">
                               {isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`}
                             </p>
-                            <p className="mt-1 text-[12px] text-gray-500">
+                            <p className="mt-1 text-[12px] text-muted">
                               Amount:{' '}
-                              <span className="font-extrabold text-gray-800">{price != null ? `₹ ${formatMoney(price)}` : '—'}</span>
+                              <span className="font-extrabold text-ink">{price != null ? `₹ ${formatMoney(price)}` : '—'}</span>
                               {'  '}•{'  '}
                               Duration:{' '}
-                              <span className="font-extrabold text-gray-800">{days != null ? `${days} days` : '—'}</span>
+                              <span className="font-extrabold text-ink">{days != null ? `${days} days` : '—'}</span>
                             </p>
                           </div>
                           {isWinning ? (
@@ -651,23 +651,23 @@ export default function VendorExploreProject() {
 
       {bidModalOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => !bidSubmitting && setBidModalOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Place Your Bid</p>
-                <p className="mt-1 text-[12px] text-gray-400 truncate">{project?.title ?? 'Project'}</p>
+                <p className="text-[14px] font-extrabold text-ink">Place Your Bid</p>
+                <p className="mt-1 text-[12px] text-muted truncate">{project?.title ?? 'Project'}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setBidModalOpen(false)}
                 disabled={bidSubmitting}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -680,7 +680,7 @@ export default function VendorExploreProject() {
             <div className="px-5 py-4">
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500 mb-1">Bid amount</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount</p>
                   <input
                     type="number"
                     value={bidForm.price}
@@ -689,11 +689,11 @@ export default function VendorExploreProject() {
                     inputMode="numeric"
                     min="0"
                     step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
                 </div>
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500 mb-1">Delivery duration (days)</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Delivery duration (days)</p>
                   <input
                     type="number"
                     value={bidForm.daysToComplete}
@@ -702,7 +702,7 @@ export default function VendorExploreProject() {
                     inputMode="numeric"
                     min="1"
                     step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
                 </div>
               </div>
@@ -712,7 +712,7 @@ export default function VendorExploreProject() {
                   type="button"
                   onClick={() => setBidModalOpen(false)}
                   disabled={bidSubmitting}
-                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-[12px] font-extrabold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -720,14 +720,14 @@ export default function VendorExploreProject() {
                   type="button"
                   onClick={submitBid}
                   disabled={bidSubmitting || bidEnded}
-                  className="px-4 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {bidSubmitting ? 'Submitting…' : 'Submit Bid'}
                 </button>
               </div>
 
               {bidEnded ? (
-                <p className="mt-3 text-[11px] text-gray-400">Bidding window has ended.</p>
+                <p className="mt-3 text-[11px] text-muted">Bidding window has ended.</p>
               ) : null}
             </div>
           </div>

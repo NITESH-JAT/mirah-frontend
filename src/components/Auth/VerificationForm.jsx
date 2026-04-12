@@ -28,7 +28,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
+      relative w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
       ${isError ? 'border-red-500' : 'border-green-500'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -40,12 +40,12 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         )}
       </div>
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
           {isError ? 'Error' : 'Success'}
         </h4>
-        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
       </div>
-      <button onClick={handleClose} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1">
+      <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
           <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
         </svg>
@@ -63,8 +63,8 @@ const VerificationTab = ({ label, isActive, isVerified, onClick }) => {
       className={`
         flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[12px] border transition-all duration-300 font-sans cursor-pointer
         ${isActive 
-          ? 'border-primary-dark bg-white shadow-md shadow-blue-900/5 scale-105' 
-          : 'border-gray-100 bg-gray-50 text-gray-400 hover:bg-white hover:border-gray-200'
+          ? 'border-walnut bg-white shadow-sm shadow-walnut/5 scale-105' 
+          : 'border-pale bg-cream text-muted hover:bg-white hover:border-pale'
         }
       `}
     >
@@ -74,9 +74,9 @@ const VerificationTab = ({ label, isActive, isVerified, onClick }) => {
 
         ${isVerified
 
-          ? 'bg-primary-dark border-primary-dark'
+          ? 'bg-walnut border-walnut'
 
-          : 'bg-transparent border-gray-300'
+          : 'bg-transparent border-pale'
 
         }
 
@@ -94,7 +94,7 @@ const VerificationTab = ({ label, isActive, isVerified, onClick }) => {
 
       </div>
 
-      <span className={`text-[14px] font-bold ${isActive || isVerified ? 'text-primary-dark' : 'text-gray-400'}`}>
+      <span className={`text-[14px] font-bold ${isActive || isVerified ? 'text-ink' : 'text-muted'}`}>
 
         {label}
 
@@ -149,7 +149,7 @@ const OtpInputGroup = ({ value, onChange, onEnter }) => {
           value={value[i] || ''}
           onChange={(e) => handleChange(e.target.value, i)}
           onKeyDown={(e) => handleKeyDown(e, i)}
-          className="w-11 h-14 lg:w-10 lg:h-12 border border-gray-200 rounded-[12px] lg:rounded-[8px] text-center text-[22px] font-bold text-gray-700 focus:border-primary-dark focus:ring-1 focus:ring-primary-dark/10 focus:outline-none transition-all bg-white shadow-sm font-sans placeholder:text-gray-200"
+          className="w-11 h-14 lg:w-10 lg:h-12 border border-pale rounded-[12px] lg:rounded-[8px] text-center text-[22px] font-bold text-mid focus:border-walnut focus:ring-1 focus:ring-walnut/10 focus:outline-none transition-all bg-white shadow-sm font-sans placeholder:text-soft"
         />
       ))}
     </div>
@@ -358,8 +358,8 @@ export const VerificationForm = () => {
       
       {/* Header */}
       <div className="shrink-0 text-center mb-8 lg:mb-6 w-full px-4">
-        <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-primary-dark mb-1">Verification</h1>
-        <p className="font-sans text-gray-400 text-[14px] lg:text-[11px] tracking-wide">
+        <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-ink mb-1">Verification</h1>
+        <p className="font-sans text-muted text-[14px] lg:text-[11px] tracking-wide">
             Please verify both your phone number and email address.
         </p>
       </div>
@@ -385,9 +385,9 @@ export const VerificationForm = () => {
         
         {!isCurrentVerified ? (
             <>
-                <p className="text-gray-500 font-sans text-[14px] mb-8 text-center max-w-[280px] leading-relaxed">
+                <p className="text-muted font-sans text-[14px] mb-8 text-center max-w-[280px] leading-relaxed">
                     Enter the 6-digit code sent to <br/>
-                    <span className="font-bold text-primary-dark text-[15px]">
+                    <span className="font-bold text-ink text-[15px]">
                         {activeTab === 'phone' ? `${tempUser.countryCode} ${tempUser.phone}` : tempUser.email}
                     </span>
                 </p>
@@ -403,7 +403,7 @@ export const VerificationForm = () => {
                         onClick={handleResend} 
                         disabled={currentTimer > 0 || loading}
                         className={`text-[13px] font-semibold transition-colors
-                            ${currentTimer > 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 hover:text-primary-dark cursor-pointer'}
+                            ${currentTimer > 0 ? 'text-muted cursor-not-allowed' : 'text-muted hover:text-ink cursor-pointer'}
                         `}
                     >
                         {currentTimer > 0 ? `Resend Code in ${currentTimer}s` : 'Resend Code'}
@@ -411,21 +411,21 @@ export const VerificationForm = () => {
                 </div>
             </>
         ) : (
-            <div className="flex flex-col items-center justify-center p-8 w-full max-w-[340px] bg-white rounded-[20px] border border-gray-100 shadow-xl shadow-blue-900/5">
+            <div className="flex flex-col items-center justify-center p-8 w-full max-w-[340px] bg-white rounded-[20px] border border-pale shadow-sm shadow-walnut/5">
                 <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mb-4 border border-green-100">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
                 </div>
-                <h3 className="text-primary-dark font-bold text-lg font-serif mb-1">Verified Successfully</h3>
-                <p className="text-gray-400 text-[13px] font-sans text-center mb-6">
+                <h3 className="text-ink font-bold text-lg font-serif mb-1">Verified Successfully</h3>
+                <p className="text-muted text-[13px] font-sans text-center mb-6">
                     {activeTab === 'phone' ? 'Your phone number has been secured.' : 'Your email address has been confirmed.'}
                 </p>
                 
                 {(!phoneVerified || !emailVerified) && (
                       <button 
                         onClick={() => setActiveTab(activeTab === 'phone' ? 'email' : 'phone')}
-                        className="w-full py-3 rounded-[12px] bg-gray-50 text-gray-600 text-[13px] font-bold hover:bg-gray-100 transition-colors cursor-pointer border border-gray-100 font-sans"
+                        className="w-full py-3 rounded-[12px] bg-cream text-mid text-[13px] font-bold hover:bg-blush transition-colors cursor-pointer border border-pale font-sans"
                       >
                         Verify {activeTab === 'phone' ? 'Email' : 'Phone'} Next →
                       </button>
@@ -441,7 +441,7 @@ export const VerificationForm = () => {
             <button 
                 onClick={() => handleVerify()} 
                 disabled={loading}
-                className="w-full bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
                 {loading ? 'Verifying...' : 'Verify Code'}
             </button>
@@ -449,7 +449,7 @@ export const VerificationForm = () => {
             <button 
                 onClick={handleFinalSubmit} 
                 disabled={!phoneVerified || !emailVerified}
-                className="w-full bg-primary-dark text-white py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-lg shadow-blue-900/20 active:scale-[0.98] hover:bg-primary-dark/90 transition-all font-sans disabled:opacity-50 disabled:bg-gray-200 disabled:text-gray-400 disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
+                className="w-full bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:bg-pale disabled:text-muted disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
             >
                 {(!phoneVerified || !emailVerified) ? 'Verify Both to Continue' : 'Complete Registration'}
             </button>

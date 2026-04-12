@@ -574,7 +574,7 @@ export default function Checkout() {
         modal: {
           ondismiss: () => addToast('Payment cancelled', 'error'),
         },
-        theme: { color: '#0b3155' },
+        theme: { color: '#6B5545' },
       };
 
       const rz = new window.Razorpay(options);
@@ -619,23 +619,23 @@ export default function Checkout() {
   return (
     <div className="w-full pb-[220px] md:pb-10 animate-fade-in">
       {verifyingPayment ? (
-        <div className="fixed inset-0 z-[200] bg-black/30 backdrop-blur-[1px] flex items-center justify-center px-6">
-          <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-xl">
+        <div className="fixed inset-0 z-[200] bg-ink/25 backdrop-blur-[1px] flex items-center justify-center px-6">
+          <div className="w-full max-w-sm rounded-3xl border border-pale bg-white p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-primary-dark/10 border border-primary-dark/15 flex items-center justify-center text-primary-dark shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-walnut/10 border border-walnut/15 flex items-center justify-center text-ink shrink-0">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                 </svg>
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-extrabold text-gray-900">Verifying payment…</p>
-                  <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <p className="text-[13px] font-extrabold text-ink">Verifying payment…</p>
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
-                <p className="mt-1 text-[12px] text-gray-400">Please wait, do not close the app.</p>
+                <p className="mt-1 text-[12px] text-muted">Please wait, do not close the app.</p>
               </div>
             </div>
           </div>
@@ -645,7 +645,7 @@ export default function Checkout() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+          className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
           aria-label="Back"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -653,27 +653,27 @@ export default function Checkout() {
           </svg>
         </button>
         <div className="flex-1">
-          <p className="text-[16px] font-bold text-gray-900">Checkout</p>
-          <p className="text-[12px] text-gray-400 mt-1">
+          <p className="text-[16px] font-bold text-ink">Checkout</p>
+          <p className="text-[12px] text-muted mt-1">
             Selected items: {Array.isArray(selectedItems) ? selectedItems.length : 0}
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 md:p-14 flex items-center justify-center">
-          <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <div className="rounded-2xl border border-pale bg-cream p-10 md:p-14 flex items-center justify-center">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
         </div>
       ) : !((Array.isArray(cartItemIds) && cartItemIds.length > 0) || (Array.isArray(productIds) && productIds.length > 0)) ? (
-        <div className="rounded-2xl border border-gray-100 bg-white p-6 text-[13px] text-gray-600">
+        <div className="rounded-2xl border border-pale bg-white p-6 text-[13px] text-mid">
           No items selected for checkout.
           <button
             type="button"
             onClick={() => navigate('/customer/cart')}
-            className="mt-4 inline-flex px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50"
+            className="mt-4 inline-flex px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream"
           >
             Back to cart
           </button>
@@ -687,17 +687,17 @@ export default function Checkout() {
                 type="button"
                 aria-label="Close"
                 onClick={() => setPartialCalcOpen(false)}
-                className="absolute inset-0 bg-black/40"
+                className="absolute inset-0 bg-ink/25"
               />
-              <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-3xl border border-gray-100 shadow-xl p-5 md:p-6">
+              <div className="relative w-full md:max-w-md bg-white rounded-t-3xl md:rounded-3xl border border-pale shadow-sm p-5 md:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[14px] font-extrabold text-gray-900">Pay part now</p>
+                    <p className="text-[14px] font-extrabold text-ink">Pay part now</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setPartialCalcOpen(false)}
-                    className="p-2 rounded-xl hover:bg-gray-50 text-gray-500"
+                    className="p-2 rounded-xl hover:bg-cream text-muted"
                     aria-label="Close"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -708,44 +708,44 @@ export default function Checkout() {
                 </div>
 
                 {partialCalcLoading ? (
-                  <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <div className="mt-5 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
                   </div>
                 ) : partialCalc ? (
-                  <div className="mt-5 rounded-2xl border border-gray-100 p-4">
+                  <div className="mt-5 rounded-2xl border border-pale p-4">
                     <div className="space-y-3 text-[12px]">
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Total</span>
-                        <span className="font-extrabold text-gray-900">₹{formatMoney(partialCalc.total)}</span>
+                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.total)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Pay online now</span>
-                        <span className="font-extrabold text-primary-dark">₹{formatMoney(partialCalc.onlineAmount)}</span>
+                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.onlineAmount)}</span>
                       </div>
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Pay offline later</span>
-                        <span className="font-extrabold text-gray-900">₹{formatMoney(partialCalc.offlineAmount)}</span>
+                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.offlineAmount)}</span>
                       </div>
                     </div>
 
                     {partialCalc?.rules ? (
-                      <div className="mt-4 rounded-2xl border border-gray-100 bg-gray-50 p-3 text-[11px] text-gray-500">
+                      <div className="mt-4 rounded-2xl border border-pale bg-cream p-3 text-[11px] text-muted">
                         {partialCalc.rules?.offlineCap != null ? (
-                          <div className="mt-1">Offline cap: <span className="font-semibold text-gray-700">₹{formatMoney(partialCalc.rules.offlineCap)}</span></div>
+                          <div className="mt-1">Offline cap: <span className="font-semibold text-mid">₹{formatMoney(partialCalc.rules.offlineCap)}</span></div>
                         ) : null}
                       </div>
                     ) : null}
                   </div>
                 ) : (
-                  <div className="mt-5 rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[12px] text-gray-600">
+                  <div className="mt-5 rounded-2xl border border-pale bg-cream p-6 text-[12px] text-mid">
                     Unable to calculate partial payment. Please try again or choose another payment method.
                     <button
                       type="button"
                       onClick={loadPartialCalc}
-                      className="mt-4 inline-flex px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                      className="mt-4 inline-flex px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                     >
                       Retry
                     </button>
@@ -757,7 +757,7 @@ export default function Checkout() {
                     type="button"
                     onClick={() => setPartialCalcOpen(false)}
                     disabled={submitting}
-                    className="flex-1 px-4 py-3 rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                    className="flex-1 px-4 py-3 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-60"
                   >
                     Close
                   </button>
@@ -765,7 +765,7 @@ export default function Checkout() {
                     type="button"
                     onClick={proceedCheckout}
                     disabled={submitting || partialCalcLoading || !partialCalc}
-                    className="flex-1 px-4 py-3 rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                    className="flex-1 px-4 py-3 rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                   >
                     {submitting ? 'Processing…' : 'Continue'}
                   </button>
@@ -783,18 +783,18 @@ export default function Checkout() {
           <div className="grid grid-cols-1 md:grid-cols-[1.2fr_0.8fr] gap-4 md:gap-6">
             {/* Left: items + payment method */}
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+              <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[14px] font-extrabold text-gray-900">Selected items</p>
+                    <p className="text-[14px] font-extrabold text-ink">Selected items</p>
                     {providerCheck.providerLabel ? (
-                      <p className="mt-1 text-[12px] text-gray-400">{providerCheck.providerLabel}</p>
+                      <p className="mt-1 text-[12px] text-muted">{providerCheck.providerLabel}</p>
                     ) : null}
                   </div>
                   <button
                     type="button"
                     onClick={() => navigate('/customer/cart')}
-                    className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                   >
                     Edit
                   </button>
@@ -806,24 +806,24 @@ export default function Checkout() {
                     const img = p?.images?.[0] ?? p?.imageUrls?.[0] ?? p?.imageUrl ?? null;
                     return (
                       <div key={x.key} className="flex items-center gap-3">
-                        <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
+                        <div className="w-14 h-14 rounded-2xl bg-cream border border-pale overflow-hidden shrink-0">
                           <SafeImage src={img} alt="" className="w-full h-full object-contain p-1 bg-white" />
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-[12px] font-bold text-gray-900 truncate">{x.name}</p>
+                          <p className="text-[14px] font-bold text-ink truncate">{x.name}</p>
                           {x.variantText ? (
-                            <p className="text-[11px] text-gray-500 mt-0.5 font-semibold truncate">{x.variantText}</p>
+                            <p className="text-[11px] text-muted mt-0.5 font-semibold truncate">{x.variantText}</p>
                           ) : null}
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            Qty: {x.qty} • ₹{formatMoney(x.unitPrice)} <span className="text-gray-300">/</span> piece
+                          <p className="text-[11px] text-muted mt-0.5">
+                            Qty: {x.qty} • ₹{formatMoney(x.unitPrice)} <span className="text-muted">/</span> piece
                           </p>
                         </div>
-                        <div className="text-[12px] font-extrabold text-gray-900">₹{formatMoney(x.unitPrice)}</div>
+                        <div className="text-[12px] font-extrabold text-ink">₹{formatMoney(x.unitPrice)}</div>
                       </div>
                     );
                   })}
                   {lineItems.length > 3 ? (
-                    <div className="text-[12px] text-gray-400 font-semibold">
+                    <div className="text-[12px] text-muted font-semibold">
                       +{lineItems.length - 3} more item{lineItems.length - 3 === 1 ? '' : 's'}
                     </div>
                   ) : null}
@@ -831,9 +831,9 @@ export default function Checkout() {
               </div>
 
               {/* Addresses */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
-                <p className="text-[14px] font-extrabold text-gray-900">Delivery details</p>
-                <p className="mt-1 text-[12px] text-gray-400">Billing & shipping are required.</p>
+              <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
+                <p className="text-[14px] font-extrabold text-ink">Delivery details</p>
+                <p className="mt-1 text-[12px] text-muted">Billing & shipping are required.</p>
 
                 <div className="mt-4 space-y-4">
                   {[
@@ -852,23 +852,23 @@ export default function Checkout() {
                       type: 'shipping',
                     },
                   ].map((x) => (
-                    <div key={x.type} className="rounded-2xl border border-gray-100 bg-gray-50/40 p-4">
+                    <div key={x.type} className="rounded-2xl border border-pale bg-cream/40 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-[12px] font-extrabold text-gray-900">{x.title}</p>
+                          <p className="text-[12px] font-extrabold text-ink">{x.title}</p>
                           {!x.valid.ok ? (
                             <p className="mt-1 text-[11px] text-amber-700 font-semibold">Please complete required fields.</p>
                           ) : (
-                            <p className="mt-1 text-[11px] text-gray-400">Saved as default on checkout.</p>
+                            <p className="mt-1 text-[11px] text-muted">Saved as default on checkout.</p>
                           )}
                         </div>
                         {x.type === 'shipping' ? (
-                          <label className="inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
+                          <label className="inline-flex items-center gap-2 text-[12px] font-medium text-ink select-none">
                             <input
                               type="checkbox"
                               checked={shippingSameAsBilling}
                               onChange={(e) => setShippingSameAsBilling(e.target.checked)}
-                              className="w-4 h-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark/30"
+                              className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                             />
                             Same as billing address
                           </label>
@@ -876,20 +876,20 @@ export default function Checkout() {
                       </div>
 
                       {x.type === 'shipping' && shippingSameAsBilling ? (
-                        <div className="mt-3 rounded-2xl border border-gray-100 bg-white p-4 text-[12px] text-gray-600">
+                        <div className="mt-3 rounded-2xl border border-pale bg-white p-4 text-[12px] text-mid">
                           Shipping address will be saved as the same as billing.
                         </div>
                       ) : (
                         <div className="mt-3 space-y-3">
                         <div>
-                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                             Full name *
                           </label>
                           <input
                             value={x.form.name}
                             onChange={(e) => x.setForm((p) => ({ ...p, name: e.target.value }))}
                             className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                              x.valid.missing.name ? 'border-amber-300' : 'border-gray-100'
+                              x.valid.missing.name ? 'border-amber-300' : 'border-pale'
                             }`}
                             placeholder="Name"
                           />
@@ -897,7 +897,7 @@ export default function Checkout() {
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                               Phone *
                             </label>
                             <input
@@ -912,13 +912,13 @@ export default function Checkout() {
                             }
                             inputMode="numeric"
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.phone ? 'border-amber-300' : 'border-gray-100'
+                                x.valid.missing.phone ? 'border-amber-300' : 'border-pale'
                               }`}
                               placeholder="Phone"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                               Pin code *
                             </label>
                             <input
@@ -926,7 +926,7 @@ export default function Checkout() {
                               onChange={(e) => x.setForm((p) => ({ ...p, pinCode: e.target.value }))}
                               inputMode="numeric"
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.pinCode ? 'border-amber-300' : 'border-gray-100'
+                                x.valid.missing.pinCode ? 'border-amber-300' : 'border-pale'
                               }`}
                               placeholder="Pin code"
                             />
@@ -934,54 +934,54 @@ export default function Checkout() {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                             Address *
                           </label>
                           <input
                             value={x.form.address}
                             onChange={(e) => x.setForm((p) => ({ ...p, address: e.target.value }))}
                             className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                              x.valid.missing.address ? 'border-amber-300' : 'border-gray-100'
+                              x.valid.missing.address ? 'border-amber-300' : 'border-pale'
                             }`}
                             placeholder="House no, street, area"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                             Address line 2
                           </label>
                           <input
                             value={x.form.addressLine2}
                             onChange={(e) => x.setForm((p) => ({ ...p, addressLine2: e.target.value }))}
-                            className="mt-1 w-full px-4 py-3 rounded-xl border border-gray-100 bg-white text-[12px] font-semibold focus:outline-none"
+                            className="mt-1 w-full px-4 py-3 rounded-xl border border-pale bg-white text-[12px] font-semibold focus:outline-none"
                             placeholder="Landmark, apartment, etc."
                           />
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                               City *
                             </label>
                             <input
                               value={x.form.city}
                               onChange={(e) => x.setForm((p) => ({ ...p, city: e.target.value }))}
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.city ? 'border-amber-300' : 'border-gray-100'
+                                x.valid.missing.city ? 'border-amber-300' : 'border-pale'
                               }`}
                               placeholder="City"
                             />
                           </div>
                           <div>
-                            <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                               State *
                             </label>
                             <input
                               value={x.form.state}
                               onChange={(e) => x.setForm((p) => ({ ...p, state: e.target.value }))}
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.state ? 'border-amber-300' : 'border-gray-100'
+                                x.valid.missing.state ? 'border-amber-300' : 'border-pale'
                               }`}
                               placeholder="State"
                             />
@@ -989,14 +989,14 @@ export default function Checkout() {
                         </div>
 
                         <div>
-                          <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
                             Country *
                           </label>
                           <input
                             value={x.form.country}
                             onChange={(e) => x.setForm((p) => ({ ...p, country: e.target.value }))}
                             className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                              x.valid.missing.country ? 'border-amber-300' : 'border-gray-100'
+                              x.valid.missing.country ? 'border-amber-300' : 'border-pale'
                             }`}
                             placeholder="Country"
                           />
@@ -1013,8 +1013,8 @@ export default function Checkout() {
 
             {/* Right: payment details */}
             <div className="space-y-4">
-              <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6 h-fit">
-                <div className="flex items-center gap-2 text-gray-800">
+              <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 h-fit">
+                <div className="flex items-center gap-2 text-ink">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -1026,48 +1026,48 @@ export default function Checkout() {
                     {lineItems.map((x) => (
                       <div key={x.key} className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-gray-700 font-semibold truncate">
-                            {x.name} <span className="text-gray-400 font-bold">×{x.qty}</span>
+                          <p className="text-[14px] text-mid font-semibold truncate">
+                            {x.name} <span className="text-muted font-bold">×{x.qty}</span>
                           </p>
                           {x.variantText ? (
-                            <p className="text-[11px] text-gray-500 font-semibold truncate">{x.variantText}</p>
+                            <p className="text-[11px] text-muted font-semibold truncate">{x.variantText}</p>
                           ) : null}
-                          <p className="text-[11px] text-gray-400">
+                          <p className="text-[11px] text-muted">
                             ₹{formatMoney(x.unitPrice)} / piece
                           </p>
                         </div>
-                        <div className="shrink-0 font-bold text-gray-900">₹{formatMoney(x.lineTotal)}</div>
+                        <div className="shrink-0 font-bold text-ink">₹{formatMoney(x.lineTotal)}</div>
                       </div>
                     ))}
                   </div>
 
-                  <div className="mt-4 border-t border-gray-100 pt-3 space-y-2">
-                    <div className="flex items-center justify-between text-gray-600 hidden">
+                  <div className="mt-4 border-t border-pale pt-3 space-y-2">
+                    <div className="flex items-center justify-between text-mid hidden">
                       <span>Item total</span>
-                      <span className="font-bold text-gray-900">₹{formatMoney(totals.subtotal)}</span>
+                      <span className="font-bold text-ink">₹{formatMoney(totals.subtotal)}</span>
                     </div>
                     {Number(totals.delivery || 0) !== 0 ? (
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Delivery</span>
-                        <span className="font-bold text-gray-900">₹{formatMoney(totals.delivery)}</span>
+                        <span className="font-bold text-ink">₹{formatMoney(totals.delivery)}</span>
                       </div>
                     ) : null}
                     {Number(totals.handling || 0) !== 0 ? (
-                      <div className="flex items-center justify-between text-gray-600">
+                      <div className="flex items-center justify-between text-mid">
                         <span>Handling</span>
-                        <span className="font-bold text-gray-900">₹{formatMoney(totals.handling)}</span>
+                        <span className="font-bold text-ink">₹{formatMoney(totals.handling)}</span>
                       </div>
                     ) : null}
-                    <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                      <span className="font-extrabold text-gray-900">Grand Total</span>
-                      <span className="font-extrabold text-gray-900">₹{formatMoney(totals.total)}</span>
+                    <div className="border-t border-pale pt-3 flex items-center justify-between">
+                      <span className="font-extrabold text-ink">Grand Total</span>
+                      <span className="font-extrabold text-ink">₹{formatMoney(totals.total)}</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="hidden md:block bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
-                <p className="text-[13px] font-extrabold text-gray-900">Payment method</p>
+              <div className="hidden md:block bg-white rounded-2xl border border-pale p-4 md:p-6">
+                <p className="text-[13px] font-extrabold text-ink">Payment method</p>
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { id: 'razorpay', label: 'Online', hint: 'Pay with Razorpay' },
@@ -1097,8 +1097,8 @@ export default function Checkout() {
                       disabled={m.id === 'offline' && !offlineAllowed}
                       className={`relative text-left px-4 py-3 rounded-2xl border ${
                         paymentMethod === m.id
-                          ? 'border-primary-dark bg-primary-dark/5 text-primary-dark'
-                          : 'border-gray-100 bg-white text-gray-700 hover:bg-gray-50'
+                          ? 'border-walnut bg-walnut/5 text-ink'
+                          : 'border-pale bg-white text-mid hover:bg-cream'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {m.info ? (
@@ -1108,11 +1108,11 @@ export default function Checkout() {
                           onMouseDown={(e) => e.stopPropagation()}
                         >
                           <div className="relative group">
-                            <div className="w-5 h-5 rounded-full border border-gray-200 bg-white text-gray-500 flex items-center justify-center text-[11px] font-extrabold">
+                            <div className="w-5 h-5 rounded-full border border-pale bg-white text-muted flex items-center justify-center text-[11px] font-extrabold">
                               i
                             </div>
                             <div className="pointer-events-none absolute right-0 top-full mt-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="rounded-xl border border-gray-100 bg-white shadow-lg px-3 py-2 text-[11px] font-semibold text-gray-700">
+                              <div className="rounded-xl border border-pale bg-white shadow-sm px-3 py-2 text-[11px] font-semibold text-mid">
                                 {m.info}
                               </div>
                             </div>
@@ -1120,7 +1120,7 @@ export default function Checkout() {
                         </div>
                       ) : null}
                       <div className="text-[12px] font-extrabold">{m.label}</div>
-                      <div className="text-[11px] text-gray-400 mt-1">{m.hint}</div>
+                      <div className="text-[11px] text-muted mt-1">{m.hint}</div>
                     </button>
                   ))}
                 </div>
@@ -1129,7 +1129,7 @@ export default function Checkout() {
                   type="button"
                   onClick={onContinue}
                   disabled={!canPressContinue}
-                  className="mt-5 w-full items-center justify-center py-3 rounded-full bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex"
+                  className="mt-5 w-full items-center justify-center py-3 rounded-full bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 inline-flex"
                 >
                   {submitting ? 'Processing…' : 'Continue'}
                 </button>
@@ -1144,11 +1144,11 @@ export default function Checkout() {
           </div>
 
           {/* Mobile fixed: payment method + continue */}
-          <div className="md:hidden fixed left-0 right-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 bg-[#F8F9FA]">
-            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+          <div className="md:hidden fixed left-0 right-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 bg-cream">
+            <div className="rounded-2xl border border-pale bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-[12px] font-extrabold text-gray-900">Payment method</p>
-                <p className="text-[11px] text-gray-400">Select one</p>
+                <p className="text-[12px] font-extrabold text-ink">Payment method</p>
+                <p className="text-[11px] text-muted">Select one</p>
               </div>
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[
@@ -1182,8 +1182,8 @@ export default function Checkout() {
                     aria-disabled={m.id === 'offline' && !offlineAllowed}
                     className={`relative w-full px-2 py-2 rounded-xl border text-[11px] font-extrabold select-none text-center ${
                       paymentMethod === m.id
-                        ? 'border-primary-dark bg-primary-dark/5 text-primary-dark'
-                        : 'border-gray-100 bg-white text-gray-700'
+                        ? 'border-walnut bg-walnut/5 text-ink'
+                        : 'border-pale bg-white text-mid'
                     } ${m.id === 'offline' && !offlineAllowed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     {m.info ? (
@@ -1194,7 +1194,7 @@ export default function Checkout() {
                           e.stopPropagation();
                           setMobilePayInfoOpen((prev) => (prev === m.id ? null : m.id));
                         }}
-                        className="absolute top-1 right-1 w-4 h-4 rounded-full border border-gray-200 bg-white text-gray-500 inline-flex items-center justify-center text-[10px] font-extrabold"
+                        className="absolute top-1 right-1 w-4 h-4 rounded-full border border-pale bg-white text-muted inline-flex items-center justify-center text-[10px] font-extrabold"
                       >
                         i
                       </button>
@@ -1204,7 +1204,7 @@ export default function Checkout() {
                 ))}
               </div>
               {mobilePayInfoOpen ? (
-                <div className="mt-3 rounded-2xl border border-gray-100 bg-gray-50 px-3 py-2 text-[11px] font-semibold text-gray-700">
+                <div className="mt-3 rounded-2xl border border-pale bg-cream px-3 py-2 text-[11px] font-semibold text-mid">
                   {mobilePayInfoOpen === 'offline'
                     ? 'Pay in person at our office during order pickup.'
                     : 'Pay part now, balance payable in person at pickup'}
@@ -1219,7 +1219,7 @@ export default function Checkout() {
                 type="button"
                 onClick={onContinue}
                 disabled={!canPressContinue}
-                className="mt-3 w-full py-3 rounded-full bg-primary-dark text-white text-[13px] font-extrabold disabled:opacity-50"
+                className="mt-3 w-full py-3 rounded-full bg-walnut text-blush text-[13px] font-extrabold disabled:opacity-50"
               >
                 {submitting ? 'Processing…' : 'Continue'}
               </button>

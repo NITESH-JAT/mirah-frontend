@@ -2,28 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
-import { sourceBadgeText } from '../../utils/productSource';
-import SafeImage from '../../components/SafeImage';
+import ProductGridCard from '../../components/customer/ProductGridCard';
 
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function discountPercent({ price, compareAtPrice }) {
-  const p = Number(price);
-  const c = Number(compareAtPrice);
-  if (Number.isNaN(p) || Number.isNaN(c) || c <= 0 || p <= 0) return null;
-  if (c <= p) return null;
-  return Math.round(((c - p) / c) * 100);
-}
-
-function firstImageUrl(p) {
-  const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
-  if (Array.isArray(images) && images[0]) return images[0];
-  if (typeof images === 'string') return images;
-  return null;
 }
 
 const SortOptions = [
@@ -265,80 +249,10 @@ export default function Shopping() {
     }
   };
 
-  const ProductCard = ({ p }) => {
-    const img = firstImageUrl(p);
-    const off = discountPercent({ price: p?.price, compareAtPrice: p?.compareAtPrice });
-    const sourceText = sourceBadgeText(p);
-    const isFeatured =
-      p?.isFeatured === true || p?.isFeatured === 1 || String(p?.isFeatured).toLowerCase() === 'true';
-    return (
-      <div className="group">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`);
-          }}
-          className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 cursor-pointer"
-        >
-          {img ? (
-            <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-              <div className="mt-2 text-[11px] font-bold text-gray-300">No image</div>
-            </div>
-          )}
-          {sourceText ? (
-            <div className="absolute top-2 right-2 max-w-[78%]">
-              <span className="block px-2 py-1 rounded-lg bg-white/95 backdrop-blur border border-gray-100 text-[10px] font-bold text-gray-600 shadow-sm line-clamp-1">
-                {sourceText}
-              </span>
-            </div>
-          ) : null}
-          {isFeatured ? (
-            <div className="absolute top-2 left-2 z-20 pointer-events-none">
-              <span className="w-7 h-7 rounded-full bg-amber-50 border border-amber-100 shadow-sm flex items-center justify-center text-amber-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </span>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openAddToCart(p);
-            }}
-            className="absolute right-2 bottom-2 w-8 h-8 rounded-full bg-white/95 shadow-sm border border-gray-100 flex items-center justify-center text-primary-dark transition-colors hover:bg-primary-dark hover:text-white cursor-pointer"
-            aria-label="Add to cart"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
-          </button>
-        </div>
-        <div className="mt-2">
-          <p className="text-[12px] md:text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2">
-            {p?.name || 'Product'}
-          </p>
-        </div>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <div className="text-[13px] md:text-[14px] font-bold text-gray-900">₹{formatMoney(p?.price)}</div>
-          {off != null ? (
-            <span className="shrink-0 px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
-              {off}% off
-            </span>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full pb-[160px] lg:pb-[96px] animate-fade-in">
       {/* Sticky top controls (search + filter + sort) */}
-      <div className="sticky top-0 z-30 isolate bg-[#F8F9FA] -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-gray-100/60">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
         <div className="flex items-center justify-between gap-3">
           {/* Desktop search */}
           <div className="relative hidden md:block w-[420px] max-w-[55vw]">
@@ -346,24 +260,24 @@ export default function Shopping() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder='Search “Jewellers”'
-              className="w-full bg-white border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+              className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
             </div>
           </div>
 
           <div className="flex items-center gap-2 w-full justify-end md:w-auto">
             <div className="hidden md:flex items-center gap-2 mr-1">
-              <p className="text-[12px] font-semibold text-gray-500">Grids</p>
-              <div className="inline-flex items-center bg-white border border-gray-100 rounded-xl p-1">
+              <p className="text-[12px] font-semibold text-muted">Grids</p>
+              <div className="inline-flex items-center bg-white border border-pale rounded-xl p-1">
                 {[2, 4, 6].map((n) => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setDesktopGridCols(n)}
                     className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${
-                      desktopGridCols === n ? 'bg-primary-dark text-white' : 'text-gray-600 hover:bg-gray-50'
+                      desktopGridCols === n ? 'bg-walnut text-blush' : 'text-mid hover:bg-cream'
                     }`}
                     aria-label={`${n} products per row`}
                     title={`${n} per row`}
@@ -380,7 +294,7 @@ export default function Shopping() {
                   if (openFilters) setOpenFilters(false);
                   else openFilterModal();
                 }}
-                className="px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 inline-flex items-center gap-2"
+                className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
                 Filters
@@ -392,14 +306,14 @@ export default function Shopping() {
               <button
                 type="button"
                 onClick={() => setOpenSort((v) => !v)}
-                className="px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 bg-white hover:bg-gray-50 inline-flex items-center gap-2"
+                className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h13"/><path d="M3 12h9"/><path d="M3 18h5"/><path d="m19 8 2 2-2 2"/><path d="M21 10h-5"/></svg>
                 Sort
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
               </button>
               {openSort ? (
-                <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl overflow-hidden z-40">
+                <div className="absolute right-0 mt-2 w-56 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">
                   {SortOptions.map((opt) => (
                     <button
                       key={opt.id}
@@ -408,8 +322,8 @@ export default function Shopping() {
                         setSortId(opt.id);
                         setOpenSort(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-gray-50 ${
-                        sortId === opt.id ? 'text-primary-dark' : 'text-gray-700'
+                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-cream ${
+                        sortId === opt.id ? 'text-ink' : 'text-mid'
                       }`}
                     >
                       {opt.label}
@@ -422,7 +336,7 @@ export default function Shopping() {
             <button
               type="button"
               onClick={openFilterModal}
-              className="md:hidden w-10 h-10 rounded-xl border border-gray-100 bg-white text-gray-600 hover:bg-gray-50 flex items-center justify-center"
+              className="md:hidden w-10 h-10 rounded-xl border border-pale bg-white text-mid hover:bg-cream flex items-center justify-center"
               aria-label="Filters"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
@@ -436,9 +350,9 @@ export default function Shopping() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder='Search “Jewellers”'
-            className="w-full bg-white border border-gray-100 rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-primary-dark"
+            className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
           />
-          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
           </div>
         </div>
@@ -447,22 +361,22 @@ export default function Shopping() {
       {/* Filters panel (mobile drawer) */}
       {openFilters ? (
         <div
-          className="fixed inset-0 z-[80] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
+          className="fixed inset-0 z-[80] bg-ink/25 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
           onMouseDown={() => setOpenFilters(false)}
         >
           <div
-            className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
+            className="w-full max-w-xl md:w-[420px] md:max-w-[420px] bg-white rounded-t-2xl md:rounded-none shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
               <div>
-                <p className="text-[15px] font-bold text-gray-800">Filters</p>
-                <p className="text-[12px] text-gray-400 mt-1">Refine results</p>
+                <p className="text-[15px] font-bold text-ink">Filters</p>
+                <p className="text-[12px] text-muted mt-1">Refine results</p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpenFilters(false)}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -472,11 +386,11 @@ export default function Shopping() {
             <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-4">
               <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Category</label>
+                  <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Category</label>
                   <select
                     value={draftCategory}
                     onChange={(e) => setDraftCategory(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                   >
                     <option value="">All</option>
                     {filterMetaLoading ? (
@@ -492,11 +406,11 @@ export default function Shopping() {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-[11px] font-medium text-primary-dark uppercase tracking-wide">Collection</label>
+                  <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Collection</label>
                   <select
                     value={draftBrand}
                     onChange={(e) => setDraftBrand(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                   >
                     <option value="">All</option>
                     {filterMetaLoading ? (
@@ -513,18 +427,18 @@ export default function Shopping() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
+              <label className="flex items-center gap-2 text-[12px] text-ink cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={draftFeatured}
                   onChange={(e) => setDraftFeatured(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                  className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                 />
                 <span className="font-medium">Featured</span>
               </label>
             </div>
 
-            <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={() => {
@@ -532,7 +446,7 @@ export default function Shopping() {
                   setDraftBrand('');
                   setDraftFeatured(false);
                 }}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
               >
                 Clear
               </button>
@@ -544,7 +458,7 @@ export default function Shopping() {
                   setFeatured(Boolean(draftFeatured));
                   setOpenFilters(false);
                 }}
-                className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer"
               >
                 Apply
               </button>
@@ -557,7 +471,7 @@ export default function Shopping() {
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <svg
-              className="animate-spin text-primary-dark"
+              className="animate-spin text-ink"
               xmlns="http://www.w3.org/2000/svg"
               width="28"
               height="28"
@@ -576,20 +490,25 @@ export default function Shopping() {
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
               </div>
-              <p className="mt-4 text-[14px] font-bold text-gray-900">No products found</p>
-              <p className="mt-1 text-[12px] text-gray-500">Try changing filters or search.</p>
+              <p className="mt-4 text-[14px] font-bold text-ink">No products found</p>
+              <p className="mt-1 text-[12px] text-muted">Try changing filters or search.</p>
             </div>
           </div>
         ) : (
           <div className={`grid grid-cols-2 sm:grid-cols-3 ${desktopGridColsClass} gap-4`}>
             {featuredFirstItems.map((p) => (
-              <ProductCard key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())} p={p} />
+              <ProductGridCard
+                key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())}
+                product={p}
+                onNavigate={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
+                onAddToCart={() => openAddToCart(p)}
+              />
             ))}
           </div>
         )}
@@ -598,22 +517,22 @@ export default function Shopping() {
       {/* Add-to-cart quantity picker */}
       {cartOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeAddToCart}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[15px] font-bold text-gray-800">Add to cart</p>
-                <p className="text-[12px] text-gray-400 mt-1 truncate">{cartProduct?.name || 'Product'}</p>
+                <p className="text-[15px] font-bold text-ink">Add to cart</p>
+                <p className="text-[13px] md:text-[14px] text-muted mt-1 truncate">{cartProduct?.name || 'Product'}</p>
               </div>
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50"
                 aria-label="Close"
                 disabled={cartAdding}
               >
@@ -624,7 +543,7 @@ export default function Shopping() {
             <div className="px-5 py-5">
               {cartVariants.length ? (
                 <div className="mb-5">
-                  <p className="text-[13px] font-semibold text-gray-700">Size Options</p>
+                  <p className="text-[13px] font-semibold text-mid">Size Options</p>
                   <div className="mt-3 space-y-2">
                     {cartVariants.map((v, idx) => {
                       const checked = Number(cartVariantIdx) === idx;
@@ -633,24 +552,24 @@ export default function Shopping() {
                       return (
                         <label
                           key={String(idx)}
-                          className="flex items-start gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/60 cursor-pointer"
+                          className="flex items-start gap-3 p-3 rounded-2xl border border-pale bg-cream/60 cursor-pointer"
                         >
                           <input
                             type="radio"
                             name="cart_variant"
                             checked={checked}
                             onChange={() => setCartVariantIdx(idx)}
-                            className="mt-1 w-4 h-4 text-primary-dark focus:ring-primary-dark/30"
+                            className="mt-1 w-4 h-4 text-ink focus:ring-walnut/30"
                             disabled={cartAdding}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="text-[12px] font-bold text-gray-900 truncate">{variantLabel(v)}</p>
+                              <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-gray-900">₹{formatMoney(price)}</p>
+                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
                               ) : null}
                             </div>
-                            <p className="mt-0.5 text-[11px] text-gray-500">Select this option to add this variant.</p>
+                            <p className="mt-0.5 text-[11px] text-muted">Select this option to add this variant.</p>
                           </div>
                         </label>
                       );
@@ -660,8 +579,8 @@ export default function Shopping() {
               ) : null}
 
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-gray-700">Quantity</p>
-                <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                <p className="text-[13px] font-semibold text-mid">Quantity</p>
+                <div className="inline-flex items-center overflow-hidden rounded-xl bg-walnut text-blush">
                   <button
                     type="button"
                     onClick={() => setCartQty((v) => Math.max(1, (Number(v) || 1) - 1))}
@@ -692,11 +611,11 @@ export default function Shopping() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer disabled:opacity-50"
                 disabled={cartAdding}
               >
                 Cancel
@@ -704,7 +623,7 @@ export default function Shopping() {
               <button
                 type="button"
                 onClick={confirmAddToCart}
-                className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                 disabled={cartAdding || (cartVariants.length > 0 && !selectedCartVariant)}
               >
                 {cartAdding ? 'Adding…' : 'Add'}
@@ -731,14 +650,14 @@ export default function Shopping() {
                     const next = Math.max(1, currentPage - 1);
                     fetchList({ nextPage: next, query: q });
                   }}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Prev
                 </button>
 
-                <div className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] text-gray-500 shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-gray-800">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-gray-800">{totalPages}</span>
+                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
+                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
+                  <span className="font-semibold text-ink">{totalPages}</span>
                 </div>
 
                 <button
@@ -748,7 +667,7 @@ export default function Shopping() {
                     const next = currentPage + 1;
                     fetchList({ nextPage: next, query: q });
                   }}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Next
                 </button>

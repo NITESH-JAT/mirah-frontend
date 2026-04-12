@@ -2,28 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
-import { sourceBadgeText } from '../../utils/productSource';
-import SafeImage from '../../components/SafeImage';
+import ProductGridCard from '../../components/customer/ProductGridCard';
 
 function formatMoney(v) {
   const n = Number(v);
   if (Number.isNaN(n)) return String(v ?? '');
   return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function discountPercent({ price, compareAtPrice }) {
-  const p = Number(price);
-  const c = Number(compareAtPrice);
-  if (Number.isNaN(p) || Number.isNaN(c) || c <= 0 || p <= 0) return null;
-  if (c <= p) return null;
-  return Math.round(((c - p) / c) * 100);
-}
-
-function firstImageUrl(p) {
-  const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
-  if (Array.isArray(images) && images[0]) return images[0];
-  if (typeof images === 'string') return images;
-  return null;
 }
 
 function pickId(p) {
@@ -209,84 +193,6 @@ export default function SimilarProducts() {
     }
   };
 
-  const ProductCard = ({ p }) => {
-    const img = firstImageUrl(p);
-    const sourceText = sourceBadgeText(p);
-    const pid = pickId(p);
-    const off = discountPercent({ price: p?.price, compareAtPrice: p?.compareAtPrice });
-    const isFeatured =
-      p?.isFeatured === true || p?.isFeatured === 1 || String(p?.isFeatured).toLowerCase() === 'true';
-    return (
-      <div className="group">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={() => navigate(`/customer/shopping/${pid}`)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') navigate(`/customer/shopping/${pid}`);
-          }}
-          className="relative w-full aspect-square rounded-2xl overflow-hidden bg-white border border-gray-100 cursor-pointer"
-        >
-          {img ? (
-            <SafeImage src={img} alt="" className="w-full h-full object-contain p-2 bg-white" loading="lazy" />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <path d="M21 15l-5-5L5 21" />
-              </svg>
-              <div className="mt-2 text-[11px] font-bold text-gray-300">No image</div>
-            </div>
-          )}
-          {sourceText ? (
-            <div className="absolute top-2 right-2 max-w-[78%]">
-              <span className="block px-2 py-1 rounded-lg bg-white/95 backdrop-blur border border-gray-100 text-[10px] font-bold text-gray-600 shadow-sm line-clamp-1">
-                {sourceText}
-              </span>
-            </div>
-          ) : null}
-          {isFeatured ? (
-            <div className="absolute top-2 left-2 z-20 pointer-events-none">
-              <span className="w-7 h-7 rounded-full bg-amber-50 border border-amber-100 shadow-sm flex items-center justify-center text-amber-500">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                </svg>
-              </span>
-            </div>
-          ) : null}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              openAddToCart(p);
-            }}
-            className="absolute right-2 bottom-2 w-8 h-8 rounded-full bg-white/95 shadow-sm border border-gray-100 flex items-center justify-center text-primary-dark transition-colors hover:bg-primary-dark hover:text-white cursor-pointer"
-            aria-label="Add to cart"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 5v14" />
-              <path d="M5 12h14" />
-            </svg>
-          </button>
-        </div>
-        <div className="mt-2">
-          <p className="text-[12px] md:text-[13px] font-semibold text-gray-800 leading-snug line-clamp-2">
-            {p?.name || 'Product'}
-          </p>
-        </div>
-        <div className="mt-1 flex items-center justify-between gap-2">
-          <div className="text-[13px] md:text-[14px] font-bold text-gray-900">₹{formatMoney(p?.price)}</div>
-          {off != null ? (
-            <span className="shrink-0 px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
-              {off}% off
-            </span>
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full pb-[160px] lg:pb-[96px] animate-fade-in">
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -294,7 +200,7 @@ export default function SimilarProducts() {
           <button
             type="button"
             onClick={() => navigate(`/customer/shopping/${id}`)}
-            className="p-2 rounded-xl bg-white border border-gray-100 text-gray-600 hover:bg-gray-50"
+            className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
             aria-label="Back to product"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -302,23 +208,23 @@ export default function SimilarProducts() {
             </svg>
           </button>
           <div className="min-w-0">
-            <p className="text-[15px] font-bold text-gray-900">Similar products</p>
+            <p className="text-[15px] font-bold text-ink">Similar products</p>
             {category ? (
-              <p className="text-[12px] text-gray-400 mt-0.5 truncate">Category: {category}</p>
+              <p className="text-[12px] text-muted mt-0.5 truncate">Category: {category}</p>
             ) : null}
           </div>
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <p className="text-[12px] font-semibold text-gray-500">Grids</p>
-          <div className="inline-flex items-center bg-white border border-gray-100 rounded-xl p-1">
+          <p className="text-[12px] font-semibold text-muted">Grids</p>
+          <div className="inline-flex items-center bg-white border border-pale rounded-xl p-1">
             {[2, 4, 6].map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => setDesktopGridCols(n)}
                 className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${
-                  desktopGridCols === n ? 'bg-primary-dark text-white' : 'text-gray-600 hover:bg-gray-50'
+                  desktopGridCols === n ? 'bg-walnut text-blush' : 'text-mid hover:bg-cream'
                 }`}
                 aria-label={`${n} products per row`}
                 title={`${n} per row`}
@@ -334,7 +240,7 @@ export default function SimilarProducts() {
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <svg
-              className="animate-spin text-primary-dark"
+              className="animate-spin text-ink"
               xmlns="http://www.w3.org/2000/svg"
               width="28"
               height="28"
@@ -353,20 +259,25 @@ export default function SimilarProducts() {
         ) : items.length === 0 ? (
           <div className="flex-1 flex items-center justify-center px-4">
             <div className="text-center">
-              <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <circle cx="11" cy="11" r="8" />
                   <path d="m21 21-4.3-4.3" />
                 </svg>
               </div>
-              <p className="mt-4 text-[14px] font-bold text-gray-900">No similar products found</p>
-              <p className="mt-1 text-[12px] text-gray-500">Try another product category.</p>
+              <p className="mt-4 text-[14px] font-bold text-ink">No similar products found</p>
+              <p className="mt-1 text-[12px] text-muted">Try another product category.</p>
             </div>
           </div>
         ) : (
           <div className={`grid grid-cols-2 sm:grid-cols-3 ${desktopGridColsClass} gap-4`}>
             {featuredFirstItems.map((p) => (
-              <ProductCard key={String(pickId(p) ?? Math.random())} p={p} />
+              <ProductGridCard
+                key={String(pickId(p) ?? Math.random())}
+                product={p}
+                onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
+                onAddToCart={() => openAddToCart(p)}
+              />
             ))}
           </div>
         )}
@@ -382,19 +293,19 @@ export default function SimilarProducts() {
                   type="button"
                   disabled={!canPrev}
                   onClick={() => fetchList(Math.max(1, currentPage - 1))}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Prev
                 </button>
-                <div className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] text-gray-500 shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-gray-800">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-gray-800">{totalPages}</span>
+                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
+                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
+                  <span className="font-semibold text-ink">{totalPages}</span>
                 </div>
                 <button
                   type="button"
                   disabled={!canNext}
                   onClick={() => fetchList(currentPage + 1)}
-                  className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
                 >
                   Next
                 </button>
@@ -407,22 +318,22 @@ export default function SimilarProducts() {
       {/* Add-to-cart quantity picker */}
       {cartOpen ? (
         <div
-          className="fixed inset-0 z-[90] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeAddToCart}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[15px] font-bold text-gray-800">Add to cart</p>
-                <p className="text-[12px] text-gray-400 mt-1 truncate">{cartTarget?.name || 'Product'}</p>
+                <p className="text-[15px] font-bold text-ink">Add to cart</p>
+                <p className="text-[13px] md:text-[14px] text-muted mt-1 truncate">{cartTarget?.name || 'Product'}</p>
               </div>
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50"
                 aria-label="Close"
                 disabled={cartAdding}
               >
@@ -436,7 +347,7 @@ export default function SimilarProducts() {
             <div className="px-5 py-5">
               {cartVariants.length ? (
                 <div className="mb-5">
-                  <p className="text-[13px] font-semibold text-gray-700">Size Options</p>
+                  <p className="text-[13px] font-semibold text-mid">Size Options</p>
                   <div className="mt-3 space-y-2">
                     {cartVariants.map((v, idx) => {
                       const checked = Number(cartVariantIdx) === idx;
@@ -445,24 +356,24 @@ export default function SimilarProducts() {
                       return (
                         <label
                           key={String(idx)}
-                          className="flex items-start gap-3 p-3 rounded-2xl border border-gray-100 bg-gray-50/60 cursor-pointer"
+                          className="flex items-start gap-3 p-3 rounded-2xl border border-pale bg-cream/60 cursor-pointer"
                         >
                           <input
                             type="radio"
                             name="cart_variant"
                             checked={checked}
                             onChange={() => setCartVariantIdx(idx)}
-                            className="mt-1 w-4 h-4 text-primary-dark focus:ring-primary-dark/30"
+                            className="mt-1 w-4 h-4 text-ink focus:ring-walnut/30"
                             disabled={cartAdding}
                           />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center justify-between gap-3">
-                              <p className="text-[12px] font-bold text-gray-900 truncate">{variantLabel(v)}</p>
+                              <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-gray-900">₹{formatMoney(price)}</p>
+                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
                               ) : null}
                             </div>
-                            <p className="mt-0.5 text-[11px] text-gray-500">Select this option to add this variant.</p>
+                            <p className="mt-0.5 text-[11px] text-muted">Select this option to add this variant.</p>
                           </div>
                         </label>
                       );
@@ -472,8 +383,8 @@ export default function SimilarProducts() {
               ) : null}
 
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-semibold text-gray-700">Quantity</p>
-                <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                <p className="text-[13px] font-semibold text-mid">Quantity</p>
+                <div className="inline-flex items-center overflow-hidden rounded-xl bg-walnut text-blush">
                   <button
                     type="button"
                     onClick={() => setCartQty((v) => Math.max(1, (Number(v) || 1) - 1))}
@@ -504,11 +415,11 @@ export default function SimilarProducts() {
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={closeAddToCart}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer disabled:opacity-50"
                 disabled={cartAdding}
               >
                 Cancel
@@ -516,7 +427,7 @@ export default function SimilarProducts() {
               <button
                 type="button"
                 onClick={confirmAddToCart}
-                className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
                 disabled={cartAdding || (cartVariants.length > 0 && !selectedCartVariant)}
               >
                 {cartAdding ? 'Adding…' : 'Add'}

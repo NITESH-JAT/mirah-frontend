@@ -141,15 +141,15 @@ export default function VendorProfile() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+      <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="mt-2 text-[20px] md:text-[22px] font-extrabold text-gray-900">{loading ? 'Loading…' : name}</p>
+            <p className="mt-2 text-[20px] md:text-[22px] font-extrabold text-ink">{loading ? 'Loading…' : name}</p>
           </div>
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+            className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
           >
             Back
           </button>
@@ -157,14 +157,14 @@ export default function VendorProfile() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <div className="bg-white rounded-2xl border border-pale p-5">
           <div className="flex items-start gap-4">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-gray-100 bg-white shrink-0">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border border-pale bg-white shrink-0">
               <img src={avatarUrlFor(name)} alt="" className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0">
-              <p className="text-[16px] font-extrabold text-gray-900 truncate">{name}</p>
-              <div className="mt-1 flex items-center gap-2 text-[12px] text-gray-500 flex-wrap">
+              <p className="text-[16px] font-extrabold text-ink truncate">{name}</p>
+              <div className="mt-1 flex items-center gap-2 text-[12px] text-muted flex-wrap">
                 <span className="inline-flex items-center gap-1">
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
@@ -179,35 +179,35 @@ export default function VendorProfile() {
           <button
             type="button"
             onClick={chatNow}
-            className="mt-5 w-full px-4 py-3 rounded-2xl bg-primary-dark text-white text-[13px] font-extrabold hover:opacity-95"
+            className="mt-5 w-full px-4 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-95"
           >
             Chat Now
           </button>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-100 p-5 lg:col-span-2">
-          <p className="text-[13px] font-extrabold text-gray-900">My Bidding History Record</p>
+        <div className="bg-white rounded-2xl border border-pale p-5 lg:col-span-2">
+          <p className="text-[13px] font-extrabold text-ink">My Bidding History Record</p>
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[12px] text-gray-500">Total Projects Completed</p>
-              <p className="mt-1 text-[18px] font-extrabold text-gray-900">{Number.isFinite(Number(completed)) ? Number(completed) : 0}</p>
+            <div className="rounded-2xl border border-pale bg-cream p-4">
+              <p className="text-[12px] text-muted">Total Projects Completed</p>
+              <p className="mt-1 text-[18px] font-extrabold text-ink">{Number.isFinite(Number(completed)) ? Number(completed) : 0}</p>
             </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[12px] text-gray-500">Active Bids</p>
-              <p className="mt-1 text-[18px] font-extrabold text-gray-900">{Number.isFinite(Number(activeBids)) ? Number(activeBids) : 0}</p>
+            <div className="rounded-2xl border border-pale bg-cream p-4">
+              <p className="text-[12px] text-muted">Active Bids</p>
+              <p className="mt-1 text-[18px] font-extrabold text-ink">{Number.isFinite(Number(activeBids)) ? Number(activeBids) : 0}</p>
             </div>
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4">
-              <p className="text-[12px] text-gray-500">On Going Project</p>
-              <p className="mt-1 text-[18px] font-extrabold text-gray-900">{Number.isFinite(Number(ongoing)) ? Number(ongoing) : 0}</p>
+            <div className="rounded-2xl border border-pale bg-cream p-4">
+              <p className="text-[12px] text-muted">On Going Project</p>
+              <p className="mt-1 text-[18px] font-extrabold text-ink">{Number.isFinite(Number(ongoing)) ? Number(ongoing) : 0}</p>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="mt-4 bg-white rounded-2xl border border-gray-100 p-5">
+      <div className="mt-4 bg-white rounded-2xl border border-pale p-5">
         <div>
-          <p className="text-[13px] font-extrabold text-gray-900">Review and Rating</p>
-          <div className="mt-2 flex items-center gap-3 text-[12px] text-gray-500 flex-wrap">
+          <p className="text-[13px] font-extrabold text-ink">Review and Rating</p>
+          <div className="mt-2 flex items-center gap-3 text-[12px] text-muted flex-wrap">
             <span className="inline-flex items-center gap-1">
               <span className="text-amber-500">★</span> Rating: {avgRating != null ? avgRating.toFixed(1) : 'No ratings yet'}
             </span>
@@ -218,14 +218,14 @@ export default function VendorProfile() {
 
         <div className="mt-4">
           {reviewsLoading ? (
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-10 flex items-center justify-center">
-              <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <div className="rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
+              <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                 <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                 <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
             </div>
           ) : reviews.length === 0 ? (
-            <div className="rounded-2xl border border-gray-100 bg-gray-50 p-6 text-[13px] text-gray-600">No reviews yet.</div>
+            <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">No reviews yet.</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {reviews.map((r) => {
@@ -235,26 +235,26 @@ export default function VendorProfile() {
                 const comment = String(r?.comment ?? r?.message ?? '').trim();
                 const createdAt = r?.createdAt ?? r?.created_at ?? null;
                 return (
-                  <div key={String(r?.id ?? r?._id ?? reviewer ?? Math.random())} className="rounded-2xl border border-gray-100 p-4 bg-white">
+                  <div key={String(r?.id ?? r?._id ?? reviewer ?? Math.random())} className="rounded-2xl border border-pale p-4 bg-white">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex items-start gap-3">
-                        <div className="w-9 h-9 rounded-full overflow-hidden border border-gray-100 bg-white shrink-0">
+                        <div className="w-9 h-9 rounded-full overflow-hidden border border-pale bg-white shrink-0">
                           <img src={avatarUrlFor(reviewer)} alt="" className="w-full h-full object-cover" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[13px] font-extrabold text-gray-900 truncate">{reviewer}</p>
-                          {createdAt ? <p className="text-[11px] text-gray-400 mt-0.5">{formatDate(createdAt)}</p> : null}
+                          <p className="text-[13px] font-extrabold text-ink truncate">{reviewer}</p>
+                          {createdAt ? <p className="text-[11px] text-muted mt-0.5">{formatDate(createdAt)}</p> : null}
                         </div>
                       </div>
                       <div className="shrink-0 flex items-center gap-0.5">
                         {starRow(rating).map((filled, idx) => (
-                          <span key={idx} className={filled ? 'text-amber-500' : 'text-gray-200'}>
+                          <span key={idx} className={filled ? 'text-amber-500' : 'text-soft'}>
                             ★
                           </span>
                         ))}
                       </div>
                     </div>
-                    <p className="mt-3 text-[12px] text-gray-600 line-clamp-4">{comment || '—'}</p>
+                    <p className="mt-3 text-[12px] text-mid line-clamp-4">{comment || '—'}</p>
                   </div>
                 );
               })}
@@ -267,7 +267,7 @@ export default function VendorProfile() {
                 type="button"
                 onClick={loadMoreReviews}
                 disabled={reviewsMoreLoading}
-                className="px-5 py-2.5 rounded-2xl border border-gray-200 bg-white text-[12px] font-extrabold text-gray-800 hover:bg-gray-50 disabled:opacity-60"
+                className="px-5 py-2.5 rounded-2xl border border-pale bg-white text-[12px] font-extrabold text-ink hover:bg-cream disabled:opacity-60"
               >
                 {reviewsMoreLoading ? 'Loading…' : 'Load more'}
               </button>

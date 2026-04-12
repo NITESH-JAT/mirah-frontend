@@ -34,8 +34,8 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-xl border-l-4 p-4 mb-3 flex gap-3 items-start transition-all pointer-events-auto
-      ${isError ? 'border-red-500' : 'border-green-500'}
+      relative w-[320px] bg-white rounded-xl border border-pale p-4 mb-3 flex gap-3 items-start transition-all pointer-events-auto
+      ${isError ? 'border-l-4 border-l-red-300' : 'border-l-4 border-l-emerald-400'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
       <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
@@ -46,12 +46,12 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         )}
       </div>
       <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-primary-dark'}`}>
+        <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-700' : 'text-ink'}`}>
           {isError ? 'Error' : 'Success'}
         </h4>
-        <p className="text-gray-500 font-sans text-[13px] leading-snug">{message}</p>
+        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
       </div>
-      <button onClick={handleClose} className="shrink-0 text-gray-300 hover:text-gray-500 transition-colors cursor-pointer p-1">
+      <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" /></svg>
       </button>
     </div>
@@ -87,6 +87,26 @@ function avatarNameForUser(u) {
   const last = String(u?.lastName ?? '').trim();
   const full = [first, last].filter(Boolean).join(' ').trim();
   return full || String(u?.email ?? '').trim() || 'User';
+}
+
+function initialsForUser(u) {
+  const first = String(u?.firstName ?? '').trim();
+  const last = String(u?.lastName ?? '').trim();
+  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
+  if (first.length >= 2) return first.slice(0, 2).toUpperCase();
+  if (first) return first.slice(0, 1).toUpperCase();
+  const email = String(u?.email ?? '').trim();
+  if (email.length >= 2) return email.slice(0, 2).toUpperCase();
+  if (email) return email.slice(0, 1).toUpperCase();
+  return 'U';
+}
+
+function roleLabelForUser(u) {
+  const t = String(u?.userType ?? '').trim().toLowerCase();
+  if (t === 'vendor' || t === 'jeweller') return 'Jeweller';
+  if (t === 'customer') return 'Customer';
+  if (t) return t.charAt(0).toUpperCase() + t.slice(1);
+  return 'Guest';
 }
 
 function normalizeYouTubeForIframe(url) {
@@ -529,7 +549,7 @@ export default function DashboardLayout() {
   `;
 
   return (
-    <div className="h-screen w-full bg-[#F8F9FA] flex overflow-hidden font-sans relative">
+    <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-row overflow-hidden bg-cream font-sans relative">
       <style>{globalStyles}</style>
 
       {/* TOAST CONTAINER */}
@@ -548,7 +568,7 @@ export default function DashboardLayout() {
       {/* Mobile backdrop */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          className="fixed inset-0 bg-ink/25 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
@@ -561,10 +581,10 @@ export default function DashboardLayout() {
       </div>
 
       {/* Main Content Wrapper */}
-      <div className="flex-1 flex flex-col h-full w-full lg:ml-[240px] ml-0 relative">
+      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col lg:ml-[240px]">
 
         {/* HEADER */}
-      <div className="relative flex h-16 bg-white border-b border-gray-100 px-4 sm:px-8 items-center justify-between shrink-0 sticky top-0 z-40">
+      <div className="relative z-40 flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -573,13 +593,13 @@ export default function DashboardLayout() {
                 setShowNotifications(false);
                 setIsSidebarOpen(true);
               }}
-              className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+              className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-cream text-mid transition-colors cursor-pointer"
               aria-label="Open menu"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
             </button>
             {headerTitle ? (
-              <h1 className="hidden sm:block lg:hidden font-serif text-xl font-bold text-gray-800 truncate max-w-[60vw]">
+              <h1 className="hidden sm:block lg:hidden font-serif text-xl font-bold text-ink truncate max-w-[60vw]">
                 {headerTitle}
               </h1>
             ) : null}
@@ -587,8 +607,8 @@ export default function DashboardLayout() {
 
           {/* Desktop-only center branding moved to outer layout */}
           
-          <div className="flex items-center gap-3 relative">
-            {/* Cart icon (customer) */}
+          <div className="flex items-center gap-2 sm:gap-3 relative">
+            {/* Cart icon (customer) — circular, subtle border */}
             {!isVendor ? (
               <button
                 type="button"
@@ -599,21 +619,21 @@ export default function DashboardLayout() {
                   setCartDrawerOpen(true);
                   loadCartDrawer();
                 }}
-                className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pale bg-white text-ink transition-colors hover:bg-blush/60 cursor-pointer"
                 aria-label="Cart"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1" />
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
                 </svg>
-                <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-primary-dark text-white text-[10px] font-bold flex items-center justify-center">
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-walnut text-[10px] font-bold leading-[18px] text-center text-white">
                   {Number(cartCount) || 0}
                 </span>
               </button>
             ) : null}
 
-            {/* NOTIFICATIONS */}
+            {/* NOTIFICATIONS — circular, matches cart */}
             <div className="relative" ref={notifMenuRef}>
               <button
                 type="button"
@@ -621,37 +641,37 @@ export default function DashboardLayout() {
                   if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
                   setShowNotifications((v) => !v);
                 }}
-                className="relative p-2 rounded-lg hover:bg-gray-50 text-gray-600 transition-colors cursor-pointer"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pale bg-white text-ink transition-colors hover:bg-blush/60 cursor-pointer"
                 aria-label="Notifications"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7"/>
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+                  <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-walnut" title="Unread" />
                 )}
               </button>
 
               {showNotifications && (
                 <div
-                  className="fixed left-4 right-4 top-[72px] w-auto bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden z-[60]
+                  className="fixed left-4 right-4 top-[72px] w-auto bg-white rounded-2xl shadow-sm border border-pale overflow-hidden z-[60]
                              sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[360px] sm:max-w-[90vw]"
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
-                    <p className="text-[13px] font-bold text-gray-800">Notifications</p>
+                  <div className="px-4 py-3 border-b border-pale flex items-center justify-between">
+                    <p className="text-[13px] font-bold text-ink">Notifications</p>
                     <div className="flex items-center gap-3">
-                      <p className="text-[11px] text-gray-400">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
+                      <p className="text-[11px] text-muted">{unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}</p>
                     </div>
                   </div>
 
                   <div className="max-h-[min(420px,calc(100vh-120px))] overflow-y-auto">
                     {notifLoading ? (
-                      <div className="p-4 text-[13px] text-gray-400">Loading…</div>
+                      <div className="p-4 text-[13px] text-muted">Loading…</div>
                     ) : notifications.length === 0 ? (
-                      <div className="p-4 text-[13px] text-gray-400">No notifications</div>
+                      <div className="p-4 text-[13px] text-muted">No notifications</div>
                     ) : (
                       notifications.map((n) => {
                         const id = n.id ?? n._id;
@@ -662,7 +682,7 @@ export default function DashboardLayout() {
                         return (
                           <div
                             key={String(id)}
-                            className="w-full text-left px-4 py-3 border-b border-gray-50 hover:bg-gray-50 transition-colors"
+                            className="w-full text-left px-4 py-3 border-b border-pale hover:bg-cream transition-colors"
                             role="button"
                             tabIndex={0}
                             onClick={async () => {
@@ -686,12 +706,12 @@ export default function DashboardLayout() {
                             <div className="flex gap-3 items-start">
                               <div className={`mt-1 w-2 h-2 rounded-full ${isRead ? 'bg-transparent' : 'bg-red-500'}`} />
                               <div className="flex-1">
-                                <p className="text-[13px] font-bold text-gray-800">{title}</p>
+                                <p className="text-[13px] font-bold text-ink">{title}</p>
                                 {message && (
-                                  <p className="text-[12px] text-gray-500 mt-0.5 ">{message}</p>
+                                  <p className="text-[12px] text-muted mt-0.5 ">{message}</p>
                                 )}
                                 {when ? (
-                                  <p className="text-[11px] text-gray-400 mt-1">{when}</p>
+                                  <p className="text-[11px] text-muted mt-1">{when}</p>
                                 ) : null}
                               </div>
                             </div>
@@ -704,42 +724,37 @@ export default function DashboardLayout() {
               )}
             </div>
 
-            {/* USER MENU */}
+            {/* USER MENU — pill: initials + role label */}
             <div className="relative" ref={userMenuRef}>
-             <div 
-                className="flex items-center gap-3 cursor-pointer p-1 rounded-lg hover:bg-gray-50 transition-colors"
+              <button
+                type="button"
+                className="flex max-w-[200px] items-center gap-2.5 rounded-full border border-pale bg-white py-1 pl-1 pr-3 sm:pr-4 text-left transition-colors hover:bg-blush/50 cursor-pointer"
                 onClick={() => {
                   if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
                   setShowUserMenu(!showUserMenu);
                 }}
-             >
-                 <div className="text-right leading-tight">
-                    <p className="text-[13px] font-bold text-gray-800">
-                      {truncateName(currentUser?.firstName || 'User', 10)}
-                    </p>
-                    <p className="text-[11px] text-gray-400 capitalize">{currentUser?.userType || 'Guest'}</p>
-                 </div>
-                 <div className="w-9 h-9 rounded-full bg-gray-100 overflow-hidden border border-gray-100 shadow-sm">
-                    <img 
-                        src={
-                          currentUser?.profileImageUrl ||
-                          `https://ui-avatars.com/api/?name=${encodeURIComponent(avatarNameForUser(currentUser))}&background=0D8ABC&color=fff`
-                        } 
-                        alt="User" 
-                    />
-                 </div>
-             </div>
+                aria-expanded={showUserMenu}
+                aria-haspopup="menu"
+                aria-label="Account menu"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush font-sans text-[12px] font-bold tracking-tight text-ink">
+                  {initialsForUser(currentUser)}
+                </span>
+                <span className="min-w-0 truncate font-sans text-[13px] font-medium text-ink">
+                  {roleLabelForUser(currentUser)}
+                </span>
+              </button>
 
              {/* PROFILE DROPDOWN */}
              {showUserMenu && (
-                <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-xl border border-gray-100 py-2 overflow-hidden animate-slide-in">
+                <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-sm border border-pale py-2 overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
                           const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
                           navigate(profilePath);
                           setShowUserMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Profile
@@ -750,7 +765,7 @@ export default function DashboardLayout() {
                           navigate('/customer/orders');
                           setShowUserMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -767,7 +782,7 @@ export default function DashboardLayout() {
                         navigate(faqPath);
                         setShowUserMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-[13px] text-gray-700 hover:bg-gray-50 font-medium flex items-center gap-2"
+                      className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
@@ -792,13 +807,16 @@ export default function DashboardLayout() {
 
         {/* CONTENT */}
         <div
-          className={`flex-1 overflow-y-auto scroll-smooth custom-scrollbar ${
-            isShoppingListPage ||
-            isVendorProjectsListPage ||
-            isVendorExplorePage ||
-            isVendorBidsPage
-              ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
-              : 'p-4 lg:p-8'
+          className={`flex-1 scroll-smooth custom-scrollbar ${
+            isMessagesPage
+              ? 'flex min-h-0 flex-col overflow-hidden p-0'
+              : 'overflow-y-auto ' +
+                (isShoppingListPage ||
+                isVendorProjectsListPage ||
+                isVendorExplorePage ||
+                isVendorBidsPage
+                  ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
+                  : 'p-4 lg:p-8')
           }`}
         >
           <div
@@ -817,7 +835,7 @@ export default function DashboardLayout() {
               isVendorProfileViewPage
                 ? 'max-w-none'
                 : 'max-w-5xl'
-            } mx-auto`}
+            } ${isMessagesPage ? 'flex w-full min-h-0 flex-1 flex-col' : 'mx-auto'}`}
           >
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 
@@ -827,24 +845,24 @@ export default function DashboardLayout() {
         {/* CART DRAWER (customer) */}
         {cartDrawerOpen && !isVendor ? (
           <div
-            className="fixed inset-0 z-[160] bg-black/40 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
+            className="fixed inset-0 z-[160] bg-ink/25 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
             onMouseDown={closeCartDrawer}
           >
             <div
-              className="w-full max-w-xl md:w-[520px] md:max-w-[520px] bg-white rounded-t-2xl md:rounded-none shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
+              className="w-full max-w-xl md:w-[520px] md:max-w-[520px] bg-white rounded-t-2xl md:rounded-none shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] md:max-h-none md:h-full flex flex-col"
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <div className="px-5 pt-5 pb-4 border-b border-gray-50 flex items-start justify-between gap-3">
+              <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[15px] font-bold text-gray-800">Cart</p>
-                  <p className="text-[12px] text-gray-400 mt-1">
-                    Items: <span className="text-gray-700 font-semibold">{Number(cartCount) || 0}</span>
+                  <p className="text-[15px] font-bold text-ink">Cart</p>
+                  <p className="text-[12px] text-muted mt-1">
+                    Items: <span className="text-mid font-semibold">{Number(cartCount) || 0}</span>
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={closeCartDrawer}
-                  className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                  className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer"
                   aria-label="Close"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -854,7 +872,7 @@ export default function DashboardLayout() {
               <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
                 {cartDrawerLoading ? (
                   <div className="min-h-[240px] flex items-center justify-center">
-                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
@@ -862,29 +880,29 @@ export default function DashboardLayout() {
                 ) : cartDrawerItems.length === 0 ? (
                   <div className="min-h-[240px] flex items-center justify-center">
                     <div className="text-center">
-                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="9" cy="21" r="1" />
                           <circle cx="20" cy="21" r="1" />
                           <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
                         </svg>
                       </div>
-                      <p className="mt-4 text-[14px] font-bold text-gray-900">Your cart is empty</p>
-                      <p className="mt-1 text-[12px] text-gray-500">Add products from shop to see them here.</p>
+                      <p className="mt-4 text-[14px] font-bold text-ink">Your cart is empty</p>
+                      <p className="mt-1 text-[12px] text-muted">Add products from shop to see them here.</p>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <label className="mb-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none cursor-pointer">
+                    <label className="mb-3 inline-flex items-center gap-2 text-[12px] font-medium text-ink select-none cursor-pointer">
                       <input
                         type="checkbox"
                         checked={cartAllSelected}
                         onChange={toggleCartSelectAll}
-                        className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                        className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                       />
                       Select all
                     </label>
-                    <div className="rounded-2xl border border-gray-100 overflow-hidden">
+                    <div className="rounded-2xl border border-pale overflow-hidden">
                       {cartDrawerItems.map((x) => {
                         const p = x.product || {};
                         const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
@@ -897,22 +915,22 @@ export default function DashboardLayout() {
                         const compareAt = pricing.compareAt;
                         const variantText = variantTextOf(x?.variants);
                         return (
-                          <div key={String(x.rowKey)} className="p-4 bg-white border-b border-gray-50 last:border-0">
+                          <div key={String(x.rowKey)} className="p-4 bg-white border-b border-pale last:border-0">
                           <div className="flex items-start gap-3">
                             <div className="pt-1">
                               <input
                                 type="checkbox"
                                 checked={cartSelected.has(String(x.rowKey))}
                                 onChange={() => toggleCartSelectOne(x.rowKey)}
-                                className="w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                                className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                                 aria-label="Select item"
                               />
                             </div>
-                            <div className="w-14 h-14 rounded-xl bg-gray-50 border border-gray-100 overflow-hidden shrink-0">
+                            <div className="w-14 h-14 rounded-xl bg-cream border border-pale overflow-hidden shrink-0">
                               {img ? (
                                 <SafeImage src={img} alt="" className="w-full h-full object-contain bg-white p-1" />
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <div className="w-full h-full flex items-center justify-center text-muted">
                                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M21 15l-5-5L5 21"/></svg>
                                 </div>
                               )}
@@ -921,12 +939,12 @@ export default function DashboardLayout() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-start justify-between gap-3">
                                 <div className="min-w-0">
-                                  <p className="text-[13px] font-bold text-gray-900 truncate">{name}</p>
-                                  <p className="mt-0.5 text-[12px] text-gray-500">
+                                  <p className="text-[15px] font-bold text-ink truncate">{name}</p>
+                                  <p className="mt-0.5 text-[12px] text-muted">
                                     {x.quantity} {piecesLabel}
                                   </p>
                                   {variantText ? (
-                                    <p className="mt-0.5 text-[11px] text-gray-500 font-semibold line-clamp-1">
+                                    <p className="mt-0.5 text-[11px] text-muted font-semibold line-clamp-1">
                                       {variantText}
                                     </p>
                                   ) : null}
@@ -953,7 +971,7 @@ export default function DashboardLayout() {
                                 </div>
 
                                 <div className="shrink-0 flex flex-col items-end gap-2">
-                                  <div className="inline-flex items-center overflow-hidden rounded-xl bg-primary-dark text-white">
+                                  <div className="inline-flex items-center overflow-hidden rounded-xl bg-walnut text-blush">
                                     <button
                                       type="button"
                                       onClick={async () => {
@@ -1008,9 +1026,9 @@ export default function DashboardLayout() {
 
                                   <div className="text-right">
                                     {compareAt > price && price > 0 ? (
-                                      <p className="text-[12px] text-gray-400 line-through">₹{compareAt.toLocaleString()}</p>
+                                      <p className="text-[12px] text-muted line-through">₹{compareAt.toLocaleString()}</p>
                                     ) : null}
-                                    <p className="text-[14px] font-bold text-gray-900">₹{price.toLocaleString()}</p>
+                                    <p className="text-[14px] font-bold text-ink">₹{price.toLocaleString()}</p>
                                   </div>
                                 </div>
                               </div>
@@ -1024,7 +1042,7 @@ export default function DashboardLayout() {
                 )}
               </div>
 
-              <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+              <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                 <button
                   type="button"
                   onClick={async () => {
@@ -1071,7 +1089,7 @@ export default function DashboardLayout() {
                     navigate('/customer/checkout', { state: { cartItemIds } });
                   }}
                   disabled={cartDrawerLoading || cartDrawerItems.length === 0}
-                  className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Place Order
                 </button>
@@ -1082,18 +1100,18 @@ export default function DashboardLayout() {
 
         {/* PROJECT TUTORIAL MODAL */}
         {projectTutorialOpen && projectTutorialVideoUrl ? (
-          <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center p-4">
-            <div className="w-full max-w-3xl bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-xl">
-              <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between gap-3">
-                <p className="text-[13px] font-extrabold text-gray-900">Tutorial</p>
+          <div className="fixed inset-0 z-[200] bg-ink/25 flex items-center justify-center p-4">
+            <div className="w-full max-w-3xl bg-white rounded-2xl border border-pale overflow-hidden shadow-sm">
+              <div className="px-4 py-3 border-b border-pale flex items-center justify-between gap-3">
+                <p className="text-[13px] font-extrabold text-ink">Tutorial</p>
                 {projectTutorialLoading ? (
-                  <p className="text-[12px] text-gray-400">Loading…</p>
+                  <p className="text-[12px] text-muted">Loading…</p>
                 ) : (
-                  <span className="text-[12px] text-gray-400">Watch the tutorial to get started</span>
+                  <span className="text-[12px] text-muted">Watch the tutorial to get started</span>
                 )}
               </div>
 
-              <div className="p-4 bg-gray-50">
+              <div className="p-4 bg-cream">
                 {/youtube\.com|youtu\.be/i.test(projectTutorialVideoUrl) ? (
                   <iframe
                     title="Project tutorial video"
@@ -1105,14 +1123,14 @@ export default function DashboardLayout() {
                           : `${base}?controls=1&modestbranding=1&rel=0`;
                       })()
                     }
-                    className="w-full aspect-video rounded-xl bg-black"
+                    className="w-full aspect-video rounded-xl bg-ink"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                     allowFullScreen
                   />
                 ) : (
                   <video
                     src={projectTutorialVideoUrl}
-                    className="w-full max-h-[60vh] rounded-xl bg-black"
+                    className="w-full max-h-[60vh] rounded-xl bg-ink"
                     autoPlay
                     muted
                     preload="metadata"
@@ -1124,12 +1142,12 @@ export default function DashboardLayout() {
                 )}
               </div>
 
-              <div className="px-4 py-4 border-t border-gray-50 flex justify-end">
+              <div className="px-4 py-4 border-t border-pale flex justify-end">
                 <button
                   type="button"
                   onClick={handleProjectTutorialGotIt}
                   disabled={projectTutorialLoading}
-                  className="px-6 py-3 rounded-xl bg-primary-dark text-white text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  className="px-6 py-3 rounded-xl bg-walnut text-blush text-[13px] font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 >
                   Got It
                 </button>

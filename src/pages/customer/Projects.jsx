@@ -1047,7 +1047,7 @@ export default function Projects() {
         ? 'bg-red-50 border-red-100 text-red-700'
         : tone === 'warn'
           ? 'bg-yellow-50 border-yellow-100 text-yellow-700'
-          : 'bg-gray-50 border-gray-100 text-gray-700';
+          : 'bg-cream border-pale text-mid';
     return (
       <div className={`rounded-xl border px-3 py-2 ${toneClass}`}>
         <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">{label}</p>
@@ -1745,7 +1745,7 @@ export default function Projects() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-pale overflow-hidden">
 
         {/* Main */}
         <div className="flex-1 flex flex-col">
@@ -1754,22 +1754,22 @@ export default function Projects() {
           <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
             {mainTab === 'list' ? (
               <div className="h-full min-h-0 overflow-y-auto pr-1">
-                <div className="shrink-0 sticky top-0 z-30 isolate relative transform-gpu bg-white pb-4 border-b border-gray-100/80">
+                <div className="shrink-0 sticky top-0 z-30 isolate relative transform-gpu bg-white pb-4 border-b border-pale/80">
                   <div className="pointer-events-none absolute inset-0 -z-10 bg-white" aria-hidden="true" />
                   <div className="mb-3 flex flex-wrap items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[14px] md:text-[15px] font-extrabold text-gray-900">My projects</p>
-                      <p className="mt-0.5 text-[12px] text-gray-400">Create and manage your projects.</p>
+                      <p className="text-[14px] md:text-[15px] font-extrabold text-ink">My projects</p>
+                      <p className="mt-0.5 text-[12px] text-muted">Create and manage your projects.</p>
                     </div>
                     <button
                       type="button"
                       onClick={startCreateNew}
-                      className="ml-auto shrink-0 inline-flex items-center justify-center px-3 py-2 sm:px-4 rounded-xl bg-primary-dark text-white text-[11px] sm:text-[12px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer"
+                      className="ml-auto shrink-0 inline-flex items-center justify-center px-3 py-2 sm:px-4 rounded-xl bg-walnut text-blush text-[11px] sm:text-[12px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer"
                     >
                       Create Project
                     </button>
                   </div>
-                  <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3 md:p-4">
+                  <div className="rounded-2xl border border-pale bg-cream p-3 md:p-4">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 min-w-0">
                         <input
@@ -1777,7 +1777,7 @@ export default function Projects() {
                           value={listSearchDraft}
                           onChange={(e) => setListSearchDraft(e.target.value)}
                           placeholder="Search by title…"
-                          className="w-full px-3 py-2 md:px-4 md:py-3 rounded-2xl border border-gray-100 bg-white text-[12px] md:text-[13px] font-semibold text-gray-800 placeholder:text-gray-400 focus:outline-none focus:border-primary-dark"
+                          className="w-full px-3 py-2 md:px-4 md:py-3 rounded-2xl border border-pale bg-white text-[12px] md:text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                         />
                       </div>
                       <div className="flex items-center justify-end gap-2">
@@ -1790,7 +1790,7 @@ export default function Projects() {
                             await loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           disabled={listLoading || !String(listSearch || '').trim()}
-                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-white border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                           aria-label="Clear search"
                           title="Clear search"
                         >
@@ -1815,7 +1815,7 @@ export default function Projects() {
                             await loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           disabled={listLoading}
-                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
                           aria-label="Apply search"
                           title="Apply search"
                         >
@@ -1852,15 +1852,15 @@ export default function Projects() {
                             onClick={() => setListFilterPersist(t.id)}
                             className={`whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
                               active
-                                ? 'bg-primary-dark/10 border-primary-dark text-primary-dark'
-                                : 'bg-white border-gray-100 text-gray-500 hover:bg-gray-50 hover:text-primary-dark'
+                                ? 'bg-walnut/10 border-walnut text-ink'
+                                : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
                             }`}
                           >
                             <span className="whitespace-nowrap">{t.label}</span>
                             {typeof t.count === 'number' ? (
                               <span
                                 className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
-                                  active ? 'bg-primary-dark text-white' : 'bg-gray-100 text-gray-600'
+                                  active ? 'bg-walnut text-blush' : 'bg-blush text-mid'
                                 }`}
                               >
                                 {t.count}
@@ -1875,7 +1875,7 @@ export default function Projects() {
 
                 {listLoading ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
@@ -1883,7 +1883,7 @@ export default function Projects() {
                 ) : empty ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
                     <div className="text-center">
-                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
                           <path d="M14 2v6h6" />
@@ -1891,13 +1891,13 @@ export default function Projects() {
                           <path d="M8 17h8" />
                         </svg>
                       </div>
-                      <p className="mt-3 text-[14px] font-bold text-gray-900">No projects yet</p>
-                      <p className="mt-1 text-[12px] text-gray-500">Create your first project to start bidding.</p>
+                      <p className="mt-3 text-[14px] font-bold text-ink">No projects yet</p>
+                      <p className="mt-1 text-[12px] text-muted">Create your first project to start bidding.</p>
                     </div>
                   </div>
                 ) : filterEmpty ? (
                   <>
-                    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                    <div className="rounded-2xl border border-pale bg-cream p-4 text-[13px] text-mid">
                       No projects found for this filter.
                     </div>
                     {canLoadMore ? (
@@ -1906,7 +1906,7 @@ export default function Projects() {
                           type="button"
                           onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
                           disabled={listMoreLoading}
-                          className="px-10 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          className="px-10 py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                         >
                           {listMoreLoading ? 'Loading…' : 'Load more'}
                         </button>
@@ -1970,10 +1970,10 @@ export default function Projects() {
                       return (
                         <div
                           key={String(id ?? Math.random())}
-                          className="rounded-2xl border border-gray-100 bg-white overflow-hidden"
+                          className="rounded-2xl border border-pale bg-white overflow-hidden"
                         >
                           <div className="flex flex-col md:flex-row">
-                            <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-gray-100 overflow-hidden shrink-0 flex items-center justify-center">
+                            <div className="w-full md:w-[220px] h-[180px] md:h-[180px] bg-white border-b md:border-b-0 md:border-r border-pale overflow-hidden shrink-0 flex items-center justify-center">
                               {preview && isImageUrl(preview) ? (
                                 <SafeImage
                                   src={preview}
@@ -2000,7 +2000,7 @@ export default function Projects() {
                                   <div className="mt-2 text-[11px] font-bold">PDF</div>
                                 </div>
                               ) : (
-                                <div className="w-full h-full flex items-center justify-center text-gray-300">
+                                <div className="w-full h-full flex items-center justify-center text-muted">
                                   <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     width="22"
@@ -2019,7 +2019,7 @@ export default function Projects() {
                             </div>
 
                             <div className="flex-1 min-w-0 p-4 md:p-5">
-                              <p className="text-[18px] md:text-[22px] font-bold text-gray-800 truncate">
+                              <p className="text-[18px] md:text-[22px] font-bold text-ink truncate">
                                 {p?.title || 'Project'}
                               </p>
 
@@ -2032,14 +2032,14 @@ export default function Projects() {
                                         : 'Bidding running'}
                                     </span>
                                   ) : allWindowsFinished ? (
-                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-gray-50 border-gray-100 text-gray-600">
+                                    <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-cream border-pale text-mid">
                                       {latestFinishedAt
                                         ? `Last bidding ended: ${formatDateTime(latestFinishedAt)}`
                                         : 'Bidding ended'}
                                     </span>
                                   ) : null}
                                   {hasBidHistory ? (
-                                    <span className="text-[11px] text-gray-400">
+                                    <span className="text-[11px] text-muted">
                                       Winner auto-assign happens when auction ends.
                                     </span>
                                   ) : null}
@@ -2068,7 +2068,7 @@ export default function Projects() {
                                   <button
                                     type="button"
                                     onClick={() => openVendorReview(p)}
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                                   >
                                     {hasVendorReview ? 'Update review' : 'Review Jeweller'}
                                   </button>
@@ -2078,7 +2078,7 @@ export default function Projects() {
                                   <button
                                     type="button"
                                     onClick={() => goToTrack(id)}
-                                    className="px-4 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-semibold text-primary-dark hover:bg-gray-50"
+                                    className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-ink hover:bg-cream"
                                   >
                                     Track
                                   </button>
@@ -2109,7 +2109,7 @@ export default function Projects() {
                                   <button
                                     type="button"
                                     onClick={() => goToBids(p)}
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                                   >
                                     View Bids
                                   </button>
@@ -2119,7 +2119,7 @@ export default function Projects() {
                                   <button
                                     type="button"
                                     onClick={() => startEdit(p)}
-                                    className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-semibold text-gray-700 hover:bg-gray-50 cursor-pointer"
+                                    className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                                   >
                                     Edit
                                   </button>
@@ -2147,7 +2147,7 @@ export default function Projects() {
                           type="button"
                           onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
                           disabled={listMoreLoading}
-                          className="px-10 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                          className="px-10 py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                         >
                           {listMoreLoading ? 'Loading…' : 'Load more'}
                         </button>
@@ -2160,7 +2160,7 @@ export default function Projects() {
               <div className="h-full min-h-0">
                 {listLoading ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                    <svg className="animate-spin text-primary-dark" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
@@ -2168,15 +2168,15 @@ export default function Projects() {
                 ) : assignmentRows.length === 0 ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
                     <div className="text-center">
-                      <div className="mx-auto w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300">
+                      <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V5a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                           <path d="M8 10h8" />
                           <path d="M8 14h5" />
                         </svg>
                       </div>
-                      <p className="mt-3 text-[14px] font-bold text-gray-900">No assignment requests yet</p>
-                      <p className="mt-1 text-[12px] text-gray-500">When you receive assignments, they’ll appear here.</p>
+                      <p className="mt-3 text-[14px] font-bold text-ink">No assignment requests yet</p>
+                      <p className="mt-1 text-[12px] text-muted">When you receive assignments, they’ll appear here.</p>
                     </div>
                   </div>
                 ) : (
@@ -2188,17 +2188,17 @@ export default function Projects() {
                             value={assignmentsSearch}
                             onChange={(e) => setAssignmentsSearch(e.target.value)}
                             placeholder='Search by Project Title or Jeweller Name'
-                            className="w-full sm:w-[320px] max-w-full px-4 py-2.5 rounded-xl border border-gray-200 text-[13px] font-semibold text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                            className="w-full sm:w-[320px] max-w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                           />
                         </div>
-                        <div className="text-[12px] font-semibold text-gray-500">
+                        <div className="text-[12px] font-semibold text-muted">
                           {filteredAssignmentRows.length} {filteredAssignmentRows.length === 1 ? 'record' : 'records'}
                         </div>
                       </div>
                     </div>
 
                     {filteredAssignmentRows.length === 0 ? (
-                      <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 text-[13px] text-gray-600">
+                      <div className="rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
                         No matching assignments.
                       </div>
                     ) : null}
@@ -2230,32 +2230,32 @@ export default function Projects() {
                         : status === 'rejected'
                           ? 'bg-red-50 border-red-100 text-red-700'
                           : status === 'reassigned'
-                            ? 'bg-gray-50 border-gray-100 text-gray-700'
+                            ? 'bg-cream border-pale text-mid'
                             : 'bg-amber-50 border-amber-100 text-amber-700';
                     return (
-                      <div key={String(a?.id ?? a?._id ?? `${pid}-${idx}`)} className="rounded-2xl border border-gray-100 p-4 bg-white">
+                      <div key={String(a?.id ?? a?._id ?? `${pid}-${idx}`)} className="rounded-2xl border border-pale p-4 bg-white">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-[13px] font-bold text-gray-900 truncate max-w-[90vw] sm:max-w-none">
+                              <p className="text-[13px] font-bold text-ink truncate max-w-[90vw] sm:max-w-none">
                                 {p?.title || 'Project'}
                               </p>
                               <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${statusClass}`}>
                                 {statusText}
                               </span>
                             </div>
-                            <p className="mt-1 text-[12px] text-gray-400">
+                            <p className="mt-1 text-[12px] text-muted">
                               {status === 'pending' ? 'Pending with' : status === 'accepted' ? 'Accepted by' : 'Rejected by'}{' '}
-                              <span className="font-semibold text-gray-600">{vendorLabel}</span>
+                              <span className="font-semibold text-mid">{vendorLabel}</span>
                             </p>
                             {/* Mobile timestamp */}
-                            {when ? <p className="mt-1 text-[12px] text-gray-400 sm:hidden">{formatDateTime(when)}</p> : null}
+                            {when ? <p className="mt-1 text-[12px] text-muted sm:hidden">{formatDateTime(when)}</p> : null}
                           </div>
 
                           <div className="shrink-0 flex flex-col items-end gap-2">
                             {/* Desktop timestamp */}
                             {when ? (
-                              <p className="hidden sm:block text-[12px] text-gray-400 text-right">
+                              <p className="hidden sm:block text-[12px] text-muted text-right">
                                 {formatDateTime(when)}
                               </p>
                             ) : null}
@@ -2263,7 +2263,7 @@ export default function Projects() {
                               <button
                                 type="button"
                                 onClick={() => navigate(`/customer/projects/${pid}`)}
-                                className="px-3 py-2 rounded-xl bg-white border border-gray-100 text-[12px] font-bold text-primary-dark hover:bg-gray-50"
+                                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-ink hover:bg-cream"
                               >
                                 Track
                               </button>
@@ -2280,29 +2280,29 @@ export default function Projects() {
 
             {createModalOpen ? (
               <div
-                className="fixed inset-0 z-[120] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                className="fixed inset-0 z-[120] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
                 onMouseDown={closeCreateModal}
               >
                 <div
-                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
+                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="relative px-5 pt-4 border-b border-gray-50 flex items-center justify-between gap-3">
+                  <div className="relative px-5 pt-4 border-b border-pale flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[14px] font-extrabold text-gray-900">{editingId ? 'Edit Project' : 'Create Project'}</p>
-                      <p className="mt-1 text-[12px] text-gray-400">
+                      <p className="text-[14px] font-extrabold text-ink">{editingId ? 'Edit Project' : 'Create Project'}</p>
+                      <p className="mt-1 text-[12px] text-muted">
                         {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
                       </p>
                     </div>
 
                     {/* Desktop: consultation prompt centered in header row */}
                     <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-4 flex-col items-center text-center gap-2 max-w-[52%]">
-                      <p className="text-[14px] font-extrabold text-gray-800">
+                      <p className="text-[14px] font-extrabold text-ink">
                         Need help bringing your idea together?
                       </p>
                       <a
                         href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
-                        className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity"
+                        className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
                       </a>
@@ -2314,7 +2314,7 @@ export default function Projects() {
                           type="button"
                           onClick={startCreateNew}
                           disabled={createLoading || attachmentUploading || referenceUploading}
-                          className="hidden sm:inline-flex px-3 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          className="hidden sm:inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           New project
                         </button>
@@ -2323,7 +2323,7 @@ export default function Projects() {
                         type="button"
                         onClick={closeCreateModal}
                         disabled={createLoading || attachmentUploading || referenceUploading}
-                        className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Close"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -2334,20 +2334,20 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  <div className="px-5 py-3 border-b border-gray-50 bg-white">
+                  <div className="px-5 py-3 border-b border-pale bg-white">
                     {/* Mobile: compact consultation prompt above stepper */}
-                    <div className="md:hidden mb-2 rounded-2xl border border-gray-100 bg-white px-4 pt-4 pb-3 flex flex-col items-center justify-center text-center gap-2">
-                      <p className="text-[14px] font-extrabold text-gray-800 mt-1">
+                    <div className="md:hidden mb-2 rounded-2xl border border-pale bg-white px-4 pt-4 pb-3 flex flex-col items-center justify-center text-center gap-2">
+                      <p className="text-[14px] font-extrabold text-ink mt-1">
                         Need help bringing your idea together?
                       </p>
                       <a
                         href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
-                        className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 transition-opacity"
+                        className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
                       </a>
                     </div>
-                    <div className="sm:hidden mb-2 text-[13px] font-extrabold text-gray-900">
+                    <div className="sm:hidden mb-2 text-[13px] font-extrabold text-ink">
                       {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>
                     <div className="flex items-center gap-2 w-full md:mt-4">
@@ -2359,17 +2359,17 @@ export default function Projects() {
                             <div className="flex items-center gap-2 min-w-0 shrink-0">
                               <div
                                 className={`w-7 h-7 rounded-xl flex items-center justify-center text-[12px] font-extrabold border ${
-                                  active || done ? 'bg-primary-dark text-white border-primary-dark' : 'bg-white text-gray-400 border-gray-200'
+                                  active || done ? 'bg-walnut text-blush border-walnut' : 'bg-white text-muted border-pale'
                                 }`}
                               >
                                 {s.id}
                               </div>
-                              <div className={`hidden sm:block text-[12px] font-bold whitespace-nowrap ${active || done ? 'text-gray-900' : 'text-gray-400'}`}>
+                              <div className={`hidden sm:block text-[12px] font-bold whitespace-nowrap ${active || done ? 'text-ink' : 'text-muted'}`}>
                                 {s.label}
                               </div>
                             </div>
                             {idx < stepLabels.length - 1 ? (
-                              <div className={`flex-1 h-[2px] rounded-full ${done ? 'bg-primary-dark' : 'bg-gray-100'}`} />
+                              <div className={`flex-1 h-[2px] rounded-full ${done ? 'bg-walnut' : 'bg-blush'}`} />
                             ) : null}
                           </React.Fragment>
                         );
@@ -2381,16 +2381,16 @@ export default function Projects() {
                     <div className={`h-full grid grid-cols-1 ${createStep === 4 ? 'md:grid-cols-1' : 'md:grid-cols-[420px_1fr]'}`}>
                       {/* Left: reference image (desktop, hidden on Review step) */}
                       {createStep !== 4 ? (
-                      <div className="hidden md:block h-full overflow-y-auto border-r border-gray-100 bg-white px-5 py-5">
-                        <div className="rounded-2xl border border-gray-100 p-4">
+                      <div className="hidden md:block h-full overflow-y-auto border-r border-pale bg-white px-5 py-5">
+                        <div className="rounded-2xl border border-pale p-4">
                           <div>
-                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
-                            <p className="text-[12px] text-gray-400">Upload one image as the project reference.</p>
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image *</p>
+                            <p className="text-[12px] text-muted">Upload one image as the project reference.</p>
                           </div>
 
                           <div className="mt-4">
                             {String(createForm.referenceImage || '').trim() ? (
-                              <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden group">
+                              <div className="relative rounded-2xl border border-pale bg-cream overflow-hidden group">
                                 <SafeImage
                                   src={String(createForm.referenceImage || '').trim()}
                                   alt="Reference"
@@ -2404,7 +2404,7 @@ export default function Projects() {
                                     if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
                                   }}
                                   disabled={referenceUploading}
-                                  className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                  className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-walnut/75 text-white flex items-center justify-center hover:bg-walnut/85 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                                   aria-label="Remove reference image"
                                   title="Remove image"
                                 >
@@ -2427,14 +2427,14 @@ export default function Projects() {
                                 aria-label="Upload reference image. You can also drag and drop a file here."
                                 className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center min-h-[320px] flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                                   referenceDropActive
-                                    ? 'border-primary-dark bg-primary-dark/[0.06] ring-2 ring-primary-dark/20'
-                                    : 'border-gray-200 bg-gray-50 hover:border-primary-dark/45 hover:bg-gray-50/90'
+                                    ? 'border-walnut bg-walnut/[0.06] ring-2 ring-walnut/20'
+                                    : 'border-pale bg-cream hover:border-walnut/45 hover:bg-cream/90'
                                 }`}
                               >
                                 <span className="pointer-events-none flex flex-col items-center gap-2 max-w-[280px]">
                                   {referenceUploading ? (
                                     <svg
-                                      className="animate-spin text-primary-dark"
+                                      className="animate-spin text-ink"
                                       xmlns="http://www.w3.org/2000/svg"
                                       width="32"
                                       height="32"
@@ -2445,7 +2445,7 @@ export default function Projects() {
                                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                                     </svg>
                                   ) : (
-                                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white border border-gray-100 text-primary-dark shadow-sm">
+                                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-white border border-pale text-ink shadow-sm">
                                       <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                         <polyline points="17 8 12 3 7 8" />
@@ -2453,10 +2453,10 @@ export default function Projects() {
                                       </svg>
                                     </span>
                                   )}
-                                  <span className="mt-1 text-[13px] font-bold text-gray-800">
+                                  <span className="mt-1 text-[13px] font-bold text-ink">
                                     {referenceUploading ? 'Uploading…' : 'Add reference image'}
                                   </span>
-                                  <span className="text-[12px] text-gray-500 leading-snug">
+                                  <span className="text-[12px] text-muted leading-snug">
                                     {referenceUploading ? 'Please wait' : 'Click to browse, or drag and drop an image here'}
                                   </span>
                                 </span>
@@ -2482,11 +2482,11 @@ export default function Projects() {
 
                         {/* Mobile: reference image block at top (always visible) */}
                         <div className="md:hidden mb-6">
-                          <div className="rounded-2xl border border-gray-100 p-4">
+                          <div className="rounded-2xl border border-pale p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Reference Image *</p>
-                                <p className="text-[12px] text-gray-400">
+                                <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image *</p>
+                                <p className="text-[12px] text-muted">
                                   {String(createForm.referenceImage || '').trim()
                                     ? 'Reference image added. Tap × on the preview to remove, then add a new one.'
                                     : 'Tap the area below to choose an image.'}
@@ -2496,7 +2496,7 @@ export default function Projects() {
                               <button
                                 type="button"
                                 onClick={() => setMobileRefCollapsed((v) => !v)}
-                                className="w-10 h-10 shrink-0 rounded-xl border border-gray-100 text-gray-700 hover:bg-gray-50 flex items-center justify-center"
+                                className="w-10 h-10 shrink-0 rounded-xl border border-pale text-mid hover:bg-cream flex items-center justify-center"
                                 aria-label={mobileRefCollapsed ? 'Expand reference image' : 'Collapse reference image'}
                                 title={mobileRefCollapsed ? 'Expand' : 'Collapse'}
                               >
@@ -2518,7 +2518,7 @@ export default function Projects() {
                             {!mobileRefCollapsed ? (
                               <div className="mt-4">
                                 {String(createForm.referenceImage || '').trim() ? (
-                                  <div className="relative rounded-2xl border border-gray-100 bg-gray-50 overflow-hidden">
+                                  <div className="relative rounded-2xl border border-pale bg-cream overflow-hidden">
                                     <SafeImage
                                       src={String(createForm.referenceImage || '').trim()}
                                       alt="Reference"
@@ -2532,7 +2532,7 @@ export default function Projects() {
                                         if (referenceImageInputRef.current) referenceImageInputRef.current.value = '';
                                       }}
                                       disabled={referenceUploading}
-                                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-black/55 text-white flex items-center justify-center hover:bg-black/70 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
+                                      className="absolute top-3 right-3 z-10 w-9 h-9 rounded-xl bg-walnut/75 text-white flex items-center justify-center hover:bg-walnut/85 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-sm"
                                       aria-label="Remove reference image"
                                       title="Remove image"
                                     >
@@ -2555,14 +2555,14 @@ export default function Projects() {
                                     aria-label="Upload reference image"
                                     className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center min-h-[220px] flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
                                       referenceDropActive
-                                        ? 'border-primary-dark bg-primary-dark/[0.06] ring-2 ring-primary-dark/20'
-                                        : 'border-gray-200 bg-gray-50 hover:border-primary-dark/45 hover:bg-gray-50/90'
+                                        ? 'border-walnut bg-walnut/[0.06] ring-2 ring-walnut/20'
+                                        : 'border-pale bg-cream hover:border-walnut/45 hover:bg-cream/90'
                                     }`}
                                   >
                                     <span className="pointer-events-none flex flex-col items-center gap-2 max-w-[260px]">
                                       {referenceUploading ? (
                                         <svg
-                                          className="animate-spin text-primary-dark"
+                                          className="animate-spin text-ink"
                                           xmlns="http://www.w3.org/2000/svg"
                                           width="28"
                                           height="28"
@@ -2573,7 +2573,7 @@ export default function Projects() {
                                           <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                                         </svg>
                                       ) : (
-                                        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-gray-100 text-primary-dark shadow-sm">
+                                        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white border border-pale text-ink shadow-sm">
                                           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
                                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                                             <polyline points="17 8 12 3 7 8" />
@@ -2581,10 +2581,10 @@ export default function Projects() {
                                           </svg>
                                         </span>
                                       )}
-                                      <span className="mt-1 text-[13px] font-bold text-gray-800">
+                                      <span className="mt-1 text-[13px] font-bold text-ink">
                                         {referenceUploading ? 'Uploading…' : 'Add reference image'}
                                       </span>
-                                      <span className="text-[12px] text-gray-500 leading-snug">
+                                      <span className="text-[12px] text-muted leading-snug">
                                         {referenceUploading ? 'Please wait' : 'Tap to browse. On desktop you can drag a file here.'}
                                       </span>
                                     </span>
@@ -2599,17 +2599,17 @@ export default function Projects() {
                           <div className="space-y-6">
                             <div className="grid grid-cols-1 gap-4">
                               <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Design title *</label>
+                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Design title *</label>
                                 <input
                                   value={createForm.title}
                                   onChange={(e) => setCreateForm((p) => ({ ...p, title: e.target.value }))}
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                   placeholder="Enter design title"
                                 />
                               </div>
 
                               <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery type *</label>
+                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery type *</label>
                                 <select
                                   value={createForm?.specs?.jewelleryType || ''}
                                   onChange={(e) => {
@@ -2627,7 +2627,7 @@ export default function Projects() {
                                       },
                                     }));
                                   }}
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                 >
                                   <option value="">Select</option>
                                   {['Ring', 'Necklace', 'Bracelet', 'Flexi Bangle', 'Earrings', 'Pendant'].map((x) => (
@@ -2642,11 +2642,11 @@ export default function Projects() {
                             {String(createForm?.specs?.jewelleryType || '').trim() ? (
                               <div className="space-y-1.5">
                                 <div className="flex items-center justify-between gap-3">
-                                  <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Size *</label>
+                                  <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Size *</label>
                                   <button
                                     type="button"
                                     onClick={() => setHowToMeasureOpen(true)}
-                                    className="shrink-0 text-[12px] font-semibold text-primary-dark hover:underline cursor-pointer"
+                                    className="shrink-0 text-[12px] font-semibold text-ink hover:underline cursor-pointer"
                                   >
                                     How to Measure
                                   </button>
@@ -2667,7 +2667,7 @@ export default function Projects() {
                                       }));
                                     }
                                   }}
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                 >
                                   <option value="">Select</option>
                                   {sizeStandardOptionsForJewelleryType(createForm?.specs?.jewelleryType).map((label) => (
@@ -2688,7 +2688,7 @@ export default function Projects() {
                                           specs: { ...(p.specs || {}), sizeCustomValue: e.target.value },
                                         }))
                                       }
-                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                       placeholder="Measurement"
                                     />
                                     <select
@@ -2699,7 +2699,7 @@ export default function Projects() {
                                           specs: { ...(p.specs || {}), sizeCustomUnit: e.target.value },
                                         }))
                                       }
-                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                     >
                                       <option value="mm">mm</option>
                                       <option value="cm">cm</option>
@@ -2713,17 +2713,17 @@ export default function Projects() {
                         ) : null}
 
                         {createStep === 2 ? (
-                      <div className="rounded-2xl border border-gray-100 p-4">
+                      <div className="rounded-2xl border border-pale p-4">
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                           <div className="min-w-0">
-                            <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery specifications</p>
-                            <p className="text-[12px] text-gray-400">These details will be shared with the jeweller to prepare your order.</p>
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery specifications</p>
+                            <p className="text-[12px] text-muted">These details will be shared with the jeweller to prepare your order.</p>
                           </div>
                         </div>
 
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal type *</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal type *</label>
                             <select
                               value={createForm?.specs?.metalType || ''}
                               onChange={(e) =>
@@ -2732,7 +2732,7 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), metalType: e.target.value },
                                 }))
                               }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                             >
                               <option value="">Select</option>
                               {['Gold', 'Platinum', 'Silver', 'Other'].map((x) => (
@@ -2746,7 +2746,7 @@ export default function Projects() {
                           {String(createForm?.specs?.metalType || '').trim().toLowerCase() === 'gold' ? (
                             <>
                               <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal purity *</label>
+                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal purity *</label>
                                 <select
                                   value={createForm?.specs?.metalPurity || ''}
                                   onChange={(e) =>
@@ -2755,7 +2755,7 @@ export default function Projects() {
                                       specs: { ...(p.specs || {}), metalPurity: e.target.value },
                                     }))
                                   }
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                 >
                                   <option value="">Select</option>
                                   {['9KT', '14KT', '18KT', '22KT'].map((x) => (
@@ -2766,7 +2766,7 @@ export default function Projects() {
                                 </select>
                               </div>
                               <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal colour *</label>
+                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal colour *</label>
                                 <select
                                   value={createForm?.specs?.metalColour || ''}
                                   onChange={(e) =>
@@ -2775,7 +2775,7 @@ export default function Projects() {
                                       specs: { ...(p.specs || {}), metalColour: e.target.value },
                                     }))
                                   }
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                 >
                                   <option value="">Select</option>
                                   {['Yellow', 'White', 'Rose', 'Two-tone'].map((x) => (
@@ -2790,7 +2790,7 @@ export default function Projects() {
 
                           {String(createForm?.specs?.metalColour || '').trim().toLowerCase() === 'two-tone' ? (
                             <div className="space-y-1.5 md:col-span-2">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
                                 Two-tone specification and additional metal details *
                               </label>
                               <input
@@ -2801,14 +2801,14 @@ export default function Projects() {
                                     specs: { ...(p.specs || {}), twoToneDetails: e.target.value },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                 placeholder="Describe the exact combination and placement of colours"
                               />
                             </div>
                           ) : null}
 
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Metal finish *</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal finish *</label>
                             <select
                               value={createForm?.specs?.metalFinish || ''}
                               onChange={(e) =>
@@ -2817,7 +2817,7 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), metalFinish: e.target.value },
                                 }))
                               }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                             >
                               <option value="">Select</option>
                               {['Matte', 'Polished'].map((x) => (
@@ -2829,7 +2829,7 @@ export default function Projects() {
                           </div>
 
                           <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Does your design include stones? *</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Does your design include stones? *</label>
                             <select
                               value={createForm?.specs?.stonesIncluded || 'no'}
                               onChange={(e) =>
@@ -2838,7 +2838,7 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), stonesIncluded: e.target.value },
                                 }))
                               }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                             >
                               <option value="yes">Yes</option>
                               <option value="no">No</option>
@@ -2847,7 +2847,7 @@ export default function Projects() {
 
                           {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' ? (
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stone type *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stone type *</label>
                               <select
                                 value={createForm?.specs?.stoneType || ''}
                                 onChange={(e) =>
@@ -2856,7 +2856,7 @@ export default function Projects() {
                                     specs: { ...(p.specs || {}), stoneType: e.target.value },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                               >
                                 <option value="">Select</option>
                                 <option value="Natural Diamonds">Natural Diamonds</option>
@@ -2868,7 +2868,7 @@ export default function Projects() {
                           {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' &&
                           String(createForm?.specs?.stoneType || '').toLowerCase().includes('natural') ? (
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Preferred stone quality bracket *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Preferred stone quality bracket *</label>
                               <select
                                 value={createForm?.specs?.stoneQualityBracket || ''}
                                 onChange={(e) =>
@@ -2877,7 +2877,7 @@ export default function Projects() {
                                     specs: { ...(p.specs || {}), stoneQualityBracket: e.target.value },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 bg-white border-gray-200 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                               >
                                 <option value="">Select</option>
                                 {['Standard', 'Premium', 'Luxury'].map((x) => (
@@ -2886,14 +2886,14 @@ export default function Projects() {
                                   </option>
                                 ))}
                               </select>
-                              <p className="text-[12px] text-gray-400">
+                              <p className="text-[12px] text-muted">
                                 Based on your selected quality bracket and budget, we will determine the appropriate stone colour, clarity, and size.
                               </p>
                             </div>
                           ) : null}
 
                           <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Stamping or engraving details</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stamping or engraving details</label>
                             <textarea
                               rows={3}
                               value={createForm?.specs?.engravingDetails || ''}
@@ -2903,13 +2903,13 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), engravingDetails: e.target.value },
                                 }))
                               }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                               placeholder="Specify any initials, names, dates, or markings required"
                             />
                           </div>
 
                           <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Changes compared to reference image</label>
+                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Changes compared to reference image</label>
                             <textarea
                               rows={3}
                               value={createForm?.specs?.changesComparedToReference || ''}
@@ -2919,7 +2919,7 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), changesComparedToReference: e.target.value },
                                 }))
                               }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                               placeholder="Specify any changes beyond the selections above"
                             />
                           </div>
@@ -2929,13 +2929,13 @@ export default function Projects() {
 
                     {createStep === 3 ? (
                       <div className="space-y-6">
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Order details</p>
-                          <p className="mt-1 text-[12px] text-gray-400">Provide quantities, budget, and delivery timeline.</p>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
+                          <p className="mt-1 text-[12px] text-muted">Provide quantities, budget, and delivery timeline.</p>
 
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Budget per piece *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Budget per piece *</label>
                               <input
                                 type="text"
                                 inputMode="decimal"
@@ -2947,12 +2947,12 @@ export default function Projects() {
                                     specs: { ...(p.specs || {}), budgetPerPiece: sanitizeDecimalInput(e.target.value, { maxLen: 16 }) },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                 placeholder="e.g. 25000"
                               />
                             </div>
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Quantity required *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Quantity required *</label>
                               <input
                                 type="text"
                                 inputMode="numeric"
@@ -2964,12 +2964,12 @@ export default function Projects() {
                                     specs: { ...(p.specs || {}), quantityRequired: sanitizeDigitsInput(e.target.value, { maxLen: 6 }) },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                                 placeholder="e.g. 1"
                               />
                             </div>
                             <div className="space-y-1.5 md:col-span-2">
-                              <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Preferred delivery timeline *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Preferred delivery timeline *</label>
                               {(() => {
                                 const minDays = 20;
                                 const maxDays = 90;
@@ -2980,7 +2980,7 @@ export default function Projects() {
                                   <div className="mt-2">
                                     <div className="relative">
                                       <div
-                                        className="absolute -top-8 text-[12px] font-bold text-gray-800 bg-white border border-gray-100 rounded-lg px-2 py-0.5 shadow-sm"
+                                        className="absolute -top-8 text-[12px] font-bold text-ink bg-white border border-pale rounded-lg px-2 py-0.5 shadow-sm"
                                         style={{ left: `calc(${pct}% - 14px)` }}
                                       >
                                         {days}
@@ -3002,16 +3002,16 @@ export default function Projects() {
                                             },
                                           }));
                                         }}
-                                        className="w-full accent-primary-dark"
+                                        className="w-full accent-walnut"
                                       />
                                     </div>
-                                    <div className="mt-2 flex items-center justify-between text-[12px] text-gray-400">
+                                    <div className="mt-2 flex items-center justify-between text-[12px] text-muted">
                                       <span>20 Days</span>
                                       <span>90 Days</span>
                                     </div>
-                                    <p className="mt-3 text-[12px] text-gray-500">
+                                    <p className="mt-3 text-[12px] text-muted">
                                       Your Expected delivery date is{' '}
-                                      <span className="font-semibold text-gray-800">{formatDateWithOrdinal(expectedDate)}</span>
+                                      <span className="font-semibold text-ink">{formatDateWithOrdinal(expectedDate)}</span>
                                     </p>
                                     {days < 30 ? (
                                       <p className="mt-2 text-[12px] text-amber-700">
@@ -3025,8 +3025,8 @@ export default function Projects() {
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <label className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Additional notes for the manufacturer</label>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Additional notes for the manufacturer</label>
                           <textarea
                             rows={3}
                             value={createForm?.specs?.additionalNotes || ''}
@@ -3036,22 +3036,22 @@ export default function Projects() {
                                 specs: { ...(p.specs || {}), additionalNotes: e.target.value },
                               }))
                             }
-                            className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-gray-700 focus:outline-none focus:ring-1 focus:ring-primary-dark/20 border-gray-200 focus:border-primary-dark"
+                            className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
                             placeholder="Any additional details you want to share"
                           />
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
+                        <div className="rounded-2xl border border-pale p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
-                              <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
-                              <p className="text-[12px] text-gray-400">Upload project attachments (images/PDF).</p>
+                              <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Attachments</p>
+                              <p className="text-[12px] text-muted">Upload project attachments (images/PDF).</p>
                             </div>
                             <button
                               type="button"
                               onClick={() => attachmentInputRef.current?.click()}
                               disabled={attachmentUploading}
-                              className="px-4 py-2 rounded-xl bg-primary-dark text-white text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              className="px-4 py-2 rounded-xl bg-walnut text-blush text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                             >
                               {attachmentUploading ? 'Uploading…' : 'Upload files'}
                             </button>
@@ -3092,7 +3092,7 @@ export default function Projects() {
                                       // ignore
                                     }
                                   }}
-                                  className={`relative rounded-xl overflow-hidden border border-gray-100 bg-gray-50 ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
+                                  className={`relative rounded-xl overflow-hidden border border-pale bg-cream ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
                                   aria-label={isPdfUrl(url) ? 'Open PDF attachment' : undefined}
                                 >
                                   {isPdfUrl(url) ? (
@@ -3114,7 +3114,7 @@ export default function Projects() {
                                       e.stopPropagation();
                                       setCreateForm((p) => ({ ...p, attachments: coerceUrlArray(p.attachments).filter((_, i) => i !== idx) }));
                                     }}
-                                    className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/50 text-white flex items-center justify-center hover:bg-black/60 cursor-pointer"
+                                    className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-walnut/70 text-white flex items-center justify-center hover:bg-walnut/80 cursor-pointer"
                                     aria-label="Remove"
                                   >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -3126,7 +3126,7 @@ export default function Projects() {
                               ))}
                             </div>
                           ) : (
-                            <div className="mt-4 text-[12px] text-gray-400">No attachments uploaded.</div>
+                            <div className="mt-4 text-[12px] text-muted">No attachments uploaded.</div>
                           )}
                         </div>
                       </div>
@@ -3134,17 +3134,17 @@ export default function Projects() {
 
                     {createStep === 4 ? (
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[13px] font-extrabold text-gray-900">Review</p>
-                          <p className="mt-1 text-[12px] text-gray-400">Confirm all details before submitting.</p>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[13px] font-extrabold text-ink">Review</p>
+                          <p className="mt-1 text-[12px] text-muted">Confirm all details before submitting.</p>
                         </div>
 
                         {feasibilityReview ? (
-                          <div className="rounded-2xl border border-gray-100 p-4">
+                          <div className="rounded-2xl border border-pale p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Feasibility</p>
-                                <p className="mt-1 text-[12px] text-gray-500">
+                                <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Feasibility</p>
+                                <p className="mt-1 text-[12px] text-muted">
                                   {feasibilityReview?.goodToGo === true
                                     ? 'Good to go based on the feasibility check.'
                                     : 'Feasibility check suggests adjustments may be needed.'}
@@ -3200,11 +3200,11 @@ export default function Projects() {
 
                             {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
                               <div className="mt-3">
-                                <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wide">Tiers applied</p>
-                                <ul className="mt-2 space-y-1 text-[12px] text-gray-700">
+                                <p className="text-[11px] font-medium text-mid uppercase tracking-wide">Tiers applied</p>
+                                <ul className="mt-2 space-y-1 text-[12px] text-mid">
                                   {feasibilityReview.tiersApplied.map((t, idx) => (
                                     <li key={`tier-${idx}`} className="flex items-start gap-2">
-                                      <span className="mt-[4px] w-1.5 h-1.5 rounded-full bg-gray-300" />
+                                      <span className="mt-[4px] w-1.5 h-1.5 rounded-full bg-soft" />
                                       <span>{String(t)}</span>
                                     </li>
                                   ))}
@@ -3243,61 +3243,61 @@ export default function Projects() {
                           </div>
                         ) : null}
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Design title</p>
-                          <div className="mt-2 text-[13px] font-semibold text-gray-800">{createForm.title || '—'}</div>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Design title</p>
+                          <div className="mt-2 text-[13px] font-semibold text-ink">{createForm.title || '—'}</div>
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Jewellery specifications</p>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery specifications</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
-                            <div><span className="text-gray-400">Jewellery type:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.jewelleryType || '—'}</span></div>
-                            <div><span className="text-gray-400">Size:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.sizeMode === 'custom' ? `${createForm?.specs?.sizeCustomValue || '—'} ${createForm?.specs?.sizeCustomUnit || ''}`.trim() : (createForm?.specs?.sizeStandard || '—')}</span></div>
-                            <div><span className="text-gray-400">Metal type:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalType || '—'}</span></div>
+                            <div><span className="text-muted">Jewellery type:</span> <span className="font-semibold text-ink">{createForm?.specs?.jewelleryType || '—'}</span></div>
+                            <div><span className="text-muted">Size:</span> <span className="font-semibold text-ink">{createForm?.specs?.sizeMode === 'custom' ? `${createForm?.specs?.sizeCustomValue || '—'} ${createForm?.specs?.sizeCustomUnit || ''}`.trim() : (createForm?.specs?.sizeStandard || '—')}</span></div>
+                            <div><span className="text-muted">Metal type:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalType || '—'}</span></div>
                             {String(createForm?.specs?.metalPurity || '').trim() ? (
-                              <div><span className="text-gray-400">Metal purity:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalPurity}</span></div>
+                              <div><span className="text-muted">Metal purity:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalPurity}</span></div>
                             ) : null}
                             {String(createForm?.specs?.metalColour || '').trim() ? (
-                              <div><span className="text-gray-400">Metal colour:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalColour}</span></div>
+                              <div><span className="text-muted">Metal colour:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalColour}</span></div>
                             ) : null}
                             {String(createForm?.specs?.twoToneDetails || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-gray-400">Two-tone details:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.twoToneDetails}</span></div>
+                              <div className="md:col-span-2"><span className="text-muted">Two-tone details:</span> <span className="font-semibold text-ink">{createForm?.specs?.twoToneDetails}</span></div>
                             ) : null}
-                            <div><span className="text-gray-400">Metal finish:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.metalFinish || '—'}</span></div>
-                            <div><span className="text-gray-400">Stones included:</span> <span className="font-semibold text-gray-800">{String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No'}</span></div>
+                            <div><span className="text-muted">Metal finish:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalFinish || '—'}</span></div>
+                            <div><span className="text-muted">Stones included:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No'}</span></div>
                             {String(createForm?.specs?.stoneType || '').trim() ? (
-                              <div><span className="text-gray-400">Stone type:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.stoneType}</span></div>
+                              <div><span className="text-muted">Stone type:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneType}</span></div>
                             ) : null}
                             {String(createForm?.specs?.stoneQualityBracket || '').trim() ? (
-                              <div><span className="text-gray-400">Preferred stone quality bracket:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.stoneQualityBracket}</span></div>
+                              <div><span className="text-muted">Preferred stone quality bracket:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneQualityBracket}</span></div>
                             ) : null}
                             {String(createForm?.specs?.engravingDetails || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-gray-400">Stamping / engraving:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.engravingDetails}</span></div>
+                              <div className="md:col-span-2"><span className="text-muted">Stamping / engraving:</span> <span className="font-semibold text-ink">{createForm?.specs?.engravingDetails}</span></div>
                             ) : null}
                             {String(createForm?.specs?.changesComparedToReference || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-gray-400">Changes vs reference:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.changesComparedToReference}</span></div>
+                              <div className="md:col-span-2"><span className="text-muted">Changes vs reference:</span> <span className="font-semibold text-ink">{createForm?.specs?.changesComparedToReference}</span></div>
                             ) : null}
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Order details</p>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
-                            <div><span className="text-gray-400">Budget per piece:</span> <span className="font-semibold text-gray-800">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
-                            <div><span className="text-gray-400">Quantity required:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.quantityRequired || '—'}</span></div>
-                            <div className="md:col-span-2"><span className="text-gray-400">Preferred delivery timeline:</span> <span className="font-semibold text-gray-800">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
+                            <div><span className="text-muted">Budget per piece:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
+                            <div><span className="text-muted">Quantity required:</span> <span className="font-semibold text-ink">{createForm?.specs?.quantityRequired || '—'}</span></div>
+                            <div className="md:col-span-2"><span className="text-muted">Preferred delivery timeline:</span> <span className="font-semibold text-ink">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
                             {String(createForm?.specs?.additionalNotes || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-gray-400">Additional notes for the manufacturer:</span> <span className="font-semibold text-gray-800">{createForm?.specs?.additionalNotes}</span></div>
+                              <div className="md:col-span-2"><span className="text-muted">Additional notes for the manufacturer:</span> <span className="font-semibold text-ink">{createForm?.specs?.additionalNotes}</span></div>
                             ) : null}
                             <div className="md:col-span-2">
-                              <span className="text-gray-400">Confirmation:</span>{' '}
-                              <span className="font-semibold text-gray-800">{createForm?.specs?.confirmSpecs ? 'Confirmed' : 'Not confirmed'}</span>
+                              <span className="text-muted">Confirmation:</span>{' '}
+                              <span className="font-semibold text-ink">{createForm?.specs?.confirmSpecs ? 'Confirmed' : 'Not confirmed'}</span>
                             </div>
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <p className="text-[11px] font-medium text-primary-dark uppercase tracking-wide">Attachments</p>
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Attachments</p>
                           {coerceUrlArray(createForm?.attachments).length ? (
                             <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-3">
                               {coerceUrlArray(createForm.attachments).map((url, idx) => (
@@ -3322,7 +3322,7 @@ export default function Projects() {
                                       // ignore
                                     }
                                   }}
-                                  className={`rounded-xl overflow-hidden border border-gray-100 bg-gray-50 ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
+                                  className={`rounded-xl overflow-hidden border border-pale bg-cream ${isPdfUrl(url) ? 'cursor-pointer' : ''}`}
                                 >
                                   {isPdfUrl(url) ? (
                                     <div className="w-full h-24 bg-white flex items-center justify-center text-red-400">
@@ -3337,12 +3337,12 @@ export default function Projects() {
                               ))}
                             </div>
                           ) : (
-                            <div className="mt-2 text-[12px] text-gray-400">No attachments uploaded.</div>
+                            <div className="mt-2 text-[12px] text-muted">No attachments uploaded.</div>
                           )}
                         </div>
 
-                        <div className="rounded-2xl border border-gray-100 p-4">
-                          <label className="flex items-start gap-2 text-[12px] text-primary-dark cursor-pointer select-none">
+                        <div className="rounded-2xl border border-pale p-4">
+                          <label className="flex items-start gap-2 text-[12px] text-ink cursor-pointer select-none">
                             <input
                               type="checkbox"
                               checked={Boolean(createForm?.specs?.confirmSpecs)}
@@ -3352,9 +3352,9 @@ export default function Projects() {
                                   specs: { ...(p.specs || {}), confirmSpecs: e.target.checked },
                                 }))
                               }
-                              className="mt-0.5 w-4 h-4 rounded border-gray-200 text-primary-dark focus:ring-primary-dark/30"
+                              className="mt-0.5 w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                             />
-                            <span className="font-medium text-gray-700">
+                            <span className="font-medium text-mid">
                               I confirm that all specifications provided are accurate and final. I understand that any changes after this stage may impact pricing and delivery timelines. I agree to the platform’s terms and conditions.
                             </span>
                           </label>
@@ -3365,12 +3365,12 @@ export default function Projects() {
                 </div>
               </div>
 
-                  <div className="shrink-0 px-5 py-4 border-t border-gray-100 bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                  <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                     <button
                       type="button"
                       onClick={() => setCreateStep((s) => Math.max(1, Number(s || 1) - 1))}
                       disabled={createLoading || attachmentUploading || referenceUploading || createStep === 1}
-                      className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Back
                     </button>
@@ -3386,7 +3386,7 @@ export default function Projects() {
                           persistAndAdvance(createStep);
                         }}
                         disabled={createLoading || attachmentUploading || referenceUploading || feasibilityLoading}
-                        className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {createStep === 3 ? (feasibilityLoading || createLoading ? 'Reviewing…' : 'Review') : createLoading ? 'Saving…' : 'Next'}
                       </button>
@@ -3401,7 +3401,7 @@ export default function Projects() {
                           referenceUploading ||
                           !createForm?.specs?.confirmSpecs
                         }
-                        className="px-5 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {listMyProjectLoading || createLoading ? 'Listing…' : 'List my project'}
                       </button>
@@ -3417,24 +3417,24 @@ export default function Projects() {
       {/* How to measure modal */}
       {howToMeasureOpen ? (
         <div
-          className="fixed inset-0 z-[130] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[130] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => setHowToMeasureOpen(false)}
         >
           <div
-            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden max-h-[calc(100dvh-24px)] flex flex-col"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-center justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">How to Measure</p>
+                <p className="text-[14px] font-extrabold text-ink">How to Measure</p>
                 {createForm?.specs?.jewelleryType ? (
-                  <p className="mt-1 text-[12px] text-gray-400 truncate">{String(createForm.specs.jewelleryType)}</p>
+                  <p className="mt-1 text-[12px] text-muted truncate">{String(createForm.specs.jewelleryType)}</p>
                 ) : null}
               </div>
               <button
                 type="button"
                 onClick={() => setHowToMeasureOpen(false)}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -3444,13 +3444,13 @@ export default function Projects() {
               </button>
             </div>
             <div className="px-5 py-5">
-              <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-line">{howToMeasureText}</p>
+              <p className="text-[13px] text-mid leading-relaxed whitespace-pre-line">{howToMeasureText}</p>
             </div>
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={() => setHowToMeasureOpen(false)}
-                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90"
+                className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90"
               >
                 Got it
               </button>
@@ -3462,19 +3462,19 @@ export default function Projects() {
       {/* Project listed modal */}
       {projectLiveOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => {
             setProjectLiveOpen(false);
             setProjectLiveDays(null);
           }}
         >
           <div
-            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Congratulations! Your project is now live.</p>
-              <p className="mt-2 text-[12px] text-gray-600">
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Congratulations! Your project is now live.</p>
+              <p className="mt-2 text-[12px] text-mid">
                 {`Over the next ${Math.max(1, Number(projectLiveDays) || 3)} ${Math.max(1, Number(projectLiveDays) || 3) === 1 ? 'day' : 'days'}, manufacturers will bid on your design. You’re free to review and choose a bid at any time, or wait until all bids are in.`}
               </p>
             </div>
@@ -3485,7 +3485,7 @@ export default function Projects() {
                   setProjectLiveOpen(false);
                   setProjectLiveDays(null);
                 }}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream"
               >
                 OK
               </button>
@@ -3497,29 +3497,29 @@ export default function Projects() {
       {/* Force stop auction modal */}
       {forceStopOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4"
           onMouseDown={() => setForceStopOpen(false)}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Force End</p>
-              <p className="mt-1 text-[12px] text-gray-500">This will force-end the current bid window now (does not cancel the project).</p>
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Force End</p>
+              <p className="mt-1 text-[12px] text-muted">This will force-end the current bid window now (does not cancel the project).</p>
             </div>
 
             <div className="px-5 py-4">
               <label className="flex items-start gap-3 select-none cursor-pointer">
                 <input
                   type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark"
+                  className="mt-0.5 h-4 w-4 rounded border-pale text-ink focus:ring-walnut"
                   checked={forceStopEndWithAutoWinner}
                   onChange={(e) => setForceStopEndWithAutoWinner(Boolean(e.target.checked))}
                 />
                 <div className="min-w-0">
-                  <p className="text-[12px] font-bold text-gray-800">Auto-pick a winner</p>
-                  <p className="mt-0.5 text-[11px] text-gray-500">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
+                  <p className="text-[12px] font-bold text-ink">Auto-pick a winner</p>
+                  <p className="mt-0.5 text-[11px] text-muted">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
                 </div>
               </label>
 
@@ -3527,7 +3527,7 @@ export default function Projects() {
                 <button
                   type="button"
                   onClick={() => setForceStopOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                 >
                   Keep running
                 </button>
@@ -3548,20 +3548,20 @@ export default function Projects() {
       {/* Delete project modal */}
       {deleteOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => {
             setDeleteOpen(false);
             setDeleteFor(null);
           }}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Delete project</p>
-              <p className="mt-1 text-[12px] text-gray-500">
-                Delete <span className="font-semibold text-gray-800">{deleteFor?.title || 'this project'}</span>? This cannot be undone.
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Delete project</p>
+              <p className="mt-1 text-[12px] text-muted">
+                Delete <span className="font-semibold text-ink">{deleteFor?.title || 'this project'}</span>? This cannot be undone.
               </p>
             </div>
             <div className="px-5 py-4">
@@ -3572,7 +3572,7 @@ export default function Projects() {
                     setDeleteOpen(false);
                     setDeleteFor(null);
                   }}
-                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                 >
                   Cancel
                 </button>
@@ -3593,34 +3593,34 @@ export default function Projects() {
       {/* Jeweller review modal */}
       {vendorReviewOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={closeVendorReview}
         >
           <div
-            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50 flex items-start justify-between gap-3">
+            <div className="px-5 py-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-gray-900">Review Jeweller</p>
-                <p className="mt-1 text-[12px] text-gray-500 truncate">
+                <p className="text-[14px] font-extrabold text-ink">Review Jeweller</p>
+                <p className="mt-1 text-[12px] text-muted truncate">
                   {vendorReviewFor?.vendorName ? (
                     <>
-                      For <span className="font-semibold text-gray-800">{vendorReviewFor.vendorName}</span>
+                      For <span className="font-semibold text-ink">{vendorReviewFor.vendorName}</span>
                     </>
                   ) : (
                     'For Jeweller'
                   )}
                 </p>
                 {vendorReviewFor?.projectTitle ? (
-                  <p className="mt-1 text-[11px] text-gray-400 truncate">{vendorReviewFor.projectTitle}</p>
+                  <p className="mt-1 text-[11px] text-muted truncate">{vendorReviewFor.projectTitle}</p>
                 ) : null}
               </div>
               <button
                 type="button"
                 onClick={closeVendorReview}
                 disabled={Boolean(vendorReviewDraft?.submitting)}
-                className="p-2 rounded-xl hover:bg-gray-50 text-gray-500 cursor-pointer disabled:opacity-50"
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50"
                 aria-label="Close"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -3631,11 +3631,11 @@ export default function Projects() {
             </div>
 
             <div className="px-5 py-5">
-              <p className="text-[11px] font-extrabold text-gray-700">Your rating</p>
+              <p className="text-[11px] font-extrabold text-mid">Your rating</p>
               {vendorReviewFor?.hasReview ? (
-                <p className="mt-1 text-[11px] text-gray-400">Already reviewed • Update anytime</p>
+                <p className="mt-1 text-[11px] text-muted">Already reviewed • Update anytime</p>
               ) : (
-                <p className="mt-1 text-[11px] text-gray-400">Not reviewed yet</p>
+                <p className="mt-1 text-[11px] text-muted">Not reviewed yet</p>
               )}
               <div className="mt-2 inline-flex items-center gap-1">
                 {Array.from({ length: 5 }).map((_, i) => {
@@ -3647,7 +3647,7 @@ export default function Projects() {
                       type="button"
                       onClick={() => setVendorReviewDraft((d) => ({ ...(d || {}), rating: val }))}
                       disabled={Boolean(vendorReviewDraft?.submitting)}
-                      className={`p-1 rounded-md ${filled ? 'text-amber-400' : 'text-gray-200'} disabled:opacity-50`}
+                      className={`p-1 rounded-md ${filled ? 'text-amber-400' : 'text-soft'} disabled:opacity-50`}
                       aria-label={`Rate ${val} star${val === 1 ? '' : 's'}`}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
@@ -3664,29 +3664,29 @@ export default function Projects() {
                   onChange={(e) => setVendorReviewDraft((d) => ({ ...(d || {}), comment: e.target.value }))}
                   disabled={Boolean(vendorReviewDraft?.submitting)}
                   rows={4}
-                  className="w-full px-4 py-3 rounded-2xl border border-gray-100 bg-white text-[12px] font-medium text-gray-700 focus:outline-none focus:border-primary-dark disabled:opacity-60"
+                  className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[12px] font-medium text-mid focus:outline-none focus:border-walnut disabled:opacity-60"
                   placeholder="Comment (optional)"
                 />
               </div>
 
-              <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-primary-dark select-none">
+              <label className="mt-3 inline-flex items-center gap-2 text-[12px] font-medium text-ink select-none">
                 <input
                   type="checkbox"
                   checked={Boolean(vendorReviewDraft?.isAnonymous)}
                   onChange={(e) => setVendorReviewDraft((d) => ({ ...(d || {}), isAnonymous: e.target.checked }))}
                   disabled={Boolean(vendorReviewDraft?.submitting)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-dark focus:ring-primary-dark/30"
+                  className="w-4 h-4 rounded border-pale text-ink focus:ring-walnut/30"
                 />
                 Post as anonymous
               </label>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100 bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+            <div className="px-5 py-4 border-t border-pale bg-white flex justify-end gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
               <button
                 type="button"
                 onClick={closeVendorReview}
                 disabled={Boolean(vendorReviewDraft?.submitting)}
-                className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -3694,7 +3694,7 @@ export default function Projects() {
                 type="button"
                 onClick={submitVendorReview}
                 disabled={Boolean(vendorReviewDraft?.submitting)}
-                className="px-4 py-2 rounded-xl bg-primary-dark text-white text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
               >
                 {vendorReviewDraft?.submitting ? 'Submitting…' : vendorReviewFor?.hasReview ? 'Update' : 'Submit'}
               </button>
@@ -3706,20 +3706,20 @@ export default function Projects() {
       {/* Cancel project modal */}
       {cancelOpen ? (
         <div
-          className="fixed inset-0 z-[95] bg-black/40 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
           onMouseDown={() => {
             setCancelOpen(false);
             setCancelFor(null);
           }}
         >
           <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-xl border border-gray-100 overflow-hidden"
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 border-b border-gray-50">
-              <p className="text-[14px] font-extrabold text-gray-900">Cancel Project</p>
-              <p className="mt-1 text-[12px] text-gray-500">
-                Cancel <span className="font-semibold text-gray-800">{cancelFor?.title || 'this project'}</span>? This will end the project and close any active bidding.
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">Cancel Project</p>
+              <p className="mt-1 text-[12px] text-muted">
+                Cancel <span className="font-semibold text-ink">{cancelFor?.title || 'this project'}</span>? This will end the project and close any active bidding.
                 This action cannot be undone.
               </p>
             </div>
@@ -3731,7 +3731,7 @@ export default function Projects() {
                     setCancelOpen(false);
                     setCancelFor(null);
                   }}
-                  className="px-4 py-2 rounded-xl border border-gray-100 text-[12px] font-bold text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                 >
                   Keep project
                 </button>

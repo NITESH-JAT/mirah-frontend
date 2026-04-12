@@ -64,17 +64,17 @@ export default function CarouselPanel() {
           <img 
             ref={imageRef}
             src={slides[active].image} 
-            className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-xl"
+            className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-sm"
             alt="Jewellery Display" 
           />
         </div>
         
 
         <div ref={contentRef} className="text-center max-w-[400px] mt-auto shrink-0">
-          <h2 className="font-serif text-[26px] leading-tight font-bold mb-4 text-primary-dark">
+          <h2 className="font-serif text-[26px] leading-tight font-bold mb-4 text-ink">
             {slides[active].title}
           </h2>
-          <p className="font-sans text-gray-400 text-sm leading-relaxed px-2 mb-10">
+          <p className="font-sans text-muted text-sm leading-relaxed px-2 mb-10">
             {slides[active].desc}
           </p>
         </div>
@@ -85,7 +85,7 @@ export default function CarouselPanel() {
             <button 
               key={i}
               onClick={() => handleFade(i)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${active === i ? 'w-8 bg-primary-dark' : 'w-1.5 bg-gray-200'}`}
+              className={`h-1.5 rounded-full transition-all duration-300 ${active === i ? 'w-8 bg-walnut' : 'w-1.5 bg-pale'}`}
             />
           ))}
         </div>
