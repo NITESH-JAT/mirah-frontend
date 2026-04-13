@@ -73,6 +73,18 @@ select:focus:not(:disabled) {
   border-color: var(--color-soft) !important;
 }
 
+/* Borderless search fields — override global input chrome (used e.g. My Projects toolbar) */
+input.input-search-borderless,
+input.input-search-borderless:hover,
+input.input-search-borderless:active,
+input.input-search-borderless:focus,
+input.input-search-borderless:focus-visible {
+  border: none !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 /* Auth & marketing headings */
 .auth-heading {
   font-family: var(--font-serif);

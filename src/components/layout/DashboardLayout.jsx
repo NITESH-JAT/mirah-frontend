@@ -162,6 +162,7 @@ export default function DashboardLayout() {
   const isCheckoutPage = path.includes('/customer/checkout');
   const isOrdersPage = path.includes('/customer/orders');
   const isProjectsPage = path.includes('/customer/projects');
+  const isCustomerProjectsListPage = path === '/customer/projects';
   const isVendorProfileViewPage = path.startsWith('/customer/vendors/');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
   const kycStatus = String(currentUser?.kyc?.status || '').toLowerCase();
@@ -813,6 +814,7 @@ export default function DashboardLayout() {
               ? 'flex min-h-0 flex-col overflow-hidden p-0'
               : 'overflow-y-auto ' +
                 (isShoppingListPage ||
+                isCustomerProjectsListPage ||
                 isVendorProjectsListPage ||
                 isVendorExplorePage ||
                 isVendorBidsPage

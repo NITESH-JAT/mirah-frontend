@@ -956,6 +956,10 @@ export default function Projects() {
   const attachmentInputRef = useRef(null);
   const referenceImageInputRef = useRef(null);
   const listAbortRef = useRef(null);
+  const listSearchRef = useRef('');
+  const listSearchDebounceRef = useRef(null);
+  const listSearchDebounceSkipFirstRef = useRef(true);
+  const listSearchDebounceSkipAfterClearRef = useRef(false);
 
   const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
   const howToMeasureText = useMemo(() => {
@@ -981,7 +985,8 @@ export default function Projects() {
     return 'Measure using a soft measuring tape and enter your custom measurement in cm or inches.';
   }, [createForm?.specs?.jewelleryType]);
 
-  const loadProjects = useCallback(async ({ nextPage = 1, append = false, search = listSearch } = {}) => {
+  const loadProjects = useCallback(async ({ nextPage = 1, append = false, search } = {}) => {
+    const resolvedSearch = search !== undefined ? search : listSearchRef.current;
     if (listAbortRef.current) listAbortRef.current.abort();
     const ctrl = new AbortController();
     listAbortRef.current = ctrl;
@@ -993,7 +998,7 @@ export default function Projects() {
       const res = await projectService.list({
         page: nextPage,
         limit: 10,
-        search: String(search || '').trim() || undefined,
+        search: String(resolvedSearch ?? '').trim() || undefined,
         signal: ctrl.signal,
       });
       const incoming = Array.isArray(res?.items) ? res.items : [];
@@ -1020,14 +1025,42 @@ export default function Projects() {
       if (append) setListMoreLoading(false);
       else setListLoading(false);
     }
-  }, [addToast, listSearch]);
+  }, [addToast]);
 
   useEffect(() => {
-    loadProjects({ nextPage: 1, append: false });
+    listSearchRef.current = listSearch;
+  }, [listSearch]);
+
+  // Debounced search (same pattern as Shop listing; skip first run — initial load handled separately)
+  useEffect(() => {
+    if (listSearchDebounceSkipFirstRef.current) {
+      listSearchDebounceSkipFirstRef.current = false;
+      return;
+    }
+    if (listSearchDebounceSkipAfterClearRef.current) {
+      listSearchDebounceSkipAfterClearRef.current = false;
+      return;
+    }
+    if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current);
+    const draft = listSearchDraft;
+    listSearchDebounceRef.current = setTimeout(() => {
+      const q = String(draft || '').trim();
+      setListSearch(q);
+      void loadProjects({ nextPage: 1, append: false, search: q });
+    }, 250);
+    return () => {
+      if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listSearchDraft]);
+
+  useEffect(() => {
+    void loadProjects({ nextPage: 1, append: false, search: String(listSearchDraft || '').trim() });
     return () => {
       if (listAbortRef.current) listAbortRef.current.abort();
     };
-  }, [loadProjects]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (activeTab !== 'list') return;
@@ -1739,18 +1772,11 @@ export default function Projects() {
 
 
   return (
-    <div className="w-full pb-10 animate-fade-in">
-      <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex gap-0 bg-white rounded-2xl border border-pale overflow-hidden">
-
-        {/* Main */}
-        <div className="flex-1 flex flex-col">
-          
-
-          <div className="flex-1 min-h-0 overflow-hidden p-5 bg-white">
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
+      <div className="flex min-h-0 flex-1 flex-col w-full">
             {mainTab === 'list' ? (
-              <div className="h-full min-h-0 overflow-y-auto pr-1">
-                <div className="shrink-0 sticky top-0 z-30 isolate relative transform-gpu bg-white pb-4 border-b border-pale/80">
-                  <div className="pointer-events-none absolute inset-0 -z-10 bg-white" aria-hidden="true" />
+              <>
+                <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
                   <div className="mb-3 flex flex-wrap items-start gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="text-[14px] md:text-[15px] font-extrabold text-ink">My projects</p>
@@ -1764,113 +1790,110 @@ export default function Projects() {
                       Create Project
                     </button>
                   </div>
-                  <div className="rounded-2xl border border-pale bg-cream p-3 md:p-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 min-w-0">
+                  <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:flex-nowrap md:items-center md:gap-3 md:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:min-w-0 md:flex-1">
+                      <div className="relative min-w-0 flex-1">
                         <input
                           type="text"
                           value={listSearchDraft}
                           onChange={(e) => setListSearchDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter') return;
+                            e.preventDefault();
+                            if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current);
+                            const next = String(listSearchDraft || '').trim();
+                            setListSearch(next);
+                            void loadProjects({ nextPage: 1, append: false, search: next });
+                          }}
                           placeholder="Search by title…"
-                          className="w-full px-3 py-2 md:px-4 md:py-3 rounded-2xl border border-pale bg-white text-[12px] md:text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
+                          className="w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:border-walnut focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
+                          aria-label="Search by title"
                         />
+                        <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            className="md:h-[18px] md:w-[18px]"
+                          >
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.3-4.3" />
+                          </svg>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-end gap-2">
+                      {String(listSearch || '').trim() && !listLoading ? (
                         <button
                           type="button"
                           onClick={async () => {
+                            if (listSearchDebounceRef.current) clearTimeout(listSearchDebounceRef.current);
+                            listSearchDebounceSkipAfterClearRef.current = true;
                             const next = '';
                             setListSearchDraft(next);
                             setListSearch(next);
                             await loadProjects({ nextPage: 1, append: false, search: next });
                           }}
-                          disabled={listLoading || !String(listSearch || '').trim()}
-                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
-                          aria-label="Clear search"
-                          title="Clear search"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M18 6 6 18" />
-                            <path d="m6 6 12 12" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={async () => {
-                            const next = String(listSearchDraft || '').trim();
-                            setListSearch(next);
-                            await loadProjects({ nextPage: 1, append: false, search: next });
-                          }}
                           disabled={listLoading}
-                          className="w-9 h-9 md:w-10 md:h-10 flex items-center justify-center rounded-2xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50"
-                          aria-label="Apply search"
-                          title="Apply search"
+                          className="shrink-0 whitespace-nowrap px-0.5 py-1 text-[11px] md:text-[12px] font-semibold text-mid underline underline-offset-2 decoration-mid/80 hover:text-ink disabled:opacity-50"
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="16"
-                            height="16"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M5 12.5 9 17l10-10" />
-                          </svg>
+                          Clear Search
                         </button>
-                      </div>
+                      ) : null}
                     </div>
-                  </div>
-
-                  <div className="mt-3 w-full">
-                    <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
-                      {[
-                        { id: 'all', label: 'All', count: null },
-                        { id: 'action_required', label: 'Action Required', count: projectCategories.actionRequired.length },
-                        { id: 'active', label: 'Active', count: null },
-                        { id: 'completed', label: 'Completed', count: null },
-                        { id: 'drafts', label: 'Drafts', count: null },
-                      ].map((t) => {
-                        const active = listFilter === t.id;
-                        return (
-                          <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => setListFilterPersist(t.id)}
-                            className={`whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
-                              active
-                                ? 'bg-walnut/10 border-walnut text-ink'
-                                : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
-                            }`}
-                          >
-                            <span className="whitespace-nowrap">{t.label}</span>
-                            {typeof t.count === 'number' ? (
-                              <span
-                                className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
-                                  active ? 'bg-walnut text-blush' : 'bg-blush text-mid'
-                                }`}
-                              >
-                                {t.count}
-                              </span>
-                            ) : null}
-                          </button>
-                        );
-                      })}
+                    <div className="flex w-full min-w-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden border-t border-pale/70 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:ml-auto md:w-auto md:flex-none md:justify-end md:border-t-0 md:border-l md:border-pale/80 md:pt-0 md:pl-2">
+                        {[
+                          { id: 'all', label: 'All', count: null },
+                          { id: 'action_required', label: 'Action Required', count: projectCategories.actionRequired.length },
+                          { id: 'active', label: 'Active', count: null },
+                          { id: 'completed', label: 'Completed', count: null },
+                          { id: 'drafts', label: 'Drafts', count: null },
+                        ].map((t) => {
+                          const active = listFilter === t.id;
+                          return (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => setListFilterPersist(t.id)}
+                              className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                                active
+                                  ? 'bg-walnut/10 border-walnut text-ink'
+                                  : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
+                              }`}
+                            >
+                              <span className="whitespace-nowrap">{t.label}</span>
+                              {typeof t.count === 'number' ? (
+                                <span
+                                  className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
+                                    active ? 'bg-walnut text-blush' : 'bg-blush text-mid'
+                                  }`}
+                                >
+                                  {t.count}
+                                </span>
+                              ) : null}
+                            </button>
+                          );
+                        })}
                     </div>
                   </div>
                 </div>
 
+                <div
+                  className={`mt-4 flex min-h-0 flex-1 flex-col ${
+                    !listLoading && !empty && !filterEmpty && visibleProjects.length > 0 ? 'justify-between gap-4' : ''
+                  }`}
+                >
                 {listLoading ? (
-                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <div
+                    className="flex min-h-[min(420px,calc(100vh-260px))] flex-1 flex-col items-center justify-center px-4 py-12"
+                    role="status"
+                    aria-live="polite"
+                    aria-busy="true"
+                    aria-label="Loading projects"
+                  >
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
@@ -1891,12 +1914,10 @@ export default function Projects() {
                     </div>
                   </div>
                 ) : filterEmpty ? (
-                  <>
-                    <div className="rounded-2xl border border-pale bg-cream p-4 text-[13px] text-mid">
-                      No projects found for this filter.
-                    </div>
+                  <div className="space-y-3">
+                    <p className="text-[13px] text-mid">No projects found for this filter.</p>
                     {canLoadMore ? (
-                      <div className="mt-3 flex justify-center">
+                      <div className="flex justify-center">
                         <button
                           type="button"
                           onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
@@ -1907,9 +1928,9 @@ export default function Projects() {
                         </button>
                       </div>
                     ) : null}
-                  </>
+                  </div>
                 ) : (
-                  <div className="space-y-4 pt-1">
+                  <div className="space-y-4">
                     {visibleProjects.map((p) => {
                       const id = localProjectIdOf(p);
                       const attachments = coerceUrlArray(p?.attachments);
@@ -2150,9 +2171,10 @@ export default function Projects() {
                     ) : null}
                   </div>
                 )}
-              </div>
+                </div>
+              </>
             ) : mainTab === 'assignments' ? (
-              <div className="h-full min-h-0">
+              <div className="flex flex-1 flex-col min-h-0">
                 {listLoading ? (
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
                     <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
@@ -3406,8 +3428,6 @@ export default function Projects() {
               </div>
             ) : null}
           </div>
-        </div>
-      </div>
 
       {/* How to measure modal */}
       {howToMeasureOpen ? (
