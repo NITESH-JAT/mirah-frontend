@@ -271,16 +271,16 @@ export default function VendorBids() {
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
       {/* Tabs + search */}
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-6">
-          <div className="w-full shrink-0 md:w-auto">
-            <div className="flex w-full rounded-2xl border border-pale bg-cream p-1 md:w-auto md:shrink-0">
+        <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-4">
+          <div className="col-span-4 min-w-0 md:order-2 md:col-auto md:w-auto md:shrink-0">
+            <div className="flex w-full min-w-0 rounded-2xl border border-pale bg-cream p-0.5 md:p-1 md:w-auto md:shrink-0 md:ml-auto">
               <button
                 type="button"
                 onClick={() => {
                   setTab('active');
                   navigate('/vendor/bids?tab=active', { replace: true });
                 }}
-                className={`min-w-0 flex-1 px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer md:flex-initial ${
+                className={`min-w-0 flex-1 truncate px-1.5 py-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer sm:px-2 sm:text-[11px] md:px-4 md:py-2 md:rounded-xl md:text-[12px] md:flex-initial ${
                   tab === 'active' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                 }`}
               >
@@ -292,7 +292,7 @@ export default function VendorBids() {
                   setTab('completed');
                   navigate('/vendor/bids?tab=completed', { replace: true });
                 }}
-                className={`min-w-0 flex-1 px-4 py-2 rounded-xl text-[12px] font-bold transition-colors cursor-pointer md:flex-initial ${
+                className={`min-w-0 flex-1 truncate px-1.5 py-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer sm:px-2 sm:text-[11px] md:px-4 md:py-2 md:rounded-xl md:text-[12px] md:flex-initial ${
                   tab === 'completed' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
                 }`}
               >
@@ -301,15 +301,24 @@ export default function VendorBids() {
             </div>
           </div>
 
-          <div className="relative w-full min-w-0 md:max-w-md md:flex-1 lg:max-w-lg">
+          <div className="relative col-span-6 min-w-0 md:order-1 md:w-[420px] md:max-w-[55vw] md:shrink-0">
             <input
               value={tab === 'active' ? queryActive : queryCompleted}
               onChange={(e) => (tab === 'active' ? setQueryActive(e.target.value) : setQueryCompleted(e.target.value))}
               placeholder="Search projects…"
-              className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
+              className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium md:py-3 md:pl-11 md:pr-4 md:text-[13px]"
             />
-            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="md:h-[18px] md:w-[18px]"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </svg>

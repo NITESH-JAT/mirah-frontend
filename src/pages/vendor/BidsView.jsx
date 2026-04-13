@@ -651,7 +651,7 @@ export default function VendorBidsView() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder='Search "Jewellers"'
-                  className="w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
+                  className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid"
                 />
               </div>
               <div className="flex items-center gap-2 shrink-0">

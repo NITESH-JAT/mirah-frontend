@@ -2355,13 +2355,13 @@ export default function Projects() {
 
                   <div className="px-5 py-3 border-b border-pale bg-white">
                     {/* Mobile: compact consultation prompt above stepper */}
-                    <div className="md:hidden mb-2 rounded-2xl border border-pale bg-white px-4 pt-4 pb-3 flex flex-col items-center justify-center text-center gap-2">
-                      <p className="text-[14px] font-extrabold text-ink mt-1">
+                    <div className="md:hidden mb-2 rounded-xl border border-pale bg-white px-3 py-2.5 flex flex-col items-center justify-center text-center gap-1.5">
+                      <p className="text-[12px] font-bold text-ink leading-snug">
                         Need help bringing your idea together?
                       </p>
                       <a
                         href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
-                        className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
+                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
                       </a>
@@ -2401,7 +2401,7 @@ export default function Projects() {
                       {/* Left: reference image (desktop, hidden on Review step) */}
                       {createStep !== 4 ? (
                       <div className="hidden md:block h-full overflow-y-auto border-r border-pale bg-white px-5 py-5">
-                        <div className="rounded-2xl border border-pale p-4">
+                        <div className="p-4">
                           <div>
                             <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image *</p>
                             <p className="text-[12px] text-muted">Upload one image as the project reference.</p>
@@ -2501,7 +2501,7 @@ export default function Projects() {
 
                         {/* Mobile: reference image block at top (always visible) */}
                         <div className="md:hidden mb-6">
-                          <div className="rounded-2xl border border-pale p-4">
+                          <div className="p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image *</p>

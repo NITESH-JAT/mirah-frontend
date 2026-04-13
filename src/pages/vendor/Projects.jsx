@@ -327,9 +327,35 @@ export default function VendorProjects() {
 
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
-      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
-          <div className="flex flex-wrap items-center gap-1.5 md:gap-2 lg:shrink-0">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+        <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-0.5">
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:w-[420px] md:max-w-[55vw] md:shrink-0">
+            <div className="relative min-w-0 flex-1">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search projects…"
+                className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted md:py-3 md:pl-11 md:pr-4 md:text-[13px]"
+              />
+              <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  className="md:h-[18px] md:w-[18px]"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.3-4.3" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-1.5 border-t border-pale/70 pt-3 md:flex-1 md:flex-nowrap md:justify-end md:border-0 md:pt-0 md:gap-2">
             {[
               { id: 'all', label: 'All' },
               { id: 'active', label: 'Active' },
@@ -343,52 +369,16 @@ export default function VendorProjects() {
                   key={t.id}
                   type="button"
                   onClick={() => setUrlTab(t.id)}
-                  className={`min-w-0 inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                    className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-3 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-7 md:py-3 md:text-[12px] ${
                     active
-                      ? 'bg-walnut/10 border-walnut text-ink'
-                      : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
+                      ? 'border-walnut bg-walnut/10 font-bold text-ink'
+                      : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
                   }`}
                 >
-                  <span className="min-w-0 truncate">{t.label}</span>
+                  <span className="whitespace-nowrap">{t.label}</span>
                 </button>
               );
             })}
-          </div>
-
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="relative min-w-0 flex-1">
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search projects…"
-                className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
-              />
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="11" cy="11" r="8" />
-                  <path d="m21 21-4.3-4.3" />
-                </svg>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => load({ nextPage: 1, append: false })}
-              disabled={loading || moreLoading}
-              title="Reload"
-              className="shrink-0 p-3 rounded-2xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading || moreLoading ? (
-                <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                  <path d="M21 3v6h-6" />
-                </svg>
-              )}
-            </button>
           </div>
         </div>
       </div>

@@ -244,7 +244,7 @@ export default function VendorExplore() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search projects…"
-                className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
+                className="input-search-quiet-focus w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium"
               />
               <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -256,15 +256,13 @@ export default function VendorExplore() {
           </div>
 
           <div className="flex items-center gap-2 w-full justify-end md:w-auto">
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 type="button"
                 onClick={() => setOpenSort((v) => !v)}
-                className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
+                className="min-w-0 truncate rounded-full border border-pale bg-white px-5 py-3 text-[12px] font-semibold text-mid hover:bg-cream inline-flex items-center gap-2"
               >
-
                 Sort
-
               </button>
               {openSort ? (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">
@@ -296,7 +294,7 @@ export default function VendorExplore() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search projects…"
-              className="w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
+              className="input-search-quiet-focus w-full bg-white border border-pale rounded-2xl pl-11 pr-4 py-3 text-[13px] font-medium"
             />
             <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted">
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -306,23 +304,13 @@ export default function VendorExplore() {
             </div>
           </div>
 
-          <div className="relative">
+          <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => setOpenSort((v) => !v)}
-              className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
+              className="min-w-0 shrink-0 truncate rounded-full border border-pale bg-white px-4 py-2.5 text-[12px] font-semibold text-mid hover:bg-cream"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 6h13" />
-                <path d="M3 12h9" />
-                <path d="M3 18h5" />
-                <path d="m19 8 2 2-2 2" />
-                <path d="M21 10h-5" />
-              </svg>
-              <span className="hidden xs:inline">Sort</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="m6 9 6 6 6-6" />
-              </svg>
+              Sort
             </button>
             {openSort ? (
               <div className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">

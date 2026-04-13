@@ -819,7 +819,8 @@ export default function DashboardLayout() {
                 isCustomerOrdersListPage ||
                 isVendorProjectsListPage ||
                 isVendorExplorePage ||
-                isVendorBidsPage
+                isVendorBidsPage ||
+                isFaqPage
                   ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
                   : 'p-4 lg:p-8')
           }`}

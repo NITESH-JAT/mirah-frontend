@@ -59,20 +59,47 @@ export default function Faq() {
   }, [isVendor]);
 
   return (
-    <div className="w-full max-w-none mx-auto">
-      <div className="bg-white rounded-2xl border border-pale overflow-hidden">
-        <div className="p-5 md:p-7 border-b border-pale">
-          <h2 className="font-serif text-[22px] md:text-[24px] font-bold text-ink">{headerText}</h2>
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+        <div className="min-w-0">
+          <p className="text-[14px] md:text-[15px] font-extrabold text-ink">{headerText}</p>
+          <p className="mt-0.5 text-[12px] text-muted">Answers to common questions and how to reach support.</p>
         </div>
+      </div>
 
-        <div className="p-5 md:p-7 grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className="lg:col-span-2">
+      <div className="mt-4 flex min-h-0 flex-1 flex-col">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-3 lg:gap-8">
+          <div className="min-w-0 lg:col-span-2">
             {loading ? (
-              <div className="py-6 text-center text-[13px] text-muted">Loading FAQ…</div>
+              <div
+                className="flex min-h-[min(360px,calc(100vh-280px))] flex-1 flex-col items-center justify-center px-4 py-12"
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+                aria-label="Loading FAQ"
+              >
+                <svg
+                  className="animate-spin text-ink"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="32"
+                  height="32"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                  <path
+                    d="M22 12a10 10 0 0 0-10-10"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
             ) : errorMsg ? (
-              <div className="py-6 text-center text-[13px] text-red-600">{errorMsg}</div>
+              <div className="py-12 text-center text-[13px] text-red-600">{errorMsg}</div>
             ) : faqs.length === 0 ? (
-              <div className="py-6 text-center text-[13px] text-muted">No FAQ available.</div>
+              <div className="py-12 text-center text-[13px] text-muted">No FAQ available.</div>
             ) : (
               <div className="space-y-3">
                 {faqs.map((f) => {
@@ -106,9 +133,7 @@ export default function Faq() {
 
                       {isOpen ? (
                         <div className="px-4 pb-4 pt-0.5">
-                          <p className="text-[13px] text-mid leading-relaxed whitespace-pre-wrap">
-                            {f.answer}
-                          </p>
+                          <p className="text-[13px] text-mid leading-relaxed whitespace-pre-wrap">{f.answer}</p>
                         </div>
                       ) : null}
                     </div>
@@ -118,16 +143,26 @@ export default function Faq() {
             )}
           </div>
 
-          <div className="lg:col-span-1">
-            <div className="sticky top-[100px]">
-              <div className="rounded-2xl border border-pale bg-primary-light/10 p-4 md:p-5">
+          <div className="min-w-0 lg:col-span-1">
+            <div className="lg:sticky lg:top-24">
+              <div className="rounded-2xl border border-pale bg-white p-4 md:p-5">
                 <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 rounded-2xl bg-white border border-pale flex items-center justify-center text-ink">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="w-11 h-11 rounded-2xl bg-cream border border-pale flex items-center justify-center text-ink">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
                     </svg>
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-extrabold text-ink">Support</p>
                     <p className="mt-1 text-[12px] text-mid">Chat with Mirah support for help.</p>
                   </div>
@@ -148,4 +183,3 @@ export default function Faq() {
     </div>
   );
 }
-
