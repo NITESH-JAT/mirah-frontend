@@ -3,16 +3,11 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
+import { formatMoney } from '../../utils/formatMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
   return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
-}
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function formatDateTime(ts) {

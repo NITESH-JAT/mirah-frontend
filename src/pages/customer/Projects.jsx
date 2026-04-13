@@ -3,17 +3,12 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import SafeImage from '../../components/SafeImage';
+import { formatMoney } from '../../utils/formatMoney';
 
 function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function formatDateTime(ts) {

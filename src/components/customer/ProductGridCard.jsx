@@ -1,12 +1,7 @@
 import React from 'react';
 import SafeImage from '../SafeImage';
 import { getVendorDisplayName, sourceBadgeText } from '../../utils/productSource';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import { formatMoney } from '../../utils/formatMoney';
 
 function compareAtOf(p) {
   const c = Number(p?.compareAtPrice ?? p?.compare_at_price);
@@ -147,24 +142,22 @@ export default function ProductGridCard({ product: p, onNavigate, onAddToCart })
         {/* Content */}
         <div className="flex flex-1 flex-col px-4 pb-5 pt-4">
           <button type="button" onClick={onNavigate} className="text-left">
-            <p className="font-serif text-[17px] font-semibold leading-snug text-ink line-clamp-2 md:text-[19px]">
+            <p className="font-serif text-[17px] font-bold leading-snug text-ink line-clamp-2 md:text-[19px]">
               {p?.name || 'Product'}
             </p>
           </button>
           {brand ? <p className="mt-1 font-sans text-[12px] text-muted">{brand}</p> : null}
 
           <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-2 font-sans">
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 font-sans">
               {showStrikethroughCompare ? (
-                <>
-                  <span className="text-[12px] font-medium text-muted line-through md:text-[13px]">
-                    ₹{formatMoney(compareAt)}
-                  </span>
-                  <span className="text-[14px] font-bold text-ink md:text-[15px]">₹{formatMoney(p?.price)}</span>
-                </>
-              ) : (
-                <span className="text-[14px] font-bold text-ink md:text-[15px]">₹{formatMoney(p?.price)}</span>
-              )}
+                <span className="text-[12px] font-normal tabular-nums text-muted line-through md:text-[13px]">
+                  ₹{formatMoney(compareAt)}
+                </span>
+              ) : null}
+              <span className="text-[14px] font-normal tabular-nums text-mid md:text-[15px]">
+                ₹{formatMoney(p?.price)}
+              </span>
             </div>
             {rating != null ? (
               <span className="flex shrink-0 items-center gap-0.5 font-sans text-[12px] font-medium text-muted">

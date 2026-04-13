@@ -837,17 +837,24 @@ export default function Messages() {
                     ${isActive ? 'bg-blush' : 'hover:bg-blush/70'}
                   `}
                 >
-                  <img src={avatarUrlFor(who)} alt="" className="w-10 h-10 rounded-full" />
+                  <div
+                    className="relative h-10 w-10 shrink-0"
+                    aria-label={c.isOnline ? 'Online' : 'Offline'}
+                  >
+                    <img src={avatarUrlFor(who)} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    <span
+                      className={`pointer-events-none absolute bottom-0 right-0 block h-[11px] w-[11px] rounded-full border-[2.5px] border-white shadow-sm ${
+                        c.isOnline ? 'bg-emerald-500' : 'bg-rose-400'
+                      }`}
+                      aria-hidden
+                    />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-[13px] font-bold text-ink truncate">{name}</p>
                       <p className="text-[11px] text-muted shrink-0">{timeAgoLabel(ts)}</p>
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${c.isOnline ? 'bg-green-500' : 'bg-red-400'}`} />
-                      <span className="text-[11px] text-muted">{c.isOnline ? 'Online' : 'Offline'}</span>
-                    </div>
-                    <p className="text-[12px] text-muted truncate">{last}</p>
+                    <p className="mt-1 text-[12px] text-muted truncate">{last}</p>
                   </div>
                   {c.unreadCount > 0 && (
                     <div className="mt-1 w-2.5 h-2.5 bg-green-500 rounded-full shrink-0" />

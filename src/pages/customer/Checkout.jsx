@@ -5,6 +5,7 @@ import { addressService } from '../../services/addressService';
 import { getVendorId, getVendorDisplayName } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
+import { formatMoney } from '../../utils/formatMoney';
 
 export default function Checkout() {
   const { addToast, currentUser } = useOutletContext();
@@ -205,12 +206,6 @@ export default function Checkout() {
     const bx = addressComparable(b);
     return JSON.stringify(ax) === JSON.stringify(bx);
   };
-
-  function formatMoney(v) {
-    const n = Number(v);
-    if (Number.isNaN(n)) return String(v ?? '');
-    return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-  }
 
   const load = async () => {
     setLoading(true);

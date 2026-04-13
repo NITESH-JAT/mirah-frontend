@@ -5,6 +5,7 @@ import { authService } from '../../services/authService';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import SafeImage from '../../components/SafeImage';
+import { formatMoney } from '../../utils/formatMoney';
 
 const INITIAL_PRODUCT_FORM = {
   name: '',
@@ -29,12 +30,6 @@ function toTitleCase(text) {
   return String(text || '')
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
 function formatDate(ts) {

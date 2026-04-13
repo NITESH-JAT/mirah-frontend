@@ -4,12 +4,7 @@ import { cartService } from '../../services/cartService';
 import { vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import { formatMoney } from '../../utils/formatMoney';
 
 function firstImageUrl(p) {
   const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;

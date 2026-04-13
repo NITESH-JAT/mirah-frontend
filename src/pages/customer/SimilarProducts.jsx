@@ -3,12 +3,8 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import ListPaginationBar from '../../components/customer/ListPaginationBar';
+import { formatMoney } from '../../utils/formatMoney';
 
 function pickId(p) {
   return p?.id ?? p?._id ?? p?.productId ?? null;
@@ -43,7 +39,7 @@ export default function SimilarProducts() {
   const [category, setCategory] = useState(() => location?.state?.category || '');
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
-  const [meta, setMeta] = useState({ page: 1, totalPages: 1 });
+  const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: null });
 
   const [cartOpen, setCartOpen] = useState(false);
   const [cartTarget, setCartTarget] = useState(null);
@@ -132,7 +128,11 @@ export default function SimilarProducts() {
       const currentId = String(id || '');
       const list = (res?.items || []).filter((p) => String(pickId(p) ?? '') !== currentId);
       setItems(list);
-      setMeta({ page: Number(res?.meta?.page || nextPage) || nextPage, totalPages: Number(res?.meta?.totalPages || 1) || 1 });
+      setMeta({
+        page: Number(res?.meta?.page || nextPage) || nextPage,
+        totalPages: Number(res?.meta?.totalPages || 1) || 1,
+        total: res?.meta?.total != null ? Number(res.meta.total) : null,
+      });
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
       addToast(e?.message || 'Failed to load products', 'error');
@@ -143,7 +143,7 @@ export default function SimilarProducts() {
 
   useEffect(() => {
     setItems([]);
-    setMeta({ page: 1, totalPages: 1 });
+    setMeta({ page: 1, totalPages: 1, total: null });
     if (!category) return;
     fetchList(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -194,7 +194,7 @@ export default function SimilarProducts() {
   };
 
   return (
-    <div className="w-full pb-[160px] lg:pb-[96px] animate-fade-in">
+    <div className="flex min-h-[calc(100dvh-6rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-8rem)]">
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -215,28 +215,31 @@ export default function SimilarProducts() {
           </div>
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
-          <p className="text-[12px] font-semibold text-muted">Grids</p>
-          <div className="inline-flex items-center bg-white border border-pale rounded-xl p-1">
-            {[2, 4, 6].map((n) => (
-              <button
-                key={n}
-                type="button"
-                onClick={() => setDesktopGridCols(n)}
-                className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors ${
-                  desktopGridCols === n ? 'bg-walnut text-blush' : 'text-mid hover:bg-cream'
-                }`}
-                aria-label={`${n} products per row`}
-                title={`${n} per row`}
-              >
-                {n}
-              </button>
-            ))}
-          </div>
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          {[2, 4, 6].map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() => setDesktopGridCols(n)}
+              className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
+                desktopGridCols === n
+                  ? 'bg-walnut text-blush shadow-sm'
+                  : 'border border-pale bg-white text-mid hover:bg-cream'
+              }`}
+              aria-label={`${n} products per row`}
+              title={`${n} per row`}
+            >
+              {n}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="mt-5 min-h-[calc(100vh-260px)] flex flex-col">
+      <div
+        className={`mt-5 flex min-h-0 flex-1 flex-col ${
+          !loading && items.length > 0 ? 'justify-between gap-4' : ''
+        }`}
+      >
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <svg
@@ -270,50 +273,29 @@ export default function SimilarProducts() {
             </div>
           </div>
         ) : (
-          <div className={`grid grid-cols-2 sm:grid-cols-3 ${desktopGridColsClass} gap-4`}>
-            {featuredFirstItems.map((p) => (
-              <ProductGridCard
-                key={String(pickId(p) ?? Math.random())}
-                product={p}
-                onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
-                onAddToCart={() => openAddToCart(p)}
-              />
-            ))}
-          </div>
+          <>
+            <div className={`grid grid-cols-1 ${desktopGridColsClass} gap-4`}>
+              {featuredFirstItems.map((p) => (
+                <ProductGridCard
+                  key={String(pickId(p) ?? Math.random())}
+                  product={p}
+                  onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
+                  onAddToCart={() => openAddToCart(p)}
+                />
+              ))}
+            </div>
+            <ListPaginationBar
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={meta?.total}
+              canPrev={canPrev}
+              canNext={canNext}
+              onPrev={() => fetchList(Math.max(1, currentPage - 1))}
+              onNext={() => fetchList(currentPage + 1)}
+            />
+          </>
         )}
       </div>
-
-      {/* Fixed pagination bar */}
-      {!loading && items.length > 0 ? (
-        <div className="fixed left-0 right-0 z-40 bottom-0 lg:left-[240px]">
-          <div className="px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-            <div className="max-w-5xl lg:max-w-none mx-auto">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  disabled={!canPrev}
-                  onClick={() => fetchList(Math.max(1, currentPage - 1))}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Prev
-                </button>
-                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-ink">{totalPages}</span>
-                </div>
-                <button
-                  type="button"
-                  disabled={!canNext}
-                  onClick={() => fetchList(currentPage + 1)}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       {/* Add-to-cart quantity picker */}
       {cartOpen ? (

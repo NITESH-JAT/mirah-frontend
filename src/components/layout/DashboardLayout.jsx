@@ -8,6 +8,7 @@ import logo from '../../assets/logo.png';
 import { cartService } from '../../services/cartService';
 import SafeImage from '../SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
+import { formatMoney } from '../../utils/formatMoney';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -1026,9 +1027,9 @@ export default function DashboardLayout() {
 
                                   <div className="text-right">
                                     {compareAt > price && price > 0 ? (
-                                      <p className="text-[12px] text-muted line-through">₹{compareAt.toLocaleString()}</p>
+                                      <p className="text-[12px] text-muted line-through">₹{formatMoney(compareAt)}</p>
                                     ) : null}
-                                    <p className="text-[14px] font-bold text-ink">₹{price.toLocaleString()}</p>
+                                    <p className="text-[14px] font-bold text-ink">₹{formatMoney(price)}</p>
                                   </div>
                                 </div>
                               </div>

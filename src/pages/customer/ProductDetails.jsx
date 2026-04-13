@@ -5,12 +5,7 @@ import { cartService } from '../../services/cartService';
 import { getVendorId, vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import ProductGridCard from '../../components/customer/ProductGridCard';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import { formatMoney } from '../../utils/formatMoney';
 
 function discountPercent({ price, compareAtPrice }) {
   const p = Number(price);
@@ -493,7 +488,25 @@ export default function ProductDetails() {
   return (
     <div className="w-full pb-[140px] md:pb-10 animate-fade-in">
       {loading ? (
-        <div className="text-[13px] text-muted">Loading…</div>
+        <div className="flex min-h-[calc(100dvh-10rem)] w-full items-center justify-center" role="status" aria-label="Loading">
+          <svg
+            className="animate-spin text-ink"
+            xmlns="http://www.w3.org/2000/svg"
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+            <path
+              d="M22 12a10 10 0 0 0-10-10"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+            />
+          </svg>
+        </div>
       ) : !product ? (
         <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Product not found.</div>
       ) : (

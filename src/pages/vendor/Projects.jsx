@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
+import { formatMoney } from '../../utils/formatMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -58,13 +59,6 @@ function customerNameOf(project, root) {
   const trimmed = typeof name === 'string' ? name.trim() : name;
   return trimmed ? trimmed : null;
 }
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
 
 function durationDaysOf(project, assignment) {
   const a = assignment ?? {};

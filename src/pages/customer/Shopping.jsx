@@ -3,12 +3,8 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import ListPaginationBar from '../../components/customer/ListPaginationBar';
+import { formatMoney } from '../../utils/formatMoney';
 
 const SortOptions = [
   { id: 'newest', label: 'Newest', sortBy: 'createdAt', sortOrder: 'desc' },
@@ -42,7 +38,7 @@ export default function Shopping() {
 
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const [limit] = useState(10);
   const [sortId, setSortId] = useState('newest');
 
   // Applied filters (used for API requests)
@@ -250,7 +246,7 @@ export default function Shopping() {
   };
 
   return (
-    <div className="w-full pb-[160px] lg:pb-[96px] animate-fade-in">
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
       {/* Sticky toolbar: phone = 60% search / 20% Filters / 20% Sort; md+ = flex row + grid toggles */}
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
         <div className="grid grid-cols-10 gap-2 md:flex md:flex-row md:items-center md:gap-3">
@@ -439,7 +435,11 @@ export default function Shopping() {
         </div>
       ) : null}
 
-      <div className="mt-4 min-h-[calc(100vh-260px)] flex flex-col">
+      <div
+        className={`mt-4 flex min-h-0 flex-1 flex-col ${
+          !loading && items.length > 0 ? 'justify-between gap-4' : ''
+        }`}
+      >
         {loading ? (
           <div className="flex-1 flex items-center justify-center">
             <svg
@@ -473,16 +473,27 @@ export default function Shopping() {
             </div>
           </div>
         ) : (
-          <div className={`grid grid-cols-1 ${desktopGridColsClass} gap-4`}>
-            {featuredFirstItems.map((p) => (
-              <ProductGridCard
-                key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())}
-                product={p}
-                onNavigate={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
-                onAddToCart={() => openAddToCart(p)}
-              />
-            ))}
-          </div>
+          <>
+            <div className={`grid grid-cols-1 ${desktopGridColsClass} gap-4`}>
+              {featuredFirstItems.map((p) => (
+                <ProductGridCard
+                  key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())}
+                  product={p}
+                  onNavigate={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
+                  onAddToCart={() => openAddToCart(p)}
+                />
+              ))}
+            </div>
+            <ListPaginationBar
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={meta?.total}
+              canPrev={canPrev}
+              canNext={canNext}
+              onPrev={() => fetchList({ nextPage: Math.max(1, currentPage - 1), query: q })}
+              onNext={() => fetchList({ nextPage: currentPage + 1, query: q })}
+            />
+          </>
         )}
       </div>
 
@@ -600,50 +611,6 @@ export default function Shopping() {
               >
                 {cartAdding ? 'Adding…' : 'Add'}
               </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Fixed pagination bar (always visible) */}
-      {!loading && items.length > 0 ? (
-        <div
-          className="fixed left-0 right-0 z-40
-                     bottom-0
-                     lg:left-[240px]"
-        >
-          <div className="px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-            <div className="max-w-5xl lg:max-w-none mx-auto">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  disabled={!canPrev}
-                  onClick={() => {
-                    const next = Math.max(1, currentPage - 1);
-                    fetchList({ nextPage: next, query: q });
-                  }}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Prev
-                </button>
-
-                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-ink">{totalPages}</span>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={!canNext}
-                  onClick={() => {
-                    const next = currentPage + 1;
-                    fetchList({ nextPage: next, query: q });
-                  }}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Next
-                </button>
-              </div>
             </div>
           </div>
         </div>

@@ -3,12 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderService } from '../../services/orderService';
 import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
-
-function formatMoney(v) {
-  const n = Number(v);
-  if (Number.isNaN(n)) return String(v ?? '');
-  return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
+import { formatMoney } from '../../utils/formatMoney';
 
 function normalizeOrder(o) {
   return o || {};
