@@ -1806,7 +1806,7 @@ export default function Projects() {
                             void loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           placeholder="Search by title…"
-                          className="w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:border-walnut focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
+                          className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
                           aria-label="Search by title"
                         />
                         <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">

@@ -255,7 +255,7 @@ export default function Shopping() {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search Jewellery"
-              className="w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:border-walnut focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
+              className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
             />
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="md:h-[18px] md:w-[18px]">

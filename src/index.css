@@ -183,3 +183,12 @@ input.input-search-borderless:focus-visible {
 .animate-fade-out {
   animation: fadeOut 0.4s ease-out forwards;
 }
+
+/* Toolbar / listing search (Projects + Shop): no focus ring or border color change.
+   Same :not([type]) chain as global input:focus + .class so specificity wins; placed last so it wins over Tailwind utilities. */
+input.input-search-quiet-focus:focus:not(:disabled):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+input.input-search-quiet-focus:focus-visible:not(:disabled):not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']) {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: var(--color-pale) !important;
+}
