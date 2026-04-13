@@ -2732,7 +2732,7 @@ export default function Projects() {
                         ) : null}
 
                         {createStep === 2 ? (
-                      <div className="rounded-2xl border border-pale p-4">
+                      <div className="p-4">
                         <div className="flex items-start justify-between gap-3 flex-wrap">
                           <div className="min-w-0">
                             <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery specifications</p>
@@ -2948,7 +2948,7 @@ export default function Projects() {
 
                     {createStep === 3 ? (
                       <div className="space-y-6">
-                        <div className="rounded-2xl border border-pale p-4">
+                        <div className="p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
                           <p className="mt-1 text-[12px] text-muted">Provide quantities, budget, and delivery timeline.</p>
 
@@ -3044,7 +3044,7 @@ export default function Projects() {
                           </div>
                         </div>
 
-                        <div className="rounded-2xl border border-pale p-4">
+                        <div className="p-4">
                           <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Additional notes for the manufacturer</label>
                           <textarea
                             rows={3}
@@ -3060,7 +3060,7 @@ export default function Projects() {
                           />
                         </div>
 
-                        <div className="rounded-2xl border border-pale p-4">
+                        <div className="p-4">
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Attachments</p>
