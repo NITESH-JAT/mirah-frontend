@@ -249,13 +249,13 @@ export default function Shopping() {
     <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
       {/* Sticky toolbar: phone = 60% search / 20% Filters / 20% Sort; md+ = flex row + grid toggles */}
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
-        <div className="grid grid-cols-10 gap-2 md:flex md:flex-row md:items-center md:gap-3">
-          <div className="relative col-span-6 min-w-0 md:flex-1 md:col-auto">
+        <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-3">
+          <div className="relative col-span-6 min-w-0 md:w-[420px] md:max-w-[55vw] md:shrink-0">
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search Jewellery"
-              className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
+              className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-4 md:text-[13px] md:focus:border-walnut"
             />
             <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="md:h-[18px] md:w-[18px]">
@@ -265,63 +265,65 @@ export default function Shopping() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              if (openFilters) setOpenFilters(false);
-              else openFilterModal();
-            }}
-            className="col-span-2 min-w-0 truncate rounded-full border border-pale bg-white px-2 py-2.5 text-center text-[11px] font-semibold text-mid hover:bg-cream md:shrink-0 md:col-auto md:px-5 md:py-3 md:text-[12px]"
-          >
-            Filters
-          </button>
-
-          <div className="relative col-span-2 min-w-0 md:shrink-0 md:col-auto">
+          <div className="col-span-4 flex min-w-0 items-center gap-2 md:min-w-0 md:shrink-0 md:justify-end">
             <button
               type="button"
-              onClick={() => setOpenSort((v) => !v)}
-              className="w-full truncate rounded-full border border-pale bg-white px-2 py-2.5 text-[11px] font-semibold text-mid hover:bg-cream md:px-5 md:py-3 md:text-[12px]"
+              onClick={() => {
+                if (openFilters) setOpenFilters(false);
+                else openFilterModal();
+              }}
+              className="min-w-0 flex-1 truncate rounded-full border border-pale bg-white px-2 py-2.5 text-center text-[11px] font-semibold text-mid hover:bg-cream md:flex-initial md:shrink-0 md:px-5 md:py-3 md:text-[12px]"
             >
-              Sort
+              Filters
             </button>
-            {openSort ? (
-              <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-pale bg-white shadow-sm">
-                {SortOptions.map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => {
-                      setSortId(opt.id);
-                      setOpenSort(false);
-                    }}
-                    className={`w-full px-4 py-3 text-left text-[12px] font-semibold hover:bg-cream ${
-                      sortId === opt.id ? 'text-ink' : 'text-mid'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
 
-          <div className="hidden shrink-0 items-center gap-2 md:col-auto md:flex">
-            {[2, 4, 6].map((n) => (
+            <div className="relative min-w-0 flex-1 md:shrink-0">
               <button
-                key={n}
                 type="button"
-                onClick={() => setDesktopGridCols(n)}
-                className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
-                  desktopGridCols === n
-                    ? 'bg-walnut text-blush shadow-sm'
-                    : 'border border-pale bg-white text-mid hover:bg-cream'
-                }`}
-                aria-label={`${n} products per row`}
-                title={`${n} per row`}
+                onClick={() => setOpenSort((v) => !v)}
+                className="w-full truncate rounded-full border border-pale bg-white px-2 py-2.5 text-[11px] font-semibold text-mid hover:bg-cream md:px-5 md:py-3 md:text-[12px]"
               >
-                {n}
+                Sort
               </button>
-            ))}
+              {openSort ? (
+                <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-pale bg-white shadow-sm">
+                  {SortOptions.map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setSortId(opt.id);
+                        setOpenSort(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left text-[12px] font-semibold hover:bg-cream ${
+                        sortId === opt.id ? 'text-ink' : 'text-mid'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            <div className="hidden shrink-0 items-center gap-2 md:flex">
+              {[2, 4, 6].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setDesktopGridCols(n)}
+                  className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
+                    desktopGridCols === n
+                      ? 'bg-walnut text-blush shadow-sm'
+                      : 'border border-pale bg-white text-mid hover:bg-cream'
+                  }`}
+                  aria-label={`${n} products per row`}
+                  title={`${n} per row`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

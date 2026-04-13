@@ -161,6 +161,7 @@ export default function DashboardLayout() {
   const isCartPage = path.includes('/customer/cart');
   const isCheckoutPage = path.includes('/customer/checkout');
   const isOrdersPage = path.includes('/customer/orders');
+  const isCustomerOrdersListPage = path === '/customer/orders';
   const isProjectsPage = path.includes('/customer/projects');
   const isCustomerProjectsListPage = path === '/customer/projects';
   const isVendorProfileViewPage = path.startsWith('/customer/vendors/');
@@ -815,6 +816,7 @@ export default function DashboardLayout() {
               : 'overflow-y-auto ' +
                 (isShoppingListPage ||
                 isCustomerProjectsListPage ||
+                isCustomerOrdersListPage ||
                 isVendorProjectsListPage ||
                 isVendorExplorePage ||
                 isVendorBidsPage

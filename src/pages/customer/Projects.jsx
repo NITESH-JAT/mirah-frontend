@@ -1777,21 +1777,8 @@ export default function Projects() {
             {mainTab === 'list' ? (
               <>
                 <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
-                  <div className="mb-3 flex flex-wrap items-start gap-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14px] md:text-[15px] font-extrabold text-ink">My projects</p>
-                      <p className="mt-0.5 text-[12px] text-muted">Create and manage your projects.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={startCreateNew}
-                      className="ml-auto shrink-0 inline-flex items-center justify-center px-3 py-2 sm:px-4 rounded-xl bg-walnut text-blush text-[11px] sm:text-[12px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer"
-                    >
-                      Create Project
-                    </button>
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:flex-nowrap md:items-center md:gap-3 md:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:min-w-0 md:flex-1">
+                  <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-0.5 md:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:w-[420px] md:max-w-[55vw] md:shrink-0">
                       <div className="relative min-w-0 flex-1">
                         <input
                           type="text"
@@ -1806,7 +1793,7 @@ export default function Projects() {
                             void loadProjects({ nextPage: 1, append: false, search: next });
                           }}
                           placeholder="Search by title…"
-                          className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-5 md:text-[13px]"
+                          className="input-search-quiet-focus w-full rounded-2xl border border-pale bg-white py-2.5 pl-9 pr-2 text-[12px] font-medium text-ink placeholder:text-muted focus:outline-none md:py-3 md:pl-11 md:pr-4 md:text-[13px] md:focus:border-walnut"
                           aria-label="Search by title"
                         />
                         <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted md:left-4">
@@ -1843,7 +1830,8 @@ export default function Projects() {
                         </button>
                       ) : null}
                     </div>
-                    <div className="flex w-full min-w-0 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden border-t border-pale/70 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:ml-auto md:w-auto md:flex-none md:justify-end md:border-t-0 md:border-l md:border-pale/80 md:pt-0 md:pl-2">
+                    <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 border-t border-pale/70 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-2 md:flex-1 md:min-w-0 md:justify-end md:border-0 md:pt-0">
+                      <div className="order-3 flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-1 md:min-w-0 md:flex-initial md:max-w-full md:gap-2">
                         {[
                           { id: 'all', label: 'All', count: null },
                           { id: 'action_required', label: 'Action Required', count: projectCategories.actionRequired.length },
@@ -1857,16 +1845,16 @@ export default function Projects() {
                               key={t.id}
                               type="button"
                               onClick={() => setListFilterPersist(t.id)}
-                              className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-1 px-2 py-1 rounded-xl border text-[10px] md:gap-2 md:px-3 md:py-1.5 md:text-[12px] font-bold transition-colors ${
+                              className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-1.5 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-5 md:py-3 md:text-[12px] ${
                                 active
-                                  ? 'bg-walnut/10 border-walnut text-ink'
-                                  : 'bg-white border-pale text-muted hover:bg-cream hover:text-ink'
+                                  ? 'border-walnut bg-walnut/10 font-bold text-ink'
+                                  : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
                               }`}
                             >
                               <span className="whitespace-nowrap">{t.label}</span>
                               {typeof t.count === 'number' ? (
                                 <span
-                                  className={`min-w-[16px] h-[14px] px-1 rounded-full text-[9px] md:min-w-[22px] md:h-[18px] md:px-1.5 md:text-[11px] font-extrabold flex items-center justify-center ${
+                                  className={`min-w-[14px] h-[12px] px-0.5 rounded-full text-[8px] font-extrabold flex items-center justify-center md:min-h-[1.25rem] md:min-w-[22px] md:h-auto md:px-1.5 md:text-[11px] ${
                                     active ? 'bg-walnut text-blush' : 'bg-blush text-mid'
                                   }`}
                                 >
@@ -1876,6 +1864,20 @@ export default function Projects() {
                             </button>
                           );
                         })}
+                      </div>
+                      <span
+                        className="order-2 shrink-0 text-[11px] font-light text-muted/90 select-none md:text-[13px]"
+                        aria-hidden="true"
+                      >
+                        |
+                      </span>
+                      <button
+                        type="button"
+                        onClick={startCreateNew}
+                        className="order-1 shrink-0 inline-flex items-center justify-center rounded-xl bg-walnut px-1.5 py-1.5 text-[10px] font-bold text-blush whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer md:order-3 md:min-h-[2.25rem] md:px-5 md:py-3 md:text-[12px]"
+                      >
+                        Create Project
+                      </button>
                     </div>
                   </div>
                 </div>

@@ -474,15 +474,14 @@ export default function Orders() {
   }, [meta?.total]);
 
   return (
-    <div className="w-full h-[calc(100dvh-60px)] lg:h-[calc(100dvh-128px)] flex flex-col">
-      {/* Top header card (title + count) */}
-      <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[16px] md:text-[18px] font-bold text-ink">My Orders</p>
-            <p className="text-[12px] text-muted mt-1">Track status, cancel, and download invoices.</p>
+    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="text-[14px] md:text-[15px] font-extrabold text-ink">My Orders</p>
+            <p className="mt-0.5 text-[12px] text-muted">Track status, cancel, and download invoices.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 ml-auto shrink-0 flex-wrap justify-end">
             {headerRight}
             <button
               type="button"
@@ -490,14 +489,14 @@ export default function Orders() {
                 if (filtersOpen) setFiltersOpen(false);
                 else openFilterModal();
               }}
-              className="hidden md:inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream items-center gap-2"
+              className="hidden md:inline-flex min-w-0 items-center justify-center truncate rounded-full border border-pale bg-white px-5 py-3 text-[12px] font-semibold text-mid hover:bg-cream"
             >
               Filters
             </button>
             <button
               type="button"
               onClick={openFilterModal}
-              className="md:hidden w-10 h-10 rounded-xl border border-pale bg-white text-mid hover:bg-cream flex items-center justify-center"
+              className="md:hidden inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pale bg-white text-mid hover:bg-cream"
               aria-label="Filters"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 4h18"/><path d="M7 12h10"/><path d="M10 20h4"/></svg>
@@ -506,10 +505,7 @@ export default function Orders() {
         </div>
       </div>
 
-      {/* Orders container */}
-      <div className="flex-1 min-h-0 flex flex-col pb-[60px] md:pb-0">
-        <div className="mt-3 bg-white rounded-2xl border border-pale overflow-hidden flex-1 min-h-0 flex flex-col">
-          {/* Filters panel (mobile bottom-sheet, desktop right drawer) */}
+      {/* Filters panel (mobile bottom-sheet, desktop right drawer) */}
           {filtersOpen ? (
             <div
               className="fixed inset-0 z-[80] bg-ink/25 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
@@ -607,11 +603,20 @@ export default function Orders() {
             </div>
           ) : null}
 
-        <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
-        <div className="min-h-[calc(100vh-260px)] flex flex-col">
+      <div
+        className={`mt-4 flex min-h-0 flex-1 flex-col ${
+          !loading && !empty && items.length > 0 ? 'justify-between gap-4' : ''
+        }`}
+      >
         {loading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <div
+            className="flex min-h-[min(420px,calc(100vh-260px))] flex-1 flex-col items-center justify-center px-4 py-12"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            aria-label="Loading orders"
+          >
+            <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
               <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
             </svg>
@@ -668,7 +673,7 @@ export default function Orders() {
                   : 'bg-cream border-pale text-mid';
               const busy = actingId != null && String(actingId) === String(idForActions);
               return (
-                <div key={String(idForActions || Math.random())} className="rounded-2xl border border-pale p-4">
+                <div key={String(idForActions || Math.random())} className="rounded-2xl border border-pale bg-white p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -744,20 +749,19 @@ export default function Orders() {
             })}
 
             {canLoadMore ? (
-              <button
-                type="button"
-                onClick={() => load({ nextPage: page + 1, append: true })}
-                disabled={moreLoading}
-                className="mt-2 w-full py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
-              >
-                {moreLoading ? 'Loading…' : 'Load more'}
-              </button>
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => load({ nextPage: page + 1, append: true })}
+                  disabled={moreLoading}
+                  className="px-10 py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
+                >
+                  {moreLoading ? 'Loading…' : 'Load more'}
+                </button>
+              </div>
             ) : null}
           </div>
         )}
-        </div>
-      </div>
-      </div>
       </div>
 
       {/* Order details modal */}

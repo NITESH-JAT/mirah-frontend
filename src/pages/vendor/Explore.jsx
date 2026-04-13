@@ -70,13 +70,7 @@ function budgetValueOf(project) {
   return Number.isFinite(v) ? v : null;
 }
 
-function budgetTextOf(project) {
-  const range = project?.amountRange ?? project?.amount_range ?? null;
-  const min = Number(range?.min ?? range?.minAmount ?? range?.min_amount ?? project?.minAmount ?? project?.min_amount ?? NaN);
-  const max = Number(range?.max ?? range?.maxAmount ?? range?.max_amount ?? project?.maxAmount ?? project?.max_amount ?? NaN);
-  if (!Number.isFinite(min) && !Number.isFinite(max)) return '—';
-  return `₹ ${formatMoney(Number.isFinite(min) ? min : 0)} - ₹ ${formatMoney(Number.isFinite(max) ? max : 0)}`;
-}
+
 
 function durationDaysOf(project) {
   const t = Number(project?.timelineExpected ?? project?.timeline_expected ?? project?.noOfDays ?? project?.no_of_days ?? NaN);
@@ -268,17 +262,9 @@ export default function VendorExplore() {
                 onClick={() => setOpenSort((v) => !v)}
                 className="px-3 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid bg-white hover:bg-cream inline-flex items-center gap-2"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 6h13" />
-                  <path d="M3 12h9" />
-                  <path d="M3 18h5" />
-                  <path d="m19 8 2 2-2 2" />
-                  <path d="M21 10h-5" />
-                </svg>
+
                 Sort
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="m6 9 6 6 6-6" />
-                </svg>
+
               </button>
               {openSort ? (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">
