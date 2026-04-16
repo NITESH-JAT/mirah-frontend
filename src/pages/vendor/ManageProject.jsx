@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
@@ -873,6 +873,19 @@ export default function VendorManageProject() {
       </div>
     ) : null;
 
+  const DiamondQualityGuidelinesCard = ({ className = '' }) => (
+    <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
+      <p className="text-[12px] font-extrabold text-ink">Diamond Quality</p>
+      <p className="mt-1 text-[12px] text-muted">Understand which colour and clarity combinations we accept.</p>
+      <Link
+        to="/vendor/diamond-guidelines"
+        className="mt-3 inline-block text-[12px] font-bold text-walnut underline underline-offset-2 decoration-walnut/70 hover:decoration-walnut focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/30 rounded"
+      >
+        Click here to see which diamond quality is acceptable?
+      </Link>
+    </div>
+  );
+
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
       <div className="mb-4">
@@ -940,6 +953,7 @@ export default function VendorManageProject() {
             <div className="hidden lg:block mt-4 space-y-4">
               <MetaCard />
               <AttachmentsCard />
+              <DiamondQualityGuidelinesCard />
             </div>
           </div>
 
@@ -949,8 +963,9 @@ export default function VendorManageProject() {
               <div className="mt-4">
                 <MetaCard />
               </div>
-              <div className="mt-4">
+              <div className="mt-4 space-y-4">
                 <AttachmentsCard />
+                <DiamondQualityGuidelinesCard />
               </div>
             </div>
 

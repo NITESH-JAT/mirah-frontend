@@ -37,6 +37,8 @@ const VendorBids = lazy(() => import('../pages/vendor/Bids'));
 const VendorBidsView = lazy(() => import('../pages/vendor/BidsView'));
 const VendorProjects = lazy(() => import('../pages/vendor/Projects'));
 const VendorManageProject = lazy(() => import('../pages/vendor/ManageProject'));
+const VendorReviews = lazy(() => import('../pages/vendor/VendorReviews'));
+const VendorGuidelines = lazy(() => import('../pages/vendor/VendorGuidelines'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 const Faq = lazy(() => import('../pages/customer/Faq'));
 
@@ -147,6 +149,9 @@ export const routes = [
       { path: 'shop', element: <VendorShop /> },
       { path: 'kyc', element: <VendorKyc /> },
       { path: 'profile', element: <Profile /> },
+      { path: 'reviews', element: <VendorReviews /> },
+      { path: 'diamond-guidelines', element: <VendorGuidelines /> },
+      { path: 'guidelines', element: <Navigate to="/vendor/diamond-guidelines" replace /> },
       { path: 'faq', element: <Faq /> },
       { path: 'messages', element: <Messages /> }
     ]

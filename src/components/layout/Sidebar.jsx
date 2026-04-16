@@ -71,9 +71,11 @@ export default function Sidebar({ isOpen = false, onClose }) {
     if (p.includes('faq')) return 'FAQ';
     if (p.includes('messages')) return 'Messages';
     if (p.includes('/vendor/kyc')) return 'KYC';
+    if (p.startsWith('/vendor/diamond-guidelines') || p === '/vendor/guidelines') return 'Diamond Guide';
     if (p.includes('/vendor/shop')) return 'Store';
     if (p.startsWith('/vendor/bids')) return p.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (p.startsWith('/vendor/reviews')) return 'Reviews';
     if (p.startsWith('/vendor/projects')) return 'My Projects';
     if (p.includes('/customer/cart')) return 'Cart';
     if (p.includes('/customer/checkout')) return 'Checkout';

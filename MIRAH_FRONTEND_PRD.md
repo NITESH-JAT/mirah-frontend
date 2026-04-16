@@ -706,6 +706,7 @@ Screens:
 - Assignments list (pending/accepted/etc)
 - Accept/reject assignment
 - Update project operational status (in_progress → qc)
+- Reviews received (paginated list of customer reviews per project)
 
 Key APIs:
 - Vendor running projects:
@@ -721,10 +722,10 @@ Key APIs:
   - `POST /api/user/assignments/:id/reject`
 - Status updates:
   - `PATCH /api/user/projects/:id/status` (vendor updates operational status)
-- Vendor reviews received:
-  - `GET /api/user/vendor-reviews/me?page&limit&projectId`
+- Vendor reviews received (paginated):
+  - `GET /api/user/vendor-reviews/me?page&limit&projectId` (**vendor-only**)
 
-(See `src/routes/user/projects/index.ts` + `src/routes/user/assignments/index.ts`.)
+(See `src/routes/user/projects/index.ts` + `src/routes/user/assignments/index.ts` + `src/routes/user/vendor-reviews/index.ts`.)
 
 #### Vendor Reviews (Project-based)
 
@@ -734,6 +735,15 @@ Rules:
 - Rating is **1–5** stars. Comment is optional.
 - On submission/update, the reviewed vendor receives a user notification; admins receive an admin notification.
 - Customers can submit vendor reviews as **anonymous** using `isAnonymous=true`.
+
+**Vendor: list reviews received** — `GET /api/user/vendor-reviews/me`
+
+- **Query**: `page` (default 1), `limit` (default 20, max 100), optional `projectId` to filter by project.
+- **Response** `data.reviews[]` items include:
+  - `id`, `projectId`, `projectTitle` (from project; nullable if missing), `customerName` (display string), `reviewedAt` (timestamp of the review; same event as `createdAt`), `rating`, `comment`, `isAnonymous`
+  - `customer` — structured reviewer summary (same shape as before; use for avatars/details when not anonymous)
+  - `createdAt`, `updatedAt`
+- **Anonymous**: when `isAnonymous=true`, `customerName` is `"Anonymous"` and `customer` follows the anonymous shape below.
 
 Anonymous behavior (customer-facing lists):
 - In `GET /api/user/vendor-reviews/vendor/:vendorId`, if a review has `isAnonymous=true`, backend returns the reviewer as:

@@ -75,20 +75,9 @@ function formatNoticeDateTime(n) {
   return d.toLocaleString();
 }
 
-function truncateName(name, max = 10) {
-  const s = String(name ?? '').trim();
-  if (!s) return '';
-  if (s.length <= max) return s;
-  if (max <= 1) return s.slice(0, max);
-  return `${s.slice(0, max - 1)}…`;
-}
 
-function avatarNameForUser(u) {
-  const first = String(u?.firstName ?? '').trim();
-  const last = String(u?.lastName ?? '').trim();
-  const full = [first, last].filter(Boolean).join(' ').trim();
-  return full || String(u?.email ?? '').trim() || 'User';
-}
+
+
 
 function initialsForUser(u) {
   const first = String(u?.firstName ?? '').trim();
@@ -152,9 +141,12 @@ export default function DashboardLayout() {
   const isMessagesPage = path.includes('messages');
   const isKycPage = path.includes('/vendor/kyc');
   const isShopPage = path.includes('/vendor/shop');
+  const isVendorGuidelinesPage =
+    path.startsWith('/vendor/diamond-guidelines') || path === '/vendor/guidelines';
   const isVendorExplorePage = path.includes('/vendor/explore');
   const isVendorBidsPage = path.includes('/vendor/bids');
   const isVendorProjectsPage = path.includes('/vendor/projects');
+  const isVendorReviewsPage = path.includes('/vendor/reviews');
   const isShoppingPage = path.includes('/customer/shopping');
   const isShoppingListPage = path === '/customer/shopping';
   const isCartPage = path.includes('/customer/cart');
@@ -175,9 +167,11 @@ export default function DashboardLayout() {
     if (isFaqPage) return 'FAQ';
     if (isMessagesPage) return 'Messages';
     if (isKycPage) return 'KYC';
+    if (isVendorGuidelinesPage) return 'Diamond Guide';
     if (isShopPage) return 'Store';
     if (isVendorBidsPage) return path.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
     if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (isVendorReviewsPage) return 'Reviews';
     if (isVendorProjectsPage) return 'My Projects';
     if (isCartPage) return 'Cart';
     if (isCheckoutPage) return 'Checkout';
@@ -194,10 +188,12 @@ export default function DashboardLayout() {
     isProfilePage,
     isProjectsPage,
     isShopPage,
+    isVendorGuidelinesPage,
     isShoppingPage,
     isVendorBidsPage,
     isVendorExplorePage,
     isVendorProjectsPage,
+    isVendorReviewsPage,
     isFaqPage,
     path,
   ]);
@@ -751,7 +747,7 @@ export default function DashboardLayout() {
 
              {/* PROFILE DROPDOWN */}
              {showUserMenu && (
-                <div className="absolute top-full right-0 mt-2 w-40 bg-white rounded-xl shadow-sm border border-pale py-2 overflow-hidden animate-slide-in">
+                <div className="absolute top-full right-0 mt-2 min-w-[11rem] w-44 bg-white rounded-xl shadow-sm border border-pale py-2 overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
                           const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
@@ -763,6 +759,21 @@ export default function DashboardLayout() {
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Profile
                     </button>
+                    {isVendor ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate('/vendor/reviews');
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
+                        View Reviews
+                      </button>
+                    ) : null}
                     {!isVendor ? (
                       <button
                         onClick={() => {
@@ -820,8 +831,10 @@ export default function DashboardLayout() {
                 isCustomerProjectDetailPage ||
                 isCustomerOrdersListPage ||
                 isVendorProjectsPage ||
+                isVendorReviewsPage ||
                 isVendorExplorePage ||
                 isVendorBidsPage ||
+                isVendorGuidelinesPage ||
                 isFaqPage
                   ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
                   : 'p-4 lg:p-8')
@@ -834,12 +847,14 @@ export default function DashboardLayout() {
               isVendorExplorePage ||
               isVendorBidsPage ||
               isVendorProjectsPage ||
+              isVendorReviewsPage ||
               isShoppingPage ||
               isProjectsPage ||
               isOrdersPage ||
               isCheckoutPage ||
               isProfilePage ||
               isFaqPage ||
+              isVendorGuidelinesPage ||
               isVendorProfileViewPage
                 ? 'max-w-none'
                 : 'max-w-5xl'

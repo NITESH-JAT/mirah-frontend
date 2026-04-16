@@ -867,8 +867,9 @@ export default function Projects() {
         const qty = Number(s?.quantityRequired || 0);
         const deliveryDays = Number(s?.preferredDeliveryDays ?? 0);
 
-        if (!budgetRaw) return 'Budget per piece is required';
-        if (!Number.isFinite(budget) || budget <= 0) return 'Budget per piece must be greater than 0';
+        if (budgetRaw) {
+          if (!Number.isFinite(budget) || budget <= 0) return 'Budget per piece must be greater than 0';
+        }
         if (!Number.isFinite(qty) || qty <= 0) return 'Quantity required is required';
         if (!Number.isFinite(deliveryDays) || deliveryDays < 20 || deliveryDays > 90) {
           return 'Preferred delivery timeline must be between 20 and 90 days';
@@ -2917,11 +2918,16 @@ export default function Projects() {
                       <div className="space-y-6">
                         <div className="p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
-                          <p className="mt-1 text-[12px] text-muted">Provide quantities, budget, and delivery timeline.</p>
+                          <p className="mt-1 text-[12px] text-muted">
+                            Provide quantity and delivery timeline. Budget is optional but recommended.
+                          </p>
 
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Budget per piece *</label>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
+                                Budget per piece{' '}
+                                <span className="font-normal normal-case text-muted">(Recommended)</span>
+                              </label>
                               <input
                                 type="text"
                                 inputMode="decimal"

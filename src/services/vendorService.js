@@ -36,6 +36,21 @@ export const vendorService = {
     return { items, meta: { page: currentPage, totalPages, total } };
   },
 
+  /** Vendor-only: paginated reviews received on completed projects (PRD: GET /api/user/vendor-reviews/me) */
+  listMyReviews: async ({ page = 1, limit = 12, projectId, signal } = {}) => {
+    const params = { page, limit };
+    if (projectId != null && String(projectId).trim() !== '') params.projectId = projectId;
+    const res = await api.get('/api/user/vendor-reviews/me', { params, signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.reviews ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
+    const items = coerceArray(itemsRaw).filter(Boolean);
+    const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
+    const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
+    const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
+    const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
+    return { items, meta: { page: currentPage, totalPages, total } };
+  },
+
   submitVendorReview: async ({ projectId, vendorId, rating, comment, isAnonymous } = {}, { signal } = {}) => {
     if (!projectId) return null;
     const payload = {
