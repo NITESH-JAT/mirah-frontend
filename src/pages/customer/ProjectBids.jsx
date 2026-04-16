@@ -52,6 +52,55 @@ function assignmentVendorIdOf(a) {
   return a?.vendorId ?? a?.vendor_id ?? a?.vendor?.id ?? a?.vendor?._id ?? null;
 }
 
+/** Same name resolution as bid rows — used when assignment payload omits vendorName. */
+function vendorNameFromBid(b) {
+  if (!b) return '';
+  const vendor = b?.vendor ?? null;
+  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+  const raw =
+    b?.vendorName ??
+    b?.vendor_name ??
+    vendor?.fullName ??
+    vendor?.name ??
+    (vendorJoined || '');
+  return String(raw).trim();
+}
+
+/** Display name for assignment log: assignment fields first, then match bids by vendor id. */
+function assignmentVendorDisplayName(a, bidsList) {
+  const vendor = a?.vendor ?? null;
+  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+  const snapshotOrJoined =
+    vendorJoined ||
+    (a?.vendorSnapshot?.fullName ??
+      a?.vendor_snapshot?.fullName ??
+      a?.vendorSnapshot?.name ??
+      a?.vendor_snapshot?.name ??
+      '');
+  const fromAssignment = String(
+    a?.vendorName ??
+      a?.vendor_name ??
+      a?.jewellerName ??
+      a?.jeweller_name ??
+      a?.assignedVendorName ??
+      a?.assigned_vendor_name ??
+      vendor?.fullName ??
+      vendor?.name ??
+      vendor?.businessName ??
+      vendor?.shopName ??
+      snapshotOrJoined,
+  ).trim();
+  if (fromAssignment) return fromAssignment;
+
+  const vid = assignmentVendorIdOf(a);
+  if (vid == null || !Array.isArray(bidsList)) return '';
+  const bid = bidsList.find((b) => {
+    const bvid = b?.vendorId ?? b?.vendor_id ?? b?.vendor?.id ?? b?.vendor?._id ?? null;
+    return bvid != null && String(bvid) === String(vid);
+  });
+  return vendorNameFromBid(bid);
+}
+
 function isAssignmentActive(a) {
   const active = a?.isActive ?? a?.is_active ?? false;
   if (typeof active === 'boolean') return active;
@@ -1282,8 +1331,7 @@ export default function ProjectBids() {
             <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 shrink-0">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[13px] font-extrabold text-ink">Assignment requests</p>
-                  <p className="mt-1 text-[12px] text-muted">Activity for this project.</p>
+                  <p className="text-[13px] font-extrabold text-ink">Assignment Requests</p>
                 </div>
                 <div className="shrink-0 text-[12px] font-semibold text-muted">
                   {assignmentLogs.length} {assignmentLogs.length === 1 ? 'record' : 'records'}
@@ -1300,13 +1348,7 @@ export default function ProjectBids() {
                     const a = row?.assignment || {};
                     const status = assignmentStatusText(a) || 'pending';
                     const statusText = status === 'reassigned' ? 'Overridden' : toTitleCase(status);
-                    const vendorJoined = `${a?.vendor?.firstName ?? ''} ${a?.vendor?.lastName ?? ''}`.trim();
-                    const vendorName =
-                      a?.vendorName ??
-                      a?.vendor_name ??
-                      a?.vendor?.fullName ??
-                      (vendorJoined || null);
-                    const vendorLabel = vendorName || 'Jeweller';
+                    const vendorLabel = assignmentVendorDisplayName(a, bids) || 'Jeweller';
                     const when = row?.when || null;
                     const statusClass =
                       status === 'accepted'
