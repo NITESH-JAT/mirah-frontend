@@ -97,6 +97,18 @@ function Thumbnail({ src, alt }) {
   );
 }
 
+function mergeParticipationById(prev, next) {
+  const seen = new Set(prev.map((x) => String(x?.id ?? '')));
+  const out = [...prev];
+  for (const x of next) {
+    const id = String(x?.id ?? '');
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(x);
+  }
+  return out;
+}
+
 function normalizeParticipationItem(raw) {
   const root = raw ?? {};
   const project = root?.project ?? root?.data?.project ?? root?.item ?? root?.data ?? root ?? null;
@@ -161,6 +173,8 @@ export default function VendorBids() {
 
   const [loadingActive, setLoadingActive] = useState(false);
   const [loadingCompleted, setLoadingCompleted] = useState(false);
+  const [loadingMoreActive, setLoadingMoreActive] = useState(false);
+  const [loadingMoreCompleted, setLoadingMoreCompleted] = useState(false);
   const [itemsActive, setItemsActive] = useState([]);
   const [itemsCompleted, setItemsCompleted] = useState([]);
   const [tab, setTab] = useState('active'); // 'active' | 'completed'
@@ -181,50 +195,64 @@ export default function VendorBids() {
   }, [location.search]);
 
   const loadActive = useCallback(
-    async ({ nextPage = 1 } = {}) => {
+    async ({ nextPage = 1, append = false } = {}) => {
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setLoadingActive(true);
+      if (append) setLoadingMoreActive(true);
+      else setLoadingActive(true);
       try {
-        const res = await projectService.listBidParticipation({ page: nextPage, limit: 24, signal: ctrl.signal });
+        const res = await projectService.listBidParticipation({ page: nextPage, limit: 20, signal: ctrl.signal });
         const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
         const normalized = list.map(normalizeParticipationItem).filter((x) => x?.id && !x.vendorWithdrewAllBids);
-        setItemsActive(normalized.filter((x) => x.isActive));
+        const slice = normalized.filter((x) => x.isActive);
+        if (append) {
+          setItemsActive((prev) => mergeParticipationById(prev, slice));
+        } else {
+          setItemsActive(slice);
+        }
         const meta = res?.meta || { page: nextPage, totalPages: 1, total: null };
         setMetaActive(meta);
         setPageActive(meta.page || nextPage);
       } catch (e) {
         if (isCanceledRequest(e)) return;
         addToast(e?.message || 'Failed to load bids', 'error');
-        setItemsActive([]);
+        if (!append) setItemsActive([]);
       } finally {
         setLoadingActive(false);
+        setLoadingMoreActive(false);
       }
     },
     [addToast],
   );
 
   const loadCompleted = useCallback(
-    async ({ nextPage = 1 } = {}) => {
+    async ({ nextPage = 1, append = false } = {}) => {
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
-      setLoadingCompleted(true);
+      if (append) setLoadingMoreCompleted(true);
+      else setLoadingCompleted(true);
       try {
-        const res = await projectService.listBidParticipation({ page: nextPage, limit: 24, signal: ctrl.signal });
+        const res = await projectService.listBidParticipation({ page: nextPage, limit: 6, signal: ctrl.signal });
         const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
         const normalized = list.map(normalizeParticipationItem).filter((x) => x?.id && !x.vendorWithdrewAllBids);
-        setItemsCompleted(normalized.filter((x) => !x.isActive));
+        const slice = normalized.filter((x) => !x.isActive);
+        if (append) {
+          setItemsCompleted((prev) => mergeParticipationById(prev, slice));
+        } else {
+          setItemsCompleted(slice);
+        }
         const meta = res?.meta || { page: nextPage, totalPages: 1, total: null };
         setMetaCompleted(meta);
         setPageCompleted(meta.page || nextPage);
       } catch (e) {
         if (isCanceledRequest(e)) return;
         addToast(e?.message || 'Failed to load bids', 'error');
-        setItemsCompleted([]);
+        if (!append) setItemsCompleted([]);
       } finally {
         setLoadingCompleted(false);
+        setLoadingMoreCompleted(false);
       }
     },
     [addToast],
@@ -232,12 +260,14 @@ export default function VendorBids() {
 
   useEffect(() => {
     if (tab === 'active') {
-      loadActive({ nextPage: pageActive });
+      setPageActive(1);
+      loadActive({ nextPage: 1, append: false });
     } else {
-      loadCompleted({ nextPage: pageCompleted });
+      setPageCompleted(1);
+      loadCompleted({ nextPage: 1, append: false });
     }
     return () => abortRef.current?.abort();
-  }, [tab, pageActive, pageCompleted, loadActive, loadCompleted]);
+  }, [tab, loadActive, loadCompleted]);
 
   const filteredActive = useMemo(() => {
     const q = String(queryActive || '').trim().toLowerCase();
@@ -259,13 +289,20 @@ export default function VendorBids() {
 
   const filtered = tab === 'active' ? filteredActive : filteredCompleted;
 
-  const currentPage = tab === 'active' ? pageActive : pageCompleted;
   const meta = tab === 'active' ? metaActive : metaCompleted;
-  const canPrev = Number(meta?.page || 1) > 1;
   const canNext = Number(meta?.page || 1) < Number(meta?.totalPages || 1);
-  const totalPages = Number(meta?.totalPages || 1) || 1;
 
   const loading = tab === 'active' ? loadingActive : loadingCompleted;
+  const loadingMore = tab === 'active' ? loadingMoreActive : loadingMoreCompleted;
+
+  const handleLoadMore = useCallback(() => {
+    if (!canNext || loadingMore) return;
+    if (tab === 'active') {
+      loadActive({ nextPage: pageActive + 1, append: true });
+    } else {
+      loadCompleted({ nextPage: pageCompleted + 1, append: true });
+    }
+  }, [canNext, loadingMore, tab, pageActive, pageCompleted, loadActive, loadCompleted]);
 
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
@@ -355,142 +392,105 @@ export default function VendorBids() {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            {filtered.map((x) => {
-              const budgetPerPieceRaw = pickMetaValue(x.project, 'budgetPerPiece', 'budget_per_piece');
-              const budgetPerPiece = Number(String(budgetPerPieceRaw || '').trim() || NaN);
-              const quantityRequired = String(pickMetaValue(x.project, 'quantityRequired', 'quantity_required') || '').trim();
-              const preferredDelivery = String(
-                pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
-              ).trim();
-              return (
-                <div
-                  key={String(x.id)}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`); }}
-                  className="bg-white rounded-2xl border border-pale overflow-hidden cursor-pointer hover:border-pale transition-colors"
-                >
-                  <div className="relative">
-                    <Thumbnail src={x.thumbnailUrl} alt={x.title} />
-                    {x.bestBid != null ? (
-                      <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink">
-                        Best bid: ₹{formatMoney(x.bestBid)}
-                      </span>
-                    ) : null}
-                    {tab === 'active' && x.isCurrentlyWinning ? (
-                      <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
-                        Winning
-                      </span>
-                    ) : null}
-                    {tab === 'completed' && x.isWinnerSelected && x.isWinnerVendor ? (
-                      <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
-                        Winner
-                      </span>
-                    ) : null}
-                    <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink inline-flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" />
-                        <path d="M12 6v6l4 2" />
-                      </svg>
-                      {(() => {
-                        const ms = x.finishesMs != null ? Math.max(0, x.finishesMs - Date.now()) : null;
-                        const ended = ms != null ? ms <= 0 : true;
-                        return ended ? 'Bid Ended' : formatCountdown(ms);
-                      })()}
-                    </span>
-                  </div>
-                  <div className="p-4">
-                    <p className="text-[14px] font-extrabold text-ink truncate">{x.title}</p>
-                    <div className="mt-3 space-y-1.5 text-[12px] text-mid">
-                      {x.customerName ? (
-                        <p>
-                          Customer: <span className="font-extrabold text-ink">{x.customerName}</span>
-                        </p>
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              {filtered.map((x) => {
+                const budgetPerPieceRaw = pickMetaValue(x.project, 'budgetPerPiece', 'budget_per_piece');
+                const budgetPerPiece = Number(String(budgetPerPieceRaw || '').trim() || NaN);
+                const quantityRequired = String(pickMetaValue(x.project, 'quantityRequired', 'quantity_required') || '').trim();
+                const preferredDelivery = String(
+                  pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
+                ).trim();
+                return (
+                  <div
+                    key={String(x.id)}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`); }}
+                    className="bg-white rounded-2xl border border-pale overflow-hidden cursor-pointer hover:border-pale transition-colors"
+                  >
+                    <div className="relative">
+                      <Thumbnail src={x.thumbnailUrl} alt={x.title} />
+                      {x.bestBid != null ? (
+                        <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink">
+                          Best bid: ₹{formatMoney(x.bestBid)}
+                        </span>
                       ) : null}
-                      <p>
-                        Budget: <span className="font-extrabold text-ink">{Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? `₹ ${formatMoney(budgetPerPiece)}` : '—'}</span>
-                      </p>
-                      <p>
-                        Quantity: <span className="font-extrabold text-ink">{quantityRequired || '—'}</span>
-                      </p>
-                      <p>
-                        Expected delivery:{' '}
-                        <span className="font-extrabold text-ink">{preferredDelivery ? formatDateOnlyFromInput(preferredDelivery) : '—'}</span>
-                      </p>
-                      <p>
-                        Bid Count: <span className="font-extrabold text-ink">{x.bidCount != null ? x.bidCount : '—'}</span>
-                      </p>
+                      {tab === 'active' && x.isCurrentlyWinning ? (
+                        <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
+                          Winning
+                        </span>
+                      ) : null}
+                      {tab === 'completed' && x.isWinnerSelected && x.isWinnerVendor ? (
+                        <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
+                          Winner
+                        </span>
+                      ) : null}
+                      <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink inline-flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="10" />
+                          <path d="M12 6v6l4 2" />
+                        </svg>
+                        {(() => {
+                          const ms = x.finishesMs != null ? Math.max(0, x.finishesMs - Date.now()) : null;
+                          const ended = ms != null ? ms <= 0 : true;
+                          return ended ? 'Bid Ended' : formatCountdown(ms);
+                        })()}
+                      </span>
                     </div>
-                    <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
-                      >
-                        {x.isActive ? 'Manage Bidding' : 'View Bids'}
-                      </button>
+                    <div className="p-4">
+                      <p className="text-[14px] font-extrabold text-ink truncate">{x.title}</p>
+                      <div className="mt-3 space-y-1.5 text-[12px] text-mid">
+                        {x.customerName ? (
+                          <p>
+                            Customer: <span className="font-extrabold text-ink">{x.customerName}</span>
+                          </p>
+                        ) : null}
+                        <p>
+                          Budget: <span className="font-extrabold text-ink">{Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? `₹ ${formatMoney(budgetPerPiece)}` : '—'}</span>
+                        </p>
+                        <p>
+                          Quantity: <span className="font-extrabold text-ink">{quantityRequired || '—'}</span>
+                        </p>
+                        <p>
+                          Expected delivery:{' '}
+                          <span className="font-extrabold text-ink">{preferredDelivery ? formatDateOnlyFromInput(preferredDelivery) : '—'}</span>
+                        </p>
+                        <p>
+                          Bid Count: <span className="font-extrabold text-ink">{x.bidCount != null ? x.bidCount : '—'}</span>
+                        </p>
+                      </div>
+                      <div className="mt-4" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
+                          className="w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
+                        >
+                          {x.isActive ? 'Manage Bidding' : 'View Bids'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                );
+              })}
+            </div>
 
-      {/* Fixed pagination bar per tab */}
-      {!loading && filtered.length > 0 ? (
-        <div
-          className="fixed left-0 right-0 z-40
-                     bottom-0
-                     lg:left-[240px]"
-        >
-          <div className="px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
-            <div className="max-w-5xl lg:max-w-none mx-auto">
-              <div className="flex items-center justify-between gap-3">
+            {canNext ? (
+              <div className="mt-4 flex justify-center">
                 <button
                   type="button"
-                  disabled={!canPrev}
-                  onClick={() => {
-                    const next = Math.max(1, currentPage - 1);
-                    if (tab === 'active') {
-                      loadActive({ nextPage: next });
-                    } else {
-                      loadCompleted({ nextPage: next });
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  className="px-10 py-3 rounded-2xl border border-pale bg-white text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
                 >
-                  Prev
-                </button>
-
-                <div className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] text-muted shadow-sm whitespace-nowrap">
-                  Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}
-                  <span className="font-semibold text-ink">{totalPages}</span>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={!canNext}
-                  onClick={() => {
-                    const next = currentPage + 1;
-                    if (tab === 'active') {
-                      loadActive({ nextPage: next });
-                    } else {
-                      loadCompleted({ nextPage: next });
-                    }
-                  }}
-                  className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                >
-                  Next
+                  {loadingMore ? 'Loading…' : 'Load more'}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

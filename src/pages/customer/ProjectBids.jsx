@@ -85,6 +85,38 @@ function daysLabel(days) {
   return `${d} days`;
 }
 
+const STAR_PATH =
+  'M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z';
+
+/** 5-star display with partial fills (0–5). Null/invalid shows empty stars. */
+function StarRating({ value, sizeClass = 'h-5 w-5 md:h-6 md:w-6' }) {
+  const r = Number(value);
+  const safe = Number.isFinite(r) ? Math.max(0, Math.min(5, r)) : null;
+  return (
+    <div
+      className="inline-flex items-center gap-0.5 align-middle"
+      role="img"
+      aria-label={safe != null ? `Rated ${safe.toFixed(1)} out of 5 stars` : 'No rating'}
+    >
+      {[0, 1, 2, 3, 4].map((i) => {
+        const fill = safe == null ? 0 : Math.min(1, Math.max(0, safe - i));
+        return (
+          <span key={i} className={`relative inline-block shrink-0 ${sizeClass}`}>
+            <svg viewBox="0 0 24 24" className="absolute inset-0 block h-full w-full text-amber-100" fill="currentColor" aria-hidden>
+              <path d={STAR_PATH} />
+            </svg>
+            <div className="absolute left-0 top-0 h-full overflow-hidden" style={{ width: `${fill * 100}%` }}>
+              <svg viewBox="0 0 24 24" className={`block shrink-0 ${sizeClass} text-amber-400`} fill="currentColor" aria-hidden>
+                <path d={STAR_PATH} />
+              </svg>
+            </div>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function parseLocalDateInput(value) {
   const raw = String(value || '').trim();
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
@@ -217,7 +249,6 @@ export default function ProjectBids() {
   const [selectedBidId, setSelectedBidId] = useState(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('amount_asc'); // amount_asc | amount_desc | delivery_asc | delivery_desc
-  const [projectCardOpen, setProjectCardOpen] = useState(true);
   const cardsWrapRef = useRef(null);
   const actionBarRef = useRef(null);
 
@@ -245,6 +276,14 @@ export default function ProjectBids() {
     () => coerceAssignments(project?.assignments ?? project?.assignmentRequests ?? project?.projectAssignments ?? []),
     [project],
   );
+  const primaryAssignmentForNav = useMemo(() => {
+    const accepted = assignments.find((x) => String(x?.status ?? '').trim().toLowerCase() === 'accepted') || null;
+    return accepted ?? assignments[0] ?? null;
+  }, [assignments]);
+  const trackNavVisible = useMemo(() => {
+    const k = String(primaryAssignmentForNav?.status ?? '').trim().toLowerCase();
+    return k === 'accepted' && Boolean(projectId);
+  }, [primaryAssignmentForNav, projectId]);
   const activeAssignment = useMemo(() => assignments.find((a) => isAssignmentActive(a)) || null, [assignments]);
   const assignedVendorId = useMemo(() => assignmentVendorIdOf(activeAssignment), [activeAssignment]);
   const assignedStatus = useMemo(() => assignmentStatusText(activeAssignment), [activeAssignment]);
@@ -558,416 +597,447 @@ export default function ProjectBids() {
     }
   };
 
+  const goBackToProjects = () => {
+    const fromFilter = String(location?.state?.fromListFilter || '').trim().toLowerCase();
+    const fromTab = String(location?.state?.fromProjectsTab || '').trim().toLowerCase();
+    const filterFromState = ['all', 'action_required', 'active', 'completed', 'drafts'].includes(fromFilter) ? fromFilter : null;
+    if (fromTab === 'list' || filterFromState) {
+      const f =
+        filterFromState ||
+        (() => {
+          try {
+            const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
+            return ['all', 'action_required', 'active', 'completed', 'drafts'].includes(stored) ? stored : 'all';
+          } catch {
+            return 'all';
+          }
+        })();
+      navigate(`/customer/projects?tab=list&filter=${encodeURIComponent(f)}`);
+      return;
+    }
+    navigate('/customer/projects');
+  };
+
+  const navStateForProject = useCallback(
+    () => ({
+      ...location.state,
+      projectTitle: project?.title ?? location.state?.projectTitle ?? '',
+    }),
+    [location.state, project?.title],
+  );
+
   return (
-    <div className="w-full pb-10 animate-fade-in">
-      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row gap-4 overflow-y-auto md:overflow-hidden pr-1">
-        {/* Left column: project details */}
-        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start md:h-full md:overflow-y-auto md:pr-1 custom-scrollbar">
-          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  const fromFilter = String(location?.state?.fromListFilter || '').trim().toLowerCase();
-                  const fromTab = String(location?.state?.fromProjectsTab || '').trim().toLowerCase();
-                  const filterFromState = ['all', 'action_required', 'active', 'completed', 'drafts'].includes(fromFilter) ? fromFilter : null;
-                  if (fromTab === 'list' || filterFromState) {
-                    const f =
-                      filterFromState ||
-                      (() => {
-                        try {
-                          const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
-                          return ['all', 'action_required', 'active', 'completed', 'drafts'].includes(stored) ? stored : 'all';
-                        } catch {
-                          return 'all';
-                        }
-                      })();
-                    navigate(`/customer/projects?tab=list&filter=${encodeURIComponent(f)}`);
-                    return;
-                  }
-                  navigate('/customer/projects');
-                }}
-                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream whitespace-nowrap"
-              >
-                Back
-              </button>
-              <div className="flex items-center gap-2">
-                {canEndBid ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEndWithAutoWinner(true);
-                      setEndOpen(true);
-                    }}
-                    className="px-4 py-2 rounded-full border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 whitespace-nowrap"
-                  >
-                    Force End
-                  </button>
-                ) : null}
+    <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={goBackToProjects}
+          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream inline-flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+        {trackNavVisible ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/projects/${projectId}/bids`, { state: navStateForProject() })}
+              className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
+            >
+              View Bids
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/projects/${projectId}`, { state: navStateForProject() })}
+              className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
+            >
+              Track
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="w-full flex flex-col lg:flex-row gap-5 items-start">
+        {/* Left column: hero image + Details meta (vendor Explore-style) */}
+        <div className="w-full lg:w-[400px] shrink-0 lg:self-start space-y-4">
+          <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+            <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
+              {referenceImage ? (
+                <SafeImage
+                  src={referenceImage}
+                  alt={project?.title || location?.state?.projectTitle || 'Project'}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-muted bg-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            {canEndBid ? (
+              <div className="p-4 border-t border-pale">
                 <button
                   type="button"
-                  onClick={() => setProjectCardOpen((v) => !v)}
-                  className="md:hidden p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
-                  aria-label={projectCardOpen ? 'Collapse project details' : 'Expand project details'}
+                  onClick={() => {
+                    setEndWithAutoWinner(true);
+                    setEndOpen(true);
+                  }}
+                  className="w-full px-4 py-2.5 rounded-2xl border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50"
                 >
-                  {projectCardOpen ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="m18 15-6-6-6 6" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  )}
+                  Force End
                 </button>
               </div>
-            </div>
-
-            {projectCardOpen || window?.matchMedia?.('(min-width: 768px)')?.matches ? (
-            <div className="mt-4">
-              <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">
-                {project?.title || location?.state?.projectTitle || 'Project'}
-              </p>
-
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-[12px] text-muted font-semibold">
-                  Biddings Ends in
-                </p>
-                {hasActiveWindow && finishesMs ? (
-                  <span className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold tabular-nums">
-                    {formatCountdown(timeLeftMs)}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold">
-                    Bid Ended
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-3 rounded-2xl border border-pale bg-cream overflow-hidden">
-                {referenceImage ? (
-                  <SafeImage
-                    src={referenceImage}
-                    alt=""
-                    className="w-full h-44 md:h-52 object-contain bg-white"
-                    loading="lazy"
-                  />
-                ) : (
-                  <div className="w-full h-44 md:h-52 flex items-center justify-center text-muted bg-white">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <rect x="3" y="3" width="18" height="18" rx="2" />
-                      <circle cx="8.5" cy="8.5" r="1.5" />
-                      <path d="M21 15l-5-5L5 21" />
-                    </svg>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-4 space-y-2">
-                <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-muted font-semibold">Budget per piece</span>
-                  <span className="text-ink font-extrabold text-right">
-                    {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
-                  </span>
-                </div>
-                <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-muted font-semibold">Quantity required</span>
-                  <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
-                </div>
-                <div className="flex items-start justify-between gap-3 text-[12px]">
-                  <span className="text-muted font-semibold">Expected delivery</span>
-                  <span className="text-ink font-extrabold text-right">
-                    {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
-                  </span>
-                </div>
-              </div>
-
-              {remainingMetaRows.length > 0 ? (
-                <div className="mt-4">
-                  <div className="rounded-2xl border border-pale bg-white">
-                    <div className="px-4 py-3 border-b border-pale">
-                      <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
-                    </div>
-                    <div className="px-4 py-3 space-y-3">
-                      {remainingMetaRows.map((r) => (
-                        <div key={r.key} className="space-y-1">
-                          <p className="text-[12px] text-muted font-semibold">{r.label}</p>
-                          <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">
-                            {r.value}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-
-            {attachments.length > 0 ? (
-              <div className="mt-4">
-                <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Attachments</p>
-                <div className="mt-2 space-y-2">
-                  {attachments.map((u, idx) => {
-                    const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
-                    return (
-                      <a
-                        key={`${u}-${idx}`}
-                        href={u}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
-                        title="Open attachment"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
-                          <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
-                          <span className="truncate">{name}</span>
-                        </span>
-                        <span className="shrink-0 text-muted">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M7 17 17 7" />
-                            <path d="M7 7h10v10" />
-                          </svg>
-                        </span>
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            </div>
             ) : null}
           </div>
+
+          {remainingMetaRows.length > 0 ? (
+            <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-pale">
+                <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {remainingMetaRows.map((r) => (
+                  <div key={r.key} className="space-y-1">
+                    <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                    <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {attachments.length > 0 ? (
+            <div className="rounded-2xl border border-pale bg-white p-5 shadow-sm">
+              <p className="text-[12px] font-extrabold text-ink">Attachments</p>
+              <div className="mt-3 space-y-2">
+                {attachments.map((u, idx) => {
+                  const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+                  return (
+                    <a
+                      key={`${u}-${idx}`}
+                      href={u}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
+                      title="Open attachment"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                        <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
+                        <span className="truncate">{name}</span>
+                      </span>
+                      <span className="shrink-0 text-muted">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M7 17 17 7" />
+                          <path d="M7 7h10v10" />
+                        </svg>
+                      </span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        {/* Right column: 3 cards (search/sort, bids, override/assign) */}
-        <div className="flex-1 flex flex-col gap-4 md:min-h-0">
-          {/* Search/sort */}
-          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <div className="relative flex-1 min-w-0">
+        {/* Right column: Explore DetailsCard, then search/sort + table (not in a card) */}
+        <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-4">
+          {/* Matches vendor ExploreProject DetailsCard */}
+          <div className="rounded-2xl border border-pale bg-white p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[16px] font-extrabold text-ink break-words">
+                  {project?.title || location?.state?.projectTitle || 'Project'}
+                </p>
+                <div className="mt-3 space-y-1.5 text-[12px] text-mid">
+                  <p>
+                    Budget per piece:{' '}
+                    <span className="font-extrabold text-ink">
+                      {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+                    </span>
+                  </p>
+                  <p>
+                    Quantity required: <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
+                  </p>
+                  <p>
+                    Expected delivery:{' '}
+                    <span className="font-extrabold text-ink">
+                      {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
+                {loading && !project
+                  ? '—'
+                  : hasActiveWindow && finishesMs != null
+                    ? formatCountdown(timeLeftMs)
+                    : 'Bid Ended'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-row items-center gap-2 sm:gap-3 w-full min-w-0 sm:justify-between">
+              <div className="flex-1 min-w-0 sm:max-w-md">
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder='Search "Jewellers"'
-                  className="w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
+                  className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid bg-white"
                 />
               </div>
-              <div className="flex items-center gap-2 justify-end shrink-0">
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setSortOpen((v) => !v)}
-                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream inline-flex items-center gap-2"
-                  >
-                    Sort
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
-                  </button>
-
-                  {sortOpen ? (
-                    <div
-                      className="absolute right-0 mt-2 w-56 rounded-2xl border border-pale bg-white shadow-sm overflow-hidden z-20"
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSortBy('amount_asc');
-                          setSortOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                          sortBy === 'amount_asc' ? 'bg-cream text-ink' : 'text-mid'
-                        }`}
-                      >
-                        Low amount
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSortBy('amount_desc');
-                          setSortOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                          sortBy === 'amount_desc' ? 'bg-cream text-ink' : 'text-mid'
-                        }`}
-                      >
-                        High amount
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSortBy('delivery_asc');
-                          setSortOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                          sortBy === 'delivery_asc' ? 'bg-cream text-ink' : 'text-mid'
-                        }`}
-                      >
-                        Low delivery duration
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSortBy('delivery_desc');
-                          setSortOpen(false);
-                        }}
-                        className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                          sortBy === 'delivery_desc' ? 'bg-cream text-ink' : 'text-mid'
-                        }`}
-                      >
-                        High delivery duration
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
+              <div className="relative shrink-0">
                 <button
                   type="button"
-                  onClick={() => loadBids({ activeOnly: hasActiveWindow })}
-                  disabled={bidsLoading || loading}
-                  title="Reload bids"
-                  className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setSortOpen((v) => !v)}
+                  className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
                 >
-                  {bidsLoading || loading ? (
-                    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                      <path d="M21 3v6h-6" />
-                    </svg>
-                  )}
+                  Sort
                 </button>
-              </div>
-            </div>
-          </div>
 
-          {/* Bids list + override */}
-          <div className="bg-white rounded-2xl border border-pale md:flex-1 md:min-h-0 md:overflow-hidden md:flex md:flex-col">
-            <div
-              className="p-4 md:p-6 md:flex-1 md:min-h-0 md:overflow-y-auto md:overflow-y-scroll custom-scrollbar pr-1"
-              style={{ scrollbarGutter: 'stable' }}
-            >
-            {loading || bidsLoading ? (
-              <div className="h-full min-h-[240px] flex items-center justify-center">
-                <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              </div>
-            ) : visibleBids.length === 0 ? (
-              <div className="h-full min-h-[240px] flex items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
-                      <path d="M8 10h8" />
-                      <path d="M8 14h6" />
-                    </svg>
-                  </div>
-                  <p className="mt-3 text-[13px] font-bold text-mid">No bids found</p>
-                  <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
-                </div>
-              </div>
-            ) : (
-              <div ref={cardsWrapRef} className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {visibleBids.map((b) => {
-                  const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
-                  const vendor = b?.vendor ?? null;
-                  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
-                  const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
-                  const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
-                  const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
-                  const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
-                  const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
-                  const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
-                  const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
-                  const badge = assignmentBadge(vendorAsg);
-                  const isAssigned =
-                    vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                  const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
-                  const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
-
-                  return (
-                    <div
-                      key={bidId || vendorId || Math.random()}
-                      data-bid-card="1"
-                      role={canSelectBids && !disableSelect ? 'button' : undefined}
-                      tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
-                      onClick={
-                        canSelectBids && !disableSelect
-                          ? () =>
-                              setSelectedBidId((prev) => {
-                                const next = bidId || null;
-                                if (!next) return null;
-                                return String(prev ?? '') === String(next) ? null : next;
-                              })
-                          : undefined
-                      }
-                      onKeyDown={
-                        canSelectBids && !disableSelect
-                          ? (e) => {
-                              if (e.key !== 'Enter') return;
-                              setSelectedBidId((prev) => {
-                                const next = bidId || null;
-                                if (!next) return null;
-                                return String(prev ?? '') === String(next) ? null : next;
-                              });
-                            }
-                          : undefined
-                      }
-                      className={`rounded-2xl border p-4 bg-white transition-colors ${
-                        canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
-                      } ${
-                        selected
-                          ? 'border-walnut'
-                          : isLowest
-                            ? 'border-green-300 bg-green-50/40'
-                            : canSelectBids && !disableSelect
-                              ? 'border-pale hover:bg-cream'
-                              : 'border-pale'
+                {sortOpen ? (
+                  <div
+                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-pale bg-white shadow-sm overflow-hidden z-20"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('amount_asc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
+                        sortBy === 'amount_asc' ? 'bg-cream text-ink' : 'text-mid'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                            <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                      Low amount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('amount_desc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
+                        sortBy === 'amount_desc' ? 'bg-cream text-ink' : 'text-mid'
+                      }`}
+                    >
+                      High amount
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('delivery_asc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
+                        sortBy === 'delivery_asc' ? 'bg-cream text-ink' : 'text-mid'
+                      }`}
+                    >
+                      Low delivery duration
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSortBy('delivery_desc');
+                        setSortOpen(false);
+                      }}
+                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
+                        sortBy === 'delivery_desc' ? 'bg-cream text-ink' : 'text-mid'
+                      }`}
+                    >
+                      High delivery duration
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+          </div>
+
+          <div className="flex flex-col flex-1 min-w-0">
+            <div className="w-full">
+            {loading || bidsLoading ? (
+              <>
+                <div className="md:hidden rounded-2xl border border-pale bg-white p-10 flex items-center justify-center min-h-[200px]">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-pale bg-walnut/[0.07]">
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colSpan={3} className="px-4 py-12 text-center align-middle bg-cream/20">
+                            <svg
+                              className="animate-spin text-ink inline-block"
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="28"
+                              height="28"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                            >
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : visibleBids.length === 0 ? (
+              <>
+                <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                        <path d="M8 10h8" />
+                        <path d="M8 14h6" />
+                      </svg>
+                    </div>
+                    <p className="mt-3 text-[13px] font-bold text-mid">No bids found</p>
+                    <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
+                  </div>
+                </div>
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[520px] text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-pale bg-walnut/[0.07]">
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colSpan={3} className="px-4 py-10 text-center align-middle bg-cream/20">
+                            <div className="inline-flex flex-col items-center">
+                              <div className="w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
+                                  <path d="M8 10h8" />
+                                  <path d="M8 14h6" />
+                                </svg>
+                              </div>
+                              <p className="mt-3 text-[13px] font-bold text-mid">No bids found</p>
+                              <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div ref={cardsWrapRef}>
+                {/* Mobile: rating-focused cards (no table) */}
+                <div className="md:hidden space-y-3">
+                  {visibleBids.map((b) => {
+                    const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
+                    const vendor = b?.vendor ?? null;
+                    const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                    const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
+                    const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+                    const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
+                    const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
+                    const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
+                    const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
+                    const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
+                    const badge = assignmentBadge(vendorAsg);
+                    const isAssigned =
+                      vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                    const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
+                    const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
+
+                    return (
+                      <div
+                        key={bidId || vendorId || Math.random()}
+                        data-bid-card="1"
+                        role={canSelectBids && !disableSelect ? 'button' : undefined}
+                        tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
+                        onClick={
+                          canSelectBids && !disableSelect
+                            ? () =>
+                                setSelectedBidId((prev) => {
+                                  const next = bidId || null;
+                                  if (!next) return null;
+                                  return String(prev ?? '') === String(next) ? null : next;
+                                })
+                            : undefined
+                        }
+                        onKeyDown={
+                          canSelectBids && !disableSelect
+                            ? (e) => {
+                                if (e.key !== 'Enter') return;
+                                setSelectedBidId((prev) => {
+                                  const next = bidId || null;
+                                  if (!next) return null;
+                                  return String(prev ?? '') === String(next) ? null : next;
+                                });
+                              }
+                            : undefined
+                        }
+                        className={`rounded-2xl border px-5 py-4 bg-white transition-colors ${
+                          canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
+                        } ${
+                          selected
+                            ? 'border-2 border-walnut ring-2 ring-walnut/20'
+                            : isLowest
+                              ? 'border-green-300 bg-green-50/40'
+                              : canSelectBids && !disableSelect
+                                ? 'border-pale hover:bg-cream'
+                                : 'border-pale'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex flex-1 items-start gap-3 pr-1">
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                              <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-extrabold text-ink truncate">{vendorName}</p>
+                              <div className="mt-1.5">
+                                <StarRating value={rating} sizeClass="h-6 w-6" />
+                              </div>
+                              <p className="mt-2 text-[11px] text-muted">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                  </svg>
+                                  Delivery: {daysLabel(days)}
+                                </span>
+                              </p>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-[13px] font-extrabold text-ink truncate">{vendorName}</p>
-                            </div>
-                            <div className="mt-1 text-[12px] text-muted space-y-1">
-                              <span className="flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10" />
-                                  <path d="M12 6v6l4 2" />
-                                </svg>
-                                Delivery In: {daysLabel(days)}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
-                                </svg>
-                                Jeweler Rating: {rating != null ? Number(rating).toFixed(1) : '—'}
-                              </span>
-                            </div>
+                          <div className="shrink-0 text-right pl-1">
+                            <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
+                              {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
                           </div>
                         </div>
 
-                        <div className="shrink-0 text-right">
-                          <p className="text-[14px] font-extrabold text-ink">
-                            {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
-                          </p>
-                          <p className="text-[11px] text-muted font-semibold">Bidding Price</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex items-start justify-between gap-2">
-                        <div className="min-w-0">
+                        <div className="mt-3">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -978,7 +1048,6 @@ export default function ProjectBids() {
                           >
                             View Profile →
                           </button>
-
                           <div className="mt-2 flex flex-wrap items-center gap-2 min-h-[22px]">
                             {isLowest ? (
                               <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
@@ -1007,32 +1076,170 @@ export default function ProjectBids() {
                             ) : null}
                           </div>
                         </div>
-
-                        {canSelectBids ? (
-                          selected ? (
-                            <div className="w-5 h-5 rounded-md border flex items-center justify-center border-walnut bg-walnut mt-0.5">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3">
-                                <path d="M20 6 9 17l-5-5" />
-                              </svg>
-                            </div>
-                          ) : (
-                            <div className="w-5 h-5 mt-0.5" />
-                          )
-                        ) : null}
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Desktop: table rows — outer clips rounded corners; inner scrolls horizontally */}
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-pale bg-walnut/[0.07]">
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleBids.map((b) => {
+                        const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
+                        const vendor = b?.vendor ?? null;
+                        const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                        const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
+                        const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
+                        const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
+                        const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
+                        const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
+                        const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
+                        const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
+                        const badge = assignmentBadge(vendorAsg);
+                        const isAssigned =
+                          vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+                        const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
+                        const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
+
+                        return (
+                          <tr
+                            key={bidId || vendorId || Math.random()}
+                            data-bid-card="1"
+                            role={canSelectBids && !disableSelect ? 'button' : undefined}
+                            tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
+                            onClick={
+                              canSelectBids && !disableSelect
+                                ? () =>
+                                    setSelectedBidId((prev) => {
+                                      const next = bidId || null;
+                                      if (!next) return null;
+                                      return String(prev ?? '') === String(next) ? null : next;
+                                    })
+                                : undefined
+                            }
+                            onKeyDown={
+                              canSelectBids && !disableSelect
+                                ? (e) => {
+                                    if (e.key !== 'Enter') return;
+                                    setSelectedBidId((prev) => {
+                                      const next = bidId || null;
+                                      if (!next) return null;
+                                      return String(prev ?? '') === String(next) ? null : next;
+                                    });
+                                  }
+                                : undefined
+                            }
+                            className={`border-b border-pale last:border-b-0 transition-colors ${
+                              canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
+                            } ${
+                              selected
+                                ? 'bg-walnut/[0.07] shadow-[inset_0_0_0_2px_#6b5545]'
+                                : isLowest
+                                  ? 'bg-green-50/50'
+                                  : canSelectBids && !disableSelect
+                                    ? 'odd:bg-white even:bg-cream/50 hover:bg-cream/80'
+                                    : 'odd:bg-white even:bg-cream/50'
+                            }`}
+                          >
+                            <td className="px-4 py-3 align-top">
+                              <div className="flex items-start gap-3 min-w-0">
+                                <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                                  <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                                </div>
+                                <div className="min-w-0 pt-0.5">
+                                  <p className="text-[13px] font-extrabold text-ink truncate">{vendorName}</p>
+                                  <div className="mt-2">
+                                    <StarRating value={rating} sizeClass="h-5 w-5" />
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openVendorProfile(b);
+                                    }}
+                                    className="mt-2 text-[12px] font-extrabold text-ink hover:underline text-left"
+                                  >
+                                    View Profile →
+                                  </button>
+                                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                    {isLowest ? (
+                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                        Lowest Bid
+                                      </span>
+                                    ) : null}
+                                    {isAssigned ? (
+                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                                        Assigned
+                                      </span>
+                                    ) : null}
+                                    {badge ? (
+                                      <span
+                                        className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                                          badge.tone === 'success'
+                                            ? 'bg-green-50 border-green-100 text-green-700'
+                                            : badge.tone === 'danger'
+                                              ? 'bg-red-50 border-red-100 text-red-700'
+                                              : badge.tone === 'warn'
+                                                ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                                : 'bg-cream border-pale text-mid'
+                                        }`}
+                                      >
+                                        {badge.text}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 align-middle">
+                              <span className="inline-flex items-center gap-2 text-[13px] text-mid">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-6 w-6 shrink-0 text-muted"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  aria-hidden
+                                >
+                                  <circle cx="12" cy="12" r="10" />
+                                  <path d="M12 6v6l4 2" />
+                                </svg>
+                                <span className="font-semibold text-ink">{daysLabel(days)}</span>
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 align-middle text-right">
+                              <p className="text-[14px] font-extrabold text-ink tabular-nums">
+                                {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
+                              </p>
+                              <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
               </div>
             )}
           </div>
 
-            {/* Override/Assign (merged into bids card) */}
+            {/* Override/Assign */}
             {ended && !finishedProject && !overrideLocked ? (
               <div
                 ref={actionBarRef}
                 onMouseDown={(e) => e.stopPropagation()}
-                className="border-t border-pale bg-white p-3 md:p-4 shrink-0 flex items-center justify-end"
+                className="border-t border-pale p-3 md:p-4 shrink-0 flex items-center justify-end"
               >
                 {(() => {
                   const canProceed = Boolean(selectedBidId) && !actionLoading?.override;
@@ -1068,7 +1275,7 @@ export default function ProjectBids() {
                 })()}
               </div>
             ) : null}
-        </div>
+          </div>
 
           {/* Assignment request logs (hide once project is running) */}
           {showAssignmentLogs ? (

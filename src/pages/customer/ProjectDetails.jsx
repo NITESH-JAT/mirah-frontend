@@ -195,6 +195,15 @@ function coerceUrlArray(input) {
   return raw ? [raw] : [];
 }
 
+function isHttpUrl(url) {
+  return /^https?:\/\//i.test(String(url || '').trim());
+}
+
+function isImageUrl(url) {
+  const u = String(url || '').toLowerCase().split('?')[0];
+  return /\.(png|jpg|jpeg|webp|gif|bmp|svg)$/.test(u);
+}
+
 function filenameFromUrl(url, fallback = 'Attachment') {
   const raw = String(url || '').trim();
   if (!raw) return fallback;
@@ -679,11 +688,13 @@ export default function ProjectDetails() {
   }, [primaryAssignment, vendorDetails]);
   const assignedAmount = useMemo(() => assignmentAmountOf(primaryAssignment), [primaryAssignment]);
   const assignedDays = useMemo(() => assignmentDaysOf(primaryAssignment), [primaryAssignment]);
-  const referenceImage = useMemo(
-    () => String(project?.referenceImage ?? project?.reference_image ?? '').trim(),
-    [project],
-  );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
+  const referenceImage = useMemo(() => {
+    const raw = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
+    if (raw && isHttpUrl(raw)) return raw;
+    const img = (attachments || []).find((u) => isHttpUrl(u) && isImageUrl(u));
+    return img || '';
+  }, [project, attachments]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
   const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
   const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
@@ -821,6 +832,19 @@ export default function ProjectDetails() {
     navigate('/customer/projects?tab=assignments');
   }, [PROJECTS_LIST_FILTER_KEY, PROJECTS_TAB_KEY, location?.state, navigate]);
 
+  const canShowTrackNav = useMemo(() => {
+    const k = String(primaryAssignment?.status ?? '').trim().toLowerCase();
+    return k === 'accepted' && Boolean(projectId);
+  }, [primaryAssignment, projectId]);
+
+  const navStateForProject = useCallback(
+    () => ({
+      ...location.state,
+      projectTitle: project?.title ?? location.state?.projectTitle ?? '',
+    }),
+    [location.state, project?.title],
+  );
+
   const pay = async (type) => {
     if (!projectId) return;
     if (payLoading) return;
@@ -885,14 +909,8 @@ export default function ProjectDetails() {
   const amountRange = project?.amountRange ?? project?.amount_range ?? null;
   void amountRange;
 
-  const statusPillText = useMemo(() => {
-    const ps = String(projectStatusLabel ?? '').trim();
-    if (ps && ps !== '—') return ps;
-    return toTitleCase(project?.status || '—');
-  }, [project, projectStatusLabel]);
-
   return (
-    <div className="w-full pb-10 animate-fade-in">
+    <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
       {completeConfirmOpen
         ? (typeof document !== 'undefined'
             ? createPortal(
@@ -982,45 +1000,76 @@ export default function ProjectDetails() {
           </div>
         </div>
       ) : null}
-      <div className="w-full h-[calc(100dvh-110px)] md:h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] flex flex-col md:flex-row md:items-start gap-4">
-        {/* Left column: header + overview/object */}
-        <div className="w-full md:w-[420px] lg:w-[460px] shrink-0 md:self-start">
-          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
-            <div className="flex items-center justify-between gap-2">
-              <button
-                type="button"
-                onClick={goBackToProjects}
-                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream whitespace-nowrap"
-              >
-                Back
-              </button>
-              <span className="px-3 py-2 rounded-full bg-blush text-mid text-[12px] font-extrabold whitespace-nowrap hidden">
-                {statusPillText}
-              </span>
+
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={goBackToProjects}
+          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream inline-flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+        {canShowTrackNav ? (
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/projects/${projectId}/bids`, { state: navStateForProject() })}
+              className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
+            >
+              View Bids
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(`/customer/projects/${projectId}`, { state: navStateForProject() })}
+              className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
+            >
+              Track
+            </button>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="w-full flex flex-col lg:flex-row gap-5 items-start">
+        <div className="w-full lg:w-[400px] shrink-0 lg:self-start space-y-4">
+          <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+            <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
+              {loading ? (
+                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                  </svg>
+                </div>
+              ) : referenceImage ? (
+                <SafeImage
+                  src={referenceImage}
+                  alt={project?.title || location?.state?.projectTitle || 'Project'}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center text-muted bg-white">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </div>
+              )}
             </div>
+          </div>
 
-            {loading ? (
-              <div className="mt-8 flex items-center justify-center">
-                <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                  <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                </svg>
-              </div>
-            ) : !project ? (
-              <div className="mt-6 text-[13px] text-mid">Unable to load project.</div>
-            ) : (
-              <div className="mt-4">
-                <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">
-                  {project?.title || 'Project'}
-                </p>
+          {!loading && !project ? (
+            <div className="rounded-2xl border border-pale bg-white p-5 text-[13px] text-mid shadow-sm">Unable to load project.</div>
+          ) : null}
 
-                {referenceImage ? (
-                  <div className="mt-3">
-                    <div className="rounded-2xl border border-pale bg-cream overflow-hidden">
-                      <SafeImage src={referenceImage} alt="Reference" className="w-full h-56 object-contain bg-white" />
-                    </div>
-                  </div>
-                ) : null}
+          {!loading && project ? (
+            <>
+              <div className="rounded-2xl border border-pale bg-white p-4 md:p-6 shadow-sm">
+                <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">{project?.title || 'Project'}</p>
 
                 <div className="mt-4 space-y-2">
                   <div className="flex items-start justify-between gap-3 text-[12px]">
@@ -1051,22 +1100,18 @@ export default function ProjectDetails() {
                   {vendorFullName ? (
                     <p className="text-[12px] text-muted">
                       Jeweller:{' '}
-                      <span className="font-extrabold text-ink">
-                        {vendorLoading ? 'Loading…' : vendorFullName}
-                      </span>
+                      <span className="font-extrabold text-ink">{vendorLoading ? 'Loading…' : vendorFullName}</span>
                     </p>
                   ) : vendorId ? (
                     <p className="text-[12px] text-muted">
                       Jeweller:{' '}
-                      <span className="font-extrabold text-ink">
-                        {vendorLoading ? 'Loading…' : `#${vendorId}`}
-                      </span>
+                      <span className="font-extrabold text-ink">{vendorLoading ? 'Loading…' : `#${vendorId}`}</span>
                     </p>
                   ) : null}
                 </div>
 
                 {vendorId ? (
-                  <div className="mt-4 grid grid-cols-2 gap-2 w-full">
+                  <div className="mt-4 flex flex-col gap-2 w-full">
                     <button
                       type="button"
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
@@ -1091,77 +1136,6 @@ export default function ProjectDetails() {
                   </div>
                 ) : null}
 
-                {assignedAmount != null || assignedDays != null ? (
-                  <div className="mt-4 rounded-2xl border border-pale bg-cream p-3 space-y-2">
-                    <div className="flex items-start justify-between gap-3 text-[12px]">
-                      <span className="text-muted font-semibold">Agreed amount</span>
-                      <span className="text-ink font-extrabold text-right">
-                        {assignedAmount != null && Number.isFinite(Number(assignedAmount))
-                          ? `₹ ${formatMoney(assignedAmount)}`
-                          : '—'}
-                      </span>
-                    </div>
-                    <div className="flex items-start justify-between gap-3 text-[12px]">
-                      <span className="text-muted font-semibold">Agreed duration</span>
-                      <span className="text-ink font-extrabold text-right">
-                        {assignedDays != null && Number.isFinite(Number(assignedDays))
-                          ? `${Number(assignedDays)} days`
-                          : '—'}
-                      </span>
-                    </div>
-                  </div>
-                ) : null}
-
-                {remainingMetaRows.length > 0 ? (
-                  <div className="mt-4">
-                    <div className="rounded-2xl border border-pale bg-white overflow-hidden">
-                      <div className="px-4 py-3 border-b border-pale">
-                        <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
-                      </div>
-                      <div className="px-4 py-3 space-y-3">
-                        {remainingMetaRows.map((r) => (
-                          <div key={r.key} className="space-y-1">
-                            <p className="text-[12px] text-muted font-semibold">{r.label}</p>
-                            <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-
-                {attachments.length > 0 ? (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Attachments</p>
-                    <div className="mt-2 space-y-2">
-                      {attachments.map((u, idx) => {
-                        const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
-                        return (
-                          <a
-                            key={`${u}-${idx}`}
-                            href={u}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
-                            title="Open attachment"
-                          >
-                            <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
-                              <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
-                              <span className="truncate">{name}</span>
-                            </span>
-                            <span className="shrink-0 text-muted">
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M7 17 17 7" />
-                                <path d="M7 7h10v10" />
-                              </svg>
-                            </span>
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : null}
-
                 {activeBidWindow ? (
                   <div className="mt-4 text-[12px] text-muted">
                     Active auction ends at:{' '}
@@ -1171,12 +1145,61 @@ export default function ProjectDetails() {
                   </div>
                 ) : null}
               </div>
-            )}
-          </div>
+
+              {remainingMetaRows.length > 0 ? (
+                <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+                  <div className="px-5 py-4 border-b border-pale">
+                    <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
+                  </div>
+                  <div className="px-5 py-4 space-y-3">
+                    {remainingMetaRows.map((r) => (
+                      <div key={r.key} className="space-y-1">
+                        <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                        <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {attachments.length > 0 ? (
+                <div className="rounded-2xl border border-pale bg-white p-5 shadow-sm">
+                  <p className="text-[12px] font-extrabold text-ink">Attachments</p>
+                  <div className="mt-3 space-y-2">
+                    {attachments.map((u, idx) => {
+                      const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+                      return (
+                        <a
+                          key={`${u}-${idx}`}
+                          href={u}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
+                          title="Open attachment"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                            <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
+                            <span className="truncate">{name}</span>
+                          </span>
+                          <span className="shrink-0 text-muted">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M7 17 17 7" />
+                              <path d="M7 7h10v10" />
+                            </svg>
+                          </span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
         </div>
 
-        {/* Right column: payments */}
-        <div className="flex-1 md:self-start">
+        {/* Right column: payments (Agreed + Advance + Final as inner cards) */}
+        <div className="w-full lg:flex-1 min-w-0 md:self-start">
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {loading ? (
@@ -1201,7 +1224,34 @@ export default function ProjectDetails() {
                       {invoiceLoading ? 'Downloading…' : 'Download invoice'}
                     </button>
                   </div>
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div
+                    className={`mt-3 grid gap-3 ${
+                      assignedAmount != null || assignedDays != null
+                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                        : 'grid-cols-1 md:grid-cols-2'
+                    }`}
+                  >
+                    {assignedAmount != null || assignedDays != null ? (
+                      <div className="rounded-2xl border border-pale bg-cream/50 p-4">
+                        <p className="text-[12px] font-bold text-ink">Agreed</p>
+                        <div className="mt-3 space-y-2 text-[12px]">
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-muted font-semibold">Agreed amount</span>
+                            <span className="text-ink font-extrabold text-right">
+                              {assignedAmount != null && Number.isFinite(Number(assignedAmount))
+                                ? `₹ ${formatMoney(assignedAmount)}`
+                                : '—'}
+                            </span>
+                          </div>
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-muted font-semibold">Agreed duration</span>
+                            <span className="text-ink font-extrabold text-right">
+                              {assignedDays != null && Number.isFinite(Number(assignedDays)) ? `${Number(assignedDays)} days` : '—'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
                     <div className="rounded-2xl border border-pale p-4">
                       <p className="text-[12px] font-bold text-ink">Advance</p>
                       <p className="mt-1 text-[12px] text-muted">

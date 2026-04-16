@@ -161,7 +161,7 @@ export default function VendorProjects() {
       if (append) setMoreLoading(true);
       else setLoading(true);
       try {
-        const res = await projectService.listAssignments({ page: nextPage, limit: 4, signal: ctrl.signal });
+        const res = await projectService.listAssignments({ page: nextPage, limit: 20, signal: ctrl.signal });
         const list = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
         setItems((prev) => {
           if (!append) return list;
@@ -469,24 +469,35 @@ export default function VendorProjects() {
                     ) : null}
                   </div>
 
-                  <div className="mt-4 flex items-center justify-end gap-2">
+                  <div
+                    className={`mt-4 flex flex-wrap items-center gap-2 ${isPending ? 'justify-between' : 'justify-end'}`}
+                  >
                     {isPending ? (
                       <>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openConfirm('reject', { assignment, project })}
+                            disabled={Boolean(actingId)}
+                            className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => openConfirm('accept', { assignment, project })}
+                            disabled={Boolean(actingId)}
+                            className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                          >
+                            Accept
+                          </button>
+                        </div>
                         <button
                           type="button"
-                          onClick={() => openConfirm('reject', { assignment, project })}
-                          disabled={Boolean(actingId)}
-                          className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
+                          onClick={() => navigate(`/vendor/bids/${projectId}`, { state: { fromProjectsTab: tab } })}
+                          className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-ink hover:bg-cream shrink-0"
                         >
-                          Reject
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => openConfirm('accept', { assignment, project })}
-                          disabled={Boolean(actingId)}
-                          className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
-                        >
-                          Accept
+                          View Bids
                         </button>
                       </>
                     ) : isAccepted ? (

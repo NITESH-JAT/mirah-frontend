@@ -155,7 +155,6 @@ export default function DashboardLayout() {
   const isVendorExplorePage = path.includes('/vendor/explore');
   const isVendorBidsPage = path.includes('/vendor/bids');
   const isVendorProjectsPage = path.includes('/vendor/projects');
-  const isVendorProjectsListPage = path === '/vendor/projects';
   const isShoppingPage = path.includes('/customer/shopping');
   const isShoppingListPage = path === '/customer/shopping';
   const isCartPage = path.includes('/customer/cart');
@@ -164,6 +163,8 @@ export default function DashboardLayout() {
   const isCustomerOrdersListPage = path === '/customer/orders';
   const isProjectsPage = path.includes('/customer/projects');
   const isCustomerProjectsListPage = path === '/customer/projects';
+  /** Nested routes (detail, bids, etc.) — match vendor Explore: no top padding on scroll area; page sets pt. */
+  const isCustomerProjectDetailPage = path.startsWith('/customer/projects/');
   const isVendorProfileViewPage = path.startsWith('/customer/vendors/');
   const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
   const kycStatus = String(currentUser?.kyc?.status || '').toLowerCase();
@@ -814,10 +815,11 @@ export default function DashboardLayout() {
             isMessagesPage
               ? 'flex min-h-0 flex-col overflow-hidden p-0'
               : 'overflow-y-auto ' +
-                (isShoppingListPage ||
+                (                isShoppingListPage ||
                 isCustomerProjectsListPage ||
+                isCustomerProjectDetailPage ||
                 isCustomerOrdersListPage ||
-                isVendorProjectsListPage ||
+                isVendorProjectsPage ||
                 isVendorExplorePage ||
                 isVendorBidsPage ||
                 isFaqPage

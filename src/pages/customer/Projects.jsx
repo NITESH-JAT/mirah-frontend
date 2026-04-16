@@ -1619,17 +1619,6 @@ export default function Projects() {
     setVendorReviewOpen(true);
   };
 
-  const goToTrack = (id) => {
-    if (!id) return;
-    try {
-      sessionStorage.setItem(PROJECTS_TAB_KEY, 'list');
-      sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, String(listFilter || 'all'));
-    } catch {
-      // ignore
-    }
-    navigate(`/customer/projects/${id}`, { state: { fromProjectsTab: 'list', fromListFilter: listFilter || 'all' } });
-  };
-
   const closeVendorReview = () => {
     if (vendorReviewDraft?.submitting) return;
     setVendorReviewOpen(false);
@@ -1978,8 +1967,6 @@ export default function Projects() {
                       const existingReview = vendorReviewOf(p);
                       const hasVendorReview = Boolean(p?.hasVendorReview) || Boolean(existingReview);
                       const primaryAssignment = primaryAssignmentOf(p);
-                      const assignmentStatusKey = String(primaryAssignment?.status ?? '').trim().toLowerCase();
-                      const canTrack = assignmentStatusKey === 'accepted' && Boolean(id);
                       const reviewVendorId =
                         assignmentVendorIdOf(primaryAssignment) ??
                         existingReview?.vendorId ??
@@ -2089,16 +2076,6 @@ export default function Projects() {
                                     className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                                   >
                                     {hasVendorReview ? 'Update review' : 'Review Jeweller'}
-                                  </button>
-                                ) : null}
-
-                                {canTrack ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => goToTrack(id)}
-                                    className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-semibold text-ink hover:bg-cream"
-                                  >
-                                    Track
                                   </button>
                                 ) : null}
 
@@ -2277,15 +2254,6 @@ export default function Projects() {
                               <p className="hidden sm:block text-[12px] text-muted text-right">
                                 {formatDateTime(when)}
                               </p>
-                            ) : null}
-                            {status === 'accepted' && pid ? (
-                              <button
-                                type="button"
-                                onClick={() => navigate(`/customer/projects/${pid}`)}
-                                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-ink hover:bg-cream"
-                              >
-                                Track
-                              </button>
                             ) : null}
                           </div>
                         </div>

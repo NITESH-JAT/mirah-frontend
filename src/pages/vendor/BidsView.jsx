@@ -242,6 +242,47 @@ function customerIdOf(project, details) {
   return c?.id ?? c?._id ?? p?.customerId ?? p?.customer_id ?? null;
 }
 
+function customerNameOf(project, details) {
+  const p = project ?? {};
+  const d = details ?? {};
+  const c =
+    p?.customer ??
+    p?.customerSummary ??
+    p?.user ??
+    d?.customer ??
+    d?.customerSummary ??
+    d?.data?.customer ??
+    null;
+  const joined = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`.trim();
+  const name = c?.fullName ?? c?.name ?? joined ?? null;
+  const trimmed = typeof name === 'string' ? name.trim() : name;
+  return trimmed ? trimmed : null;
+}
+
+function bidStableId(b) {
+  return b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? null;
+}
+
+function coerceAssignments(input) {
+  const raw = input ?? [];
+  return Array.isArray(raw) ? raw.filter(Boolean) : raw ? [raw] : [];
+}
+
+function assignmentIdOfRecord(a) {
+  return a?.id ?? a?._id ?? a?.assignmentId ?? a?.assignment_id ?? null;
+}
+
+function assignmentVendorIdFromRecord(a) {
+  return a?.vendorId ?? a?.vendor_id ?? a?.vendor?.id ?? a?.vendor?._id ?? null;
+}
+
+function isAssignmentRowActive(a) {
+  if (a?.isActive === undefined && a?.is_active === undefined) return true;
+  const active = a?.isActive ?? a?.is_active ?? false;
+  if (typeof active === 'boolean') return active;
+  return String(active).trim().toLowerCase() === 'true';
+}
+
 export default function VendorBidsView() {
   const { id } = useParams();
   const projectId = id;
@@ -297,6 +338,9 @@ export default function VendorBidsView() {
   const [cancellingId, setCancellingId] = useState(null);
   const [cancelModalOpen, setCancelModalOpen] = useState(false);
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
+  const [assignmentConfirmOpen, setAssignmentConfirmOpen] = useState(false);
+  const [assignmentConfirmType, setAssignmentConfirmType] = useState(null);
+  const [assignmentActing, setAssignmentActing] = useState(false);
 
   const project = details?.project ?? details?.data?.project ?? details ?? null;
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
@@ -306,12 +350,71 @@ export default function VendorBidsView() {
     activeBidWindow?.finishing_at ??
     null;
   const finishesMs = finishingAt ? new Date(finishingAt).getTime() : null;
+  const hasActiveWindow = Boolean(activeBidWindow);
   const timeLeftMs = finishesMs != null ? Math.max(0, finishesMs - nowTs) : null;
   const bidEnded = timeLeftMs != null ? timeLeftMs <= 0 : false;
   const isActive = Boolean(activeBidWindow) && !bidEnded;
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
+
+  const assignments = useMemo(() => {
+    const raw =
+      project?.assignments ??
+      project?.assignmentRequests ??
+      project?.projectAssignments ??
+      details?.assignments ??
+      details?.assignmentRequests ??
+      details?.projectAssignments ??
+      details?.data?.assignments ??
+      details?.data?.assignmentRequests ??
+      details?.data?.projectAssignments ??
+      details?.project?.assignments ??
+      details?.project?.assignmentRequests ??
+      details?.project?.projectAssignments ??
+      [];
+    return coerceAssignments(raw);
+  }, [details, project]);
+
+  const myPendingAssignment = useMemo(() => {
+    if (!myVendorId) return null;
+    return (
+      assignments.find(
+        (a) =>
+          String(assignmentVendorIdFromRecord(a) ?? '') === String(myVendorId) &&
+          String(a?.status ?? '').trim().toLowerCase() === 'pending' &&
+          isAssignmentRowActive(a),
+      ) ?? null
+    );
+  }, [assignments, myVendorId]);
+
+  /** 'accepted' | 'rejected' | null — for badges on the current vendor's row (same slot as Winning). */
+  const myAssignmentOutcomeBadge = useMemo(() => {
+    if (!myVendorId) return null;
+    const mine = assignments.filter(
+      (a) => String(assignmentVendorIdFromRecord(a) ?? '') === String(myVendorId),
+    );
+    if (
+      mine.some(
+        (a) =>
+          String(a?.status ?? '').trim().toLowerCase() === 'pending' && isAssignmentRowActive(a),
+      )
+    ) {
+      return null;
+    }
+    if (
+      mine.some(
+        (a) =>
+          String(a?.status ?? '').trim().toLowerCase() === 'accepted' && isAssignmentRowActive(a),
+      )
+    ) {
+      return 'accepted';
+    }
+    if (mine.some((a) => String(a?.status ?? '').trim().toLowerCase() === 'rejected')) {
+      return 'rejected';
+    }
+    return null;
+  }, [assignments, myVendorId]);
 
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const referenceImage = useMemo(
@@ -363,6 +466,8 @@ export default function VendorBidsView() {
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
+  const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
+  const winningBidId = useMemo(() => bidStableId(winningBid), [winningBid]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -474,6 +579,34 @@ export default function VendorBidsView() {
     }
   };
 
+  const openAssignmentConfirm = (type) => {
+    if (!myPendingAssignment || assignmentActing) return;
+    setAssignmentConfirmType(type);
+    setAssignmentConfirmOpen(true);
+  };
+
+  const confirmAssignmentDecision = async () => {
+    const id = assignmentIdOfRecord(myPendingAssignment);
+    if (!id || !assignmentConfirmType || assignmentActing) return;
+    setAssignmentActing(true);
+    try {
+      if (assignmentConfirmType === 'accept') {
+        await projectService.acceptAssignment(id);
+        addToast('Assignment accepted.', 'success');
+      } else {
+        await projectService.rejectAssignment(id);
+        addToast('Assignment rejected.', 'success');
+      }
+      setAssignmentConfirmOpen(false);
+      setAssignmentConfirmType(null);
+      await load();
+    } catch (e) {
+      addToast(e?.message || 'Action failed', 'error');
+    } finally {
+      setAssignmentActing(false);
+    }
+  };
+
   const submitBid = async () => {
     if (bidSubmitting || !projectId || bidEnded) return;
     const price = Number(bidForm.price);
@@ -508,188 +641,220 @@ export default function VendorBidsView() {
     navigate('/vendor/messages', { state: { openRecipientId: customerId } });
   }, [customerId, navigate]);
 
-  if (loading && !details) {
-    return (
-      <div className="w-full min-h-[calc(100vh-260px)] flex items-center justify-center">
-        <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-          <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-        </svg>
-      </div>
-    );
-  }
-
-  if (!details && !loading) {
-    return (
-      <div className="w-full py-8">
-        <button
-          type="button"
-          onClick={goBack}
-          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
-        >
-          Back
-        </button>
-        <p className="mt-4 text-[14px] text-muted">Project not found.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
-      <div className="w-full flex flex-col lg:flex-row gap-4">
-        {/* Left: project card */}
-        <div className="w-full md:w-[360px] lg:w-[400px] shrink-0 md:self-start">
-          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
-            <div className="flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={goBack}
-                className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
-              >
-                Back
-              </button>
-            </div>
-
-            <div className="mt-4">
-              <p className="text-[16px] font-extrabold text-ink break-words">{project?.title ?? 'Project'}</p>
-            </div>
-
-            {finishesMs != null ? (
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <p className="text-[12px] text-muted font-semibold">Biddings Ends in</p>
-                {isActive ? (
-                  <span className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold tabular-nums">
-                    {formatCountdown(timeLeftMs)}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1.5 rounded-xl bg-cream0 text-white text-[12px] font-extrabold">
-                    Bid Ended
-                  </span>
-                )}
-              </div>
-            ) : null}
-
-            <div className="mt-3 rounded-2xl border border-pale bg-cream overflow-hidden">
-              <SafeImage
-                src={thumbnailUrl}
-                alt={project?.title ?? 'Project'}
-                className="w-full h-44 object-contain bg-white"
-              />
-            </div>
-
-            <div className="mt-4 space-y-2">
-              <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-muted font-semibold">Budget per piece</span>
-                <span className="text-ink font-extrabold text-right">
-                  {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
-                </span>
-              </div>
-              <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-muted font-semibold">Quantity required</span>
-                <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
-              </div>
-              <div className="flex items-start justify-between gap-3 text-[12px]">
-                <span className="text-muted font-semibold">Expected delivery</span>
-                <span className="text-ink font-extrabold text-right">
-                  {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
-                </span>
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={chatWithCustomer}
-                disabled={!customerId}
-                className="w-full px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                Send message
-              </button>
-            </div>
-
-            {remainingMetaRows.length > 0 ? (
-              <div className="mt-4">
-                <div className="rounded-2xl border border-pale bg-white overflow-hidden">
-                  <div className="px-4 py-3 border-b border-pale">
-                    <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Details</p>
-                  </div>
-                  <div className="px-4 py-3 space-y-3">
-                    {remainingMetaRows.map((r) => (
-                      <div key={r.key} className="space-y-1">
-                        <p className="text-[12px] text-muted font-semibold">{r.label}</p>
-                        <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {attachments.length > 0 ? (
-              <div className="mt-4">
-                <p className="text-[12px] font-extrabold text-ink">Attachments</p>
-                <div className="mt-3 space-y-2">
-                  {attachments.map((u, idx) => {
-                    const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
-                    return (
-                      <a
-                        key={`${u}-${idx}`}
-                        href={u}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
-                        title="Open attachment"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
-                          <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
-                          <span className="truncate">{name}</span>
-                        </span>
-                        <span className="shrink-0 text-muted">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M7 17 17 7" />
-                            <path d="M7 7h10v10" />
-                          </svg>
-                        </span>
-                      </a>
-                    );
-                  })}
-                </div>
-              </div>
+  const DetailsCard = ({ className = '' }) => (
+    <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[16px] font-extrabold text-ink break-words">{project?.title ?? 'Project'}</p>
+          <div className="mt-3 space-y-1.5 text-[12px] text-mid">
+            <p>
+              Budget per piece:{' '}
+              <span className="font-extrabold text-ink">
+                {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+              </span>
+            </p>
+            <p>
+              Quantity required:{' '}
+              <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
+            </p>
+            <p>
+              Expected delivery:{' '}
+              <span className="font-extrabold text-ink">
+                {preferredDeliveryRaw ? formatDateOnlyFromInput(preferredDeliveryRaw) : '—'}
+              </span>
+            </p>
+            {customerName ? (
+              <p>
+                Customer: <span className="font-extrabold text-ink">{customerName}</span>
+              </p>
             ) : null}
           </div>
         </div>
 
-        {/* Right: Biddings */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4">
-          <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 shrink-0">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-[14px] font-extrabold text-ink">Biddings</p>
+        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
+          {loading && !project
+            ? '—'
+            : hasActiveWindow && finishesMs != null
+              ? formatCountdown(timeLeftMs ?? 0)
+              : 'Bid Ended'}
+        </span>
+      </div>
+    </div>
+  );
+
+  const MetaCard = ({ className = '' }) =>
+    remainingMetaRows.length > 0 ? (
+      <div className={`rounded-2xl border border-pale bg-white overflow-hidden shadow-sm ${className}`}>
+        <div className="px-5 py-4 border-b border-pale">
+          <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          {remainingMetaRows.map((r) => (
+            <div key={r.key} className="space-y-1">
+              <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+              <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    ) : null;
+
+  const AttachmentsCard = ({ className = '' }) =>
+    attachments.length > 0 ? (
+      <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
+        <p className="text-[12px] font-extrabold text-ink">Attachments</p>
+        <div className="mt-3 space-y-2">
+          {attachments.map((u, idx) => {
+            const name = filenameFromUrl(u, `Attachment ${idx + 1}`);
+            return (
+              <a
+                key={`${u}-${idx}`}
+                href={u}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full inline-flex items-center justify-between gap-3 px-3 py-2 rounded-xl border border-pale bg-cream hover:bg-blush transition-colors"
+                title="Open attachment"
+              >
+                <span className="min-w-0 inline-flex items-center gap-2 text-[12px] font-semibold text-mid">
+                  <span className="text-muted shrink-0">{attachmentIcon(name)}</span>
+                  <span className="truncate">{name}</span>
+                </span>
+                <span className="shrink-0 text-muted">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M7 17 17 7" />
+                    <path d="M7 7h10v10" />
+                  </svg>
+                </span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
+
+  return (
+    <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={goBack}
+          className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream inline-flex items-center gap-2"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+          Back
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        </div>
+      ) : !project ? (
+        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Unable to load project.</div>
+      ) : (
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
+          <div className="w-full lg:w-[400px] shrink-0 lg:self-start">
+            <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+              <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
+                {thumbnailUrl ? (
+                  <SafeImage
+                    src={thumbnailUrl}
+                    alt={project?.title ?? 'Project'}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="absolute inset-0 flex items-center justify-center text-muted bg-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="18" height="18" rx="2" />
+                      <circle cx="8.5" cy="8.5" r="1.5" />
+                      <path d="M21 15l-5-5L5 21" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <div className="p-4 border-t border-pale">
+                <div className="flex flex-col gap-2">
+                  {customerId ? (
+                    <button
+                      type="button"
+                      onClick={chatWithCustomer}
+                      className="w-full px-5 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      Send message
+                    </button>
+                  ) : null}
+                  {isActive ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleWithdrawAll}
+                        disabled={withdrawingAll}
+                        className="w-full px-5 py-3 rounded-2xl border border-red-200 text-[13px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setBidModalOpen(true)}
+                        disabled={bidEnded}
+                        className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Update Bid
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+                {bidEnded ? <p className="mt-2 text-[11px] text-muted text-center">Bidding window has ended.</p> : null}
+              </div>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 md:justify-between">
-              <div className="flex-1 min-w-0 md:flex-none md:w-[360px] lg:w-[420px]">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder='Search "Jewellers"'
-                  className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid"
-                />
+            <div className="hidden lg:block mt-4 space-y-4">
+              <MetaCard />
+              <AttachmentsCard />
+            </div>
+          </div>
+
+          <div className="w-full lg:flex-1 min-w-0 space-y-4">
+            <div className="lg:hidden">
+              <DetailsCard />
+              <div className="mt-4">
+                <MetaCard />
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <div className="relative">
+              <div className="mt-4">
+                <AttachmentsCard />
+              </div>
+            </div>
+
+            <div className="hidden lg:block">
+              <DetailsCard />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex flex-row items-center gap-2 sm:gap-3 w-full min-w-0 sm:justify-between">
+                <div className="flex-1 min-w-0 sm:max-w-md">
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder='Search "Jewellers"'
+                    className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid bg-white"
+                  />
+                </div>
+                <div className="relative shrink-0">
                   <button
                     type="button"
                     onClick={() => setSortOpen((v) => !v)}
-                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream inline-flex items-center gap-2"
+                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
                   >
                     Sort
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="m6 9 6 6 6-6" />
-                    </svg>
                   </button>
                   {sortOpen ? (
                     <div
@@ -703,151 +868,342 @@ export default function VendorBidsView() {
                     </div>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={loadBids}
-                  disabled={bidsLoading}
-                  title="Reload bids"
-                  className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50"
-                >
-                  {bidsLoading ? (
-                    <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                      <path d="M21 3v6h-6" />
-                    </svg>
-                  )}
-                </button>
               </div>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-2xl border border-pale flex-1 min-h-0 overflow-hidden">
-            <div className="px-4 md:px-6 py-4 border-b border-pale flex items-center justify-between gap-3">
-              <p className="text-[12px] font-extrabold text-ink">Bids</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                {isActive ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleWithdrawAll}
-                      disabled={withdrawingAll}
-                      className="px-4 py-2 rounded-xl border border-red-200 text-[12px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBidModalOpen(true)}
-                      disabled={bidEnded}
-                      className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
-                    >
-                      Update Bid
-                    </button>
-                  </>
-                ) : null}
-              </div>
-            </div>
-            <div className="p-4 md:p-6 min-h-0 overflow-y-auto">
-              {bidsLoading && bids.length === 0 ? (
-                <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
+              {bidsLoading ? (
+              <>
+                <div className="md:hidden rounded-2xl border border-pale bg-white p-10 flex items-center justify-center min-h-[200px]">
                   <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
                     <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                     <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                   </svg>
                 </div>
-              ) : filteredBids.length === 0 ? (
-                <div className="min-h-[200px] flex items-center justify-center">
-                  <div className="text-center">
-                    <p className="text-[13px] font-bold text-mid">No bids found</p>
-                    <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-pale bg-walnut/[0.07]">
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colSpan={4} className="px-4 py-12 text-center align-middle bg-cream/20">
+                            <svg className="animate-spin text-ink inline-block" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                            </svg>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              </>
+            ) : filteredBids.length === 0 ? (
+              <>
+                <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M9 11l3 3L22 4" />
+                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                      </svg>
+                    </div>
+                    <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bids yet' : 'No bids found'}</p>
+                    <p className="mt-1 text-[12px] text-muted">
+                      {bids.length === 0 ? 'Be the first to place a bid.' : 'Try adjusting search or sorting.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-pale bg-walnut/[0.07]">
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td colSpan={4} className="px-4 py-10 text-center align-middle bg-cream/20">
+                            <div className="inline-flex flex-col items-center">
+                              <div className="w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M9 11l3 3L22 4" />
+                                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                </svg>
+                              </div>
+                              <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bids yet' : 'No bids found'}</p>
+                              <p className="mt-1 text-[12px] text-muted">
+                                {bids.length === 0 ? 'Be the first to place a bid.' : 'Try adjusting search or sorting.'}
+                              </p>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="md:hidden space-y-3">
                   {filteredBids.map((b, idx) => {
-                    const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
+                    const bidId = bidStableId(b);
                     const vendorId = bidVendorIdOf(b);
-                    const vendorName = bidVendorNameOf(b) || 'Jeweller';
-                    const amount = bidPriceOf(b);
+                    const vendorName = bidVendorNameOf(b);
+                    const price = bidPriceOf(b);
                     const days = bidDaysOf(b);
                     const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
-                    const winId = winningBid ? String(winningBid?.id ?? winningBid?.bidEntryId ?? winningBid?.bid_entry_id ?? winningBid?._id ?? '') : '';
-                    const thisId = String(b?.id ?? b?.bidEntryId ?? b?.bid_entry_id ?? b?._id ?? '');
-                    const isWinning = winId && thisId && winId === thisId;
-                    const isLowest = isWinning;
-
+                    const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                    const isWinning =
+                      winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
+                    const cardHighlight =
+                      isMe && myAssignmentOutcomeBadge === 'rejected'
+                        ? 'border-red-200 bg-red-50/35'
+                        : isMe && myAssignmentOutcomeBadge === 'accepted'
+                          ? 'border-emerald-200 bg-emerald-50/40'
+                          : isWinning
+                            ? 'border-green-300 bg-green-50/40'
+                            : isMe
+                              ? 'border-walnut/30 bg-walnut/5'
+                              : 'border-pale';
                     return (
                       <div
-                        key={bidId || idx}
-                        className={`rounded-2xl border p-4 bg-white ${
-                          isMe ? 'border-walnut/30 bg-walnut/5' : isLowest ? 'border-green-300 bg-green-50/40' : 'border-pale'
-                        }`}
+                        key={String(bidId ?? idx)}
+                        className={`rounded-2xl border px-5 py-4 bg-white ${cardHighlight}`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0 flex items-start gap-3">
-                            <div className="w-9 h-9 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                              <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex flex-1 items-start gap-3">
+                            <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                              <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
                             </div>
                             <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-[13px] font-extrabold text-ink truncate">
-                                  {isMe ? `${vendorName || 'Me'} (me)` : vendorName}
-                                </p>
-                              </div>
-                              <div className="mt-1 text-[12px] text-muted space-y-1">
-                                <span className="flex items-center gap-1">
-                                  Delivery In: {daysLabel(days)}
+                              <p className="text-[14px] font-extrabold text-ink truncate">{displayName}</p>
+                              <p className="mt-2 text-[11px] text-muted">
+                                <span className="inline-flex items-center gap-1.5">
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4 shrink-0 text-muted"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                  >
+                                    <circle cx="12" cy="12" r="10" />
+                                    <path d="M12 6v6l4 2" />
+                                  </svg>
+                                  Delivery: {daysLabel(days)}
                                 </span>
-                                <p className="text-[12px] font-extrabold text-ink">
-                                  ₹{amount != null ? formatMoney(amount) : '—'} Bidding Price
-                                </p>
-                              </div>
+                              </p>
                             </div>
                           </div>
+                          <div className="shrink-0 text-right pl-1">
+                            <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
+                              {price != null ? `₹${formatMoney(price)}` : '—'}
+                            </p>
+                            <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
+                          </div>
                         </div>
-                        {(isLowest || isWinning) ? (
-                          <div className="mt-3 flex items-center justify-end gap-2 min-h-[22px]">
-                            {isLowest ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
-                                Lowest
-                              </span>
+                        {isMe && myAssignmentOutcomeBadge === 'rejected' ? (
+                          <div className="mt-3">
+                            <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-red-50 border-red-200 text-red-700">
+                              Rejected
+                            </span>
+                          </div>
+                        ) : isMe && myAssignmentOutcomeBadge === 'accepted' ? (
+                          <div className="mt-3">
+                            <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-emerald-50 border-emerald-200 text-emerald-800">
+                              Accepted
+                            </span>
+                          </div>
+                        ) : isWinning ? (
+                          <div className="mt-3">
+                            <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                              Winning
+                            </span>
+                          </div>
+                        ) : null}
+                        {(isMe && myPendingAssignment) || (isActive && isMe) ? (
+                          <div className="mt-3 flex flex-col items-end gap-2">
+                            {isMe && myPendingAssignment ? (
+                              <div className="flex items-center justify-end gap-2 flex-wrap">
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignmentConfirm('reject')}
+                                  disabled={assignmentActing}
+                                  className="px-3 py-1.5 rounded-lg border border-pale bg-white text-[11px] font-bold text-mid hover:bg-cream disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openAssignmentConfirm('accept')}
+                                  disabled={assignmentActing}
+                                  className="px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50"
+                                >
+                                  Accept
+                                </button>
+                              </div>
                             ) : null}
-                            {isWinning ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
-                                Winning
-                              </span>
+                            {isActive && isMe ? (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelBid(b)}
+                                disabled={cancellingId != null}
+                                className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                              >
+                                {cancellingId != null ? '…' : 'Cancel bid'}
+                              </button>
                             ) : null}
                           </div>
-                        ) : (
-                          <div className="mt-3 min-h-[22px]" />
-                        )}
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <span />
-                          {isActive && isMe ? (
-                            <button
-                              type="button"
-                              onClick={() => handleCancelBid(b)}
-                              disabled={cancellingId != null}
-                              className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
-                            >
-                              {cancellingId != null ? '…' : 'Cancel bid'}
-                            </button>
-                          ) : null}
-                        </div>
+                        ) : null}
                       </div>
                     );
                   })}
                 </div>
-              )}
-            </div>
+
+                <div className="hidden md:block">
+                  <div className="rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[560px] text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-pale bg-walnut/[0.07]">
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filteredBids.map((b, idx) => {
+                            const bidId = bidStableId(b);
+                            const vendorId = bidVendorIdOf(b);
+                            const vendorName = bidVendorNameOf(b);
+                            const price = bidPriceOf(b);
+                            const days = bidDaysOf(b);
+                            const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
+                            const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                            const isWinning =
+                              winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
+                            const rowBg =
+                              isMe && myAssignmentOutcomeBadge === 'rejected'
+                                ? 'bg-red-50/45'
+                                : isMe && myAssignmentOutcomeBadge === 'accepted'
+                                  ? 'bg-emerald-50/40'
+                                  : isWinning
+                                    ? 'bg-green-50/50'
+                                    : '';
+                            return (
+                              <tr
+                                key={String(bidId ?? idx)}
+                                className={`border-b border-pale last:border-b-0 transition-colors ${
+                                  rowBg || 'odd:bg-white even:bg-cream/50'
+                                }`}
+                              >
+                                <td className="px-4 py-3 align-top">
+                                  <div className="flex items-start gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                                      <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="min-w-0 pt-0.5">
+                                      <p className="text-[13px] font-extrabold text-ink truncate">{displayName}</p>
+                                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                        {isMe && myAssignmentOutcomeBadge === 'rejected' ? (
+                                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-red-50 border-red-200 text-red-700">
+                                            Rejected
+                                          </span>
+                                        ) : isMe && myAssignmentOutcomeBadge === 'accepted' ? (
+                                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-emerald-50 border-emerald-200 text-emerald-800">
+                                            Accepted
+                                          </span>
+                                        ) : isWinning ? (
+                                          <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                            Winning
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 align-middle">
+                                  <span className="inline-flex items-center gap-2 text-[13px] text-mid">
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-6 w-6 shrink-0 text-muted"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      aria-hidden
+                                    >
+                                      <circle cx="12" cy="12" r="10" />
+                                      <path d="M12 6v6l4 2" />
+                                    </svg>
+                                    <span className="font-semibold text-ink">{daysLabel(days)}</span>
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  <p className="text-[14px] font-extrabold text-ink tabular-nums">
+                                    {price != null ? `₹${formatMoney(price)}` : '—'}
+                                  </p>
+                                  <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
+                                </td>
+                                <td className="px-4 py-3 align-middle text-right">
+                                  <div className="inline-flex flex-col items-end gap-2">
+                                    {isMe && myPendingAssignment ? (
+                                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                        <button
+                                          type="button"
+                                          onClick={() => openAssignmentConfirm('reject')}
+                                          disabled={assignmentActing}
+                                          className="px-3 py-1.5 rounded-lg border border-pale bg-white text-[11px] font-bold text-mid hover:bg-cream disabled:opacity-50"
+                                        >
+                                          Reject
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => openAssignmentConfirm('accept')}
+                                          disabled={assignmentActing}
+                                          className="px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50"
+                                        >
+                                          Accept
+                                        </button>
+                                      </div>
+                                    ) : null}
+                                    {isActive && isMe ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleCancelBid(b)}
+                                        disabled={cancellingId != null}
+                                        className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                                      >
+                                        {cancellingId != null ? '…' : 'Cancel bid'}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
+      )}
 
       {/* Update bid modal */}
       {bidModalOpen ? (
@@ -1022,6 +1378,60 @@ export default function VendorBidsView() {
                   {cancelSubmitting ? 'Cancelling…' : 'Cancel Bid'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {assignmentConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => {
+            if (!assignmentActing) {
+              setAssignmentConfirmOpen(false);
+              setAssignmentConfirmType(null);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 border-b border-pale">
+              <p className="text-[14px] font-extrabold text-ink">
+                {assignmentConfirmType === 'accept' ? 'Accept assignment?' : 'Reject assignment?'}
+              </p>
+              <p className="mt-1 text-[12px] text-muted">
+                {assignmentConfirmType === 'accept'
+                  ? 'You will accept this assignment request.'
+                  : 'You will decline this assignment request.'}
+              </p>
+            </div>
+            <div className="px-5 py-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (assignmentActing) return;
+                  setAssignmentConfirmOpen(false);
+                  setAssignmentConfirmType(null);
+                }}
+                disabled={assignmentActing}
+                className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmAssignmentDecision}
+                disabled={assignmentActing}
+                className={`px-4 py-2 rounded-xl text-[12px] font-bold disabled:opacity-50 ${
+                  assignmentConfirmType === 'accept'
+                    ? 'bg-walnut text-blush hover:opacity-90'
+                    : 'border border-red-100 bg-red-50 text-red-700 hover:bg-red-100'
+                }`}
+              >
+                {assignmentActing ? 'Working…' : assignmentConfirmType === 'accept' ? 'Accept' : 'Reject'}
+              </button>
             </div>
           </div>
         </div>

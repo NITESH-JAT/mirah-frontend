@@ -255,6 +255,21 @@ function customerNameOf(project, details) {
   return trimmed ? trimmed : null;
 }
 
+function avatarUrlFor(name) {
+  const safe = name || 'Jeweller';
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
+}
+
+function daysLabel(days) {
+  const d = Number(days);
+  if (!Number.isFinite(d) || d <= 0) return '—';
+  return `${d} days`;
+}
+
+function bidStableId(b) {
+  return b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? null;
+}
+
 export default function VendorExploreProject() {
   const { id } = useParams();
   const projectId = id;
@@ -336,6 +351,7 @@ export default function VendorExploreProject() {
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
+  const winningBidId = useMemo(() => bidStableId(winningBid), [winningBid]);
 
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
@@ -583,88 +599,241 @@ export default function VendorExploreProject() {
               <DetailsCard />
             </div>
 
-            <div className="rounded-2xl border border-pale bg-white p-5">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-[12px] font-extrabold text-ink">Bids</p>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={loadBids}
-                    disabled={bidsLoading}
-                    title="Reload bids"
-                    className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {bidsLoading ? (
-                      <svg className="animate-spin" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 12a9 9 0 1 1-2.64-6.36" />
-                        <path d="M21 3v6h-6" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {bidsLoading ? (
-                <div className="mt-4 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-              ) : bids.length === 0 ? (
-                <div className="mt-4 rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="mx-auto w-14 h-14 rounded-2xl bg-white border border-pale flex items-center justify-center text-muted">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M9 11l3 3L22 4" />
-                        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                      </svg>
-                    </div>
-                    <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
-                    <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
+            {bidsLoading ? (
+                <>
+                  <div className="md:hidden rounded-2xl border border-pale bg-white p-10 flex items-center justify-center min-h-[200px]">
+                    <svg
+                      className="animate-spin text-ink"
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
                   </div>
-                </div>
+                  <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[520px] text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-pale bg-walnut/[0.07]">
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td colSpan={3} className="px-4 py-12 text-center align-middle bg-cream/20">
+                              <svg
+                                className="animate-spin text-ink inline-block"
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="28"
+                                height="28"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                              >
+                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                              </svg>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : bids.length === 0 ? (
+                <>
+                  <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
+                    <div className="flex flex-col items-center text-center">
+                      <div className="w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M9 11l3 3L22 4" />
+                          <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                        </svg>
+                      </div>
+                      <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
+                      <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
+                    </div>
+                  </div>
+                  <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[520px] text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-pale bg-walnut/[0.07]">
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr>
+                            <td colSpan={3} className="px-4 py-10 text-center align-middle bg-cream/20">
+                              <div className="inline-flex flex-col items-center">
+                                <div className="w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M9 11l3 3L22 4" />
+                                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                                  </svg>
+                                </div>
+                                <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
+                                <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
+                              </div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
               ) : (
-                <div className="mt-4 space-y-3">
-                  {bids.map((b, idx) => {
-                    const vendorId = bidVendorIdOf(b);
-                    const vendorName = bidVendorNameOf(b);
-                    const price = bidPriceOf(b);
-                    const days = bidDaysOf(b);
-                    const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
-                    const isWinning = winningBid && String(winningBid?.id ?? winningBid?._id ?? idx) === String(b?.id ?? b?._id ?? idx);
-                    return (
-                      <div key={String(b?.id ?? b?._id ?? idx)} className="rounded-2xl border border-pale p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="text-[13px] font-extrabold text-ink truncate">
-                              {isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`}
-                            </p>
-                            <p className="mt-1 text-[12px] text-muted">
-                              Amount:{' '}
-                              <span className="font-extrabold text-ink">{price != null ? `₹ ${formatMoney(price)}` : '—'}</span>
-                              {'  '}•{'  '}
-                              Duration:{' '}
-                              <span className="font-extrabold text-ink">{days != null ? `${days} days` : '—'}</span>
-                            </p>
+                <>
+                  {/* Mobile: cards (aligned with customer View Bids) */}
+                  <div className="md:hidden space-y-3">
+                    {bids.map((b, idx) => {
+                      const bidId = bidStableId(b);
+                      const vendorId = bidVendorIdOf(b);
+                      const vendorName = bidVendorNameOf(b);
+                      const price = bidPriceOf(b);
+                      const days = bidDaysOf(b);
+                      const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
+                      const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                      const isWinning =
+                        winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
+                      return (
+                        <div
+                          key={String(bidId ?? idx)}
+                          className={`rounded-2xl border px-5 py-4 bg-white ${
+                            isWinning ? 'border-green-300 bg-green-50/40' : 'border-pale'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex flex-1 items-start gap-3">
+                              <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                                <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-[14px] font-extrabold text-ink truncate">{displayName}</p>
+                                <p className="mt-2 text-[11px] text-muted">
+                                  <span className="inline-flex items-center gap-1.5">
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-4 w-4 shrink-0 text-muted"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                    >
+                                      <circle cx="12" cy="12" r="10" />
+                                      <path d="M12 6v6l4 2" />
+                                    </svg>
+                                    Delivery: {daysLabel(days)}
+                                  </span>
+                                </p>
+                              </div>
+                            </div>
+                            <div className="shrink-0 text-right pl-1">
+                              <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
+                                {price != null ? `₹${formatMoney(price)}` : '—'}
+                              </p>
+                              <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
+                            </div>
                           </div>
                           {isWinning ? (
-                            <span className="shrink-0 px-3 py-1.5 rounded-full bg-green-50 text-green-700 border border-green-200 text-[11px] font-extrabold">
-                              Winning
-                            </span>
+                            <div className="mt-3">
+                              <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                Winning
+                              </span>
+                            </div>
                           ) : null}
                         </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop: table (aligned with customer View Bids) */}
+                  <div className="hidden md:block">
+                    <div className="rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[520px] text-left border-collapse">
+                          <thead>
+                            <tr className="border-b border-pale bg-walnut/[0.07]">
+                              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {bids.map((b, idx) => {
+                              const bidId = bidStableId(b);
+                              const vendorId = bidVendorIdOf(b);
+                              const vendorName = bidVendorNameOf(b);
+                              const price = bidPriceOf(b);
+                              const days = bidDaysOf(b);
+                              const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
+                              const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                              const isWinning =
+                                winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
+                              return (
+                                <tr
+                                  key={String(bidId ?? idx)}
+                                  className={`border-b border-pale last:border-b-0 transition-colors ${
+                                    isWinning ? 'bg-green-50/50' : 'odd:bg-white even:bg-cream/50'
+                                  }`}
+                                >
+                                  <td className="px-4 py-3 align-top">
+                                    <div className="flex items-start gap-3 min-w-0">
+                                      <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
+                                        <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
+                                      </div>
+                                      <div className="min-w-0 pt-0.5">
+                                        <p className="text-[13px] font-extrabold text-ink truncate">{displayName}</p>
+                                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                          {isWinning ? (
+                                            <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                              Winning
+                                            </span>
+                                          ) : null}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-4 py-3 align-middle">
+                                    <span className="inline-flex items-center gap-2 text-[13px] text-mid">
+                                      <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        className="h-6 w-6 shrink-0 text-muted"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        strokeWidth="2"
+                                        aria-hidden
+                                      >
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M12 6v6l4 2" />
+                                      </svg>
+                                      <span className="font-semibold text-ink">{daysLabel(days)}</span>
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 align-middle text-right">
+                                    <p className="text-[14px] font-extrabold text-ink tabular-nums">
+                                      {price != null ? `₹${formatMoney(price)}` : '—'}
+                                    </p>
+                                    <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
                       </div>
-                    );
-                  })}
-                </div>
+                    </div>
+                  </div>
+                </>
               )}
-            </div>
           </div>
         </div>
       )}
