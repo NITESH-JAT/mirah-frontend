@@ -2306,7 +2306,7 @@ export default function Projects() {
                   className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="relative px-5 pt-4 border-b border-pale flex items-center justify-between gap-3">
+                  <div className="relative px-5 pt-4 pb-6 md:pb-7 border-b border-pale flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-[14px] font-extrabold text-ink">{editingId ? 'Edit Project' : 'Create Project'}</p>
                       <p className="mt-1 text-[12px] text-muted">
@@ -2314,8 +2314,8 @@ export default function Projects() {
                       </p>
                     </div>
 
-                    {/* Desktop: consultation prompt centered in header row */}
-                    <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-4 flex-col items-center text-center gap-2 max-w-[52%]">
+                    {/* Desktop: consultation prompt — top-aligned with “Create Project” (matches header pt-4) */}
+                    <div className="hidden md:flex absolute left-1/2 top-4 -translate-x-1/2 flex-col items-center text-center gap-2 max-w-[52%] z-10 pb-1">
                       <p className="text-[14px] font-extrabold text-ink">
                         Need help bringing your idea together?
                       </p>
@@ -2353,31 +2353,31 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  <div className="px-5 py-3 border-b border-pale bg-white">
+                  <div className="px-4 pt-1 pb-3 md:px-5 md:py-3 border-b border-pale bg-white">
                     {/* Mobile: compact consultation prompt above stepper */}
-                    <div className="md:hidden mb-2 rounded-xl border border-pale bg-white px-3 py-2.5 flex flex-col items-center justify-center text-center gap-1.5">
-                      <p className="text-[12px] font-bold text-ink leading-snug">
+                    <div className="md:hidden mb-2.5 border-b border-pale -mx-4 px-4 pt-2 pb-3 flex flex-col items-center justify-center text-center gap-1.5">
+                      <p className="text-[11px] font-bold text-ink leading-tight">
                         Need help bringing your idea together?
                       </p>
                       <a
                         href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
-                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 transition-opacity"
+                        className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-walnut text-blush text-[10px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
                       </a>
                     </div>
-                    <div className="sm:hidden mb-2 text-[13px] font-extrabold text-ink">
+                    <div className="sm:hidden mb-1.5 text-[12px] font-bold text-ink">
                       {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>
-                    <div className="flex items-center gap-2 w-full md:mt-4">
+                    <div className="flex items-center gap-1.5 md:gap-2 w-full md:mt-4">
                       {stepLabels.map((s, idx) => {
                         const active = createStep === s.id;
                         const done = createStep > s.id;
                         return (
                           <React.Fragment key={String(s.id)}>
-                            <div className="flex items-center gap-2 min-w-0 shrink-0">
+                            <div className="flex items-center gap-1.5 md:gap-2 min-w-0 shrink-0">
                               <div
-                                className={`w-7 h-7 rounded-xl flex items-center justify-center text-[12px] font-extrabold border ${
+                                className={`w-6 h-6 md:w-7 md:h-7 rounded-lg md:rounded-xl flex items-center justify-center text-[11px] md:text-[12px] font-extrabold border ${
                                   active || done ? 'bg-walnut text-blush border-walnut' : 'bg-white text-muted border-pale'
                                 }`}
                               >
@@ -2388,7 +2388,7 @@ export default function Projects() {
                               </div>
                             </div>
                             {idx < stepLabels.length - 1 ? (
-                              <div className={`flex-1 h-[2px] rounded-full ${done ? 'bg-walnut' : 'bg-blush'}`} />
+                              <div className={`flex-1 h-[1.5px] md:h-[2px] rounded-full ${done ? 'bg-walnut' : 'bg-blush'}`} />
                             ) : null}
                           </React.Fragment>
                         );
@@ -3490,8 +3490,8 @@ export default function Projects() {
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 border-b border-pale">
-              <p className="text-[14px] font-extrabold text-ink">Congratulations! Your project is now live.</p>
-              <p className="mt-2 text-[12px] text-mid">
+              <p className="text-[16px] md:text-[17px] font-extrabold text-ink leading-snug">Congratulations! Your project is now live.</p>
+              <p className="mt-3 text-[14px] md:text-[15px] text-mid leading-relaxed">
                 {`Over the next ${Math.max(1, Number(projectLiveDays) || 3)} ${Math.max(1, Number(projectLiveDays) || 3) === 1 ? 'day' : 'days'}, manufacturers will bid on your design. You’re free to review and choose a bid at any time, or wait until all bids are in.`}
               </p>
             </div>
