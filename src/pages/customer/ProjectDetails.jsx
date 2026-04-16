@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { createPortal } from 'react-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
-import SafeImage from '../../components/SafeImage';
+import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
@@ -1043,10 +1043,10 @@ export default function ProjectDetails() {
                   </svg>
                 </div>
               ) : referenceImage ? (
-                <SafeImage
+                <ImageWithFullscreenZoom
                   src={referenceImage}
                   alt={project?.title || location?.state?.projectTitle || 'Project'}
-                  className="absolute inset-0 w-full h-full object-cover"
+                  imageClassName="absolute inset-0 w-full h-full object-cover"
                   loading="lazy"
                 />
               ) : (

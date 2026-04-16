@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
-import SafeImage from '../../components/SafeImage';
+import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
@@ -916,10 +916,10 @@ export default function VendorManageProject() {
             <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
               <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
                 {thumbnailUrl ? (
-                  <SafeImage
+                  <ImageWithFullscreenZoom
                     src={thumbnailUrl}
                     alt={project?.title || 'Project'}
-                    className="absolute inset-0 w-full h-full object-cover"
+                    imageClassName="absolute inset-0 w-full h-full object-cover"
                     loading="lazy"
                   />
                 ) : (

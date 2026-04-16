@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import { getVendorId, vendorSourceText } from '../../utils/productSource';
-import SafeImage from '../../components/SafeImage';
+import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import ProductGridCard from '../../components/customer/ProductGridCard';
 import { formatMoney } from '../../utils/formatMoney';
 
@@ -541,7 +541,11 @@ export default function ProductDetails() {
                     poster={activeImage || undefined}
                   />
                 ) : activeImage ? (
-                  <SafeImage src={activeImage} alt="" className="h-full w-full bg-white object-contain p-2 md:p-3" />
+                  <ImageWithFullscreenZoom
+                    src={activeImage}
+                    alt=""
+                    imageClassName="h-full w-full bg-white object-contain p-2 md:p-3"
+                  />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-muted">
                     <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
