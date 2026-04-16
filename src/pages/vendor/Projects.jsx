@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -76,8 +77,63 @@ function durationDaysOf(project, assignment) {
   return t;
 }
 
+/** Same helpers as ManageProject.jsx for project status label */
+function isFinishedLike(project) {
+  const status = String(project?.status ?? '').trim().toLowerCase();
+  const projectStatus = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
+  return Boolean(project?.isFinished) || status === 'finished' || projectStatus === 'completed';
+}
+
+function normalizePaymentStatus(status, { finishedLike } = {}) {
+  const s = String(status ?? '').trim().toLowerCase();
+  if (s === 'not_applicble') return 'not_applicable';
+  if (finishedLike && (!s || s === 'not_applicable')) return 'paid';
+  return s || '—';
+}
+
+function advanceFinalFromProjectAndRoot(project, rootRow) {
+  const r = rootRow ?? {};
+  const p = project ?? {};
+  return {
+    advancePayment:
+      r?.advancePayment ??
+      r?.advance_payment ??
+      p?.advancePayment ??
+      p?.advance_payment ??
+      r?.data?.advancePayment ??
+      r?.data?.advance_payment ??
+      null,
+    finalPayment:
+      r?.finalPayment ??
+      r?.final_payment ??
+      p?.finalPayment ??
+      p?.final_payment ??
+      r?.data?.finalPayment ??
+      r?.data?.final_payment ??
+      null,
+  };
+}
+
+/** Mirrors ManageProject `projectStatusLabel` */
+function projectStatusLabelLikeManage(project, rootRow) {
+  const { advancePayment, finalPayment } = advanceFinalFromProjectAndRoot(project, rootRow);
+  const finishedLike = isFinishedLike(project);
+  const advanceStatus = normalizePaymentStatus(advancePayment?.status, { finishedLike });
+  const finalStatus = normalizePaymentStatus(finalPayment?.status, { finishedLike });
+  const projectStatusKey = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
+  if (projectStatusKey === 'invoice') {
+    return invoiceProjectStatusLabel(advanceStatus, finalStatus);
+  }
+  if (projectStatusKey === 'qc') {
+    return 'QC';
+  }
+  return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
+}
+
 function badgeForRow(row) {
   const a = row?.assignment ?? null;
+  const project = row?.project ?? null;
+  const rootRow = row?.raw ?? null;
   const status = String(a?.status ?? '').trim().toLowerCase();
   const isActive = a?.isActive ?? a?.is_active ?? null;
   const active = typeof isActive === 'boolean' ? isActive : String(isActive).toLowerCase() === 'true';
@@ -86,7 +142,9 @@ function badgeForRow(row) {
 
   if (overridden) return { text: 'Overridden', tone: 'muted' };
   if (status === 'pending') return { text: 'Pending', tone: 'warn' };
-  if (status === 'accepted') return { text: 'Accepted', tone: 'success' };
+  if (status === 'accepted') {
+    return { text: projectStatusLabelLikeManage(project, rootRow), tone: 'blush' };
+  }
   if (status === 'rejected') return { text: 'Rejected', tone: 'danger' };
   if (status) return { text: toTitleCase(status), tone: 'muted' };
   return null;
@@ -109,7 +167,7 @@ export default function VendorProjects() {
   const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: null });
 
   const [query, setQuery] = useState('');
-  const [tab, setTab] = useState('all'); // all | active | pending | rejected | overridden
+  const [tab, setTab] = useState('all'); // all | active | completed | pending | rejected | overridden
   const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -120,7 +178,7 @@ export default function VendorProjects() {
   const setUrlTab = useCallback(
     (nextTab) => {
       const t = String(nextTab || '').trim().toLowerCase();
-      const normalized = ['all', 'active', 'pending', 'rejected', 'overridden'].includes(t) ? t : 'all';
+      const normalized = ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(t) ? t : 'all';
       try {
         sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, normalized);
       } catch {
@@ -136,7 +194,7 @@ export default function VendorProjects() {
   useEffect(() => {
     try {
       const fromUrl = String(new URLSearchParams(location.search || '').get('tab') || '').toLowerCase();
-      if (['all', 'active', 'pending', 'rejected', 'overridden'].includes(fromUrl)) {
+      if (['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(fromUrl)) {
         setTab(fromUrl);
         try {
           sessionStorage.setItem(VENDOR_PROJECTS_TAB_KEY, fromUrl);
@@ -146,7 +204,7 @@ export default function VendorProjects() {
         return;
       }
       const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
-      const normalized = ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
+      const normalized = ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
       setTab(normalized);
     } catch {
       setTab('all');
@@ -215,6 +273,7 @@ export default function VendorProjects() {
         const isActive = typeof isActiveRaw === 'boolean' ? isActiveRaw : String(isActiveRaw).toLowerCase() === 'true';
         const replacedById = assignment?.replacedById ?? assignment?.replaced_by_id ?? null;
         const overridden = !isActive && replacedById != null;
+        const projectCompleted = isFinishedLike(project);
         return {
           raw: r,
           assignment,
@@ -226,7 +285,8 @@ export default function VendorProjects() {
           status,
           isActive,
           overridden,
-          badge: badgeForRow({ assignment }),
+          projectCompleted,
+          badge: badgeForRow({ assignment, project, raw: r }),
         };
       })
       .filter((x) => x.id != null);
@@ -245,7 +305,10 @@ export default function VendorProjects() {
 
   const visible = useMemo(() => {
     const list = Array.isArray(searched) ? searched : [];
-    if (tab === 'active') return list.filter((x) => x.status === 'accepted' && x.isActive);
+    if (tab === 'active')
+      return list.filter((x) => x.status === 'accepted' && x.isActive && !x.projectCompleted);
+    if (tab === 'completed')
+      return list.filter((x) => x.status === 'accepted' && x.projectCompleted);
     if (tab === 'pending') return list.filter((x) => x.status === 'pending' && x.isActive);
     if (tab === 'rejected') return list.filter((x) => x.status === 'rejected');
     if (tab === 'overridden')
@@ -328,7 +391,7 @@ export default function VendorProjects() {
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
-        <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-0.5">
+        <div className="flex min-w-0 flex-col gap-3 pb-0.5 md:flex-row md:items-center md:justify-between md:gap-4 md:pb-0.5 md:overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 md:w-[420px] md:max-w-[55vw] md:shrink-0">
             <div className="relative min-w-0 flex-1">
               <input
@@ -355,30 +418,33 @@ export default function VendorProjects() {
             </div>
           </div>
 
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-center gap-1.5 border-t border-pale/70 pt-3 md:flex-1 md:flex-nowrap md:justify-end md:border-0 md:pt-0 md:gap-2">
-            {[
-              { id: 'all', label: 'All' },
-              { id: 'active', label: 'Active' },
-              { id: 'pending', label: 'Pending' },
-              { id: 'rejected', label: 'Rejected' },
-              { id: 'overridden', label: 'Overridden' },
-            ].map((t) => {
-              const active = tab === t.id;
-              return (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setUrlTab(t.id)}
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 border-t border-pale/70 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-2 md:flex-1 md:min-w-0 md:justify-end md:border-0 md:pt-0">
+            <div className="flex min-h-0 min-w-0 w-full flex-1 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:min-w-0 md:flex-initial md:max-w-full md:justify-end md:gap-2">
+              {[
+                { id: 'all', label: 'All' },
+                { id: 'active', label: 'Active' },
+                { id: 'completed', label: 'Completed' },
+                { id: 'pending', label: 'Pending' },
+                { id: 'rejected', label: 'Rejected' },
+                { id: 'overridden', label: 'Overridden' },
+              ].map((t) => {
+                const active = tab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setUrlTab(t.id)}
                     className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-3 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-7 md:py-3 md:text-[12px] ${
-                    active
-                      ? 'border-walnut bg-walnut/10 font-bold text-ink'
-                      : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
-                  }`}
-                >
-                  <span className="whitespace-nowrap">{t.label}</span>
-                </button>
-              );
-            })}
+                      active
+                        ? 'border-walnut bg-walnut/10 font-bold text-ink'
+                        : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
+                    }`}
+                  >
+                    <span className="whitespace-nowrap">{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -409,7 +475,7 @@ export default function VendorProjects() {
             const project = row.project || {};
             const assignment = row.assignment || {};
             const projectId = row.id;
-            const badge = badgeForRow({ assignment });
+            const badge = badgeForRow({ assignment, project, raw: row.raw });
             const agreedAmount =
               assignment?.agreedAmount ??
               assignment?.agreed_amount ??
@@ -421,7 +487,9 @@ export default function VendorProjects() {
             const status = String(row.status || '').toLowerCase();
             const isActive = Boolean(row.isActive);
             const isPending = status === 'pending' && isActive;
-            const isAccepted = status === 'accepted' && isActive;
+            const projectCompleted = Boolean(row.projectCompleted);
+            const showManageProject =
+              status === 'accepted' && (isActive || projectCompleted);
             const isRejected = status === 'rejected';
             const isOverridden = Boolean(row.overridden) || ['reassigned', 'replaced', 'overridden'].includes(status);
 
@@ -455,13 +523,15 @@ export default function VendorProjects() {
                     {badge ? (
                       <span
                         className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold border ${
-                          badge.tone === 'success'
-                            ? 'bg-green-50 border-green-100 text-green-700'
-                            : badge.tone === 'danger'
-                              ? 'bg-red-50 border-red-100 text-red-700'
-                              : badge.tone === 'warn'
-                                ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                : 'bg-cream border-pale text-mid'
+                          badge.tone === 'blush'
+                            ? 'bg-blush border-pale text-mid'
+                            : badge.tone === 'success'
+                              ? 'bg-green-50 border-green-100 text-green-700'
+                              : badge.tone === 'danger'
+                                ? 'bg-red-50 border-red-100 text-red-700'
+                                : badge.tone === 'warn'
+                                  ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                  : 'bg-cream border-pale text-mid'
                         }`}
                       >
                         {badge.text}
@@ -500,7 +570,7 @@ export default function VendorProjects() {
                           View Bids
                         </button>
                       </>
-                    ) : isAccepted ? (
+                    ) : showManageProject ? (
                       <button
                         type="button"
                         onClick={() => navigate(`/vendor/projects/${projectId}`, { state: { fromProjectsTab: tab } })}

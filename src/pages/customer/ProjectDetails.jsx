@@ -5,6 +5,7 @@ import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -465,9 +466,7 @@ export default function ProjectDetails() {
   );
   const projectStatusLabel = useMemo(() => {
     if (projectStatusKey === 'invoice') {
-      if (advanceStatus === 'due') return 'Invoice (Advance)';
-      if (finalStatus === 'due') return 'Invoice (Final)';
-      return 'Invoice';
+      return invoiceProjectStatusLabel(advanceStatus, finalStatus);
     }
     return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
   }, [advanceStatus, finalStatus, project, projectStatusKey]);

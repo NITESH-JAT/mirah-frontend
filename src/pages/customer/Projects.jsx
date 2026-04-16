@@ -4,6 +4,7 @@ import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
 function toTitleCase(text) {
   return String(text || '')
@@ -270,9 +271,7 @@ function projectStatusCardLabel(p) {
   if (adv === 'paid') return 'Advance Paid';
 
   if (projectStatus === 'invoice') {
-    if (adv === 'due') return 'Invoice (Advance)';
-    if (fin === 'due') return 'Invoice (Final)';
-    return 'Invoice';
+    return invoiceProjectStatusLabel(adv, fin);
   }
 
   if (projectStatus === 'paid') {

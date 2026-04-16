@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -480,9 +481,7 @@ export default function VendorManageProject() {
 
   const projectStatusLabel = useMemo(() => {
     if (projectStatusKey === 'invoice') {
-      if (advanceStatus === 'due') return 'Invoice (Advance)';
-      if (finalStatus === 'due') return 'Invoice (Final)';
-      return 'Invoice';
+      return invoiceProjectStatusLabel(advanceStatus, finalStatus);
     }
     if (projectStatusKey === 'qc') {
       return 'QC';
@@ -697,12 +696,12 @@ export default function VendorManageProject() {
   const goBack = useCallback(() => {
     const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
     const t =
-      ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stateTab)
+      ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(stateTab)
         ? stateTab
         : (() => {
             try {
               const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
-              return ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
+              return ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : 'all';
             } catch {
               return 'all';
             }
@@ -1277,7 +1276,7 @@ export default function VendorManageProject() {
                           if (k === 'paid_final') return 'Final Paid';
                           if (k === 'payment_settlement') return 'Payment Settlement';
                           if (k === 'qc') return 'Mirah QC Checks';
-                          if (k === 'invoice') return 'Invoice';
+                          if (k === 'invoice') return invoiceProjectStatusLabel(advanceStatus, finalStatus);
                           return s?.label ?? toTitleCase(key);
                         })();
                         const label = String(labelRaw ?? key).toUpperCase();

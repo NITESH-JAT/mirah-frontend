@@ -305,12 +305,12 @@ export default function VendorBidsView() {
   const goBack = useCallback(() => {
     const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
     const t =
-      ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stateTab)
+      ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(stateTab)
         ? stateTab
         : (() => {
             try {
               const stored = String(sessionStorage.getItem(VENDOR_PROJECTS_TAB_KEY) || '').trim().toLowerCase();
-              return ['all', 'active', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : null;
+              return ['all', 'active', 'completed', 'pending', 'rejected', 'overridden'].includes(stored) ? stored : null;
             } catch {
               return null;
             }
