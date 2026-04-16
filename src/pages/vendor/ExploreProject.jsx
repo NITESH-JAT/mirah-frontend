@@ -138,10 +138,35 @@ function parseLocalDateInput(value) {
   return d;
 }
 
+function startOfLocalDay(date) {
+  const d = date instanceof Date ? new Date(date.getTime()) : new Date(date);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 function formatDateOnlyFromInput(value) {
   const d = parseLocalDateInput(value);
   if (!d) return String(value || '').trim() || '—';
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+}
+
+function bidPlaceholderBudgetAmount(budgetPerPieceRaw) {
+  const n = Number(String(budgetPerPieceRaw ?? '').replace(/,/g, '').trim());
+  if (Number.isFinite(n) && n > 0) return Math.round(n);
+  return 700000;
+}
+
+function bidPlaceholderDeliveryDays(preferredDeliveryRaw) {
+  const raw = String(preferredDeliveryRaw || '').trim();
+  if (!raw) return 23;
+  const base = startOfLocalDay(new Date());
+  const target = parseLocalDateInput(raw);
+  if (!base || !target) return 23;
+  const diffMs = startOfLocalDay(target)?.getTime() - base.getTime();
+  const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  if (!Number.isFinite(diffDays) || diffDays <= 0) return 23;
+  return diffDays;
 }
 
 function bidVendorIdOf(b) {
@@ -474,7 +499,7 @@ export default function VendorExploreProject() {
     ) : null;
 
   return (
-    <div className="w-full pb-10 animate-fade-in">
+    <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
       <div className="flex items-center justify-between gap-3 mb-4">
         <button
           type="button"
@@ -675,12 +700,12 @@ export default function VendorExploreProject() {
             <div className="px-5 py-4">
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount (₹)</p>
                   <input
                     type="number"
                     value={bidForm.price}
                     onChange={(e) => setBidForm((p) => ({ ...(p || {}), price: e.target.value }))}
-                    placeholder="e.g. 80000"
+                    placeholder={`Budget is ₹ ${formatMoney(bidPlaceholderBudgetAmount(budgetPerPieceRaw))}`}
                     inputMode="numeric"
                     min="0"
                     step="1"
@@ -693,7 +718,7 @@ export default function VendorExploreProject() {
                     type="number"
                     value={bidForm.daysToComplete}
                     onChange={(e) => setBidForm((p) => ({ ...(p || {}), daysToComplete: e.target.value }))}
-                    placeholder="e.g. 10"
+                    placeholder={`Preferred delivery in ${bidPlaceholderDeliveryDays(preferredDeliveryRaw)} days`}
                     inputMode="numeric"
                     min="1"
                     step="1"
