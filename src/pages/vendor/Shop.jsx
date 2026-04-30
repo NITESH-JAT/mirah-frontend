@@ -1083,13 +1083,13 @@ export default function VendorShop() {
                 <>
                   <div className="rounded-2xl border border-pale p-4">
                     <p className="text-[12px] font-extrabold text-ink">Items</p>
-                    <div className="mt-3 space-y-3">
+                    <div className="mt-3 divide-y divide-pale">
                       {extractOrderItems(orderDetails).map((it, idx) => {
                         const qty = itemQty(it);
                         const price = itemUnitPrice(it);
                         const lineTotal = qty * price;
                         return (
-                          <div key={String(it?.id ?? it?._id ?? idx)} className="rounded-2xl border border-pale bg-white p-4">
+                          <div key={String(it?.id ?? it?._id ?? idx)} className="py-3 first:pt-0">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>

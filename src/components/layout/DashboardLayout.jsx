@@ -9,6 +9,7 @@ import { cartService } from '../../services/cartService';
 import SafeImage from '../SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
 import { formatMoney } from '../../utils/formatMoney';
+import { resolveNotificationHref } from '../../utils/notificationNavigation';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -679,21 +680,36 @@ export default function DashboardLayout() {
                         const message = n.message ?? n.body ?? n.text ?? '';
                         const isRead = Boolean(n.isRead ?? n.read ?? n.readAt);
                         const when = formatNoticeDateTime(n);
+                        const navTarget = resolveNotificationHref(n, { isVendor });
                         return (
                           <div
                             key={String(id)}
-                            className="w-full text-left px-4 py-3 border-b border-pale hover:bg-cream transition-colors"
+                            className={`w-full text-left px-4 py-3 border-b border-pale hover:bg-cream transition-colors ${
+                              navTarget || !isRead ? 'cursor-pointer' : 'cursor-default'
+                            }`}
                             role="button"
                             tabIndex={0}
+                            aria-label={
+                              navTarget
+                                ? `${title}. Opens linked page.`
+                                : isRead
+                                  ? title
+                                  : `${title}. Mark as read.`
+                            }
                             onClick={async () => {
                               if (notifLoading) return;
-                              if (isRead || !id) return;
                               try {
-                                await notificationService.markRead(id);
-                                await refreshUnreadCount();
-                                await loadNotifications();
+                                if (navTarget) {
+                                  navigate(navTarget);
+                                  setShowNotifications(false);
+                                }
+                                if (!isRead && id) {
+                                  await notificationService.markRead(id);
+                                  await refreshUnreadCount();
+                                  await loadNotifications();
+                                }
                               } catch (err) {
-                                addToast(err?.message || 'Failed to mark notification as read', 'error');
+                                addToast(err?.message || 'Failed to update notification', 'error');
                               }
                             }}
                             onKeyDown={(e) => {

@@ -162,6 +162,12 @@ Even after KYC is accepted, a vendor may have `canSellProducts=false`.
   - Product approved/rejected
   - KYC approved/rejected
   - Order/project lifecycle notifications (existing backend behavior)
+- **Tap / deep link (customer & vendor apps)**
+  - List payload includes `data`. When `data.page_to_navigate` is set, it matches a **known app path** (often a pattern with `:id` / `:vendorId` segments).
+  - Replace dynamic segments using `data.page_navigation_params` (keys match the `:param` names). Example: slug `/customer/projects/:id` with params `{ "id": 42 }` → `/customer/projects/42` in Next/React Router after encoding as needed.
+  - Backend stores these keys on all relevant system-generated notifications and validates admin-composed payloads. Source of truth for slugs lives in backend `notificationNavigationPages` (admin dashboard loads options via `GET /api/admin/notification-navigation-pages`).
+- **Canonical customer routes** (post-login): `/customer/shopping`, `/customer/shopping/:id`, `/customer/shopping/:id/similar`, `/customer/cart`, `/customer/checkout`, `/customer/orders`, `/customer/orders/success`, `/customer/profile`, `/customer/faq`, `/customer/projects`, `/customer/projects/:id`, `/customer/projects/:id/bids`, `/customer/vendors/:vendorId`, `/customer/messages` (visiting `/customer` redirects to `/customer/shopping`).
+- **Canonical vendor routes** (post-login): `/vendor/shop`, `/vendor/explore`, `/vendor/explore/:id`, `/vendor/bids`, `/vendor/bids/:id`, `/vendor/projects`, `/vendor/projects/:id`, `/vendor/kyc`, `/vendor/profile`, `/vendor/reviews`, `/vendor/diamond-guidelines`, `/vendor/faq`, `/vendor/messages`.
 
 ### 2.2.6 Customer commerce: browse → cart → checkout → order tracking
 
@@ -402,6 +408,7 @@ APIs:
 - `GET /api/user/notifications?page&limit&unreadOnly`
 - `GET /api/user/notifications/unread-count`
 - `PATCH /api/user/notifications/:id/read`
+- Optional on each item from the API: `data.page_to_navigate`, `data.page_navigation_params` for in-app routing (see §2.2.5 canonical paths).
 
 (See `src/routes/user/notification/index.ts`.)
 
@@ -1081,6 +1088,8 @@ Notifications:
 - `PATCH /api/user/notifications/read-all`
 
 UI must keep an unread badge in navbar and refresh after marking read.
+
+**Deep links**: notification `data` may include `page_to_navigate` and `page_navigation_params` (see §2.2.5). Tapping a row should `router.push` the resolved path for the current app (customer vs vendor).
 
 ### 12.4.1 System (vendor-only config)
 
