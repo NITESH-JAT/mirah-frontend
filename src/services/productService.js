@@ -98,14 +98,36 @@ export const productService = {
       .filter(Boolean);
   },
 
+  /**
+   * PRD: returns full-catalog `totalProducts` and `categories: { category, image }[]`
+   * (`image` is admin URL or null). Backward compatible if the list is plain strings.
+   */
   listCustomerCategories: async ({ signal } = {}) => {
     const res = await api.get('/api/user/product/customer/categories', { signal });
     const data = unwrap(res) || {};
-    const items = data?.categories ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
-    return coerceArray(items)
-      .map((x) => (typeof x === 'string' ? x : x?.name ?? x?.label ?? ''))
-      .map((x) => String(x || '').trim())
+    const totalRaw =
+      data?.totalProducts ?? data?.total_products ?? data?.totalCatalog ?? data?.total ?? null;
+    const totalProducts =
+      totalRaw != null && totalRaw !== '' && !Number.isNaN(Number(totalRaw)) ? Number(totalRaw) : null;
+
+    const items = data?.categories ?? data?.items ?? data?.results ?? data?.data ?? [];
+    const arr = coerceArray(items);
+    const categories = arr
+      .map((x) => {
+        if (typeof x === 'string') {
+          const category = String(x || '').trim();
+          return category ? { category, image: null } : null;
+        }
+        const category = String(x?.category ?? x?.name ?? x?.label ?? '').trim();
+        if (!category) return null;
+        const imageRaw = x?.image ?? x?.imageUrl ?? x?.image_url ?? x?.thumbnail ?? null;
+        const image =
+          imageRaw != null && String(imageRaw).trim() ? String(imageRaw).trim() : null;
+        return { category, image };
+      })
       .filter(Boolean);
+
+    return { totalProducts, categories };
   },
 
   getCustomerProduct: async (id, { signal } = {}) => {
