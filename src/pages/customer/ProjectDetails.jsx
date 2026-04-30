@@ -867,7 +867,7 @@ export default function ProjectDetails() {
         key: parsed.keyId,
         order_id: parsed.orderId,
         currency: parsed.currency || 'INR',
-        name: 'Mirah',
+        name: 'Arviah',
         description: type === 'advance' ? 'Advance payment' : 'Final payment',
         modal: {
           ondismiss: () => {
@@ -1437,7 +1437,7 @@ export default function ProjectDetails() {
                               if (k === 'invoice_final') return 'Invoice (Final)';
                               if (k === 'paid_advance') return 'Advance Paid';
                               if (k === 'paid_final') return 'Final Paid';
-                              if (k === 'qc') return 'Mirah QC Checks';
+                              if (k === 'qc') return 'Arviah QC Checks';
                               if (k === 'invoice') return projectStatusLabel;
                               return s?.label ?? toTitleCase(key);
                             })();

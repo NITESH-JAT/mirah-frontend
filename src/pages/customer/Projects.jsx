@@ -2288,7 +2288,7 @@ export default function Projects() {
                         Need help bringing your idea together?
                       </p>
                       <a
-                        href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
+                        href="mailto:sales@arviah.com?subject=Book%20a%20Consultation"
                         className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
@@ -2328,7 +2328,7 @@ export default function Projects() {
                         Need help bringing your idea together?
                       </p>
                       <a
-                        href="mailto:sales@mirah.com?subject=Book%20a%20Consultation"
+                        href="mailto:sales@arviah.com?subject=Book%20a%20Consultation"
                         className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-walnut text-blush text-[10px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation

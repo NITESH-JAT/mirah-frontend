@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 
 const PERSONAL_INFO_BLOCK_TOAST =
-  'For your safety and to ensure a secure transaction, sharing personal contact details (such as phone numbers or addresses) is not allowed on Mirah. Please keep all communication within the platform.';
+  'For your safety and to ensure a secure transaction, sharing personal contact details (such as phone numbers or addresses) is not allowed on Arviah. Please keep all communication within the platform.';
 
 function fullName(u) {
   if (!u) return '';
@@ -913,7 +913,7 @@ export default function Messages() {
               <div className="px-5 py-3">
                 <div className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-[12px] text-red-700 flex items-start justify-between gap-3">
                   <p>
-                    <span className="font-semibold">For safety, keep all communication in Mirah Chat.</span>{' '}
+                    <span className="font-semibold">For safety, keep all communication in Arviah Chat.</span>{' '}
                     Messages are visible to Admin.
                   </p>
                   <button

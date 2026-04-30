@@ -164,7 +164,7 @@ export default function Faq() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-extrabold text-ink">Support</p>
-                    <p className="mt-1 text-[12px] text-mid">Chat with Mirah support for help.</p>
+                    <p className="mt-1 text-[12px] text-mid">Chat with Arviah support for help.</p>
                   </div>
                 </div>
 

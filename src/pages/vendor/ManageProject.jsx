@@ -1072,7 +1072,7 @@ export default function VendorManageProject() {
                             <p className="mt-1 text-[12px] text-muted">
                               {statusConfirmType === 'in_progress'
                                 ? 'This will update the project status to In Progress and notify the system.'
-                                : 'This will move the project into Mirah QC checks.'}
+                                : 'This will move the project into Arviah QC checks.'}
                             </p>
                           </div>
                           <button
@@ -1149,7 +1149,7 @@ export default function VendorManageProject() {
                       return (
                         <div key={idx} className="rounded-xl border border-pale bg-cream px-3 py-2">
                           <div className="flex items-center justify-between gap-2">
-                            <p className="text-[12px] font-semibold text-ink">Mirah QC Reviews</p>
+                            <p className="text-[12px] font-semibold text-ink">Arviah QC Reviews</p>
                             <div className="flex items-center gap-2 shrink-0">
                               <span
                                 className={`inline-flex px-2 py-0.5 rounded-full border text-[10px] font-bold ${pillClass}`}
@@ -1290,7 +1290,7 @@ export default function VendorManageProject() {
                           if (k === 'paid_advance') return 'Advance Paid';
                           if (k === 'paid_final') return 'Final Paid';
                           if (k === 'payment_settlement') return 'Payment Settlement';
-                          if (k === 'qc') return 'Mirah QC Checks';
+                          if (k === 'qc') return 'Arviah QC Checks';
                           if (k === 'invoice') return invoiceProjectStatusLabel(advanceStatus, finalStatus);
                           return s?.label ?? toTitleCase(key);
                         })();

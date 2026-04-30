@@ -98,12 +98,12 @@ export default function Sidebar({ isOpen = false, onClose }) {
       <div className="mb-2 flex shrink-0 items-center justify-between border-b border-pale px-6 py-4 lg:mb-0 lg:h-16 lg:py-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg overflow-hidden border border-pale shadow-sm shadow-walnut/10 lg:hidden">
-            <img src={logo} alt="Mirah" className="w-full h-full object-cover" />
+            <img src={logo} alt="Arviah" className="w-full h-full object-cover" />
           </div>
-          <span className="font-serif text-3xl text-ink font-extrabold italic tracking-tight lg:hidden">Mirah</span>
+          <span className="font-serif text-3xl text-ink font-extrabold italic tracking-tight lg:hidden">Arviah</span>
 
           <span className="hidden lg:block text-2xl text-ink tracking-tight whitespace-nowrap">
-            <span className="font-serif font-extrabold italic">Mirah</span>
+            <span className="font-serif font-extrabold italic">Arviah</span>
             <span className="font-sans  not-italic mx-2">|</span>
             <span className="font-serif font-extrabold italic">{baseTitle || ''}</span>
           </span>

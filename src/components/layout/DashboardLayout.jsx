@@ -577,7 +577,7 @@ export default function DashboardLayout() {
 
       {/* Desktop-only centered logo across sidebar + main header width */}
       <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-0 h-16 items-center pointer-events-none z-[45]">
-        <img src={logo} alt="Mirah" className="w-18 h-18 object-contain" />
+        <img src={logo} alt="Arviah" className="w-18 h-18 object-contain" />
       </div>
 
       {/* Main Content Wrapper */}
@@ -1095,7 +1095,7 @@ export default function DashboardLayout() {
                       return;
                     }
                     if (!cartSelectedProviderOk) {
-                      addToast('Selected items must be from a same seller (all Mirah products OR same jeweller)', 'error');
+                      addToast('Selected items must be from a same seller (all Arviah products OR same jeweller)', 'error');
                       return;
                     }
                     const selectedItems = cartDrawerItems.filter((x) => cartSelected.has(String(x.rowKey)));

@@ -535,7 +535,7 @@ export default function Checkout() {
         key: parsed.keyId,
         amount: String(parsed.amountInMinor),
         currency: parsed.currency ?? 'INR',
-        name: 'Mirah',
+        name: 'Arviah',
         description: paymentMethod === 'partial' ? 'Partial payment' : 'Order payment',
         order_id: parsed.rzOrderId,
         prefill: {
@@ -771,7 +771,7 @@ export default function Checkout() {
 
           {!providerCheck.ok ? (
             <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 p-4 text-[12px] text-red-700 font-semibold">
-              Selected items must be from a same seller (all Mirah products OR same jeweller). Please adjust your selection in cart.
+              Selected items must be from a same seller (all Arviah products OR same jeweller). Please adjust your selection in cart.
             </div>
           ) : null}
 

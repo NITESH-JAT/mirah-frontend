@@ -73,7 +73,7 @@ export default function VendorGuidelines() {
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
         <div className="min-w-0">
           <p className="text-[14px] md:text-[15px] font-extrabold text-ink">Diamond Quality Guidelines</p>
-          <p className="mt-0.5 text-[12px] text-muted">Minimum acceptable grades when supplying stones for Mirah projects.</p>
+          <p className="mt-0.5 text-[12px] text-muted">Minimum acceptable grades when supplying stones for Arviah projects.</p>
         </div>
       </div>
 

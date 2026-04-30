@@ -15,11 +15,11 @@ export default function AuthLayout() {
           <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm shadow-walnut/10 overflow-hidden">
             <img 
               src={logo} 
-              alt="Mirah Logo" 
+              alt="Arviah Logo" 
               className="w-full h-full object-cover" 
             />
           </div>
-          <span className="font-serif text-2xl text-ink font-bold italic tracking-tight">Mirah</span>
+          <span className="font-serif text-2xl text-ink font-bold italic tracking-tight">Arviah</span>
         </div>
 
         {/* SCROLLABLE CONTENT AREA */}

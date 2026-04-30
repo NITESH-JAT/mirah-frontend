@@ -464,7 +464,7 @@ export const LoginForm = () => {
 
       {view === 'login' && (
         <MainLayout>
-          {renderHeader("Welcome Back", "Login to access Mirah Platform.")}
+          {renderHeader("Welcome Back", "Login to access Arviah Platform.")}
           <div className="w-full max-w-[420px] mx-auto pb-4">
               {renderTabs()}
               <div className="w-full space-y-5">

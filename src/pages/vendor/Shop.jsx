@@ -1894,7 +1894,7 @@ export default function VendorShop() {
                           value={createForm.brand}
                           onChange={(e) => setCreateForm((p) => ({ ...p, brand: e.target.value }))}
                           className="w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
-                          placeholder="Mirah"
+                          placeholder="Arviah"
                         />
                       </div>
 
