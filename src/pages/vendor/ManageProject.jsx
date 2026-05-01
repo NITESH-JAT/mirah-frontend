@@ -1011,6 +1011,61 @@ export default function VendorManageProject() {
                             : '—'}
                         </span>
                       </p>
+                      {paymentDetails.pricingBreakdown ? (
+                        <div className="mt-3 pt-3 border-t border-pale space-y-1 text-[11px] text-muted">
+                          <p className="font-extrabold text-ink text-[10px] uppercase tracking-wide">Tariff</p>
+                          <p>
+                            Jeweller bid :{' '}
+                            <span className="font-bold text-ink">
+                              ₹
+                              {formatMoney(
+                                paymentDetails.pricingBreakdown.jewellerBidJ ??
+                                  paymentDetails.pricingBreakdown.jeweller_bid_j,
+                              )}
+                            </span>
+                          </p>
+                          <p>
+                            Platform :{' '}
+                            <span className="font-bold text-ink">
+                              ₹
+                              {formatMoney(
+                                paymentDetails.pricingBreakdown.platformAdjustedPriceP ??
+                                  paymentDetails.pricingBreakdown.platform_adjusted_price_p,
+                              )}
+                            </span>
+                          </p>
+                          <p>
+                            GST jewellery 3% :{' '}
+                            <span className="font-bold text-ink">
+                              ₹
+                              {formatMoney(
+                                paymentDetails.pricingBreakdown.jewelleryGstGj ??
+                                  paymentDetails.pricingBreakdown.jewellery_gst_gj,
+                              )}
+                            </span>
+                          </p>
+                          <p>
+                            GST on commission 18%:{' '}
+                            <span className="font-bold text-ink">
+                              ₹
+                              {formatMoney(
+                                paymentDetails.pricingBreakdown.commissionGstGc ??
+                                  paymentDetails.pricingBreakdown.commission_gst_gc,
+                              )}
+                            </span>
+                          </p>
+                          <p>
+                            Customer due with Delivery:{' '}
+                            <span className="font-bold text-ink">
+                              ₹
+                              {formatMoney(
+                                paymentDetails.pricingBreakdown.bundledCustomerDue ??
+                                  paymentDetails.pricingBreakdown.bundled_customer_due,
+                              )}
+                            </span>
+                          </p>
+                        </div>
+                      ) : null}
                     </div>
                   ) : (
                     <p className="mt-3 text-[12px] text-muted">

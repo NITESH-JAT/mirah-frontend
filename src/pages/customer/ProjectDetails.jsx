@@ -4,6 +4,10 @@ import { createPortal } from 'react-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
+import {
+  CustomerPriceBreakdownModal,
+  CustomerPriceInfoButton,
+} from '../../components/customer/CustomerPriceBreakdownModal';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 
@@ -434,6 +438,7 @@ export default function ProjectDetails() {
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [completeLoading, setCompleteLoading] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [priceBreakdownOpen, setPriceBreakdownOpen] = useState(false);
   const [vendorLoading, setVendorLoading] = useState(false);
   const [vendorDetails, setVendorDetails] = useState(null);
   const abortRef = useRef(null);
@@ -709,6 +714,20 @@ export default function ProjectDetails() {
     metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
   ).trim();
   const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
+  const customerPricingTariff = useMemo(() => {
+    const a = advancePayment?.pricingTariff ?? advancePayment?.pricing_tariff ?? null;
+    const f = finalPayment?.pricingTariff ?? finalPayment?.pricing_tariff ?? null;
+    const t = a || f || null;
+    return t && typeof t === 'object' ? t : null;
+  }, [advancePayment, finalPayment]);
+
+  const listingBudgetDisplay = useMemo(() => {
+    if (!budgetPerPieceRaw) return null;
+    const n = Number(budgetPerPieceRaw);
+    if (Number.isFinite(n)) return `₹ ${formatMoney(n)}`;
+    return budgetPerPieceRaw;
+  }, [budgetPerPieceRaw]);
+
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -784,13 +803,13 @@ export default function ProjectDetails() {
     if (invoiceLoading) return;
     setInvoiceLoading(true);
     try {
-      await projectService.downloadInvoice(projectId);
+      await projectService.downloadInvoice(projectId, { title: project?.title });
     } catch (e) {
       addToast(e?.message || 'Failed to download invoice', 'error');
     } finally {
       setInvoiceLoading(false);
     }
-  }, [addToast, invoiceLoading, projectId]);
+  }, [addToast, invoiceLoading, project?.title, projectId]);
 
   useEffect(() => {
     load();
@@ -975,6 +994,14 @@ export default function ProjectDetails() {
               )
             : null)
         : null}
+
+      <CustomerPriceBreakdownModal
+        open={priceBreakdownOpen}
+        onClose={() => setPriceBreakdownOpen(false)}
+        tariff={customerPricingTariff}
+        listingBudgetLabel={listingBudgetDisplay}
+        agreedQuoteAmount={assignedAmount}
+      />
 
       {verifyingPayment ? (
         <div className="fixed inset-0 z-[200] bg-ink/25 backdrop-blur-[1px] flex items-center justify-center px-6">
@@ -1213,7 +1240,15 @@ export default function ProjectDetails() {
               ) : (
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
                     <p className="text-[12px] font-extrabold text-ink">Payments</p>
+                    {customerPricingTariff ? (
+                      <CustomerPriceInfoButton
+                        onClick={() => setPriceBreakdownOpen(true)}
+                        label="How your price is calculated"
+                      />
+                    ) : null}
+                  </div>
                     <button
                       type="button"
                       onClick={downloadInvoice}

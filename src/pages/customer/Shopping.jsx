@@ -558,7 +558,7 @@ export default function Shopping() {
       ) : null}
 
       {browseMode === 'categories' ? (
-        <div className="mt-5 flex min-h-0 flex-1 flex-col gap-6 pb-4">
+        <div className="mt-5 flex min-h-0 flex-1 flex-col gap-0 pb-4">
           <div className="w-full min-w-0">
             {filterMetaLoading && customerCategories.length === 0 ? (
               <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
@@ -585,7 +585,7 @@ export default function Shopping() {
               </div>
             ) : (
               <>
-                <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-2 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
                   {customerCategories.map((row) => {
                     const imgSrc = categoryCardImageSrc(row.image);
                     return (
@@ -619,7 +619,9 @@ export default function Shopping() {
                   })}
                 </div>
                 {customerCategories.length > 3 ? (
-                  <p className="mt-1.5 text-center text-[11px] text-muted">Scroll to see all categories</p>
+                  <div className="pt-3 pb-3">
+                    <p className="text-center text-[11px] text-muted">Scroll to see all categories</p>
+                  </div>
                 ) : null}
               </>
             )}
@@ -628,7 +630,9 @@ export default function Shopping() {
           <button
             type="button"
             onClick={openViewAllProducts}
-            className="group relative isolate min-h-[5.75rem] w-full overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem]"
+            className={`group relative isolate min-h-[5.75rem] w-full overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
+              customerCategories.length > 3 ? '' : 'mt-6'
+            }`}
           >
             <div className="relative z-10 flex min-h-[5.75rem] items-center justify-between gap-3 px-4 py-3 md:min-h-[6.25rem] md:gap-4 md:px-6 md:py-4">
               <div className="min-w-0 flex-1">

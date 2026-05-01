@@ -25,6 +25,29 @@ function parseFilenameFromDisposition(disposition) {
   return m?.[1]?.trim() || null;
 }
 
+/** Normalize legacy brand token in download names (client fallback + older Content-Disposition). */
+function normalizeInvoiceDownloadFilename(name) {
+  const s = String(name || '').trim();
+  if (!s) return 'invoice.pdf';
+  return s.replace(/mirah/gi, 'arviah');
+}
+
+/** Matches backend `buildProjectInvoiceContentDisposition` basename when headers are missing */
+function fallbackProjectInvoiceFilename(projectId, rawTitle) {
+  const id = Number(projectId) || 0;
+  const slug = String(rawTitle || '')
+    .trim()
+    .replace(/[/\\:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100);
+  const unicodeBase = `${slug ? slug : id ? `project-${id}` : 'arviah-project'}-arviah-invoice`;
+  let ascii = unicodeBase.replace(/[^\x20-\x7E]/g, '_').replace(/[*?:\\/\"<>|]+/g, '_').replace(/\s+/g, '-').slice(0, 120);
+  if (!ascii.replace(/[\W_]+/g, '')) ascii = id ? `project-${id}-arviah-invoice` : 'arviah-invoice';
+  return /\.pdf$/i.test(ascii) ? ascii : `${ascii}.pdf`;
+}
+
 export const projectService = {
   list: async ({ page = 1, limit = 10, status, search, signal } = {}) => {
     const params = { page, limit };
@@ -260,13 +283,14 @@ export const projectService = {
     return unwrap(res);
   },
 
-  downloadInvoice: async (projectId) => {
+  downloadInvoice: async (projectId, { title } = {}) => {
     if (!projectId) return;
     const res = await api.get(`/api/user/projects/${projectId}/invoice`, { responseType: 'blob' });
     const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
-    const filename =
-      parseFilenameFromDisposition(res?.headers?.['content-disposition']) ||
-      `project-${projectId}-invoice.pdf`;
+    const disp = res?.headers?.['content-disposition'] ?? res?.headers?.['Content-Disposition'];
+    const filename = normalizeInvoiceDownloadFilename(
+      parseFilenameFromDisposition(disp) || fallbackProjectInvoiceFilename(projectId, title),
+    );
 
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -288,6 +312,7 @@ export const projectService = {
       totalAmount: data.totalAmount ?? data.total_amount ?? null,
       totalCommission: data.totalCommission ?? data.total_commission ?? null,
       totalPayableToVendor: data.totalPayableToVendor ?? data.total_payable_to_vendor ?? null,
+      pricingBreakdown: data.pricingBreakdown ?? data.pricing_breakdown ?? null,
       vendorSettlementDone: Boolean(
         data.vendorSettlementDone ??
           data.vendor_settlement_done ??

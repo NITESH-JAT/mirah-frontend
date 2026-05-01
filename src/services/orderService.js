@@ -84,9 +84,9 @@ export const orderService = {
     if (!orderId) return;
     const res = await api.get(`/api/user/orders/${orderId}/invoice`, { responseType: 'blob' });
     const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
-    const filename =
-      parseFilenameFromDisposition(res?.headers?.['content-disposition']) ||
-      `order-${orderId}-invoice.pdf`;
+    const filename = (
+      parseFilenameFromDisposition(res?.headers?.['content-disposition']) || `order-${orderId}-invoice.pdf`
+    ).replace(/mirah/gi, 'arviah');
 
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
