@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
@@ -3193,14 +3193,18 @@ export default function Projects() {
                             {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
                               <div className="mt-3">
                                 <p className="text-[11px] font-medium text-mid uppercase tracking-wide">Tiers applied</p>
-                                <ul className="mt-2 space-y-1 text-[12px] text-mid">
+                                <div className="mt-2 flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5 text-[12px] text-mid [scrollbar-width:thin]">
                                   {feasibilityReview.tiersApplied.map((t, idx) => (
-                                    <li key={`tier-${idx}`} className="flex items-start gap-2">
-                                      <span className="mt-[4px] w-1.5 h-1.5 rounded-full bg-soft" />
-                                      <span>{String(t)}</span>
-                                    </li>
+                                    <Fragment key={`tier-${idx}`}>
+                                      {idx > 0 ? (
+                                        <span className="shrink-0 text-soft select-none" aria-hidden>
+                                          ·
+                                        </span>
+                                      ) : null}
+                                      <span className="shrink-0 whitespace-nowrap">{String(t)}</span>
+                                    </Fragment>
                                   ))}
-                                </ul>
+                                </div>
                               </div>
                             ) : null}
                           </div>

@@ -36,7 +36,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
 
   return (
     <div className={`
-      relative w-[320px] bg-white rounded-xl border border-pale p-4 mb-3 flex gap-3 items-start transition-all pointer-events-auto
+      relative ${isError ? 'w-[min(420px,calc(100vw-2rem))]' : 'w-[320px]'} bg-white rounded-xl border border-pale p-4 mb-3 flex gap-3 items-start transition-all pointer-events-auto
       ${isError ? 'border-l-4 border-l-red-300' : 'border-l-4 border-l-emerald-400'}
       ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
     `}>
@@ -51,7 +51,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-700' : 'text-ink'}`}>
           {isError ? 'Error' : 'Success'}
         </h4>
-        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
+        <p className="text-muted font-sans text-[13px] leading-snug whitespace-pre-wrap break-words">{message}</p>
       </div>
       <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" /></svg>
