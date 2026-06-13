@@ -194,49 +194,51 @@ export default function SimilarProducts() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-6rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-8rem)]">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/shopping/${id}`)}
-            className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
-            aria-label="Back to product"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <div className="min-w-0">
-            <p className="text-[15px] font-bold text-ink">Similar products</p>
-            {category ? (
-              <p className="text-[12px] text-muted mt-0.5 truncate">Category: {category}</p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="hidden shrink-0 items-center gap-2 md:flex">
-          {[2, 4, 6].map((n) => (
+    <div className="flex min-h-[calc(100dvh-4rem)] w-full flex-1 flex-col pb-0 animate-fade-in">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+        <div className="flex w-full flex-nowrap items-center justify-between gap-3">
+          <div className="flex min-h-[2.75rem] min-w-0 flex-1 items-center gap-3 md:min-h-[3rem]">
             <button
-              key={n}
               type="button"
-              onClick={() => setDesktopGridCols(n)}
-              className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
-                desktopGridCols === n
-                  ? 'bg-walnut text-blush shadow-sm'
-                  : 'border border-pale bg-white text-mid hover:bg-cream'
-              }`}
-              aria-label={`${n} products per row`}
-              title={`${n} per row`}
+              onClick={() => navigate(`/customer/shopping/${id}`)}
+              className="shrink-0 rounded-xl border border-pale bg-white p-2 text-mid hover:bg-cream"
+              aria-label="Back to product"
             >
-              {n}
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
             </button>
-          ))}
+            <div className="min-w-0">
+              <p className="text-[13px] font-bold text-ink md:text-[15px]">Similar Products</p>
+              {category ? (
+                <p className="mt-0.5 truncate text-[11px] text-muted md:text-[12px]">Category: {category}</p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="hidden shrink-0 items-center gap-2 md:flex">
+            {[2, 4, 6].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setDesktopGridCols(n)}
+                className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
+                  desktopGridCols === n
+                    ? 'bg-walnut text-blush shadow-sm'
+                    : 'border border-pale bg-white text-mid hover:bg-cream'
+                }`}
+                aria-label={`${n} products per row`}
+                title={`${n} per row`}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       <div
-        className={`mt-5 flex min-h-0 flex-1 flex-col ${
+        className={`mt-4 flex min-h-0 flex-1 flex-col bg-white ${
           !loading && items.length > 0 ? 'justify-between gap-4' : ''
         }`}
       >
@@ -279,6 +281,7 @@ export default function SimilarProducts() {
                 <ProductGridCard
                   key={String(pickId(p) ?? Math.random())}
                   product={p}
+                  variant="listing"
                   onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
                   onAddToCart={() => openAddToCart(p)}
                 />

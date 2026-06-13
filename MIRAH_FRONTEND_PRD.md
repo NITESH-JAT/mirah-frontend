@@ -425,11 +425,13 @@ APIs:
 Screens:
 - Product list (filters/sort/search)
 - Product details
+- Collection browse/filter (optional dedicated screen or filter chips)
 
 APIs:
 - `GET /api/user/product/customer` (pagination + filters)
 - `GET /api/user/product/customer/brands` (for filter dropdowns)
 - `GET /api/user/product/customer/categories` (for filter dropdowns)
+- `GET /api/user/product/customer/collections` (for collection filter/browse UI)
 - `GET /api/user/product/customer/:id`
 - `GET /api/user/reviews/product/:productId?page&limit` (product reviews, paginated)
 - `POST /api/user/reviews` (customer submits/updates review after purchase)
@@ -442,7 +444,9 @@ Visibility rule (important):
 Normalization (important for filters):
 - `brands` returned from the metadata endpoint is **normalized**: trimmed, multiple spaces collapsed to single space, and lowercased.
 - `GET /api/user/product/customer/categories` returns `totalProducts` (count of all customer-visible, non-deleted products matching the catalog list rules, no filters) and `categories`: `{ category, image }[]` where `category` is normalized the same way; `image` is the admin variant-category image URL when the variant categoryâ€™s name matches that key after normalization, otherwise `null`.
-- `GET /api/user/product/customer` applies the **same normalization** when filtering by `brand` and `category` (case/whitespace-insensitive).
+- `GET /api/user/product/customer/collections` returns `totalProducts` (same visibility rules as product list, no filters) and `collections`: `{ id, name, image, productCount }[]` for admin-managed collections that have at least one visible product. Use `id` as the `collectionId` filter on the product list.
+- `GET /api/user/product/customer` applies the **same normalization** when filtering by `brand` and `category` (case/whitespace-insensitive), and supports `collectionId` (integer) for collection filtering.
+- Product list/detail responses include `collectionId` and nested `collection: { id, name, image } | null` when a collection is assigned.
 
 #### Product Reviews (Customer)
 
@@ -1206,17 +1210,20 @@ Important: checkout requires **default billing + default shipping**; provide a â
 #### Customer catalog
 
 - `GET /api/user/product/customer`
-  - query: `page,limit,category,brand,minPrice,maxPrice,featured,search,sortBy,sortOrder`
+  - query: `page,limit,category,collectionId,brand,minPrice,maxPrice,featured,search,sortBy,sortOrder`
 - `GET /api/user/product/customer/brands`
 - `GET /api/user/product/customer/categories`
+- `GET /api/user/product/customer/collections`
 - `GET /api/user/product/customer/:id`
 - `GET /api/user/reviews/product/:productId?page&limit`
 - `POST /api/user/reviews`
 
 Brand/category filter normalization:
 - Use the exact **`category`** strings from `/categories` (and brands from `/brands`) when passing `category` / `brand` query params.
-- Categories response entries are `{ category: string; image: string | null }[]`, plus numeric `totalProducts` for full-catalog size under the same visibility rules as the product list (before category/brand filters).
-- Filtering is case-insensitive and whitespace-normalized on the backend.
+- Use **`collectionId`** (integer) from `/collections` when filtering the product list by collection.
+- Categories response entries are `{ category: string; image: string | null }[]`, plus numeric `totalProducts` for full-catalog size under the same visibility rules as the product list (before category/brand/collection filters).
+- Collections response entries are `{ id: number; name: string; image: string | null; productCount: number }[]`, plus numeric `totalProducts`.
+- Filtering is case-insensitive and whitespace-normalized on the backend for `category` and `brand`; `collectionId` is an exact integer match.
 
 #### Vendor: view product reviews
 

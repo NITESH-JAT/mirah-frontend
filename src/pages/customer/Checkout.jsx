@@ -6,6 +6,12 @@ import { getVendorId, getVendorDisplayName } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
 import { formatMoney } from '../../utils/formatMoney';
+import { authService } from '../../services/authService';
+import {
+  getStateRegionLabelForCountry,
+  normalizeCountryLookupRows,
+} from '../../utils/stateRegionLabel';
+import CountrySelect from '../../components/CountrySelect';
 
 export default function Checkout() {
   const { addToast, currentUser } = useOutletContext();
@@ -55,6 +61,23 @@ export default function Checkout() {
   });
 
   const abortRef = useRef(null);
+  const [countryLookup, setCountryLookup] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await authService.getCountryCodes();
+        if (!cancelled) setCountryLookup(normalizeCountryLookupRows(data));
+      } catch {
+        if (!cancelled) setCountryLookup([]);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const pickProductId = (it) => it?.productId ?? it?.product?._id ?? it?.product?.id ?? it?.product?.productId ?? null;
   const pickCartItemId = (it) => it?.cartItemId ?? it?.cart_item_id ?? it?.id ?? it?._id ?? null;
@@ -846,7 +869,9 @@ export default function Checkout() {
                       valid: shippingValid,
                       type: 'shipping',
                     },
-                  ].map((x) => (
+                  ].map((x) => {
+                    const regionLabel = getStateRegionLabelForCountry(x.form.country, countryLookup);
+                    return (
                     <div key={x.type} className="rounded-2xl border border-pale bg-cream/40 p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -890,14 +915,13 @@ export default function Checkout() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
-                              Phone *
-                            </label>
-                            <input
+                        <div>
+                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
+                            Phone *
+                          </label>
+                          <input
                             type="tel"
-                              value={x.form.phone}
+                            value={x.form.phone}
                             onChange={(e) =>
                               x.setForm((p) => {
                                 const raw = e.target.value || '';
@@ -906,26 +930,11 @@ export default function Checkout() {
                               })
                             }
                             inputMode="numeric"
-                              className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.phone ? 'border-amber-300' : 'border-pale'
-                              }`}
-                              placeholder="Phone"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
-                              Pin code *
-                            </label>
-                            <input
-                              value={x.form.pinCode}
-                              onChange={(e) => x.setForm((p) => ({ ...p, pinCode: e.target.value }))}
-                              inputMode="numeric"
-                              className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                                x.valid.missing.pinCode ? 'border-amber-300' : 'border-pale'
-                              }`}
-                              placeholder="Pin code"
-                            />
-                          </div>
+                            className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
+                              x.valid.missing.phone ? 'border-amber-300' : 'border-pale'
+                            }`}
+                            placeholder="Phone"
+                          />
                         </div>
 
                         <div>
@@ -970,7 +979,7 @@ export default function Checkout() {
                           </div>
                           <div>
                             <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
-                              State *
+                              {regionLabel} *
                             </label>
                             <input
                               value={x.form.state}
@@ -978,28 +987,42 @@ export default function Checkout() {
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
                                 x.valid.missing.state ? 'border-amber-300' : 'border-pale'
                               }`}
-                              placeholder="State"
+                              placeholder={regionLabel}
                             />
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
-                            Country *
-                          </label>
-                          <input
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
+                              Pin code *
+                            </label>
+                            <input
+                              value={x.form.pinCode}
+                              onChange={(e) => x.setForm((p) => ({ ...p, pinCode: e.target.value }))}
+                              inputMode="numeric"
+                              className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
+                                x.valid.missing.pinCode ? 'border-amber-300' : 'border-pale'
+                              }`}
+                              placeholder="Pin code"
+                            />
+                          </div>
+                          <CountrySelect
+                            label="Country"
                             value={x.form.country}
                             onChange={(e) => x.setForm((p) => ({ ...p, country: e.target.value }))}
-                            className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
-                              x.valid.missing.country ? 'border-amber-300' : 'border-pale'
-                            }`}
-                            placeholder="Country"
+                            countries={countryLookup}
+                            placeholder="Select country"
+                            variant="checkout"
+                            required
+                            hasError={x.valid.missing.country}
                           />
                         </div>
                       </div>
                       )}
                     </div>
-                  ))}
+                  );
+                  })}
                 </div>
               </div>
 

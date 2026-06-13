@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { addressService } from '../../services/addressService';
+import {
+  getStateRegionLabelForCountry,
+  normalizeCountryLookupRows,
+} from '../../utils/stateRegionLabel';
+import { addressLocationParts } from '../../utils/addressLocationParts';
+import CountrySelect from '../../components/CountrySelect';
 
 const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text", inputMode }) => (
   <div className="space-y-1.5">
-    <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{label}</label>
+    {label ? (
+      <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{label}</label>
+    ) : null}
     <input
       type={type}
       name={name}
@@ -117,6 +125,34 @@ export default function Profile() {
     pinCode: '',
     isDefault: false,
   });
+
+  const [countryLookup, setCountryLookup] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadCountries = async () => {
+      try {
+        const data = await authService.getCountryCodes();
+        if (!cancelled) setCountryLookup(normalizeCountryLookupRows(data));
+      } catch {
+        if (!cancelled) setCountryLookup([]);
+      }
+    };
+    loadCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const profileStateRegionLabel = useMemo(
+    () => getStateRegionLabelForCountry(editForm.country, countryLookup),
+    [editForm.country, countryLookup]
+  );
+
+  const addressStateRegionLabel = useMemo(
+    () => getStateRegionLabelForCountry(addressForm.country, countryLookup),
+    [addressForm.country, countryLookup]
+  );
 
   const loadAddresses = async (forceType) => {
     const t = forceType || addressTab;
@@ -291,13 +327,13 @@ export default function Profile() {
     setAddressForm({
       type: t,
       name: '',
-      countryCode: '',
-      phone: '',
+      countryCode: editForm.countryCode || profile?.countryCode || '',
+      phone: editForm.phone || profile?.phone || '',
       address: '',
       addressLine2: '',
-      city: '',
+      city: editForm.city || '',
       state: '',
-      country: '',
+      country: editForm.country || profile?.country || '',
       pinCode: '',
       isDefault: false,
     });
@@ -460,9 +496,23 @@ export default function Profile() {
             </div>
 
             <InputField label="City" name="city" value={editForm.city} onChange={handleInputChange} readOnly={!isEditing} />
-            <InputField label="State" name="state" value={editForm.state} onChange={handleInputChange} readOnly={!isEditing} />
-            <InputField label="Country" name="country" value={editForm.country} onChange={handleInputChange} readOnly={!isEditing} />
+            <InputField
+              label={profileStateRegionLabel}
+              name="state"
+              value={editForm.state}
+              onChange={handleInputChange}
+              readOnly={!isEditing}
+              placeholder={profileStateRegionLabel}
+            />
             <InputField label="Pin Code" name="pinCode" value={editForm.pinCode} onChange={handleInputChange} readOnly={!isEditing} />
+            <CountrySelect
+              label="Country"
+              value={editForm.country}
+              onChange={(e) => setEditForm((p) => ({ ...p, country: e.target.value }))}
+              readOnly={!isEditing}
+              countries={countryLookup}
+              placeholder="Select country"
+            />
           </div>
         </div>
       </div>
@@ -584,10 +634,7 @@ export default function Profile() {
                               {[
                                 a.address,
                                 a.addressLine2,
-                                a.city,
-                                a.state,
-                                a.country,
-                                a.pinCode,
+                                ...addressLocationParts(a),
                               ]
                                 .filter(Boolean)
                                 .join(', ')}
@@ -745,20 +792,12 @@ export default function Profile() {
                     placeholder="City"
                   />
                   <InputField
-                    label="State"
+                    label={addressStateRegionLabel}
                     name="state"
                     value={addressForm.state}
                     onChange={(e) => setAddressForm((p) => ({ ...p, state: e.target.value }))}
                     readOnly={false}
-                    placeholder="State"
-                  />
-                  <InputField
-                    label="Country"
-                    name="country"
-                    value={addressForm.country}
-                    onChange={(e) => setAddressForm((p) => ({ ...p, country: e.target.value }))}
-                    readOnly={false}
-                    placeholder="Country"
+                    placeholder={addressStateRegionLabel}
                   />
                   <InputField
                     label="Pin Code"
@@ -767,6 +806,13 @@ export default function Profile() {
                     onChange={(e) => setAddressForm((p) => ({ ...p, pinCode: e.target.value }))}
                     readOnly={false}
                     placeholder="Pin code"
+                  />
+                  <CountrySelect
+                    label="Country"
+                    value={addressForm.country}
+                    onChange={(e) => setAddressForm((p) => ({ ...p, country: e.target.value }))}
+                    countries={countryLookup}
+                    placeholder="Select country"
                   />
 
                   <div className="md:col-span-2">

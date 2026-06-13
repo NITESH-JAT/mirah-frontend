@@ -419,7 +419,7 @@ export default function VendorProjects() {
           </div>
 
           <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 border-t border-pale/70 pt-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-2 md:flex-1 md:min-w-0 md:justify-end md:border-0 md:pt-0">
-            <div className="flex min-h-0 min-w-0 w-full flex-1 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:min-w-0 md:flex-initial md:max-w-full md:justify-end md:gap-2">
+            <div className="order-3 flex min-h-0 min-w-0 flex-1 flex-nowrap items-center justify-start gap-1.5 overflow-x-auto overflow-y-hidden scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-1 md:min-w-0 md:flex-initial md:max-w-full md:gap-2">
               {[
                 { id: 'all', label: 'All' },
                 { id: 'active', label: 'Active' },

@@ -73,6 +73,16 @@ function pickId(p) {
   return p?.id ?? p?._id ?? p?.productId ?? null;
 }
 
+function collectionNameOf(product) {
+  const nested = product?.collection;
+  if (nested && typeof nested === 'object') {
+    const name = String(nested?.name ?? '').trim();
+    if (name) return name;
+  }
+  const flat = String(product?.collectionName ?? product?.collection_name ?? '').trim();
+  return flat || null;
+}
+
 export default function ProductDetails() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
@@ -121,6 +131,7 @@ export default function ProductDetails() {
   const media = useMemo(() => extractMedia(product), [product]);
   const vendorText = useMemo(() => vendorSourceText(product), [product]);
   const vendorId = useMemo(() => getVendorId(product), [product]);
+  const collectionName = useMemo(() => collectionNameOf(product), [product]);
   const isFeatured = useMemo(
     () => product?.isFeatured === true || product?.isFeatured === 1 || String(product?.isFeatured).toLowerCase() === 'true',
     [product]
@@ -147,7 +158,7 @@ export default function ProductDetails() {
         : Number.isFinite(totalDiamondWeightNum)
           ? `${totalDiamondWeightNum} carats`
           : String(totalDiamondWeightRaw);
-    add('Collection', product?.brand);
+    add('Collection', collectionName);
     add('Category', product?.category);
     add('SKU', product?.sku);
     add('Metal type', product?.metalType ?? product?.metal_type);
@@ -163,7 +174,7 @@ export default function ProductDetails() {
     add('Weight', product?.weight ? `${product.weight} ${product?.weightUnit || ''}`.trim() : null);
     add('Stock', stockText);
     return pairs;
-  }, [product]);
+  }, [product, collectionName]);
 
   const extraPairs = useMemo(() => extraFieldsToPairs(product?.extraFields), [product]);
 
@@ -265,7 +276,7 @@ export default function ProductDetails() {
       setOtherHasMore(incomingAll.length > 4 || Number(res?.meta?.totalPages || 1) > 1);
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
-      addToast(e?.message || 'Failed to load other products', 'error');
+      addToast(e?.message || 'Failed to load similar products', 'error');
     }
   };
 
@@ -834,11 +845,11 @@ export default function ProductDetails() {
           {/* Reviews (only when present) */}
           <ReviewsCard />
 
-          {/* Other products (category only). Hide section if none. */}
+          {/* Similar Products (category only). Hide section if none. */}
           {otherItems.length > 0 ? (
             <div className="mt-6 bg-white rounded-2xl border border-pale p-4 md:p-6">
               <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-ink">Other products</p>
+                <p className="text-[13px] font-bold text-ink">Similar Products</p>
                 {canViewAll ? (
                   <button
                     type="button"
@@ -859,6 +870,7 @@ export default function ProductDetails() {
                   <ProductGridCard
                     key={String(pickId(p) ?? Math.random())}
                     product={p}
+                    variant="listing"
                     onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
                     onAddToCart={() => {
                       setCartTarget(p);

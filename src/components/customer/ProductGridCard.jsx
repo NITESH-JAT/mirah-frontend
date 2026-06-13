@@ -49,7 +49,8 @@ function isProductNew(p) {
 /**
  * Luxury editorial product card — Shop, Similar products, Product detail “others”.
  */
-export default function ProductGridCard({ product: p, onNavigate, onAddToCart }) {
+export default function ProductGridCard({ product: p, onNavigate, onAddToCart, variant = 'default' }) {
+  const isListing = variant === 'listing';
   const img = firstImageUrl(p);
   const priceNum = Number(p?.price);
   const compareAt = compareAtOf(p);
@@ -62,10 +63,16 @@ export default function ProductGridCard({ product: p, onNavigate, onAddToCart })
   const rating = averageRatingOf(p);
   const brand = brandSubtitle(p);
 
+  const shellClass = isListing
+    ? 'flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border-0 bg-transparent'
+    : 'flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-white';
+  const imageShellClass = isListing
+    ? 'relative aspect-square w-full cursor-pointer overflow-hidden rounded-2xl bg-transparent'
+    : 'relative aspect-square w-full cursor-pointer overflow-hidden rounded-t-2xl bg-white';
+
   return (
     <div className="group flex h-full flex-col">
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-white">
-        {/* Image area — white panel, top-rounded only */}
+      <div className={shellClass}>
         <div
           role="button"
           tabIndex={0}
@@ -76,10 +83,15 @@ export default function ProductGridCard({ product: p, onNavigate, onAddToCart })
               onNavigate();
             }
           }}
-          className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-t-2xl bg-white"
+          className={imageShellClass}
         >
           {img ? (
-            <SafeImage src={img} alt="" className="h-full w-full bg-white object-contain p-3" loading="lazy" />
+            <SafeImage
+              src={img}
+              alt=""
+              className={`h-full w-full object-contain p-3 ${isListing ? 'bg-transparent' : 'bg-white'}`}
+              loading="lazy"
+            />
           ) : (
             <div className="flex h-full w-full flex-col items-center justify-center text-muted">
               <svg

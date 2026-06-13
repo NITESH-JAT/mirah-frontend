@@ -58,6 +58,8 @@ export default function Shopping() {
 
   /** `?view=products` is pushed when opening the grid from categories so OS/browser Back returns to category browse. */
   const [browseMode, setBrowseMode] = useState(() => (listView === 'products' ? 'products' : 'categories'));
+  /** Browse landing: category tiles vs collection tiles (default category). */
+  const [catalogBrowseMode, setCatalogBrowseMode] = useState('category');
 
   const DESKTOP_GRID_KEY = 'mirah_shop_desktop_grid_cols';
   const [desktopGridCols, setDesktopGridCols] = useState(() => {
@@ -86,17 +88,19 @@ export default function Shopping() {
 
   // Applied filters (used for API requests)
   const [category, setCategory] = useState('');
-  const [brand, setBrand] = useState('');
+  const [collectionId, setCollectionId] = useState('');
   const [featured, setFeatured] = useState(false);
 
   const hasActiveCatalogFilters = useMemo(
-    () => Boolean(String(category || '').trim()) || Boolean(String(brand || '').trim()),
-    [category, brand]
+    () =>
+      Boolean(String(category || '').trim()) ||
+      (collectionId !== '' && collectionId != null && !Number.isNaN(Number(collectionId))),
+    [category, collectionId]
   );
 
   // Draft filters (only applied on "Apply")
   const [draftCategory, setDraftCategory] = useState('');
-  const [draftBrand, setDraftBrand] = useState('');
+  const [draftCollectionId, setDraftCollectionId] = useState('');
   const [draftFeatured, setDraftFeatured] = useState(false);
 
   const [openFilters, setOpenFilters] = useState(false);
@@ -107,14 +111,16 @@ export default function Shopping() {
   const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: null });
 
   const [filterMetaLoading, setFilterMetaLoading] = useState(false);
-  const [brandOptions, setBrandOptions] = useState([]);
   const [customerCategories, setCustomerCategories] = useState([]);
+  const [customerCollections, setCustomerCollections] = useState([]);
   const [totalCatalogProducts, setTotalCatalogProducts] = useState(null);
+  const [totalCollectionCatalogProducts, setTotalCollectionCatalogProducts] = useState(null);
 
   const categoryOptions = useMemo(
     () => customerCategories.map((c) => c.category).filter(Boolean),
     [customerCategories]
   );
+  const collectionOptions = useMemo(() => customerCollections, [customerCollections]);
 
   const [cartOpen, setCartOpen] = useState(false);
   const [cartProduct, setCartProduct] = useState(null);
@@ -159,11 +165,16 @@ export default function Shopping() {
       .map((x) => x.p);
   }, [items]);
 
-  /** Category image previews (max 5) for the View all banner — API images only. */
+  /** Category/collection image previews (max 5) for the View all banner — API images only. */
   const viewAllPreviewCategories = useMemo(() => {
     const list = Array.isArray(customerCategories) ? customerCategories : [];
     return list.filter((c) => categoryCardImageSrc(c?.image)).slice(0, 5);
   }, [customerCategories]);
+
+  const viewAllPreviewCollections = useMemo(() => {
+    const list = Array.isArray(customerCollections) ? customerCollections : [];
+    return list.filter((c) => categoryCardImageSrc(c?.image)).slice(0, 5);
+  }, [customerCollections]);
 
   const abortRef = useRef(null);
   const debounceRef = useRef(null);
@@ -187,7 +198,7 @@ export default function Shopping() {
         page: nextPage,
         limit,
         category: category || undefined,
-        brand: brand || undefined,
+        collectionId: collectionId !== '' && collectionId != null ? collectionId : undefined,
         featured: featured ? true : undefined,
         search: search || undefined,
         sortBy: sort?.sortBy,
@@ -208,7 +219,7 @@ export default function Shopping() {
   const openFilterModal = () => {
     // sync draft from applied
     setDraftCategory(category);
-    setDraftBrand(brand);
+    setDraftCollectionId(collectionId !== '' && collectionId != null ? String(collectionId) : '');
     setDraftFeatured(featured);
     setOpenFilters(true);
   };
@@ -221,6 +232,7 @@ export default function Shopping() {
     }
     setBrowseMode('categories');
     setCategory('');
+    setCollectionId('');
     setQ('');
     setPage(1);
     setItems([]);
@@ -229,10 +241,11 @@ export default function Shopping() {
     setOpenSort(false);
   }, [listView]);
 
-  // Keep Filters "Category" dropdown in sync with applied category (grid / Apply / history).
+  // Keep Filters dropdowns in sync with applied filters (grid / Apply / history).
   useEffect(() => {
     setDraftCategory(category);
-  }, [category]);
+    setDraftCollectionId(collectionId !== '' && collectionId != null ? String(collectionId) : '');
+  }, [category, collectionId]);
 
   // Debounced search + filter/sort refresh (products browse only)
   useEffect(() => {
@@ -247,25 +260,30 @@ export default function Shopping() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, brand, featured, sortId, browseMode]);
+  }, [q, category, collectionId, featured, sortId, browseMode]);
 
-  // Load filter metadata (brands/categories) once
+  // Load filter metadata (categories/collections) once
   useEffect(() => {
     if (filterMetaAbortRef.current) filterMetaAbortRef.current.abort();
     const ctrl = new AbortController();
     filterMetaAbortRef.current = ctrl;
     setFilterMetaLoading(true);
     Promise.all([
-      productService.listCustomerBrands({ signal: ctrl.signal }),
       productService.listCustomerCategories({ signal: ctrl.signal }),
+      productService.listCustomerCollections({ signal: ctrl.signal }),
     ])
-      .then(([brands, catPayload]) => {
-        setBrandOptions(Array.isArray(brands) ? brands : []);
+      .then(([catPayload, colPayload]) => {
         const cats = catPayload?.categories ?? [];
         setCustomerCategories(Array.isArray(cats) ? cats : []);
         const tp = catPayload?.totalProducts;
         setTotalCatalogProducts(
           tp != null && tp !== '' && !Number.isNaN(Number(tp)) ? Number(tp) : null
+        );
+        const cols = colPayload?.collections ?? [];
+        setCustomerCollections(Array.isArray(cols) ? cols : []);
+        const tcp = colPayload?.totalProducts;
+        setTotalCollectionCatalogProducts(
+          tcp != null && tcp !== '' && !Number.isNaN(Number(tcp)) ? Number(tcp) : null
         );
       })
       .catch((e) => {
@@ -331,6 +349,28 @@ export default function Shopping() {
     if (!v) return;
     setCategory(v);
     setDraftCategory(v);
+    setCollectionId('');
+    setDraftCollectionId('');
+    setBrowseMode('products');
+    setQ('');
+    setPage(1);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('view', 'products');
+        return next;
+      },
+      { replace: false }
+    );
+  };
+
+  const selectShopCollectionFromCatalog = (collectionValue) => {
+    const n = Number(collectionValue);
+    if (!Number.isFinite(n) || n <= 0) return;
+    setCollectionId(n);
+    setDraftCollectionId(String(n));
+    setCategory('');
+    setDraftCategory('');
     setBrowseMode('products');
     setQ('');
     setPage(1);
@@ -347,6 +387,8 @@ export default function Shopping() {
   const openViewAllProducts = () => {
     setCategory('');
     setDraftCategory('');
+    setCollectionId('');
+    setDraftCollectionId('');
     setBrowseMode('products');
     setQ('');
     setPage(1);
@@ -361,7 +403,13 @@ export default function Shopping() {
   };
 
   return (
-    <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
+    <div
+      className={`flex w-full flex-col pb-0 animate-fade-in ${
+        browseMode === 'products'
+          ? 'min-h-[calc(100dvh-4rem)] flex-1'
+          : 'min-h-[calc(100dvh-5rem)] lg:min-h-[calc(100dvh-6rem)]'
+      }`}
+    >
       {browseMode === 'products' ? (
         <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
           <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-3">
@@ -498,8 +546,8 @@ export default function Shopping() {
                 <div className="space-y-1.5">
                   <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">Collection</label>
                   <select
-                    value={draftBrand}
-                    onChange={(e) => setDraftBrand(e.target.value)}
+                    value={draftCollectionId}
+                    onChange={(e) => setDraftCollectionId(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border text-[13px] font-semibold text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                   >
                     <option value="">All</option>
@@ -508,9 +556,9 @@ export default function Shopping() {
                         Loading…
                       </option>
                     ) : null}
-                    {brandOptions.map((b) => (
-                      <option key={b} value={b}>
-                        {formatCategoryDisplayName(b)}
+                    {collectionOptions.map((c) => (
+                      <option key={c.id} value={String(c.id)}>
+                        {formatCategoryDisplayName(c.name)}
                       </option>
                     ))}
                   </select>
@@ -533,7 +581,7 @@ export default function Shopping() {
                 type="button"
                 onClick={() => {
                   setDraftCategory('');
-                  setDraftBrand('');
+                  setDraftCollectionId('');
                   setDraftFeatured(false);
                 }}
                 className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
@@ -544,7 +592,11 @@ export default function Shopping() {
                 type="button"
                 onClick={() => {
                   setCategory(draftCategory);
-                  setBrand(draftBrand);
+                  setCollectionId(
+                    draftCollectionId !== '' && draftCollectionId != null
+                      ? Number(draftCollectionId)
+                      : ''
+                  );
                   setFeatured(Boolean(draftFeatured));
                   setOpenFilters(false);
                 }}
@@ -558,141 +610,256 @@ export default function Shopping() {
       ) : null}
 
       {browseMode === 'categories' ? (
-        <div className="mt-5 flex min-h-0 flex-1 flex-col gap-0 pb-4">
-          <div className="w-full min-w-0">
-            {filterMetaLoading && customerCategories.length === 0 ? (
-              <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
-                <svg
-                  className="animate-spin text-ink"
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="28"
-                  height="28"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                  <path
-                    d="M22 12a10 10 0 0 0-10-10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                  />
-                </svg>
-              </div>
-            ) : !filterMetaLoading && customerCategories.length === 0 ? (
-              <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
-                No categories are available yet.
-              </div>
-            ) : (
-              <>
-                <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
-                  {customerCategories.map((row) => {
-                    const imgSrc = categoryCardImageSrc(row.image);
-                    return (
-                      <button
-                        key={row.category}
-                        type="button"
-                        onClick={() => selectShopCategoryFromCatalog(row.category)}
-                        className="group min-w-[calc((100%-1.5rem)/3)] max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
-                      >
-                        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
-                          <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
-                            {imgSrc ? (
-                              <SafeImage
-                                src={imgSrc}
-                                alt=""
-                                className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <CategoryCardNoImagePlaceholder />
-                            )}
-                          </div>
-                          <div className="flex flex-1 flex-col px-4 pb-4 pt-4">
-                            <p className="text-center font-serif text-[17px] font-bold leading-snug text-ink line-clamp-2 md:text-[18px]">
-                              {formatCategoryDisplayName(row.category)}
-                            </p>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-                {customerCategories.length > 3 ? (
-                  <div className="pt-3 pb-3">
-                    <p className="text-center text-[11px] text-muted">Scroll to see all categories</p>
-                  </div>
-                ) : null}
-              </>
-            )}
+        <>
+          <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+            <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Shop browse mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={catalogBrowseMode === 'category'}
+                onClick={() => setCatalogBrowseMode('category')}
+                className={`rounded-full border px-2 py-2.5 text-[11px] font-semibold md:px-5 md:py-3 md:text-[12px] ${
+                  catalogBrowseMode === 'category'
+                    ? 'border-walnut bg-walnut text-blush shadow-sm'
+                    : 'border-pale bg-white text-mid hover:bg-cream'
+                }`}
+              >
+                Shop By Category
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={catalogBrowseMode === 'collection'}
+                onClick={() => setCatalogBrowseMode('collection')}
+                className={`rounded-full border px-2 py-2.5 text-[11px] font-semibold md:px-5 md:py-3 md:text-[12px] ${
+                  catalogBrowseMode === 'collection'
+                    ? 'border-walnut bg-walnut text-blush shadow-sm'
+                    : 'border-pale bg-white text-mid hover:bg-cream'
+                }`}
+              >
+                Shop By Collection
+              </button>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={openViewAllProducts}
-            className={`group relative isolate min-h-[5.75rem] w-full overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
-              customerCategories.length > 3 ? '' : 'mt-6'
-            }`}
-          >
-            <div className="relative z-10 flex min-h-[5.75rem] items-center justify-between gap-3 px-4 py-3 md:min-h-[6.25rem] md:gap-4 md:px-6 md:py-4">
-              <div className="min-w-0 flex-1">
-                <p className="font-sans text-[14px] font-extrabold leading-tight text-ink transition-colors duration-300 group-hover:text-walnut md:text-[15px]">
-                  View all Jewellery
-                </p>
-                <p className="mt-0.5 text-[11px] text-muted transition-colors duration-300 group-hover:text-walnut/85 md:text-[12px]">
-                  {totalCatalogProducts != null
-                    ? `${totalCatalogProducts} pieces across all categories`
-                    : 'Browse the full catalogue'}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2 md:gap-3">
-                {viewAllPreviewCategories.length > 0 ? (
-                  <div className="flex items-center" aria-hidden>
-                    <div className="flex items-center -space-x-2.5 md:-space-x-3">
-                      {viewAllPreviewCategories.map((row, idx) => (
-                        <div
-                          key={`${row.category}-${idx}`}
-                          className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-pale/80 bg-[#F2E6D4] shadow-sm md:h-10 md:w-10"
-                          style={{ zIndex: idx + 1 }}
-                        >
-                          <SafeImage
-                            src={categoryCardImageSrc(row.image)}
-                            alt=""
-                            className="h-full w-full object-cover"
-                            loading="lazy"
-                          />
-                        </div>
-                      ))}
-                    </div>
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-0 pb-4">
+            <div className="w-full min-w-0">
+              {catalogBrowseMode === 'category' ? (
+                filterMetaLoading && customerCategories.length === 0 ? (
+                  <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
+                    <svg
+                      className="animate-spin text-ink"
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path
+                        d="M22 12a10 10 0 0 0-10-10"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                      />
+                    </svg>
                   </div>
-                ) : null}
-                <span
-                  className="flex shrink-0 items-center text-walnut/70 transition duration-300 group-hover:translate-x-1 group-hover:text-walnut"
-                  aria-hidden
-                >
+                ) : !filterMetaLoading && customerCategories.length === 0 ? (
+                  <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
+                    No categories are available yet.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                      {customerCategories.map((row) => {
+                        const imgSrc = categoryCardImageSrc(row.image);
+                        return (
+                          <button
+                            key={row.category}
+                            type="button"
+                            onClick={() => selectShopCategoryFromCatalog(row.category)}
+                            className="group min-w-[calc((100%-1.5rem)/3)] max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                          >
+                            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
+                              <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
+                                {imgSrc ? (
+                                  <SafeImage
+                                    src={imgSrc}
+                                    alt=""
+                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <CategoryCardNoImagePlaceholder />
+                                )}
+                              </div>
+                              <div className="flex flex-1 flex-col px-4 pb-4 pt-4">
+                                <p className="text-center font-serif text-[17px] font-bold leading-snug text-ink line-clamp-2 md:text-[18px]">
+                                  {formatCategoryDisplayName(row.category)}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {customerCategories.length > 3 ? (
+                      <div className="pt-3 pb-3">
+                        <p className="text-center text-[11px] text-muted">Scroll to see all categories</p>
+                      </div>
+                    ) : null}
+                  </>
+                )
+              ) : filterMetaLoading && customerCollections.length === 0 ? (
+                <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
                   <svg
+                    className="animate-spin text-ink"
                     xmlns="http://www.w3.org/2000/svg"
-                    width="22"
-                    height="22"
+                    width="28"
+                    height="28"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    className="md:h-6 md:w-6"
                   >
-                    <path d="M5 12h14" />
-                    <path d="m12 5 7 7-7 7" />
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                    <path
+                      d="M22 12a10 10 0 0 0-10-10"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
                   </svg>
-                </span>
-              </div>
+                </div>
+              ) : !filterMetaLoading && customerCollections.length === 0 ? (
+                <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
+                  No collections are available yet.
+                </div>
+              ) : (
+                <>
+                  <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                    {customerCollections.map((row) => {
+                      const imgSrc = categoryCardImageSrc(row.image);
+                      return (
+                        <button
+                          key={row.id}
+                          type="button"
+                          onClick={() => selectShopCollectionFromCatalog(row.id)}
+                          className="group min-w-[calc((100%-1.5rem)/3)] max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                        >
+                          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
+                            <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
+                              {imgSrc ? (
+                                <SafeImage
+                                  src={imgSrc}
+                                  alt=""
+                                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <CategoryCardNoImagePlaceholder />
+                              )}
+                            </div>
+                            <div className="flex flex-1 flex-col px-4 pb-4 pt-4">
+                              <p className="text-center font-serif text-[17px] font-bold leading-snug text-ink line-clamp-2 md:text-[18px]">
+                                {formatCategoryDisplayName(row.name)}
+                              </p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {customerCollections.length > 3 ? (
+                    <div className="pt-3 pb-3">
+                      <p className="text-center text-[11px] text-muted">Scroll to see all collections</p>
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
-          </button>
-        </div>
+
+            <button
+              type="button"
+              onClick={openViewAllProducts}
+              className={`group relative isolate min-h-[5.75rem] w-full overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
+                (catalogBrowseMode === 'category' ? customerCategories.length : customerCollections.length) > 3
+                  ? ''
+                  : 'mt-6'
+              }`}
+            >
+              <div className="relative z-10 flex min-h-[5.75rem] items-center justify-between gap-3 px-4 py-3 md:min-h-[6.25rem] md:gap-4 md:px-6 md:py-4">
+                <div className="min-w-0 flex-1">
+                  <p className="font-sans text-[14px] font-extrabold leading-tight text-ink transition-colors duration-300 group-hover:text-walnut md:text-[15px]">
+                    View all Jewellery
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-muted transition-colors duration-300 group-hover:text-walnut/85 md:text-[12px]">
+                    {catalogBrowseMode === 'category'
+                      ? totalCatalogProducts != null
+                        ? `${totalCatalogProducts} pieces across all categories`
+                        : 'Browse the full catalogue'
+                      : totalCollectionCatalogProducts != null
+                        ? `${totalCollectionCatalogProducts} pieces across all collections`
+                        : 'Browse the full catalogue'}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2 md:gap-3">
+                  {(catalogBrowseMode === 'category'
+                    ? viewAllPreviewCategories
+                    : viewAllPreviewCollections
+                  ).length > 0 ? (
+                    <div className="flex items-center" aria-hidden>
+                      <div className="flex items-center -space-x-2.5 md:-space-x-3">
+                        {(catalogBrowseMode === 'category'
+                          ? viewAllPreviewCategories
+                          : viewAllPreviewCollections
+                        ).map((row, idx) => (
+                          <div
+                            key={
+                              catalogBrowseMode === 'category'
+                                ? `${row.category}-${idx}`
+                                : `${row.id}-${idx}`
+                            }
+                            className="relative h-9 w-9 overflow-hidden rounded-full border-2 border-pale/80 bg-[#F2E6D4] shadow-sm md:h-10 md:w-10"
+                            style={{ zIndex: idx + 1 }}
+                          >
+                            <SafeImage
+                              src={categoryCardImageSrc(row.image)}
+                              alt=""
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <span
+                    className="flex shrink-0 items-center text-walnut/70 transition duration-300 group-hover:translate-x-1 group-hover:text-walnut"
+                    aria-hidden
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="22"
+                      height="22"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="md:h-6 md:w-6"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </span>
+                </div>
+              </div>
+            </button>
+          </div>
+        </>
       ) : (
         <div
-          className={`mt-4 flex min-h-0 flex-1 flex-col ${
+          className={`mt-4 flex min-h-0 flex-1 flex-col bg-white ${
             !loading && items.length > 0 ? 'justify-between gap-4' : ''
           }`}
         >
@@ -718,7 +885,7 @@ export default function Shopping() {
           ) : items.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-4">
               <div className="text-center">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-pale bg-cream text-muted">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-pale bg-white text-muted">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="11" cy="11" r="8" />
                     <path d="m21 21-4.3-4.3" />
@@ -735,6 +902,7 @@ export default function Shopping() {
                   <ProductGridCard
                     key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())}
                     product={p}
+                    variant="listing"
                     onNavigate={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
                     onAddToCart={() => openAddToCart(p)}
                   />

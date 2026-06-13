@@ -150,6 +150,9 @@ export default function DashboardLayout() {
   const isVendorReviewsPage = path.includes('/vendor/reviews');
   const isShoppingPage = path.includes('/customer/shopping');
   const isShoppingListPage = path === '/customer/shopping';
+  const isShopProductGrid =
+    isShoppingListPage && new URLSearchParams(location.search).get('view') === 'products';
+  const isSimilarProductsPage = /\/customer\/shopping\/[^/]+\/similar$/.test(path);
   const isCartPage = path.includes('/customer/cart');
   const isCheckoutPage = path.includes('/customer/checkout');
   const isOrdersPage = path.includes('/customer/orders');
@@ -839,10 +842,13 @@ export default function DashboardLayout() {
         {/* CONTENT */}
         <div
           className={`flex-1 scroll-smooth custom-scrollbar ${
+            isShopProductGrid || isSimilarProductsPage ? 'bg-white ' : ''
+          }${
             isMessagesPage
               ? 'flex min-h-0 flex-col overflow-hidden p-0'
               : 'overflow-y-auto ' +
                 (                isShoppingListPage ||
+                isSimilarProductsPage ||
                 isCustomerProjectsListPage ||
                 isCustomerProjectDetailPage ||
                 isCustomerOrdersListPage ||

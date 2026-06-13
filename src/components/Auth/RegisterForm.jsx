@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import {
+  extractCountryCodesList,
+  getStateRegionLabelForCountry,
+} from '../../utils/stateRegionLabel';
 
 // --- HELPER COMPONENTS ---
 
@@ -267,14 +271,13 @@ export const RegisterForm = () => {
   useEffect(() => {
     const initData = async () => {
       try {
-        const response = await authService.getCountryCodes();
-        const data = response.data || response;
-        
-        const validCountries = Array.isArray(data) ? data.map(c => ({
+        const data = extractCountryCodesList(await authService.getCountryCodes());
+
+        const validCountries = data.map(c => ({
           dial_code: c.phoneCode,
           code: c.countryCode, 
           name: c.countryName
-        })) : [];
+        }));
 
         setCountryData(validCountries);
 
@@ -436,6 +439,11 @@ export const RegisterForm = () => {
     }));
   }, [countryData]);
 
+  const stateRegionLabel = useMemo(
+    () => getStateRegionLabelForCountry(formData.country, countryData),
+    [formData.country, countryData]
+  );
+
   return (
     <div className="w-full relative pb-20 lg:pb-0 overflow-x-hidden pt-2">
       <div className="fixed top-6 right-6 z-50 flex flex-col items-end pointer-events-none">
@@ -494,7 +502,12 @@ export const RegisterForm = () => {
         />
 
         <div className="flex gap-4 lg:gap-3">
-          <InputField name="state" placeholder="State" value={formData.state} onChange={handleChange} />
+          <InputField
+            name="state"
+            placeholder={stateRegionLabel}
+            value={formData.state}
+            onChange={handleChange}
+          />
           <InputField name="pinCode" placeholder="Pin Code" value={formData.pinCode} onChange={handleChange} />
         </div>
 

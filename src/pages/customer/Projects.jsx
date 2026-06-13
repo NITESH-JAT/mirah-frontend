@@ -266,13 +266,13 @@ function projectStatusCardLabel(p) {
   const adv = normalizePaymentStatus(advancePayment?.status, { finishedLike });
   const fin = normalizePaymentStatus(finalPayment?.status, { finishedLike });
 
-  // If any payment is marked paid, prefer showing payment milestones over bidding labels.
-  if (fin === 'paid') return 'Final Paid';
-  if (adv === 'paid') return 'Advance Paid';
-
   if (projectStatus === 'invoice') {
     return invoiceProjectStatusLabel(adv, fin);
   }
+
+  // If any payment is marked paid, prefer showing payment milestones over bidding labels.
+  if (fin === 'paid') return 'Final Paid';
+  if (adv === 'paid') return 'Advance Paid';
 
   if (projectStatus === 'paid') {
     if (fin === 'paid') return 'Final Paid';
@@ -395,7 +395,11 @@ function isPaymentPaid(block) {
   return s === 'paid';
 }
 
-
+function isInvoicePaymentPending(block) {
+  if (!block) return false;
+  const status = normalizePaymentStatus(block?.status, { finishedLike: false });
+  return status !== 'paid' && status !== 'not_applicable';
+}
 
 function isFinishedLike(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
@@ -1669,6 +1673,14 @@ export default function Projects() {
       const biddingRunning = Boolean(activeWindow);
       const allWindowsFinished = allBidWindowsFinished(p);
 
+      const advancePayment = paymentBlockOf(p, 'advance');
+      const finalPayment = paymentBlockOf(p, 'final');
+      const reviewExists = Boolean(p?.hasVendorReview) || Boolean(vendorReviewOf(p));
+      const needsReview = isProjectCompletedLike(p) && !reviewExists;
+      const needsInvoiceAction =
+        isInvoicePaymentPending(advancePayment) ||
+        isInvoicePaymentPending(finalPayment);
+
       const isDraft =
         statusKey === 'draft' &&
         projectStatusKey === 'started' &&
@@ -1683,15 +1695,7 @@ export default function Projects() {
         statusKey === 'canceled' ||
         isProjectCompletedLike(p) ||
         (statusKey === 'running' && projectStatusKey === 'started' && allWindowsFinished && !hasBidHistory);
-      const isActionRequired =
-        !isDraft &&
-        !isActive &&
-        !isCompleted &&
-        (
-          statusKey === 'running' ||
-          projectStatusKey === 'invoice' ||
-          (statusKey === 'running' && projectStatusKey === 'started' && allWindowsFinished && hasBidHistory)
-        );
+      const isActionRequired = needsInvoiceAction || needsReview;
 
       if (isDraft) out.drafts.push(p);
       if (isActive) out.active.push(p);

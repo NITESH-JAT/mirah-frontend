@@ -6,9 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "start": "npm run build && npm run preview",
+    "play": "npm run build && npm run preview",
+    "start": "vite preview --host 0.0.0.0 --port $PORT",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview --host"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.18",

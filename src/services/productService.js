@@ -52,6 +52,7 @@ export const productService = {
     page = 1,
     limit = 20,
     category,
+    collectionId,
     brand,
     minPrice,
     maxPrice,
@@ -63,6 +64,9 @@ export const productService = {
   } = {}) => {
     const params = { page, limit };
     if (category) params.category = category;
+    if (collectionId != null && collectionId !== '' && !Number.isNaN(Number(collectionId))) {
+      params.collectionId = Number(collectionId);
+    }
     if (brand) params.brand = brand;
     if (minPrice != null && !Number.isNaN(Number(minPrice))) params.minPrice = Number(minPrice);
     if (maxPrice != null && !Number.isNaN(Number(maxPrice))) params.maxPrice = Number(maxPrice);
@@ -128,6 +132,39 @@ export const productService = {
       .filter(Boolean);
 
     return { totalProducts, categories };
+  },
+
+  /**
+   * PRD: returns full-catalog `totalProducts` and `collections: { id, name, image, productCount }[]`.
+   */
+  listCustomerCollections: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/product/customer/collections', { signal });
+    const data = unwrap(res) || {};
+    const totalRaw =
+      data?.totalProducts ?? data?.total_products ?? data?.totalCatalog ?? data?.total ?? null;
+    const totalProducts =
+      totalRaw != null && totalRaw !== '' && !Number.isNaN(Number(totalRaw)) ? Number(totalRaw) : null;
+
+    const items = data?.collections ?? data?.items ?? data?.results ?? data?.data ?? [];
+    const arr = coerceArray(items);
+    const collections = arr
+      .map((x) => {
+        const idRaw = x?.id ?? x?._id ?? x?.collectionId ?? x?.collection_id ?? null;
+        const id = Number(idRaw);
+        if (!Number.isFinite(id) || id <= 0) return null;
+        const name = String(x?.name ?? x?.label ?? '').trim();
+        if (!name) return null;
+        const imageRaw = x?.image ?? x?.imageUrl ?? x?.image_url ?? x?.thumbnail ?? null;
+        const image =
+          imageRaw != null && String(imageRaw).trim() ? String(imageRaw).trim() : null;
+        const countRaw = x?.productCount ?? x?.product_count ?? x?.count ?? null;
+        const productCount =
+          countRaw != null && countRaw !== '' && !Number.isNaN(Number(countRaw)) ? Number(countRaw) : null;
+        return { id, name, image, productCount };
+      })
+      .filter(Boolean);
+
+    return { totalProducts, collections };
   },
 
   getCustomerProduct: async (id, { signal } = {}) => {
