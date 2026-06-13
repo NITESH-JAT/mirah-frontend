@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -63,22 +64,6 @@ function formatDateOnlyFromInput(value) {
 
 
 
-function isLikelyImageUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return false;
-  const base = (raw.split('?')[0] || raw).toLowerCase();
-  return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg'].some((ext) => base.endsWith(ext));
-}
-
-function pickThumbnailUrl(project) {
-  const referenceImage = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
-  if (referenceImage && /^https?:\/\//i.test(referenceImage)) return referenceImage;
-  const list = project?.attachments ?? project?.attachmentUrls ?? project?.attachment_urls ?? [];
-  const arr = Array.isArray(list) ? list : list ? [list] : [];
-  const img = arr.find((u) => isLikelyImageUrl(u));
-  return img || null;
-}
-
 function customerNameOf(project, root) {
   const p = project ?? {};
   const r = root ?? {};
@@ -129,7 +114,7 @@ function normalizeParticipationItem(raw) {
   const title = project?.title ?? project?.name ?? 'Project';
   const description = project?.description ?? '—';
   const customerName = customerNameOf(project, root);
-  const thumbnailUrl = pickThumbnailUrl(project);
+  const thumbnailUrl = pickProjectThumbnailUrl(project);
   const stats = root?.stats ?? root?.biddingStats ?? root?.bidding_stats ?? null;
   const bidCount = Number(
     stats?.totalBids ??

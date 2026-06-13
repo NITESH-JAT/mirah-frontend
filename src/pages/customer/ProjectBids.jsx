@@ -35,7 +35,11 @@ function formatCountdown(ms) {
   return `${dd}d ${hh}h ${mm}m ${ss}s`;
 }
 
-
+function isWinningBid(b) {
+  if (b?.isWinning != null) return Boolean(b.isWinning);
+  if (b?.is_winning != null) return Boolean(b.is_winning);
+  return false;
+}
 
 function toTitleCase(text) {
   return String(text || '')
@@ -1008,7 +1012,9 @@ export default function ProjectBids() {
                     const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                     const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
                     const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
+                    const isWinning = isWinningBid(b);
                     const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
+                    const isHighlighted = isWinning || isLowest;
                     const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
                     const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
                     const badge = assignmentBadge(vendorAsg);
@@ -1050,7 +1056,7 @@ export default function ProjectBids() {
                         } ${
                           selected
                             ? 'border-2 border-walnut ring-2 ring-walnut/20'
-                            : isLowest
+                            : isHighlighted
                               ? 'border-green-300 bg-green-50/40'
                               : canSelectBids && !disableSelect
                                 ? 'border-pale hover:bg-cream'
@@ -1099,8 +1105,13 @@ export default function ProjectBids() {
                           </button>
                           <div className="mt-2 flex flex-wrap items-center gap-2 min-h-[22px]">
                             {isLowest ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-sky-50 border-sky-200 text-sky-700">
                                 Lowest Bid
+                              </span>
+                            ) : null}
+                            {isWinning ? (
+                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                Winning
                               </span>
                             ) : null}
                             {isAssigned ? (
@@ -1150,7 +1161,9 @@ export default function ProjectBids() {
                         const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                         const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
                         const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
+                        const isWinning = isWinningBid(b);
                         const isLowest = lowest?.id && bidId && String(lowest.id) === bidId;
+                        const isHighlighted = isWinning || isLowest;
                         const vendorId = b?.vendorId ?? b?.vendor_id ?? vendor?.id ?? vendor?._id ?? null;
                         const vendorAsg = vendorId != null ? assignmentForVendor(vendorId) : null;
                         const badge = assignmentBadge(vendorAsg);
@@ -1192,7 +1205,7 @@ export default function ProjectBids() {
                             } ${
                               selected
                                 ? 'bg-walnut/[0.07] shadow-[inset_0_0_0_2px_#6b5545]'
-                                : isLowest
+                                : isHighlighted
                                   ? 'bg-green-50/50'
                                   : canSelectBids && !disableSelect
                                     ? 'odd:bg-white even:bg-cream/50 hover:bg-cream/80'
@@ -1221,8 +1234,13 @@ export default function ProjectBids() {
                                   </button>
                                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                                     {isLowest ? (
-                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-sky-50 border-sky-200 text-sky-700">
                                         Lowest Bid
+                                      </span>
+                                    ) : null}
+                                    {isWinning ? (
+                                      <span className="px-2 py-0.5 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                                        Winning
                                       </span>
                                     ) : null}
                                     {isAssigned ? (

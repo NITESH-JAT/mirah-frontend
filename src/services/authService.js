@@ -170,12 +170,10 @@ export const authService = {
 
   updateProfile: async (data) => {
     try {
-        const response = await api.put('/api/user/profile', data);
-        const updatedData = response.data?.data || response.data;
-        
-
-        saveSession('mirah_session_user', updatedData);
-        return updatedData;
+        await api.put('/api/user/profile', data);
+        // Rehydrate via /me so kyc, canSell, token, etc. stay in session (sidebar depends on kyc).
+        const hydrated = await authService.me();
+        return hydrated;
     } catch (error) {
         throw error.response?.data || { message: "Failed to update profile" };
     }
@@ -194,7 +192,8 @@ export const authService = {
 
       const existing = authService.getCurrentUser() || {};
       const merged = { ...existing, profileImageUrl };
-      return saveSession('mirah_session_user', merged);
+      saveSession('mirah_session_user', merged);
+      return merged;
     } catch (error) {
       throw error.response?.data || { message: "Failed to upload profile picture" };
     }

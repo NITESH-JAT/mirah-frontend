@@ -5,6 +5,7 @@ import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
+import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -22,7 +23,16 @@ function assignmentOf(row) {
 }
 
 function projectOf(row) {
-  return row?.project ?? row?.projectDetails ?? row?.projectModel ?? row?.projectSnapshot ?? row?.data?.project ?? null;
+  if (!row || typeof row !== 'object') return null;
+  return (
+    row.project ??
+    row.assignment?.project ??
+    row.projectDetails ??
+    row.projectModel ??
+    row.projectSnapshot ??
+    row.data?.project ??
+    null
+  );
 }
 
 function assignmentIdOf(a) {
@@ -33,22 +43,6 @@ function projectIdOf(project, assignment, fallback) {
   const p = project ?? {};
   const a = assignment ?? {};
   return p?.id ?? p?._id ?? a?.projectId ?? a?.project_id ?? fallback ?? null;
-}
-
-function isLikelyImageUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return false;
-  const base = (raw.split('?')[0] || raw).toLowerCase();
-  return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg'].some((ext) => base.endsWith(ext));
-}
-
-function pickThumbnailUrl(project) {
-  const referenceImage = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
-  if (referenceImage && /^https?:\/\//i.test(referenceImage)) return referenceImage;
-  const list = project?.attachments ?? project?.attachmentUrls ?? project?.attachment_urls ?? [];
-  const arr = Array.isArray(list) ? list : list ? [list] : [];
-  const img = arr.find((u) => isLikelyImageUrl(u));
-  return img || null;
 }
 
 function customerNameOf(project, root) {
@@ -281,7 +275,8 @@ export default function VendorProjects() {
           id,
           title: project?.title ?? project?.name ?? 'Project',
           customerName,
-          thumbnailUrl: pickThumbnailUrl(project),
+          // PRD: nested project.referenceImage (camelCase https URL)
+          thumbnailUrl: pickProjectThumbnailUrl(project) ?? pickProjectThumbnailUrl(projectOf(r)),
           status,
           isActive,
           overridden,
@@ -496,7 +491,11 @@ export default function VendorProjects() {
             return (
               <div key={String(assignmentIdOf(assignment) ?? projectId)} className="rounded-2xl border border-pale bg-white overflow-hidden">
                 <div className="relative h-40 bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
-                  <SafeImage src={row.thumbnailUrl} alt={row.title} className="absolute inset-0 w-full h-full object-cover" />
+                  <SafeImage
+                    src={row.thumbnailUrl ?? pickProjectThumbnailUrl(row.project)}
+                    alt={row.title}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
                 </div>
 
                 <div className="p-4">

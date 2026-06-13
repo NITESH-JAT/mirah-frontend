@@ -5,6 +5,7 @@ import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
+import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -101,18 +102,8 @@ function coerceUrlArray(input) {
   return raw ? [raw] : [];
 }
 
-function isLikelyImageUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return false;
-  const base = (raw.split('?')[0] || raw).toLowerCase();
-  return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg'].some((ext) => base.endsWith(ext));
-}
 
-function pickThumbnailUrl(attachments) {
-  const arr = Array.isArray(attachments) ? attachments : [];
-  const img = arr.find((u) => isLikelyImageUrl(u));
-  return img || null;
-}
+
 
 function filenameFromUrl(url, fallback = 'Attachment') {
   const raw = String(url || '').trim();
@@ -327,6 +318,17 @@ export default function VendorManageProject() {
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [statusConfirmType, setStatusConfirmType] = useState(null); // 'in_progress' | 'qc' | null
   const [statusConfirmSubmitting, setStatusConfirmSubmitting] = useState(false);
+  const [shipmentWorking, setShipmentWorking] = useState(false);
+  const [shipmentPackageModalOpen, setShipmentPackageModalOpen] = useState(false);
+  const [shipmentDiscardModalOpen, setShipmentDiscardModalOpen] = useState(false);
+  const [shipmentPackageForm, setShipmentPackageForm] = useState({
+    weightGrams: '',
+    lengthCm: '',
+    breadthCm: '',
+    heightCm: '',
+    declaredValueInr: '',
+  });
+  const [shipmentPackageError, setShipmentPackageError] = useState('');
   const abortRef = useRef(null);
   const paymentAbortRef = useRef(null);
 
@@ -336,6 +338,7 @@ export default function VendorManageProject() {
   const statusModel =
     details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
   const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
+  const shipmentModel = details?.shipmentModel ?? details?.shipment_model ?? details?.data?.shipmentModel ?? null;
   const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
   const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
 
@@ -343,18 +346,8 @@ export default function VendorManageProject() {
   const customerName = customerNameOf(project, details);
   const customerId = customerIdOf(project, details);
 
-  const referenceImage = useMemo(
-    () => String(project?.referenceImage ?? project?.reference_image ?? '').trim(),
-    [project],
-  );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
-  const thumbnailUrl = useMemo(
-    () =>
-      referenceImage && /^https?:\/\//i.test(referenceImage)
-        ? referenceImage
-        : pickThumbnailUrl(attachments),
-    [attachments, referenceImage],
-  );
+  const thumbnailUrl = useMemo(() => pickProjectThumbnailUrl(project), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
   const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
   const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
@@ -536,6 +529,8 @@ export default function VendorManageProject() {
     // Advance is relevant early; put it after started (or at top if missing).
     insertAfter('started', advanceMilestones);
 
+    insertAfter('in_progress', [{ key: 'in_transit_to_arviah', label: 'In Transit to Arviah' }]);
+
     // Final is expected after QC; if QC missing, append near end.
     insertAfter('qc', finalMilestones);
 
@@ -627,6 +622,47 @@ export default function VendorManageProject() {
     return best;
   }, [finalPayment, ledger]);
 
+  const activeInbound = shipmentModel?.inbound ?? null;
+  const inboundDiscardBlocked = ['picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'received_at_arviah'].includes(
+    String(activeInbound?.status || '').toLowerCase(),
+  );
+  const canGenerateShipment = currentOperationalStatusKey === 'in_progress' && !activeInbound;
+  const canDownloadShipment = Boolean(activeInbound?.labelAvailable);
+  const canDiscardShipment = Boolean(activeInbound) && !inboundDiscardBlocked;
+
+  const qcEntries = useMemo(() => {
+    const raw = qcModel?.logs ?? qcModel?.log ?? [];
+    const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return arr.filter(Boolean);
+  }, [qcModel]);
+
+  const qcFailedPendingRework = useMemo(() => {
+    if (currentOperationalStatusKey !== 'in_progress') return false;
+    const latest = qcEntries[0];
+    if (!latest) return false;
+    return String(latest?.status ?? '').toLowerCase() === 'failed';
+  }, [currentOperationalStatusKey, qcEntries]);
+
+  const inboundPastTransitPhase = useMemo(() => {
+    if (!activeInbound) return false;
+    if (activeInbound.receivedAt ?? activeInbound.received_at) return true;
+    return String(activeInbound.status ?? '').toLowerCase() === 'received_at_arviah';
+  }, [activeInbound]);
+
+  const qcEverReached = useMemo(
+    () => (statusTimelineMulti.get('qc') ?? []).length > 0,
+    [statusTimelineMulti],
+  );
+
+  const inTransitToArviahReached = useMemo(() => {
+    if (qcFailedPendingRework) return false;
+    if (!activeInbound) return false;
+    if (inboundPastTransitPhase) return true;
+    if (shipmentModel?.flags?.inboundAwaitingReceive) return true;
+    if (qcEverReached) return true;
+    return false;
+  }, [activeInbound, inboundPastTransitPhase, qcEverReached, qcFailedPendingRework, shipmentModel]);
+
   const currentStepKey = useMemo(() => {
     if (currentOperationalStatusKey === 'invoice') {
       if (advanceStatus === 'due') return 'invoice_advance';
@@ -640,17 +676,23 @@ export default function VendorManageProject() {
       if (advanceStatus === 'paid') return 'paid_advance';
       return 'paid_final';
     }
+    if (qcFailedPendingRework) return 'in_progress';
+    if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
+    if (activeInbound && currentOperationalStatusKey === 'in_progress' && !inTransitToArviahReached) {
+      return 'in_transit_to_arviah';
+    }
     return currentOperationalStatusKey;
-  }, [advanceStatus, currentOperationalStatusKey, finalStatus]);
+  }, [
+    advanceStatus,
+    activeInbound,
+    currentOperationalStatusKey,
+    finalStatus,
+    inTransitToArviahReached,
+    qcFailedPendingRework,
+    shipmentModel,
+  ]);
 
   const canMarkInProgress = currentOperationalStatusKey === 'started';
-  const canMarkQc = currentOperationalStatusKey === 'in_progress';
-
-  const qcEntries = useMemo(() => {
-    const raw = qcModel?.logs ?? qcModel?.log ?? [];
-    const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
-    return arr.filter(Boolean);
-  }, [qcModel]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -749,6 +791,117 @@ export default function VendorManageProject() {
       setStatusConfirmType(null);
     } finally {
       setStatusConfirmSubmitting(false);
+    }
+  };
+
+  const openShipmentPackageModal = () => {
+    const agreedAmount = Number(agreedPriceRaw);
+    const defaultDeclaredValue =
+      Number.isFinite(agreedAmount) && agreedAmount > 0 ? String(Math.round(agreedAmount)) : '';
+
+    setShipmentPackageForm({
+      weightGrams: '',
+      lengthCm: '',
+      breadthCm: '',
+      heightCm: '',
+      declaredValueInr: defaultDeclaredValue,
+    });
+    setShipmentPackageError('');
+    setShipmentPackageModalOpen(true);
+  };
+
+  const parseShipmentPackageForm = () => {
+    const fields = [
+      ['weightGrams', 'Weight (grams)'],
+      ['lengthCm', 'Length (cm)'],
+      ['breadthCm', 'Breadth (cm)'],
+      ['heightCm', 'Height (cm)'],
+      ['declaredValueInr', 'Declared value (INR)'],
+    ];
+    for (const [key, label] of fields) {
+      if (!String(shipmentPackageForm[key] ?? '').trim()) {
+        return { ok: false, message: `${label} is required.` };
+      }
+    }
+
+    const weightGrams = Number(shipmentPackageForm.weightGrams);
+    const lengthCm = Number(shipmentPackageForm.lengthCm);
+    const breadthCm = Number(shipmentPackageForm.breadthCm);
+    const heightCm = Number(shipmentPackageForm.heightCm);
+    const declaredValueInr = Number(shipmentPackageForm.declaredValueInr);
+
+    if (!Number.isFinite(weightGrams) || weightGrams < 10 || weightGrams > 50000) {
+      return { ok: false, message: 'Weight must be between 10 and 50,000 grams.' };
+    }
+    if (!Number.isFinite(lengthCm) || lengthCm < 1 || lengthCm > 200) {
+      return { ok: false, message: 'Length must be between 1 and 200 cm.' };
+    }
+    if (!Number.isFinite(breadthCm) || breadthCm < 1 || breadthCm > 200) {
+      return { ok: false, message: 'Breadth must be between 1 and 200 cm.' };
+    }
+    if (!Number.isFinite(heightCm) || heightCm < 1 || heightCm > 200) {
+      return { ok: false, message: 'Height must be between 1 and 200 cm.' };
+    }
+    if (!Number.isFinite(declaredValueInr) || declaredValueInr < 1 || declaredValueInr > 10000000) {
+      return { ok: false, message: 'Declared value must be between ₹1 and ₹1,00,00,000.' };
+    }
+
+    return {
+      ok: true,
+      payload: { weightGrams, lengthCm, breadthCm, heightCm, declaredValueInr },
+    };
+  };
+
+  const handleGenerateShipment = async () => {
+    if (!projectId || shipmentWorking) return;
+    const parsed = parseShipmentPackageForm();
+    if (!parsed.ok) {
+      setShipmentPackageError(parsed.message);
+      return;
+    }
+
+    setShipmentWorking(true);
+    try {
+      await projectService.generateInboundShipment(projectId, parsed.payload);
+      addToast('Shipping tag generated.', 'success');
+      setShipmentPackageModalOpen(false);
+      await load();
+      const refreshed = await projectService.getDetails(projectId);
+      const inbound = refreshed?.shipmentModel?.inbound;
+      if (inbound?.labelAvailable && inbound?.id) {
+        await projectService.downloadShipmentLabel(projectId, inbound.id);
+      }
+    } catch (e) {
+      addToast(e?.message || 'Failed to generate shipping tag', 'error');
+    } finally {
+      setShipmentWorking(false);
+    }
+  };
+
+  const handleDownloadShipmentLabel = async () => {
+    if (!projectId || !activeInbound?.id || shipmentWorking) return;
+    setShipmentWorking(true);
+    try {
+      await projectService.downloadShipmentLabel(projectId, activeInbound.id);
+    } catch (e) {
+      addToast(e?.message || 'Failed to download label', 'error');
+    } finally {
+      setShipmentWorking(false);
+    }
+  };
+
+  const handleDiscardShipment = async () => {
+    if (!projectId || !activeInbound?.id || shipmentWorking) return;
+    setShipmentWorking(true);
+    try {
+      await projectService.discardShipment(projectId, activeInbound.id);
+      addToast('Shipment discarded.', 'success');
+      setShipmentDiscardModalOpen(false);
+      await load();
+    } catch (e) {
+      addToast(e?.message || 'Cannot discard shipment', 'error');
+    } finally {
+      setShipmentWorking(false);
     }
   };
 
@@ -1012,8 +1165,8 @@ export default function VendorManageProject() {
                         </span>
                       </p>
                       {paymentDetails.pricingBreakdown ? (
-                        <div className="mt-3 pt-3 border-t border-pale space-y-1 text-[11px] text-muted">
-                          <p className="font-extrabold text-ink text-[10px] uppercase tracking-wide">Tariff</p>
+                        <div className="mt-3 pt-3 border-t border-pale space-y-1.5 text-[12px] text-mid">
+                          <p className="font-extrabold text-ink">Tariff</p>
                           <p>
                             Jeweller bid :{' '}
                             <span className="font-bold text-ink">
@@ -1075,32 +1228,77 @@ export default function VendorManageProject() {
                 </div>
               </div>
 
-              {/* Change status card */}
+              {/* Shipping + status card */}
               <div className="bg-white rounded-2xl border border-pale overflow-hidden">
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-ink">Change Status</p>
+                    <p className="text-[12px] font-extrabold text-ink">Mark In Progress</p>
                   </div>
-                  <p className="mt-1 text-[12px] text-muted">
-                    Update the project operational status as work progresses.
-                  </p>
-                  <div className="mt-4 grid grid-cols-1 gap-3">
+                  <div className="mt-3">
                     <button
                       type="button"
                       onClick={() => openStatusConfirm('in_progress')}
                       disabled={!canMarkInProgress || statusUpdating}
-                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-pale bg-cream text-ink hover:bg-blush disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Mark In Progress
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openStatusConfirm('qc')}
-                      disabled={!canMarkQc || statusUpdating}
-                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-emerald-100 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Put in QC Check
-                    </button>
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-pale space-y-1.5 text-[12px] text-mid">
+                    <p className="font-extrabold text-ink">Shipping & Status</p>
+                    <p className="text-muted">
+                      Generate a Shiprocket tag to send jewellery to Arviah QC. Pickup address is the same as configured in your Profile section.
+                    </p>
+                    {activeInbound?.awbCode ? (
+                      <p>
+                        AWB: <span className="font-bold text-ink">{activeInbound.awbCode}</span>
+                        {activeInbound.trackingUrl ? (
+                          <>
+                            {' '}
+                            ·{' '}
+                            <a href={activeInbound.trackingUrl} target="_blank" rel="noreferrer" className="text-walnut underline">
+                              Track
+                            </a>
+                          </>
+                        ) : null}
+                      </p>
+                    ) : null}
+                    <div className="mt-4 grid grid-cols-1 gap-3">
+                    {canGenerateShipment ? (
+                      <button
+                        type="button"
+                        onClick={openShipmentPackageModal}
+                        disabled={shipmentWorking}
+                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-blue-300 bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
+                      >
+                        {shipmentWorking ? 'Generating…' : 'Generate & Download Shipping Tag'}
+                      </button>
+                    ) : null}
+                    {canDownloadShipment ? (
+                      <button
+                        type="button"
+                        onClick={handleDownloadShipmentLabel}
+                        disabled={shipmentWorking}
+                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-walnut/20 bg-white text-ink hover:bg-cream disabled:opacity-50"
+                      >
+                        Download Shipping Tag
+                      </button>
+                    ) : null}
+                    {canDiscardShipment ? (
+                      <button
+                        type="button"
+                        onClick={() => setShipmentDiscardModalOpen(true)}
+                        disabled={shipmentWorking}
+                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-red-100 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
+                      >
+                        Discard Shipment
+                      </button>
+                    ) : null}
+                    {activeInbound && inboundDiscardBlocked ? (
+                      <p className="text-[11px] text-muted">Courier has picked up this shipment — discard is no longer available.</p>
+                    ) : null}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1174,6 +1372,205 @@ export default function VendorManageProject() {
                     document.body,
                   )
                 : null)
+            ) : null}
+
+            {shipmentPackageModalOpen ? (
+              (typeof document !== 'undefined'
+                ? createPortal(
+                    <div
+                      className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                      onMouseDown={() => !shipmentWorking && setShipmentPackageModalOpen(false)}
+                    >
+                      <div
+                        className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                      >
+                        <div className="px-5 py-4 border-b border-pale">
+                          <p className="text-[14px] font-extrabold text-ink">Package Details</p>
+                          <p className="mt-1 text-[12px] text-muted">
+                            Enter package weight, box size, and declared value for this shipment.
+                          </p>
+                        </div>
+                        <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">
+                              Weight (grams)<span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="10"
+                              max="50000"
+                              step="1"
+                              required
+                              value={shipmentPackageForm.weightGrams}
+                              onChange={(e) =>
+                                setShipmentPackageForm((prev) => ({ ...prev, weightGrams: e.target.value }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">
+                              Declared value (₹)<span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              step="1"
+                              required
+                              value={shipmentPackageForm.declaredValueInr}
+                              onChange={(e) =>
+                                setShipmentPackageForm((prev) => ({ ...prev, declaredValueInr: e.target.value }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">
+                              Length (cm)<span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="200"
+                              step="0.1"
+                              required
+                              value={shipmentPackageForm.lengthCm}
+                              onChange={(e) =>
+                                setShipmentPackageForm((prev) => ({ ...prev, lengthCm: e.target.value }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">
+                              Breadth (cm)<span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="200"
+                              step="0.1"
+                              required
+                              value={shipmentPackageForm.breadthCm}
+                              onChange={(e) =>
+                                setShipmentPackageForm((prev) => ({ ...prev, breadthCm: e.target.value }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                            />
+                          </label>
+                          <label className="block col-span-2">
+                            <span className="text-[11px] font-bold text-mid">
+                              Height (cm)<span className="text-red-600"> *</span>
+                            </span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="200"
+                              step="0.1"
+                              required
+                              value={shipmentPackageForm.heightCm}
+                              onChange={(e) =>
+                                setShipmentPackageForm((prev) => ({ ...prev, heightCm: e.target.value }))
+                              }
+                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                            />
+                          </label>
+                        </div>
+                        {shipmentPackageError ? (
+                          <p className="px-5 pb-2 text-[12px] text-red-600">{shipmentPackageError}</p>
+                        ) : null}
+                        <div className="px-5 py-4 border-t border-pale flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShipmentPackageModalOpen(false)}
+                            disabled={shipmentWorking}
+                            className="flex-1 px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-pale bg-cream text-ink disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleGenerateShipment}
+                            disabled={shipmentWorking}
+                            className="flex-1 px-4 py-2.5 rounded-xl text-[12px] font-extrabold bg-walnut text-blush hover:opacity-90 disabled:opacity-50"
+                          >
+                            {shipmentWorking ? 'Generating…' : 'Generate Tag'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null)
+            ) : null}
+
+            {shipmentDiscardModalOpen ? (
+              typeof document !== 'undefined'
+                ? createPortal(
+                    <div
+                      className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                      onMouseDown={() => !shipmentWorking && setShipmentDiscardModalOpen(false)}
+                    >
+                      <div
+                        className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                      >
+                        <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-extrabold text-ink">Discard shipment</p>
+                            <p className="mt-1 text-[12px] text-muted">
+                              This will cancel the current shipping tag. You can generate a new one later if needed.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShipmentDiscardModalOpen(false)}
+                            disabled={shipmentWorking}
+                            className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
+                            aria-label="Close"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            >
+                              <path d="M18 6 6 18" />
+                              <path d="m6 6 12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                        <div className="px-5 py-4 flex flex-col sm:flex-row sm:justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShipmentDiscardModalOpen(false)}
+                            disabled={shipmentWorking}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleDiscardShipment}
+                            disabled={shipmentWorking}
+                            className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-red-600 text-white text-[12px] font-bold hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {shipmentWorking ? 'Discarding…' : 'Discard shipment'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null
             ) : null}
 
             {/* QC logs card (only show when logs exist) */}
@@ -1282,6 +1679,16 @@ export default function VendorManageProject() {
                           if (k === 'paid_advance') return advancePaidAt ?? null;
                           if (k === 'paid_final') return finalPaidAt ?? null;
                           if (k === 'payment_settlement') return paymentDetails?.settlementMarkedAt ?? null;
+                          if ((k === 'in_transit_to_arviah' || k === 'qc') && qcFailedPendingRework) return null;
+                          if (k === 'in_transit_to_arviah') {
+                            const qcArr = statusTimelineMulti.get('qc') ?? [];
+                            return (
+                              activeInbound?.receivedAt ??
+                              activeInbound?.received_at ??
+                              (shipmentModel?.flags?.inboundAwaitingReceive ? activeInbound?.updatedAt ?? null : null) ??
+                              (qcArr.length ? qcArr[0] : null)
+                            );
+                          }
                           const arr = statusTimelineMulti.get(k) ?? [];
                           return arr.length ? arr[arr.length - 1] : null;
                         })();
@@ -1303,8 +1710,9 @@ export default function VendorManageProject() {
                         );
                         const qcTimelineArr = statusTimelineMulti.get('qc') ?? [];
                         const qcReached =
+                          !qcFailedPendingRework &&
                           qcIdx >= 0 &&
-                          (currentIdx >= qcIdx || (qcTimelineArr.length > 0));
+                          (currentIdx >= qcIdx || qcTimelineArr.length > 0);
 
                         const finalPaidReached = finalStatus === 'paid' || Boolean(finalPaidAt);
                         // Final invoice should be considered reached once QC is reached and final is due/paid.
@@ -1320,13 +1728,14 @@ export default function VendorManageProject() {
                           if (kNorm === 'invoice_final') return finalInvoiceReached;
                           if (kNorm === 'paid_final') return finalPaidReached;
                           if (kNorm === 'payment_settlement') return paymentSettlementReached;
+                          if (kNorm === 'in_transit_to_arviah') return inTransitToArviahReached;
                           return false;
                         })();
 
                         const ts = reachedByRule || !isPayment ? tsCandidate : null;
                         const isCurrent = normalizeStatusKey(key) === normalizeStatusKey(currentStepKey);
                         const completedByIdx = currentIdx >= 0 ? idx < currentIdx : false;
-                        const isCompleted = isPayment ? reachedByRule : Boolean(ts) || completedByIdx;
+                        const isCompleted = isPayment ? reachedByRule : reachedByRule || Boolean(ts) || completedByIdx;
                         const state = isCurrent ? 'current' : isCompleted ? 'completed' : 'upcoming';
 
                         const circleClass =
@@ -1345,6 +1754,7 @@ export default function VendorManageProject() {
                           if (k === 'paid_advance') return 'Advance Paid';
                           if (k === 'paid_final') return 'Final Paid';
                           if (k === 'payment_settlement') return 'Payment Settlement';
+                          if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
                           if (k === 'qc') return 'Arviah QC Checks';
                           if (k === 'invoice') return invoiceProjectStatusLabel(advanceStatus, finalStatus);
                           return s?.label ?? toTitleCase(key);

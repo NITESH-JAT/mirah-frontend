@@ -2315,6 +2315,7 @@ Response:
           "customerId": 22,
           "title": "heelo world",
           "description": "helow world hah haha ha ah",
+          "referenceImage": "https://.../reference.jpg",
           "attachments": [
             "https://.../projects/22/attachment/file.png"
           ],

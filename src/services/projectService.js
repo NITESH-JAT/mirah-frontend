@@ -206,7 +206,20 @@ export const projectService = {
     const res = await api.get('/api/user/assignments', { params, signal });
     const data = unwrap(res) || {};
     const itemsRaw = data?.assignments ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
-    const items = coerceArray(itemsRaw).filter(Boolean);
+    const items = coerceArray(itemsRaw)
+      .filter(Boolean)
+      .map((row) => {
+        const project = row?.project ?? row?.projectDetails ?? null;
+        if (!project || typeof project !== 'object') return row;
+        const referenceImage = project.referenceImage ?? project.reference_image ?? null;
+        return {
+          ...row,
+          project: {
+            ...project,
+            referenceImage,
+          },
+        };
+      });
     const metaRaw = data?.meta ?? data?.pagination ?? data?.pageInfo ?? data ?? {};
     const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
     const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
@@ -265,10 +278,52 @@ export const projectService = {
     return unwrap(res);
   },
 
+  generateInboundShipment: async (projectId, packageDetails, { signal } = {}) => {
+    if (!projectId) return null;
+    if (!packageDetails || typeof packageDetails !== 'object') {
+      throw new Error('Package details are required.');
+    }
+    const res = await api.post(
+      `/api/user/projects/${projectId}/shipments/inbound/generate`,
+      packageDetails,
+      { signal },
+    );
+    return unwrap(res);
+  },
+
+  getShipmentLabelUrl: async (projectId, shipmentId, { signal } = {}) => {
+    if (!projectId || !shipmentId) return null;
+    const res = await api.get(`/api/user/projects/${projectId}/shipments/${shipmentId}/label`, { signal });
+    const data = unwrap(res);
+    return data?.url ?? data?.data?.url ?? null;
+  },
+
+  discardShipment: async (projectId, shipmentId, { reason, signal } = {}) => {
+    if (!projectId || !shipmentId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/shipments/${shipmentId}/discard`, { reason }, { signal });
+    return unwrap(res);
+  },
+
+  downloadShipmentLabel: async (projectId, shipmentId) => {
+    const url = await projectService.getShipmentLabelUrl(projectId, shipmentId);
+    if (!url) throw new Error('Label URL not available');
+    window.open(url, '_blank', 'noopener,noreferrer');
+  },
+
   getDetails: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.get(`/api/user/projects/${projectId}`, { signal });
-    return unwrap(res);
+    const data = unwrap(res);
+    const project = data?.project ?? data?.projectDetails ?? null;
+    if (!project || typeof project !== 'object') return data;
+    const referenceImage = project.referenceImage ?? project.reference_image ?? null;
+    return {
+      ...data,
+      project: {
+        ...project,
+        referenceImage,
+      },
+    };
   },
 
   createPaymentOrder: async (projectId, { type } = {}, { signal } = {}) => {

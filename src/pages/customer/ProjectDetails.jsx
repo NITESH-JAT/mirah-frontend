@@ -451,6 +451,8 @@ export default function ProjectDetails() {
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
   const statusModel = details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
+  const shipmentModel = details?.shipmentModel ?? details?.shipment_model ?? details?.data?.shipmentModel ?? null;
+  const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
   const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
   const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
 
@@ -515,6 +517,8 @@ export default function ProjectDetails() {
     // Advance is relevant early; put it after started (or at top if missing).
     insertAfter('started', advanceMilestones);
 
+    insertAfter('in_progress', [{ key: 'in_transit_to_arviah', label: 'In Transit to Arviah' }]);
+
     // Final is expected after QC; if QC missing, append near end.
     insertAfter('qc', finalMilestones);
 
@@ -526,7 +530,7 @@ export default function ProjectDetails() {
       seen2.add(k);
       return true;
     });
-  }, [project, statusModel]);
+  }, [project, statusModel, shipmentModel]);
 
   const statusTimelineMulti = useMemo(() => {
     const list = Array.isArray(statusModel?.timeline) ? statusModel.timeline : [];
@@ -598,6 +602,41 @@ export default function ProjectDetails() {
     return best;
   }, [finalPayment, ledger]);
 
+  const activeInbound = shipmentModel?.inbound ?? null;
+
+  const qcEntries = useMemo(() => {
+    const raw = qcModel?.logs ?? qcModel?.log ?? [];
+    const arr = Array.isArray(raw) ? raw : raw ? [raw] : [];
+    return arr.filter(Boolean);
+  }, [qcModel]);
+
+  const qcFailedPendingRework = useMemo(() => {
+    if (currentOperationalStatusKey !== 'in_progress') return false;
+    const latest = qcEntries[0];
+    if (!latest) return false;
+    return String(latest?.status ?? '').toLowerCase() === 'failed';
+  }, [currentOperationalStatusKey, qcEntries]);
+
+  const inboundPastTransitPhase = useMemo(() => {
+    if (!activeInbound) return false;
+    if (activeInbound.receivedAt ?? activeInbound.received_at) return true;
+    return String(activeInbound.status ?? '').toLowerCase() === 'received_at_arviah';
+  }, [activeInbound]);
+
+  const qcEverReached = useMemo(
+    () => (statusTimelineMulti.get('qc') ?? []).length > 0,
+    [statusTimelineMulti],
+  );
+
+  const inTransitToArviahReached = useMemo(() => {
+    if (qcFailedPendingRework) return false;
+    if (!activeInbound) return false;
+    if (inboundPastTransitPhase) return true;
+    if (shipmentModel?.flags?.inboundAwaitingReceive) return true;
+    if (qcEverReached) return true;
+    return false;
+  }, [activeInbound, inboundPastTransitPhase, qcEverReached, qcFailedPendingRework, shipmentModel]);
+
   const currentStepKey = useMemo(() => {
     if (currentOperationalStatusKey === 'invoice') {
       if (advanceStatus === 'due') return 'invoice_advance';
@@ -611,8 +650,21 @@ export default function ProjectDetails() {
       if (advanceStatus === 'paid') return 'paid_advance';
       return 'paid_final';
     }
+    if (qcFailedPendingRework) return 'in_progress';
+    if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
+    if (activeInbound && currentOperationalStatusKey === 'in_progress' && !inTransitToArviahReached) {
+      return 'in_transit_to_arviah';
+    }
     return currentOperationalStatusKey;
-  }, [advanceStatus, currentOperationalStatusKey, finalStatus]);
+  }, [
+    advanceStatus,
+    activeInbound,
+    currentOperationalStatusKey,
+    finalStatus,
+    inTransitToArviahReached,
+    qcFailedPendingRework,
+    shipmentModel,
+  ]);
 
   const assignmentsRaw =
     project?.assignments ??
@@ -1398,7 +1450,10 @@ export default function ProjectDetails() {
                         (s) => normalizeStatusKey(s?.key) === normalizeStatusKey(currentOperationalStatusKey),
                       );
                       const qcIdx = operationalSteps.findIndex((s) => normalizeStatusKey(s?.key) === 'qc');
-                      const qcReached = qcIdx >= 0 && (currentOperationalIdx >= qcIdx || (statusTimelineMulti.get('qc') ?? []).length > 0);
+                      const qcReached =
+                        !qcFailedPendingRework &&
+                        qcIdx >= 0 &&
+                        (currentOperationalIdx >= qcIdx || (statusTimelineMulti.get('qc') ?? []).length > 0);
 
                       const currentIdx = statusSteps.findIndex((s) => normalizeStatusKey(s?.key) === normalizeStatusKey(currentStepKey));
                       return (
@@ -1424,6 +1479,16 @@ export default function ProjectDetails() {
                               }
                               if (k === 'paid_advance') return advancePaidAt ?? null;
                               if (k === 'paid_final') return finalPaidAt ?? null;
+                              if ((k === 'in_transit_to_arviah' || k === 'qc') && qcFailedPendingRework) return null;
+                              if (k === 'in_transit_to_arviah') {
+                                const qcArr = statusTimelineMulti.get('qc') ?? [];
+                                return (
+                                  activeInbound?.receivedAt ??
+                                  activeInbound?.received_at ??
+                                  (shipmentModel?.flags?.inboundAwaitingReceive ? activeInbound?.updatedAt ?? null : null) ??
+                                  (qcArr.length ? qcArr[0] : null)
+                                );
+                              }
                               const arr = statusTimelineMulti.get(k) ?? [];
                               return arr.length ? arr[arr.length - 1] : null;
                             })();
@@ -1449,12 +1514,13 @@ export default function ProjectDetails() {
                               if (kNorm === 'paid_advance') return advancePaidReached;
                               if (kNorm === 'invoice_final') return finalInvoiceReached;
                               if (kNorm === 'paid_final') return finalPaidReached;
+                              if (kNorm === 'in_transit_to_arviah') return inTransitToArviahReached;
                               return false;
                             })();
 
                             const ts = reachedByRule || !isPayment ? tsCandidate : null;
                             const isCurrent = normalizeStatusKey(key) === normalizeStatusKey(currentStepKey);
-                            const isCompleted = isPayment ? Boolean(ts) : Boolean(ts) || completedByIdx;
+                            const isCompleted = isPayment ? Boolean(ts) : reachedByRule || Boolean(ts) || completedByIdx;
                             const state = isCurrent ? 'current' : isCompleted ? 'completed' : 'upcoming';
 
                             const circleClass =
@@ -1472,6 +1538,7 @@ export default function ProjectDetails() {
                               if (k === 'invoice_final') return 'Invoice (Final)';
                               if (k === 'paid_advance') return 'Advance Paid';
                               if (k === 'paid_final') return 'Final Paid';
+                              if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
                               if (k === 'qc') return 'Arviah QC Checks';
                               if (k === 'invoice') return projectStatusLabel;
                               return s?.label ?? toTitleCase(key);

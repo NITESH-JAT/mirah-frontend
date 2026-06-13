@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
-import { formatMoney } from '../../utils/formatMoney';
+import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -26,20 +26,8 @@ function durationDaysOf(project) {
   return t;
 }
 
-function isLikelyImageUrl(url) {
-  const raw = String(url || '').trim();
-  if (!raw) return false;
-  const base = (raw.split('?')[0] || raw).toLowerCase();
-  return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg'].some((ext) => base.endsWith(ext));
-}
-
 function pickThumbnailUrl(project) {
-  const referenceImage = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
-  if (referenceImage && /^https?:\/\//i.test(referenceImage)) return referenceImage;
-  const list = project?.attachments ?? project?.attachmentUrls ?? project?.attachment_urls ?? [];
-  const arr = Array.isArray(list) ? list : list ? [list] : [];
-  const img = arr.find((u) => isLikelyImageUrl(u));
-  return img || null;
+  return pickProjectThumbnailUrl(project);
 }
 
 function customerNameOf(project, root) {

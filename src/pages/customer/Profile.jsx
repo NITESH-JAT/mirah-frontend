@@ -492,7 +492,20 @@ export default function Profile() {
             <MobileNumberField countryCode={editForm.countryCode} phone={editForm.phone} />
 
             <div className="md:col-span-2">
-                <InputField label="Address" name="address" value={editForm.address} onChange={handleInputChange} readOnly={!isEditing} placeholder="Enter your full address" />
+              {isJeweller ? (
+                <div className="mb-3 flex items-start gap-2.5 rounded-xl border border-pale bg-cream px-3 py-2.5">
+                  <span
+                    className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-walnut/25 bg-white text-[10px] font-extrabold leading-none text-walnut"
+                    aria-hidden="true"
+                  >
+                    i
+                  </span>
+                  <p className="text-[11px] leading-relaxed text-muted">
+                    This address is used as your pickup location when you ship jewellery to Arviah QC.
+                  </p>
+                </div>
+              ) : null}
+              <InputField label="Address" name="address" value={editForm.address} onChange={handleInputChange} readOnly={!isEditing} placeholder="Enter your full address" />
             </div>
 
             <InputField label="City" name="city" value={editForm.city} onChange={handleInputChange} readOnly={!isEditing} />

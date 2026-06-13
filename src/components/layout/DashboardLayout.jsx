@@ -556,8 +556,8 @@ export default function DashboardLayout() {
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-row overflow-hidden bg-cream font-sans relative">
       <style>{globalStyles}</style>
 
-      {/* TOAST CONTAINER */}
-      <div className="fixed top-6 right-6 z-[260] flex flex-col items-end pointer-events-none">
+      {/* TOAST CONTAINER — below sticky header (h-16) */}
+      <div className="fixed top-[calc(4rem+0.75rem)] right-4 sm:right-6 lg:right-8 z-[260] flex flex-col items-end pointer-events-none">
          {toasts.map(toast => (
             <ToastNotification 
                 key={toast.id} 
