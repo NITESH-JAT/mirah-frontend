@@ -4,6 +4,7 @@ import { getVendorDisplayName, sourceBadgeText } from '../../utils/productSource
 import { formatMoney } from '../../utils/formatMoney';
 
 const COLLECTION_ACCENTS = ['text-walnut', 'text-[#8B7355]', 'text-[#6B7B8C]', 'text-[#9A7B4F]', 'text-[#7A6B5D]'];
+const LISTING_IMAGE_BG_CLASS = 'bg-[#ffffff]';
 
 function compareAtOf(p) {
   const c = Number(p?.compareAtPrice ?? p?.compare_at_price);
@@ -121,7 +122,7 @@ export default function ProductGridCard({
 }) {
   const isListing = variant === 'listing';
   const listingImageClass =
-    'max-h-full max-w-full object-contain object-center bg-white';
+    `max-h-full max-w-full object-contain object-center ${LISTING_IMAGE_BG_CLASS}`;
   const imageUrls = productImageUrls(p);
   const primaryImg = imageUrls[0] ?? null;
   const hoverImg =
@@ -148,7 +149,7 @@ export default function ProductGridCard({
 
   if (isListing) {
     return (
-      <article className="flex h-full min-h-0 flex-col bg-white">
+      <article className={`flex h-full min-h-0 flex-col ${LISTING_IMAGE_BG_CLASS}`}>
         <div
           role="button"
           tabIndex={0}
@@ -164,12 +165,12 @@ export default function ProductGridCard({
           }}
           onTouchEnd={() => setTouchPreview(false)}
           onTouchCancel={() => setTouchPreview(false)}
-          className="group relative aspect-[3/4] w-full cursor-pointer overflow-hidden border-b border-pale/70 bg-white"
+          className={`group relative aspect-[3/4] w-full cursor-pointer overflow-hidden border-b border-pale/70 ${LISTING_IMAGE_BG_CLASS}`}
         >
           {primaryImg ? (
             <>
               <div
-                className={`absolute inset-0 flex items-center justify-center bg-white p-4 md:p-5 ${
+                className={`absolute inset-0 flex items-center justify-center ${LISTING_IMAGE_BG_CLASS} p-4 md:p-5 ${
                   hoverImg
                     ? `transition-opacity duration-700 ease-in-out md:group-hover:opacity-0 max-md:group-active:opacity-0${
                         touchPreview ? ' max-md:opacity-0' : ''
@@ -186,7 +187,7 @@ export default function ProductGridCard({
               </div>
               {hoverImg ? (
                 <div
-                  className={`absolute inset-0 flex items-center justify-center bg-white p-4 md:p-5 opacity-0 transition-opacity duration-700 ease-in-out md:group-hover:opacity-100 max-md:group-active:opacity-100${
+                  className={`absolute inset-0 flex items-center justify-center ${LISTING_IMAGE_BG_CLASS} p-4 md:p-5 opacity-0 transition-opacity duration-700 ease-in-out md:group-hover:opacity-100 max-md:group-active:opacity-100${
                     touchPreview ? ' max-md:opacity-100' : ''
                   }`}
                 >
@@ -200,7 +201,7 @@ export default function ProductGridCard({
               ) : null}
             </>
           ) : (
-            <div className="flex h-full w-full flex-col items-center justify-center bg-white text-muted/70">
+            <div className={`flex h-full w-full flex-col items-center justify-center ${LISTING_IMAGE_BG_CLASS} text-muted/70`}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="28"

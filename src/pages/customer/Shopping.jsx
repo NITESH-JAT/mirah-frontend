@@ -62,6 +62,28 @@ function CategoryCardNoImagePlaceholder() {
   );
 }
 
+function ShopListingSpinner() {
+  return (
+    <svg
+      className="animate-spin text-ink"
+      xmlns="http://www.w3.org/2000/svg"
+      width="28"
+      height="28"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+      <path
+        d="M22 12a10 10 0 0 0-10-10"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /** Category tiles use only the `image` URL from `GET .../customer/categories`. */
 function categoryCardImageSrc(apiImage) {
   const url = String(apiImage || '').trim();
@@ -582,7 +604,7 @@ export default function Shopping() {
       className={`flex w-full flex-col pb-0 animate-fade-in ${
         browseMode === 'products'
           ? 'min-h-[calc(100dvh-4rem)] flex-1'
-          : 'min-h-[calc(100dvh-5rem)] lg:min-h-[calc(100dvh-6rem)]'
+          : 'min-h-[calc(100dvh-5rem)] flex-1 lg:min-h-[calc(100dvh-6rem)]'
       }`}
     >
       {browseMode === 'products' ? (
@@ -836,26 +858,11 @@ export default function Shopping() {
           </div>
 
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-0 pb-4">
-            <div className="w-full min-w-0">
+            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
               {catalogBrowseMode === 'category' ? (
                 filterMetaLoading && customerCategories.length === 0 ? (
-                  <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
-                    <svg
-                      className="animate-spin text-ink"
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="28"
-                      height="28"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                      <path
-                        d="M22 12a10 10 0 0 0-10-10"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                      />
-                    </svg>
+                  <div className="flex flex-1 items-center justify-center">
+                    <ShopListingSpinner />
                   </div>
                 ) : !filterMetaLoading && customerCategories.length === 0 ? (
                   <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
@@ -904,23 +911,8 @@ export default function Shopping() {
                   </>
                 )
               ) : filterMetaLoading && customerCollections.length === 0 ? (
-                <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-pale bg-[#f2e6d4]/20">
-                  <svg
-                    className="animate-spin text-ink"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path
-                      d="M22 12a10 10 0 0 0-10-10"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                    />
-                  </svg>
+                <div className="flex flex-1 items-center justify-center">
+                  <ShopListingSpinner />
                 </div>
               ) : !filterMetaLoading && customerCollections.length === 0 ? (
                 <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
@@ -1063,22 +1055,7 @@ export default function Shopping() {
           ) : null}
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
-              <svg
-                className="animate-spin text-ink"
-                xmlns="http://www.w3.org/2000/svg"
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-              >
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                <path
-                  d="M22 12a10 10 0 0 0-10-10"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                />
-              </svg>
+              <ShopListingSpinner />
             </div>
           ) : items.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-4">
