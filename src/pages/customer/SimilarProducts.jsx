@@ -5,6 +5,9 @@ import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import { formatMoney } from '../../utils/formatMoney';
+import { readShopCatalogSession } from '../../utils/shopCatalogSession';
+import { writeSimilarProductsSession } from '../../utils/similarProductsSession';
+import { productListingGridBorderClasses } from '../../utils/productListingGrid';
 
 function pickId(p) {
   return p?.id ?? p?._id ?? p?.productId ?? null;
@@ -16,14 +19,19 @@ export default function SimilarProducts() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const goToShop = () => {
+    const saved = readShopCatalogSession();
+    navigate(saved?.view === 'products' ? '/customer/shopping?view=products' : '/customer/shopping');
+  };
+
   const DESKTOP_GRID_KEY = 'mirah_shop_desktop_grid_cols';
   const [desktopGridCols, setDesktopGridCols] = useState(() => {
     try {
       const raw = localStorage.getItem(DESKTOP_GRID_KEY);
       const n = Number(raw);
-      return n === 2 || n === 4 || n === 6 ? n : 4;
+      return n === 2 || n === 3 || n === 4 ? n : 3;
     } catch {
-      return 4;
+      return 3;
     }
   });
   useEffect(() => {
@@ -34,7 +42,11 @@ export default function SimilarProducts() {
     }
   }, [desktopGridCols]);
   const desktopGridColsClass =
-    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 6 ? 'md:grid-cols-6' : 'md:grid-cols-4';
+    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 4 ? 'md:grid-cols-4' : 'md:grid-cols-3';
+  const listingGridBorderClass = useMemo(
+    () => productListingGridBorderClasses(desktopGridCols),
+    [desktopGridCols]
+  );
 
   const [category, setCategory] = useState(() => location?.state?.category || '');
   const [loading, setLoading] = useState(false);
@@ -109,6 +121,11 @@ export default function SimilarProducts() {
       .finally(() => {});
     return () => ctrl.abort();
   }, [category, id]);
+
+  useEffect(() => {
+    if (!id) return;
+    writeSimilarProductsSession({ anchorProductId: id, category: category || null });
+  }, [id, category]);
 
   const fetchList = async (nextPage) => {
     if (!category) return;
@@ -197,27 +214,39 @@ export default function SimilarProducts() {
     <div className="flex min-h-[calc(100dvh-4rem)] w-full flex-1 flex-col pb-0 animate-fade-in">
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
         <div className="flex w-full flex-nowrap items-center justify-between gap-3">
-          <div className="flex min-h-[2.75rem] min-w-0 flex-1 items-center gap-3 md:min-h-[3rem]">
+          <nav
+            aria-label="Breadcrumb"
+            className="flex min-h-[2.75rem] min-w-0 flex-1 items-center gap-2 text-[12px] md:min-h-[3rem] md:text-[13px]"
+          >
             <button
               type="button"
-              onClick={() => navigate(`/customer/shopping/${id}`)}
-              className="shrink-0 rounded-xl border border-pale bg-white p-2 text-mid hover:bg-cream"
-              aria-label="Back to product"
+              onClick={goToShop}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 font-semibold text-mid underline underline-offset-2 transition-colors hover:text-ink"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
                 <path d="M15 18l-6-6 6-6" />
               </svg>
+              Shop
             </button>
-            <div className="min-w-0">
-              <p className="text-[13px] font-bold text-ink md:text-[15px]">Similar Products</p>
-              {category ? (
-                <p className="mt-0.5 truncate text-[11px] text-muted md:text-[12px]">Category: {category}</p>
-              ) : null}
-            </div>
-          </div>
+            <span className="shrink-0 text-muted" aria-hidden>
+              /
+            </span>
+            <span className="min-w-0 truncate font-semibold text-ink">Similar Products</span>
+          </nav>
 
           <div className="hidden shrink-0 items-center gap-2 md:flex">
-            {[2, 4, 6].map((n) => (
+            {[2, 3, 4].map((n) => (
               <button
                 key={n}
                 type="button"
@@ -238,8 +267,8 @@ export default function SimilarProducts() {
       </div>
 
       <div
-        className={`mt-4 flex min-h-0 flex-1 flex-col bg-white ${
-          !loading && items.length > 0 ? 'justify-between gap-4' : ''
+        className={`mt-0 flex min-h-0 flex-1 flex-col bg-white ${
+          !loading && items.length > 0 ? '' : 'mt-4'
         }`}
       >
         {loading ? (
@@ -276,13 +305,24 @@ export default function SimilarProducts() {
           </div>
         ) : (
           <>
-            <div className={`grid grid-cols-1 ${desktopGridColsClass} gap-4`}>
-              {featuredFirstItems.map((p) => (
+            <div
+              className={`-mx-4 grid grid-cols-2 ${desktopGridColsClass} gap-0 lg:-mx-8 ${listingGridBorderClass}`}
+            >
+              {featuredFirstItems.map((p, idx) => (
                 <ProductGridCard
                   key={String(pickId(p) ?? Math.random())}
                   product={p}
                   variant="listing"
-                  onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
+                  listingIndex={idx}
+                  onNavigate={() =>
+                    navigate(`/customer/shopping/${pickId(p)}`, {
+                      state: {
+                        fromSimilarProducts: true,
+                        similarAnchorId: id,
+                        category: category || null,
+                      },
+                    })
+                  }
                   onAddToCart={() => openAddToCart(p)}
                 />
               ))}

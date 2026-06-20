@@ -13,7 +13,7 @@ export default function ListPaginationBar({
   const totalLabel = Number.isFinite(totalNum) ? `${totalNum.toLocaleString('en-IN')} items` : null;
 
   return (
-    <div className="box-border w-[calc(100%+2rem)] max-w-none shrink-0 -mx-4 border-t border-pale bg-cream px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] -mb-4 lg:-mx-8 lg:-mb-8 lg:w-[calc(100%+4rem)] lg:px-8">
+    <div className="box-border w-[calc(100%+2rem)] max-w-none shrink-0 -mx-4 bg-cream px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] -mb-4 lg:-mx-8 lg:-mb-8 lg:w-[calc(100%+4rem)] lg:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="min-w-0 text-[14px] md:text-[15px] text-mid">
           Page <span className="font-semibold text-ink">{currentPage}</span> of{' '}

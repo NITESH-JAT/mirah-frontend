@@ -120,14 +120,17 @@ export const productService = {
       .map((x) => {
         if (typeof x === 'string') {
           const category = String(x || '').trim();
-          return category ? { category, image: null } : null;
+          return category ? { category, image: null, description: null } : null;
         }
         const category = String(x?.category ?? x?.name ?? x?.label ?? '').trim();
         if (!category) return null;
         const imageRaw = x?.image ?? x?.imageUrl ?? x?.image_url ?? x?.thumbnail ?? null;
         const image =
           imageRaw != null && String(imageRaw).trim() ? String(imageRaw).trim() : null;
-        return { category, image };
+        const descriptionRaw = x?.description ?? null;
+        const description =
+          descriptionRaw != null && String(descriptionRaw).trim() ? String(descriptionRaw).trim() : null;
+        return { category, image, description };
       })
       .filter(Boolean);
 
@@ -157,10 +160,13 @@ export const productService = {
         const imageRaw = x?.image ?? x?.imageUrl ?? x?.image_url ?? x?.thumbnail ?? null;
         const image =
           imageRaw != null && String(imageRaw).trim() ? String(imageRaw).trim() : null;
+        const descriptionRaw = x?.description ?? null;
+        const description =
+          descriptionRaw != null && String(descriptionRaw).trim() ? String(descriptionRaw).trim() : null;
         const countRaw = x?.productCount ?? x?.product_count ?? x?.count ?? null;
         const productCount =
           countRaw != null && countRaw !== '' && !Number.isNaN(Number(countRaw)) ? Number(countRaw) : null;
-        return { id, name, image, productCount };
+        return { id, name, image, description, productCount };
       })
       .filter(Boolean);
 

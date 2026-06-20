@@ -3,9 +3,27 @@ import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
+import CatalogContextBanner from '../../components/customer/CatalogContextBanner';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import {
+  clearShopCatalogProductSession,
+  readShopCatalogSession,
+  writeShopCatalogSession,
+} from '../../utils/shopCatalogSession';
+import { productListingGridBorderClasses } from '../../utils/productListingGrid';
+
+function restoredProductsSession() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') !== 'products') return null;
+    const saved = readShopCatalogSession();
+    return saved?.view === 'products' ? saved : null;
+  } catch {
+    return null;
+  }
+}
 
 const SortOptions = [
   { id: 'newest', label: 'Newest', sortBy: 'createdAt', sortOrder: 'desc' },
@@ -55,18 +73,22 @@ export default function Shopping() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const listView = searchParams.get('view');
+  const restoredSession = useMemo(() => restoredProductsSession(), []);
 
   /** `?view=products` is pushed when opening the grid from categories so OS/browser Back returns to category browse. */
   const [browseMode, setBrowseMode] = useState(() => (listView === 'products' ? 'products' : 'categories'));
   /** Browse landing: category tiles vs collection tiles (default category). */
-  const [catalogBrowseMode, setCatalogBrowseMode] = useState('category');
+  const [catalogBrowseMode, setCatalogBrowseMode] = useState(() => {
+    const saved = readShopCatalogSession();
+    return saved?.catalogBrowseMode === 'collection' ? 'collection' : 'category';
+  });
 
   const DESKTOP_GRID_KEY = 'mirah_shop_desktop_grid_cols';
   const [desktopGridCols, setDesktopGridCols] = useState(() => {
     try {
       const raw = localStorage.getItem(DESKTOP_GRID_KEY);
       const n = Number(raw);
-      return n === 2 || n === 4 || n === 6 ? n : 4;
+      return n === 2 || n === 3 || n === 4 ? n : 3;
     } catch {
       return 4;
     }
@@ -79,17 +101,21 @@ export default function Shopping() {
     }
   }, [desktopGridCols]);
   const desktopGridColsClass =
-    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 6 ? 'md:grid-cols-6' : 'md:grid-cols-4';
+    desktopGridCols === 2 ? 'md:grid-cols-2' : desktopGridCols === 4 ? 'md:grid-cols-4' : 'md:grid-cols-3';
+  const listingGridBorderClass = useMemo(
+    () => productListingGridBorderClasses(desktopGridCols),
+    [desktopGridCols]
+  );
 
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
+  const [q, setQ] = useState(() => restoredSession?.q ?? '');
+  const [page, setPage] = useState(() => restoredSession?.page ?? 1);
   const [limit] = useState(10);
-  const [sortId, setSortId] = useState('newest');
+  const [sortId, setSortId] = useState(() => restoredSession?.sortId ?? 'newest');
 
   // Applied filters (used for API requests)
-  const [category, setCategory] = useState('');
-  const [collectionId, setCollectionId] = useState('');
-  const [featured, setFeatured] = useState(false);
+  const [category, setCategory] = useState(() => restoredSession?.category ?? '');
+  const [collectionId, setCollectionId] = useState(() => restoredSession?.collectionId ?? '');
+  const [featured, setFeatured] = useState(() => restoredSession?.featured ?? false);
 
   const hasActiveCatalogFilters = useMemo(
     () =>
@@ -99,9 +125,13 @@ export default function Shopping() {
   );
 
   // Draft filters (only applied on "Apply")
-  const [draftCategory, setDraftCategory] = useState('');
-  const [draftCollectionId, setDraftCollectionId] = useState('');
-  const [draftFeatured, setDraftFeatured] = useState(false);
+  const [draftCategory, setDraftCategory] = useState(() => restoredSession?.category ?? '');
+  const [draftCollectionId, setDraftCollectionId] = useState(() =>
+    restoredSession?.collectionId !== '' && restoredSession?.collectionId != null
+      ? String(restoredSession.collectionId)
+      : ''
+  );
+  const [draftFeatured, setDraftFeatured] = useState(() => restoredSession?.featured ?? false);
 
   const [openFilters, setOpenFilters] = useState(false);
   const [openSort, setOpenSort] = useState(false);
@@ -121,6 +151,45 @@ export default function Shopping() {
     [customerCategories]
   );
   const collectionOptions = useMemo(() => customerCollections, [customerCollections]);
+
+  const hasCollectionFilter = useMemo(
+    () => collectionId !== '' && collectionId != null && !Number.isNaN(Number(collectionId)),
+    [collectionId]
+  );
+
+  const hasCategoryFilter = useMemo(() => Boolean(String(category || '').trim()), [category]);
+
+  /** Category/collection banner below search — hidden for View all (no filters); collection wins if both set. */
+  const listingContextBanner = useMemo(() => {
+    if (!hasCollectionFilter && !hasCategoryFilter) return null;
+
+    if (hasCollectionFilter) {
+      const row = customerCollections.find((c) => Number(c.id) === Number(collectionId));
+      const title = row?.name ? formatCategoryDisplayName(row.name) : 'Collection';
+      return {
+        kind: 'collection',
+        title,
+        description: row?.description ? String(row.description).trim() : null,
+        image: row?.image ?? null,
+      };
+    }
+
+    const row = customerCategories.find((c) => String(c?.category || '').trim() === String(category).trim());
+    const title = formatCategoryDisplayName(row?.category ?? category);
+    return {
+      kind: 'category',
+      title,
+      description: row?.description ? String(row.description).trim() : null,
+      image: row?.image ?? null,
+    };
+  }, [
+    category,
+    collectionId,
+    customerCategories,
+    customerCollections,
+    hasCategoryFilter,
+    hasCollectionFilter,
+  ]);
 
   const [cartOpen, setCartOpen] = useState(false);
   const [cartProduct, setCartProduct] = useState(null);
@@ -179,6 +248,8 @@ export default function Shopping() {
   const abortRef = useRef(null);
   const debounceRef = useRef(null);
   const filterMetaAbortRef = useRef(null);
+  const productsFetchInitializedRef = useRef(false);
+  const skipSessionRestoreRef = useRef(false);
 
   const sort = useMemo(() => SortOptions.find((x) => x.id === sortId) || SortOptions[0], [sortId]);
 
@@ -224,22 +295,70 @@ export default function Shopping() {
     setOpenFilters(true);
   };
 
+  const persistShopSession = (patch = {}) => {
+    writeShopCatalogSession({
+      view: browseMode === 'products' ? 'products' : 'categories',
+      catalogBrowseMode,
+      category,
+      collectionId,
+      featured,
+      q,
+      sortId,
+      page,
+      ...patch,
+    });
+  };
+
+  const applySessionToState = (saved) => {
+    if (!saved || saved.view !== 'products') return;
+    setCategory(saved.category || '');
+    setCollectionId(saved.collectionId ?? '');
+    setFeatured(Boolean(saved.featured));
+    setQ(saved.q || '');
+    setSortId(saved.sortId || 'newest');
+    setPage(saved.page || 1);
+    setDraftCategory(saved.category || '');
+    setDraftCollectionId(
+      saved.collectionId !== '' && saved.collectionId != null ? String(saved.collectionId) : ''
+    );
+    setDraftFeatured(Boolean(saved.featured));
+    productsFetchInitializedRef.current = false;
+  };
+
   // `?view=products` ↔ product grid; dropping the param (browser/OS Back) returns to category browse.
   useEffect(() => {
     if (listView === 'products') {
       setBrowseMode('products');
+      if (!skipSessionRestoreRef.current) {
+        const saved = readShopCatalogSession();
+        if (saved?.view === 'products') applySessionToState(saved);
+      }
+      skipSessionRestoreRef.current = false;
+      setOpenFilters(false);
+      setOpenSort(false);
       return;
     }
+
     setBrowseMode('categories');
     setCategory('');
     setCollectionId('');
+    setFeatured(false);
     setQ('');
+    setSortId('newest');
     setPage(1);
     setItems([]);
     setMeta({ page: 1, totalPages: 1, total: null });
     setOpenFilters(false);
     setOpenSort(false);
-  }, [listView]);
+    productsFetchInitializedRef.current = false;
+    clearShopCatalogProductSession(catalogBrowseMode);
+  }, [listView, catalogBrowseMode]);
+
+  // Persist shop browse + filter state for the session (survives product detail navigation).
+  useEffect(() => {
+    persistShopSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browseMode, catalogBrowseMode, category, collectionId, featured, q, sortId, page]);
 
   // Keep Filters dropdowns in sync with applied filters (grid / Apply / history).
   useEffect(() => {
@@ -249,12 +368,18 @@ export default function Shopping() {
 
   // Debounced search + filter/sort refresh (products browse only)
   useEffect(() => {
-    if (browseMode !== 'products') return;
+    if (browseMode !== 'products') {
+      productsFetchInitializedRef.current = false;
+      return;
+    }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const query = q;
     debounceRef.current = setTimeout(() => {
-      setPage(1);
-      fetchList({ nextPage: 1, query });
+      const isRestoreFetch = !productsFetchInitializedRef.current;
+      const nextPage = isRestoreFetch ? page : 1;
+      productsFetchInitializedRef.current = true;
+      if (!isRestoreFetch) setPage(1);
+      fetchList({ nextPage, query });
     }, 250);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -296,6 +421,14 @@ export default function Shopping() {
       ctrl.abort();
     };
   }, []);
+
+  const showListingContextBanner = browseMode === 'products' && Boolean(listingContextBanner);
+
+  const productGridTopClass = useMemo(() => {
+    if (showListingContextBanner) return '';
+    if (!loading && items.length > 0) return '';
+    return 'mt-4';
+  }, [showListingContextBanner, loading, items.length]);
 
   const openAddToCart = (p) => {
     setCartProduct(p || null);
@@ -347,13 +480,27 @@ export default function Shopping() {
   const selectShopCategoryFromCatalog = (categoryValue) => {
     const v = String(categoryValue || '').trim();
     if (!v) return;
+    skipSessionRestoreRef.current = true;
+    writeShopCatalogSession({
+      view: 'products',
+      catalogBrowseMode,
+      category: v,
+      collectionId: '',
+      featured: false,
+      q: '',
+      sortId,
+      page: 1,
+    });
     setCategory(v);
     setDraftCategory(v);
     setCollectionId('');
     setDraftCollectionId('');
+    setFeatured(false);
+    setDraftFeatured(false);
     setBrowseMode('products');
     setQ('');
     setPage(1);
+    productsFetchInitializedRef.current = false;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -367,13 +514,27 @@ export default function Shopping() {
   const selectShopCollectionFromCatalog = (collectionValue) => {
     const n = Number(collectionValue);
     if (!Number.isFinite(n) || n <= 0) return;
+    skipSessionRestoreRef.current = true;
+    writeShopCatalogSession({
+      view: 'products',
+      catalogBrowseMode,
+      category: '',
+      collectionId: n,
+      featured: false,
+      q: '',
+      sortId,
+      page: 1,
+    });
     setCollectionId(n);
     setDraftCollectionId(String(n));
     setCategory('');
     setDraftCategory('');
+    setFeatured(false);
+    setDraftFeatured(false);
     setBrowseMode('products');
     setQ('');
     setPage(1);
+    productsFetchInitializedRef.current = false;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -385,13 +546,27 @@ export default function Shopping() {
   };
 
   const openViewAllProducts = () => {
+    skipSessionRestoreRef.current = true;
+    writeShopCatalogSession({
+      view: 'products',
+      catalogBrowseMode,
+      category: '',
+      collectionId: '',
+      featured: false,
+      q: '',
+      sortId,
+      page: 1,
+    });
     setCategory('');
     setDraftCategory('');
     setCollectionId('');
     setDraftCollectionId('');
+    setFeatured(false);
+    setDraftFeatured(false);
     setBrowseMode('products');
     setQ('');
     setPage(1);
+    productsFetchInitializedRef.current = false;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -411,8 +586,13 @@ export default function Shopping() {
       }`}
     >
       {browseMode === 'products' ? (
-        <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
-          <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-3">
+        <div
+          className={`sticky top-0 z-30 isolate -mx-4 bg-cream lg:-mx-8 ${
+            showListingContextBanner ? '' : 'border-b border-pale/60'
+          }`}
+        >
+          <div className="px-4 py-4 lg:px-8">
+            <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-3">
             <div className="relative col-span-6 min-w-0 md:w-[420px] md:max-w-[55vw] md:shrink-0">
               <input
                 value={q}
@@ -474,7 +654,7 @@ export default function Shopping() {
               </div>
 
               <div className="hidden shrink-0 items-center gap-2 md:flex">
-                {[2, 4, 6].map((n) => (
+                {[2, 3, 4].map((n) => (
                   <button
                     key={n}
                     type="button"
@@ -493,6 +673,7 @@ export default function Shopping() {
               </div>
             </div>
           </div>
+        </div>
         </div>
       ) : null}
 
@@ -780,7 +961,7 @@ export default function Shopping() {
             <button
               type="button"
               onClick={openViewAllProducts}
-              className={`group relative isolate min-h-[5.75rem] w-full overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
+              className={`group relative isolate min-h-[5.75rem] w-full cursor-pointer overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
                 (catalogBrowseMode === 'category' ? customerCategories.length : customerCollections.length) > 3
                   ? ''
                   : 'mt-6'
@@ -858,11 +1039,16 @@ export default function Shopping() {
           </div>
         </>
       ) : (
-        <div
-          className={`mt-4 flex min-h-0 flex-1 flex-col bg-white ${
-            !loading && items.length > 0 ? 'justify-between gap-4' : ''
-          }`}
-        >
+        <div className={`flex min-h-0 flex-1 flex-col bg-white ${productGridTopClass}`}>
+          {showListingContextBanner ? (
+            <CatalogContextBanner
+              kind={listingContextBanner.kind}
+              title={listingContextBanner.title}
+              description={listingContextBanner.description}
+              image={listingContextBanner.image}
+              className="-mx-4 lg:-mx-8"
+            />
+          ) : null}
           {loading ? (
             <div className="flex flex-1 items-center justify-center">
               <svg
@@ -897,12 +1083,15 @@ export default function Shopping() {
             </div>
           ) : (
             <>
-              <div className={`grid grid-cols-1 ${desktopGridColsClass} gap-4`}>
-                {featuredFirstItems.map((p) => (
+              <div
+                className={`-mx-4 grid grid-cols-2 items-stretch ${desktopGridColsClass} gap-0 lg:-mx-8 ${listingGridBorderClass}`}
+              >
+                {featuredFirstItems.map((p, idx) => (
                   <ProductGridCard
                     key={String(p?.id ?? p?._id ?? p?.productId ?? Math.random())}
                     product={p}
                     variant="listing"
+                    listingIndex={idx}
                     onNavigate={() => navigate(`/customer/shopping/${p?.id ?? p?._id ?? p?.productId ?? ''}`)}
                     onAddToCart={() => openAddToCart(p)}
                   />

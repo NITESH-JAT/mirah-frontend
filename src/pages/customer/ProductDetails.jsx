@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import { getVendorId, vendorSourceText } from '../../utils/productSource';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import ProductGridCard from '../../components/customer/ProductGridCard';
 import { formatMoney } from '../../utils/formatMoney';
+import { readShopCatalogSession } from '../../utils/shopCatalogSession';
+import {
+  writeSimilarProductsSession,
+} from '../../utils/similarProductsSession';
+import { similarProductsStripBorderClasses } from '../../utils/productListingGrid';
 
 function discountPercent({ price, compareAtPrice }) {
   const p = Number(price);
@@ -86,7 +91,42 @@ function collectionNameOf(product) {
 export default function ProductDetails() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
+
+  const goToShop = () => {
+    const saved = readShopCatalogSession();
+    navigate(saved?.view === 'products' ? '/customer/shopping?view=products' : '/customer/shopping');
+  };
+
+  const similarContext = useMemo(() => {
+    const st = location.state;
+    if (st?.fromSimilarProducts && st?.similarAnchorId) {
+      return {
+        anchorId: String(st.similarAnchorId),
+        category: st?.category ?? null,
+      };
+    }
+    return null;
+  }, [location.state]);
+
+  useEffect(() => {
+    const st = location.state;
+    if (st?.fromSimilarProducts && st?.similarAnchorId) {
+      writeSimilarProductsSession({
+        anchorProductId: st.similarAnchorId,
+        category: st.category,
+      });
+    }
+  }, [location.state]);
+
+  const goToSimilarProducts = () => {
+    const anchorId = similarContext?.anchorId;
+    if (!anchorId) return;
+    navigate(`/customer/shopping/${anchorId}/similar`, {
+      state: { category: similarContext?.category ?? null },
+    });
+  };
 
   const [loading, setLoading] = useState(false);
   const [product, setProduct] = useState(null);
@@ -522,22 +562,54 @@ export default function ProductDetails() {
         <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Product not found.</div>
       ) : (
         <>
+          <nav
+            aria-label="Breadcrumb"
+            className="mb-4 flex w-full min-w-0 items-center gap-2 text-[12px] md:mb-5 md:text-[13px]"
+          >
+            <button
+              type="button"
+              onClick={goToShop}
+              className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 font-semibold text-mid underline underline-offset-2 transition-colors hover:text-ink"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              Shop
+            </button>
+            <span className="shrink-0 text-muted" aria-hidden>
+              /
+            </span>
+            {similarContext ? (
+              <>
+                <button
+                  type="button"
+                  onClick={goToSimilarProducts}
+                  className="shrink-0 cursor-pointer font-semibold text-mid underline underline-offset-2 transition-colors hover:text-ink"
+                >
+                  Similar Products
+                </button>
+                <span className="shrink-0 text-muted" aria-hidden>
+                  /
+                </span>
+              </>
+            ) : null}
+            <span className="min-w-0 truncate font-semibold text-ink">{product?.name || 'Product'}</span>
+          </nav>
+
           <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-4 md:gap-6">
             {/* Media */}
             <div className="rounded-2xl bg-white p-3 md:p-4 md:pr-5">
-              <div className="flex items-center justify-between mb-3 md:hidden">
-                <button
-                  type="button"
-                  onClick={() => navigate(-1)}
-                  className="p-2 rounded-xl bg-white border border-pale text-mid hover:bg-cream"
-                  aria-label="Back"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                </button>
-              </div>
-
               <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-cream">
                 {mode === 'videos' && hasVideos ? (
                   <video
@@ -713,7 +785,7 @@ export default function ProductDetails() {
               <button
                 type="button"
                 onClick={openAddToCart}
-                className="mt-5 w-full py-3 rounded-full bg-walnut text-blush text-[12px] font-bold hover:opacity-90"
+                className="mt-5 w-full cursor-pointer rounded-full bg-walnut py-3 text-[12px] font-bold text-blush hover:opacity-90"
               >
                 Add to cart
               </button>
@@ -847,31 +919,45 @@ export default function ProductDetails() {
 
           {/* Similar Products (category only). Hide section if none. */}
           {otherItems.length > 0 ? (
-            <div className="mt-6 bg-white rounded-2xl border border-pale p-4 md:p-6">
-              <div className="flex items-center justify-between">
-                <p className="text-[13px] font-bold text-ink">Similar Products</p>
+            <div className="mt-6 overflow-hidden rounded-2xl border border-pale bg-white">
+              <div className="flex items-center justify-between border-b border-pale/70 px-4 py-4 md:px-6 md:py-5">
+                <p className="text-[13px] font-bold text-ink md:text-[15px]">Similar Products</p>
                 {canViewAll ? (
                   <button
                     type="button"
-                    onClick={() =>
+                    onClick={() => {
+                      writeSimilarProductsSession({
+                        anchorProductId: id,
+                        category: product?.category ?? null,
+                      });
                       navigate(`/customer/shopping/${id}/similar`, {
                         state: { category: product?.category ?? null },
-                      })
-                    }
-                    className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream"
+                      });
+                    }}
+                    className="px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream cursor-pointer"
                   >
                     View All
                   </button>
                 ) : null}
               </div>
 
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 gap-4">
+              <div
+                className={`grid grid-cols-2 items-stretch md:grid-cols-4 gap-0 ${similarProductsStripBorderClasses()}`}
+              >
                 {featuredFirstOtherItems.map((p) => (
                   <ProductGridCard
                     key={String(pickId(p) ?? Math.random())}
                     product={p}
                     variant="listing"
-                    onNavigate={() => navigate(`/customer/shopping/${pickId(p)}`)}
+                    onNavigate={() =>
+                      navigate(`/customer/shopping/${pickId(p)}`, {
+                        state: {
+                          fromSimilarProducts: true,
+                          similarAnchorId: id,
+                          category: product?.category ?? null,
+                        },
+                      })
+                    }
                     onAddToCart={() => {
                       setCartTarget(p);
                       setCartQty(1);
