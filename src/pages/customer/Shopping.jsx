@@ -12,7 +12,7 @@ import {
   readShopCatalogSession,
   writeShopCatalogSession,
 } from '../../utils/shopCatalogSession';
-import { productListingGridBorderClasses } from '../../utils/productListingGrid';
+import { productListingGridBorderClasses, shopListingFullBleedClass } from '../../utils/productListingGrid';
 
 function restoredProductsSession() {
   try {
@@ -587,7 +587,7 @@ export default function Shopping() {
     >
       {browseMode === 'products' ? (
         <div
-          className={`sticky top-0 z-30 isolate -mx-4 bg-cream lg:-mx-8 ${
+          className={`sticky top-0 z-30 isolate bg-cream ${shopListingFullBleedClass} ${
             showListingContextBanner ? '' : 'border-b border-pale/60'
           }`}
         >
@@ -792,33 +792,45 @@ export default function Shopping() {
 
       {browseMode === 'categories' ? (
         <>
-          <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
-            <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Shop browse mode">
+          <div className="sticky top-0 z-30 isolate bg-cream -mx-4 border-b border-pale/60 lg:-mx-8 px-4 lg:px-8">
+            <div className="flex w-full" role="tablist" aria-label="Shop browse mode">
               <button
                 type="button"
                 role="tab"
                 aria-selected={catalogBrowseMode === 'category'}
                 onClick={() => setCatalogBrowseMode('category')}
-                className={`rounded-full border px-2 py-2.5 text-[11px] font-semibold md:px-5 md:py-3 md:text-[12px] ${
+                className={`relative flex-1 basis-1/2 cursor-pointer py-3.5 text-center text-[12px] font-semibold tracking-wide transition-colors md:py-4 md:text-[13px] ${
                   catalogBrowseMode === 'category'
-                    ? 'border-walnut bg-walnut text-blush shadow-sm'
-                    : 'border-pale bg-white text-mid hover:bg-cream'
+                    ? 'text-walnut'
+                    : 'text-muted hover:text-mid'
                 }`}
               >
                 Shop By Category
+                {catalogBrowseMode === 'category' ? (
+                  <span
+                    className="pointer-events-none absolute inset-x-0 -bottom-px z-[1] h-0.5 bg-walnut"
+                    aria-hidden
+                  />
+                ) : null}
               </button>
               <button
                 type="button"
                 role="tab"
                 aria-selected={catalogBrowseMode === 'collection'}
                 onClick={() => setCatalogBrowseMode('collection')}
-                className={`rounded-full border px-2 py-2.5 text-[11px] font-semibold md:px-5 md:py-3 md:text-[12px] ${
+                className={`relative flex-1 basis-1/2 cursor-pointer py-3.5 text-center text-[12px] font-semibold tracking-wide transition-colors md:py-4 md:text-[13px] ${
                   catalogBrowseMode === 'collection'
-                    ? 'border-walnut bg-walnut text-blush shadow-sm'
-                    : 'border-pale bg-white text-mid hover:bg-cream'
+                    ? 'text-walnut'
+                    : 'text-muted hover:text-mid'
                 }`}
               >
                 Shop By Collection
+                {catalogBrowseMode === 'collection' ? (
+                  <span
+                    className="pointer-events-none absolute inset-x-0 -bottom-px z-[1] h-0.5 bg-walnut"
+                    aria-hidden
+                  />
+                ) : null}
               </button>
             </div>
           </div>
@@ -1046,7 +1058,7 @@ export default function Shopping() {
               title={listingContextBanner.title}
               description={listingContextBanner.description}
               image={listingContextBanner.image}
-              className="-mx-4 lg:-mx-8"
+              className={shopListingFullBleedClass}
             />
           ) : null}
           {loading ? (
@@ -1084,7 +1096,7 @@ export default function Shopping() {
           ) : (
             <>
               <div
-                className={`-mx-4 grid grid-cols-2 items-stretch ${desktopGridColsClass} gap-0 lg:-mx-8 ${listingGridBorderClass}`}
+                className={`grid grid-cols-2 items-stretch ${desktopGridColsClass} gap-0 ${shopListingFullBleedClass} ${listingGridBorderClass}`}
               >
                 {featuredFirstItems.map((p, idx) => (
                   <ProductGridCard

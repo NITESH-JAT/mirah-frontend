@@ -1,3 +1,7 @@
+/** Cancel DashboardLayout px-4 / lg:px-8 so listing rows flush to content edges. */
+export const shopListingFullBleedClass =
+  'box-border w-[calc(100%+2rem)] max-w-none -mx-4 lg:w-[calc(100%+4rem)] lg:-mx-8';
+
 /** Single-line grid separators for shop/similar product listing (no doubled outer borders). */
 export function productListingGridBorderClasses(desktopGridCols) {
   const mdFirstCol =
