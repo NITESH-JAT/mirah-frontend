@@ -247,6 +247,12 @@ export const projectService = {
     return unwrap(res);
   },
 
+  previewBid: async (projectId, price, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/bid/preview`, { price }, { signal });
+    return unwrap(res);
+  },
+
   withdrawLatestBid: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.delete(`/api/user/projects/${projectId}/bid/latest`, { signal });

@@ -33,8 +33,6 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
   if (!open || typeof document === 'undefined') return null;
 
   const J = pickNum(tariff, ['jewellerBidJ', 'jeweller_bid_j']);
-  const P = pickNum(tariff, ['platformAdjustedPriceP', 'platform_adjusted_price_p']);
-  const C = pickNum(tariff, ['commissionC', 'commission_c']);
   const Gj = pickNum(tariff, ['jewelleryGstGj', 'jewellery_gst_gj']);
   const Gc = pickNum(tariff, ['commissionGstGc', 'commission_gst_gc']);
   const D = pickNum(tariff, ['deliveryFeeD', 'delivery_fee_d']);
@@ -46,8 +44,6 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
   const hasAny =
     [
       J,
-      P,
-      C,
       Gj,
       Gc,
       D,
@@ -121,8 +117,6 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
                 ) : (
                   <ModalRow label="Accepted quote — jewellery portion (pre-tax)" value={J} />
                 )}
-                <ModalRow label="Arviah platform, marketplace & QC services" value={C} />
-                <ModalRow label="Pre-tax order value (jewellery + Arviah services)" value={P} />
                 <ModalRow label="GST on jewellery" value={Gj} muted />
                 <ModalRow label="GST on Arviah services" value={Gc} muted />
                 <ModalRow label="Delivery" value={D} />

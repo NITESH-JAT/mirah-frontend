@@ -7,6 +7,7 @@ export default function OrderSuccess() {
   const localOrderId = location?.state?.localOrderId ?? null;
   const orderCode = location?.state?.orderCode ?? null;
   const paymentMethod = location?.state?.paymentMethod ?? null;
+  const pickupShowroom = location?.state?.pickupShowroom ?? null;
 
   const title =
     paymentMethod === 'offline'
@@ -17,10 +18,14 @@ export default function OrderSuccess() {
 
   const subtitle =
     paymentMethod === 'offline'
-      ? 'Your order is created. Please pay offline as per instructions from seller.'
+      ? 'Your order is confirmed. Your piece will be reserved and arranged at your selected showroom, where you can view it and complete the payment in person.'
       : paymentMethod === 'partial'
-        ? 'Your online payment is successful. Remaining amount will be collected offline as per instructions from seller.'
+        ? 'Your online payment is successful. Your piece will be reserved at your selected showroom, where you can view it and pay the remaining amount in person.'
         : 'Your payment was verified and your order is confirmed.';
+
+  const showroomLocation = pickupShowroom
+    ? [pickupShowroom.city, pickupShowroom.country, pickupShowroom.postcode].filter(Boolean).join(', ')
+    : '';
 
   return (
     <div className="w-full animate-fade-in">
@@ -37,6 +42,20 @@ export default function OrderSuccess() {
         {orderCode || localOrderId ? (
           <div className="mt-4 text-center text-[12px] text-muted">
             Order: <span className="font-semibold text-mid">{orderCode ?? localOrderId}</span>
+          </div>
+        ) : null}
+
+        {pickupShowroom ? (
+          <div className="mx-auto mt-4 max-w-sm rounded-2xl border border-pale bg-cream/50 p-4 text-center">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Pickup showroom</p>
+            <p className="mt-1 text-[13px] font-bold text-ink">{pickupShowroom.name}</p>
+            {pickupShowroom.address ? (
+              <p className="mt-0.5 text-[12px] text-muted">{pickupShowroom.address}</p>
+            ) : null}
+            {showroomLocation ? <p className="mt-0.5 text-[12px] text-muted">{showroomLocation}</p> : null}
+            {pickupShowroom.phone ? (
+              <p className="mt-0.5 text-[12px] text-muted">{pickupShowroom.phone}</p>
+            ) : null}
           </div>
         ) : null}
 

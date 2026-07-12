@@ -150,6 +150,7 @@ export default function Orders() {
     setFiltersOpen(true);
   };
 
+  const [zoomImage, setZoomImage] = useState(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [detailsOrder, setDetailsOrder] = useState(null);
@@ -268,6 +269,33 @@ export default function Orders() {
       it?.selected_variant ??
       null
     );
+  };
+
+  const itemImage = (it) => {
+    const p = it?.product ?? it?.productDetails ?? it?.productSnapshot ?? it?.item ?? null;
+    const raw =
+      p?.images ??
+      p?.imageUrls ??
+      p?.imageURLS ??
+      p?.imageUrl ??
+      it?.image ??
+      it?.productImage ??
+      it?.product_image ??
+      null;
+    if (Array.isArray(raw)) {
+      const first = raw.find((x) => x && String(x).trim());
+      return first ? String(first).trim() : null;
+    }
+    if (typeof raw === 'string' && raw.trim()) return raw.trim();
+    return null;
+  };
+
+  const orderFirstImage = (o) => {
+    for (const it of extractOrderItems(o)) {
+      const img = itemImage(it);
+      if (img) return img;
+    }
+    return null;
   };
 
   const setDraft = (productId, patch) => {
@@ -402,6 +430,15 @@ export default function Orders() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!zoomImage) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape') setZoomImage(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [zoomImage]);
+
   const applyFilters = async () => {
     const next = {
       status: String(filterDraft?.status || '').trim(),
@@ -426,11 +463,19 @@ export default function Orders() {
 
   const empty = !loading && (items || []).length === 0;
 
+  const orderPickupShowroom = (o) =>
+    o?.pickupShowroom ?? o?.pickup_showroom ?? null;
+
   const cancelAllowed = (o) => {
     const s = String(o?.status ?? '').toLowerCase();
     if (['cancelled', 'delivered', 'completed'].includes(s)) return false;
     const pay = paidLabel(o);
     if (pay === 'Failed') return false;
+    // Reserve-at-showroom orders (offline / partial pickup) cannot be cancelled once confirmed.
+    const hasShowroom = orderPickupShowroom(o) || o?.showroomId != null || o?.showroom_id != null;
+    if (hasShowroom && !(s === 'pending_payment' && (Number(o?.amountPaid ?? o?.amount_paid ?? 0) <= 0))) {
+      return false;
+    }
     return true;
   };
 
@@ -672,10 +717,22 @@ export default function Orders() {
                   ? 'bg-red-50 border-red-100 text-red-600'
                   : 'bg-cream border-pale text-mid';
               const busy = actingId != null && String(actingId) === String(idForActions);
+              const firstImg = orderFirstImage(o);
               return (
                 <div key={String(idForActions || Math.random())} className="rounded-2xl border border-pale bg-white p-4">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex items-start gap-3">
+                      {firstImg ? (
+                        <button
+                          type="button"
+                          onClick={() => setZoomImage(firstImg)}
+                          className="shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-pale bg-cream cursor-pointer hover:opacity-90"
+                          aria-label="View product image"
+                        >
+                          <SafeImage src={firstImg} alt="" className="w-full h-full object-contain bg-white" loading="lazy" />
+                        </button>
+                      ) : null}
+                      <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-[13px] font-bold text-ink truncate max-w-[90vw] sm:max-w-none">
                           Order #{String(idLabel)}
@@ -701,6 +758,7 @@ export default function Orders() {
                       {total != null ? (
                         <p className="mt-2 text-[14px] font-extrabold text-ink">₹{formatMoney(total)}</p>
                       ) : null}
+                      </div>
                     </div>
                     <div className="w-full sm:w-auto shrink-0 flex flex-wrap justify-end gap-2">
                       <button
@@ -825,17 +883,34 @@ export default function Orders() {
                         const price = itemUnitPrice(it);
                         const lineTotal = qty * price;
                         const variantsText = variantTextOf(itemVariants(it));
+                        const img = itemImage(it);
                         return (
                           <div key={String(it?.id ?? it?._id ?? idx)} className="py-3 first:pt-0">
                             <div className="flex items-start justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>
-                                {variantsText ? (
-                                  <p className="mt-1 text-[11px] text-muted font-semibold truncate">{variantsText}</p>
-                                ) : null}
-                                <p className="mt-1 text-[11px] text-muted">
-                                  Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
-                                </p>
+                              <div className="min-w-0 flex items-start gap-3">
+                                {img ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setZoomImage(img)}
+                                    className="shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-pale bg-cream cursor-pointer hover:opacity-90"
+                                    aria-label="View product image"
+                                  >
+                                    <SafeImage src={img} alt="" className="w-full h-full object-contain bg-white" loading="lazy" />
+                                  </button>
+                                ) : (
+                                  <div className="shrink-0 w-12 h-12 rounded-xl border border-pale bg-cream flex items-center justify-center text-muted">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.5-3.5L9 20"/></svg>
+                                  </div>
+                                )}
+                                <div className="min-w-0">
+                                  <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>
+                                  {variantsText ? (
+                                    <p className="mt-1 text-[11px] text-muted font-semibold truncate">{variantsText}</p>
+                                  ) : null}
+                                  <p className="mt-1 text-[11px] text-muted">
+                                    Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                  </p>
+                                </div>
                               </div>
                               <div className="shrink-0 text-[12px] font-extrabold text-ink">₹{formatMoney(lineTotal)}</div>
                             </div>
@@ -844,6 +919,28 @@ export default function Orders() {
                       })}
                     </div>
                   </div>
+
+                  {orderPickupShowroom(detailsOrder) ? (
+                    <div className="mt-4 rounded-2xl border border-pale p-4">
+                      <p className="text-[12px] font-extrabold text-ink">Pickup showroom</p>
+                      {(() => {
+                        const sr = orderPickupShowroom(detailsOrder) || {};
+                        const loc = [sr.city, sr.country, sr.postcode].filter(Boolean).join(', ');
+                        return (
+                          <div className="mt-2 text-[12px] text-mid">
+                            <p className="text-[13px] font-bold text-ink">{sr.name || 'Showroom'}</p>
+                            {sr.address ? <p className="mt-0.5 text-muted">{sr.address}</p> : null}
+                            {loc ? <p className="mt-0.5 text-muted">{loc}</p> : null}
+                            {sr.phone ? <p className="mt-0.5 text-muted">{sr.phone}</p> : null}
+                            <p className="mt-2 text-[11px] text-muted">
+                              Your piece is reserved here. Confirmed reserve orders cannot be cancelled; for exchanges
+                              or modifications, please contact support.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : null}
 
                   {String(detailsOrder?.status ?? detailsOrder?.orderStatus ?? detailsOrder?.order_status ?? '')
                     .trim()
@@ -987,6 +1084,35 @@ export default function Orders() {
               </button>
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {/* Product image zoom viewer */}
+      {zoomImage ? (
+        <div
+          className="fixed inset-0 z-[230] bg-black/90 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Product image"
+          onMouseDown={() => setZoomImage(null)}
+        >
+          <button
+            type="button"
+            onClick={() => setZoomImage(null)}
+            className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 hover:text-white focus:outline-none"
+            aria-label="Close"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
+          </button>
+          <img
+            src={zoomImage}
+            alt="Product"
+            className="max-h-full max-w-full object-contain"
+            onMouseDown={(e) => e.stopPropagation()}
+          />
         </div>
       ) : null}
     </div>

@@ -542,7 +542,7 @@ export default function Cart() {
 
       {/* Mobile: fixed bottom Place Order (full width) */}
       {!loading && items.length > 0 ? (
-        <div className="md:hidden fixed left-0 right-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 bg-transparent">
+        <div className="md:hidden fixed left-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 px-4 pb-4 pt-3 bg-transparent">
           <button
             type="button"
             onClick={proceedCheckout}

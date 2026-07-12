@@ -423,7 +423,7 @@ export default function SimilarProducts() {
                     value={cartQty}
                     onChange={(e) => setCartQty(e.target.value)}
                     inputMode="numeric"
-                    className="w-12 h-10 bg-transparent text-center text-[13px] font-bold outline-none"
+                    className="w-12 h-10 bg-transparent text-center text-[13px] font-bold text-ink outline-none"
                     aria-label="Quantity"
                     disabled={cartAdding}
                   />

@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
+import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
 import { formatMoney } from '../../utils/formatMoney';
 
 function isCanceledRequest(err) {
@@ -280,12 +281,14 @@ export default function VendorExploreProject() {
   const abortRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [details, setDetails] = useState(null);
   const [bidsLoading, setBidsLoading] = useState(false);
   const [bids, setBids] = useState([]);
   const [bidModalOpen, setBidModalOpen] = useState(false);
   const [bidForm, setBidForm] = useState({ price: '', daysToComplete: '' });
   const [bidSubmitting, setBidSubmitting] = useState(false);
+  const [bidPreview, setBidPreview] = useState({ loading: false, commission: null, net: null, forPrice: null });
   const [nowTs, setNowTs] = useState(Date.now());
 
   const project = details?.project ?? details?.data?.project ?? details?.item ?? details?.data ?? details ?? null;
@@ -365,10 +368,12 @@ export default function VendorExploreProject() {
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
       setDetails(res || null);
+      setHasLoaded(true);
     } catch (e) {
       if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
+      setHasLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -399,6 +404,38 @@ export default function VendorExploreProject() {
     const t = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Live commission + net-payable preview as the jeweller types their bid.
+  useEffect(() => {
+    if (!bidModalOpen) return undefined;
+    const price = Number(bidForm.price);
+    if (!Number.isFinite(price) || price <= 0) {
+      setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
+      return undefined;
+    }
+    setBidPreview((prev) => ({ ...prev, loading: true }));
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const data = await projectService.previewBid(projectId, price, { signal: controller.signal });
+        const commission = Number(data?.commissionC);
+        const net = Number(data?.jewellerEstimatedNetAfterFees);
+        setBidPreview({
+          loading: false,
+          commission: Number.isFinite(commission) ? commission : null,
+          net: Number.isFinite(net) ? net : null,
+          forPrice: price,
+        });
+      } catch (e) {
+        if (isCanceledRequest(e)) return;
+        setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
+      }
+    }, 400);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [bidModalOpen, bidForm.price, projectId]);
 
   const submitBid = async () => {
     if (bidSubmitting || !projectId) return;
@@ -529,7 +566,7 @@ export default function VendorExploreProject() {
         </button>
       </div>
 
-      {loading ? (
+      {!hasLoaded ? (
         <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
           <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
@@ -537,7 +574,10 @@ export default function VendorExploreProject() {
           </svg>
         </div>
       ) : !project ? (
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Unable to load project.</div>
+        <div className="min-h-[calc(100vh-260px)] flex flex-col items-center justify-center text-center">
+          <p className="font-serif text-5xl font-extrabold text-ink">404</p>
+          <p className="mt-2 text-[13px] text-muted">Project not found.</p>
+        </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-5 items-start">
           {/* Match customer View Bids ratio: fixed left, fluid right */}
@@ -591,6 +631,7 @@ export default function VendorExploreProject() {
             <div className="hidden lg:block mt-4 space-y-4">
               <MetaCard />
               <AttachmentsCard />
+              <DiamondClassificationPanel />
             </div>
           </div>
 
@@ -603,6 +644,9 @@ export default function VendorExploreProject() {
               </div>
               <div className="mt-4">
                 <AttachmentsCard />
+              </div>
+              <div className="mt-4">
+                <DiamondClassificationPanel />
               </div>
             </div>
 
@@ -894,6 +938,29 @@ export default function VendorExploreProject() {
                     step="1"
                     className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
+                  {Number(bidForm.price) > 0 ? (
+                    <div className="mt-2 rounded-2xl border border-pale bg-cream/40 px-4 py-3">
+                      {bidPreview.loading && bidPreview.commission == null ? (
+                        <p className="text-[12px] text-muted">Calculating commission…</p>
+                      ) : bidPreview.commission != null && bidPreview.net != null ? (
+                        <>
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="text-[12px] font-semibold text-mid">Arviah commission</span>
+                            <span className="text-[12px] font-extrabold text-ink tabular-nums">− ₹ {formatMoney(bidPreview.commission)}</span>
+                          </div>
+                          <div className="mt-1.5 flex items-center justify-between gap-3">
+                            <span className="text-[12px] font-extrabold text-ink">Your net payable</span>
+                            <span className="text-[13px] font-extrabold text-walnut tabular-nums">₹ {formatMoney(bidPreview.net)}</span>
+                          </div>
+                          <p className="mt-2 text-[10px] text-muted leading-snug">
+                            Commission is deducted from your bid. Adjust your bid to reach your target net amount.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-[12px] text-muted">Enter a valid amount to see your net payable.</p>
+                      )}
+                    </div>
+                  ) : null}
                 </div>
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Delivery duration (days)</p>

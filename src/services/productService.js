@@ -173,6 +173,37 @@ export const productService = {
     return { totalProducts, collections };
   },
 
+  /**
+   * Product categories flagged by admin to appear as jewellery types in the
+   * Create Project modal. Returns `{ id, name, sizes: [{ size, sizeDimension, unit }] }[]`.
+   */
+  listProjectJewelleryTypes: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/product/customer/jewellery-types', { signal });
+    const data = unwrap(res) || {};
+    const items = data?.jewelleryTypes ?? data?.items ?? data?.results ?? data?.data ?? [];
+    return coerceArray(items)
+      .map((x) => {
+        const name = String(x?.name ?? x?.label ?? '').trim();
+        if (!name) return null;
+        const idRaw = x?.id ?? x?._id ?? null;
+        const id = Number(idRaw);
+        const sizes = coerceArray(x?.sizes)
+          .map((s) => {
+            const size = String(s?.size ?? '').trim();
+            if (!size) return null;
+            const dimRaw = s?.sizeDimension ?? s?.size_dimension ?? null;
+            const sizeDimension =
+              dimRaw != null && dimRaw !== '' && !Number.isNaN(Number(dimRaw)) ? Number(dimRaw) : null;
+            const unitRaw = s?.unit ?? null;
+            const unit = unitRaw != null && String(unitRaw).trim() ? String(unitRaw).trim() : null;
+            return { size, sizeDimension, unit };
+          })
+          .filter(Boolean);
+        return { id: Number.isFinite(id) ? id : null, name, sizes };
+      })
+      .filter(Boolean);
+  },
+
   getCustomerProduct: async (id, { signal } = {}) => {
     const res = await api.get(`/api/user/product/customer/${id}`, { signal });
     const data = unwrap(res);

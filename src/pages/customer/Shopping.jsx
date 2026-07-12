@@ -163,6 +163,7 @@ export default function Shopping() {
   const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: null });
 
   const [filterMetaLoading, setFilterMetaLoading] = useState(false);
+  const [filterMetaLoaded, setFilterMetaLoaded] = useState(false);
   const [customerCategories, setCustomerCategories] = useState([]);
   const [customerCollections, setCustomerCollections] = useState([]);
   const [totalCatalogProducts, setTotalCatalogProducts] = useState(null);
@@ -437,7 +438,16 @@ export default function Shopping() {
         if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
         // keep UI usable even if meta fails
       })
-      .finally(() => setFilterMetaLoading(false));
+      .finally(() => {
+        // Only finalize for the latest (non-aborted) request. Under React
+        // StrictMode the effect runs mount→cleanup→mount, aborting the first
+        // request; its finally must not mark meta "loaded" while the arrays
+        // are still empty (that would flash the empty-state message).
+        if (filterMetaAbortRef.current === ctrl && !ctrl.signal.aborted) {
+          setFilterMetaLoading(false);
+          setFilterMetaLoaded(true);
+        }
+      });
 
     return () => {
       ctrl.abort();
@@ -860,17 +870,17 @@ export default function Shopping() {
           <div className="mt-4 flex min-h-0 flex-1 flex-col gap-0 pb-4">
             <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
               {catalogBrowseMode === 'category' ? (
-                filterMetaLoading && customerCategories.length === 0 ? (
+                customerCategories.length === 0 && !filterMetaLoaded ? (
                   <div className="flex flex-1 items-center justify-center">
                     <ShopListingSpinner />
                   </div>
-                ) : !filterMetaLoading && customerCategories.length === 0 ? (
+                ) : customerCategories.length === 0 ? (
                   <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
                     No categories are available yet.
                   </div>
                 ) : (
                   <>
-                    <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                    <div className="flex w-full min-w-0 flex-col md:flex-row md:snap-x md:snap-mandatory gap-3 md:overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
                       {customerCategories.map((row) => {
                         const imgSrc = categoryCardImageSrc(row.image);
                         return (
@@ -878,7 +888,7 @@ export default function Shopping() {
                             key={row.category}
                             type="button"
                             onClick={() => selectShopCategoryFromCatalog(row.category)}
-                            className="group min-w-[calc((100%-1.5rem)/3)] max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                            className="group min-w-full max-w-full md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                           >
                             <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
                               <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
@@ -903,24 +913,24 @@ export default function Shopping() {
                         );
                       })}
                     </div>
-                    {customerCategories.length > 3 ? (
-                      <div className="pt-3 pb-3">
+                    {customerCategories.length > 1 ? (
+                      <div className={`pt-3 pb-3 ${customerCategories.length > 3 ? "" : "md:hidden"}`}>
                         <p className="text-center text-[11px] text-muted">Scroll to see all categories</p>
                       </div>
                     ) : null}
                   </>
                 )
-              ) : filterMetaLoading && customerCollections.length === 0 ? (
+              ) : customerCollections.length === 0 && !filterMetaLoaded ? (
                 <div className="flex flex-1 items-center justify-center">
                   <ShopListingSpinner />
                 </div>
-              ) : !filterMetaLoading && customerCollections.length === 0 ? (
+              ) : customerCollections.length === 0 ? (
                 <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
                   No collections are available yet.
                 </div>
               ) : (
                 <>
-                  <div className="flex w-full min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                  <div className="flex w-full min-w-0 flex-col md:flex-row md:snap-x md:snap-mandatory gap-3 md:overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
                     {customerCollections.map((row) => {
                       const imgSrc = categoryCardImageSrc(row.image);
                       return (
@@ -928,7 +938,7 @@ export default function Shopping() {
                           key={row.id}
                           type="button"
                           onClick={() => selectShopCollectionFromCatalog(row.id)}
-                          className="group min-w-[calc((100%-1.5rem)/3)] max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                          className="group min-w-full max-w-full md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                         >
                           <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
                             <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
@@ -953,8 +963,8 @@ export default function Shopping() {
                       );
                     })}
                   </div>
-                  {customerCollections.length > 3 ? (
-                    <div className="pt-3 pb-3">
+                  {customerCollections.length > 1 ? (
+                    <div className={`pt-3 pb-3 ${customerCollections.length > 3 ? "" : "md:hidden"}`}>
                       <p className="text-center text-[11px] text-muted">Scroll to see all collections</p>
                     </div>
                   ) : null}
@@ -1073,7 +1083,7 @@ export default function Shopping() {
           ) : (
             <>
               <div
-                className={`grid grid-cols-2 items-stretch ${desktopGridColsClass} gap-0 ${shopListingFullBleedClass} ${listingGridBorderClass}`}
+                className={`grid grid-cols-2 items-stretch ${desktopGridColsClass} gap-0 pb-20 md:pb-0 ${shopListingFullBleedClass} ${listingGridBorderClass}`}
               >
                 {featuredFirstItems.map((p, idx) => (
                   <ProductGridCard
@@ -1092,6 +1102,7 @@ export default function Shopping() {
                 totalItems={meta?.total}
                 canPrev={canPrev}
                 canNext={canNext}
+                fixedOnMobile
                 onPrev={() => fetchList({ nextPage: Math.max(1, currentPage - 1), query: q })}
                 onNext={() => fetchList({ nextPage: currentPage + 1, query: q })}
               />
@@ -1180,7 +1191,7 @@ export default function Shopping() {
                     value={cartQty}
                     onChange={(e) => setCartQty(e.target.value)}
                     inputMode="numeric"
-                    className="w-12 h-10 bg-transparent text-center text-[13px] font-bold outline-none"
+                    className="w-12 h-10 bg-transparent text-center text-[13px] font-bold text-ink outline-none"
                     aria-label="Quantity"
                     disabled={cartAdding}
                   />

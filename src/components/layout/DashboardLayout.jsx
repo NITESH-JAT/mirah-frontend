@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, Outlet, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
+import BottomNav from './BottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { notificationService } from '../../services/notificationService';
 import { authService } from '../../services/authService';
@@ -579,29 +580,20 @@ export default function DashboardLayout() {
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
+      {/* Mobile bottom navigation (icons only) — replaces the top-bar hamburger below lg */}
+      <BottomNav />
+
       {/* Desktop-only centered logo across sidebar + main header width */}
       <div className="hidden lg:flex absolute left-1/2 -translate-x-1/2 top-0 h-16 items-center pointer-events-none z-[45]">
         <img src={logo} alt="Arviah" className="w-18 h-18 object-contain" />
       </div>
 
       {/* Main Content Wrapper */}
-      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col lg:ml-[240px]">
+      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:ml-[240px] lg:pb-0">
 
         {/* HEADER */}
       <div className="relative z-40 flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0">
           <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                setShowUserMenu(false);
-                setShowNotifications(false);
-                setIsSidebarOpen(true);
-              }}
-              className="lg:hidden p-2 -ml-1 rounded-lg hover:bg-cream text-mid transition-colors cursor-pointer"
-              aria-label="Open menu"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg>
-            </button>
             {headerTitle ? (
               <h1 className="hidden sm:block lg:hidden font-serif text-xl font-bold text-ink truncate max-w-[60vw]">
                 {headerTitle}

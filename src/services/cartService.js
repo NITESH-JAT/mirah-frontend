@@ -87,10 +87,21 @@ export const cartService = {
     return data;
   },
 
-  checkout: async ({ paymentMethod = 'razorpay', currency = 'INR', cartItemIds = [], productIds = [] } = {}) => {
+  checkout: async ({
+    paymentMethod = 'razorpay',
+    currency = 'INR',
+    cartItemIds = [],
+    productIds = [],
+    showroomId = null,
+    pickupCountry = null,
+    pickupPostcode = null,
+  } = {}) => {
     const body = { paymentMethod, currency };
     if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
     else body.productIds = productIds;
+    if (showroomId != null) body.showroomId = showroomId;
+    if (pickupCountry) body.pickupCountry = pickupCountry;
+    if (pickupPostcode) body.pickupPostcode = pickupPostcode;
     const res = await api.post('/api/user/cart/checkout', body);
     return unwrap(res);
   },

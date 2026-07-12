@@ -12,6 +12,7 @@ import {
   normalizeCountryLookupRows,
 } from '../../utils/stateRegionLabel';
 import CountrySelect from '../../components/CountrySelect';
+import ShowroomPickupModal from '../../components/customer/ShowroomPickupModal';
 
 export default function Checkout() {
   const { addToast, currentUser } = useOutletContext();
@@ -33,6 +34,8 @@ export default function Checkout() {
   const [partialCalcOpen, setPartialCalcOpen] = useState(false);
   const [partialCalcLoading, setPartialCalcLoading] = useState(false);
   const [partialCalc, setPartialCalc] = useState(null);
+  const [pickupOpen, setPickupOpen] = useState(false);
+  const [pickupMode, setPickupMode] = useState('offline'); // 'offline' | 'partial'
   const [billingForm, setBillingForm] = useState({
     id: null,
     type: 'billing',
@@ -271,8 +274,14 @@ export default function Checkout() {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
       addToast(e?.message || 'Failed to load checkout details', 'error');
     } finally {
-      setLoading(false);
-      setLoadedOnce(true);
+      // Only finalize for the latest (non-aborted) load. Under React
+      // StrictMode the effect runs mount→cleanup→mount, which aborts the
+      // first request; its finally must not flip loadedOnce while
+      // selectedItems is still empty (that would bounce us to shopping).
+      if (abortRef.current === ctrl && !ctrl.signal.aborted) {
+        setLoading(false);
+        setLoadedOnce(true);
+      }
     }
   };
 
@@ -490,7 +499,7 @@ export default function Checkout() {
     }
   };
 
-  const proceedCheckout = async () => {
+  const proceedCheckout = async (pickup = {}) => {
     if (!hasSelection) return;
     if (!providerCheck.ok) return;
     if (paymentMethod === 'offline' && !offlineAllowed) {
@@ -500,6 +509,11 @@ export default function Checkout() {
     }
     if (!billingValid.ok || !shippingValid.ok) {
       addToast('Please fill billing and shipping details to continue.', 'error');
+      return;
+    }
+    // Offline and partial orders must have a pickup showroom chosen in the modal.
+    if ((paymentMethod === 'offline' || paymentMethod === 'partial') && !pickup?.showroomId) {
+      addToast('Please select a pickup showroom to continue.', 'error');
       return;
     }
     setSubmitting(true);
@@ -527,14 +541,25 @@ export default function Checkout() {
         currency: 'INR',
         cartItemIds: Array.isArray(cartItemIds) && cartItemIds.length ? cartItemIds : undefined,
         productIds: Array.isArray(productIds) && productIds.length ? productIds : undefined,
+        showroomId: pickup?.showroomId ?? undefined,
+        pickupCountry: pickup?.pickupCountry ?? undefined,
+        pickupPostcode: pickup?.pickupPostcode ?? undefined,
       });
       const parsed = parseCheckout(checkoutRes || {});
       const localOrderId = parsed.localOrderId;
       if (!localOrderId) throw new Error('Checkout failed: missing order id');
 
+      // Checkout succeeded — the pickup modal (if any) can close now.
+      setPickupOpen(false);
+
       if (paymentMethod === 'offline') {
         navigate('/customer/orders/success', {
-          state: { localOrderId, orderCode: parsed.orderCode ?? null, paymentMethod },
+          state: {
+            localOrderId,
+            orderCode: parsed.orderCode ?? null,
+            paymentMethod,
+            pickupShowroom: pickup?.showroom ?? null,
+          },
         });
         return;
       }
@@ -581,6 +606,7 @@ export default function Checkout() {
                 localOrderId: verified.localOrderId ?? localOrderId,
                 orderCode: verified.orderCode ?? parsed.orderCode ?? null,
                 paymentMethod,
+                pickupShowroom: pickup?.showroom ?? null,
               },
             });
           } catch (e) {
@@ -625,9 +651,17 @@ export default function Checkout() {
       return;
     }
 
+    if (paymentMethod === 'offline') {
+      setPickupMode('offline');
+      setPickupOpen(true);
+      return;
+    }
+
     if (paymentMethod === 'partial') {
-      setPartialCalcOpen(true);
-      await loadPartialCalc();
+      setPickupMode('partial');
+      setPickupOpen(true);
+      // Load the online/offline split to show inside the pickup modal.
+      loadPartialCalc();
       return;
     }
 
@@ -659,6 +693,30 @@ export default function Checkout() {
           </div>
         </div>
       ) : null}
+
+      <ShowroomPickupModal
+        open={pickupOpen}
+        mode={pickupMode}
+        onClose={() => setPickupOpen(false)}
+        onConfirm={({ showroomId, showroom, country, postcode }) =>
+          proceedCheckout({ showroomId, showroom, pickupCountry: country, pickupPostcode: postcode })
+        }
+        countries={countryLookup}
+        defaultCountry={shippingForm?.country || billingForm?.country || ''}
+        submitting={submitting}
+        partialInfo={
+          pickupMode === 'partial'
+            ? {
+                loading: partialCalcLoading,
+                total: partialCalc?.total,
+                onlineAmount: partialCalc?.onlineAmount,
+                offlineAmount: partialCalc?.offlineAmount,
+              }
+            : null
+        }
+        addToast={addToast}
+      />
+
       <div className="flex items-center gap-3 mb-4">
         <button
           type="button"
@@ -1162,7 +1220,7 @@ export default function Checkout() {
           </div>
 
           {/* Mobile fixed: payment method + continue */}
-          <div className="md:hidden fixed left-0 right-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-3 bg-cream">
+          <div className="md:hidden fixed left-0 right-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 px-4 pb-4 pt-3 bg-cream">
             <div className="rounded-2xl border border-pale bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-[12px] font-extrabold text-ink">Payment method</p>

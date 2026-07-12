@@ -1336,7 +1336,7 @@ export default function ProjectBids() {
                         canProceed ? 'bg-walnut text-blush hover:opacity-90' : 'bg-pale text-muted cursor-not-allowed'
                       }`}
                     >
-                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Assign Winner'}
+                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Confirm Jeweller'}
                     </button>
                   );
                 })()}
@@ -1451,7 +1451,7 @@ export default function ProjectBids() {
         <div className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={() => setOverrideOpen(false)}>
           <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-pale">
-              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Override Assignment' : 'Assign Winner'}</p>
+              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Override Assignment' : 'Confirm Jeweller'}</p>
               <p className="mt-1 text-[12px] text-muted">
                 {activeAssignment ? (
                   <>

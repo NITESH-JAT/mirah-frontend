@@ -2,6 +2,7 @@ import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
+import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
@@ -115,7 +116,6 @@ function buildStructuredSpecsPayload(specs) {
   push('metalPurity', 'Metal purity', s.metalPurity);
   push('metalColour', 'Metal colour', s.metalColour);
   push('twoToneDetails', 'Two-tone specification and additional metal details', s.twoToneDetails);
-  push('metalFinish', 'Metal finish', s.metalFinish);
   push('stonesIncluded', 'Does your design include stones?', s.stonesIncluded);
   push('stoneType', 'Stone type', s.stoneType);
   push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
@@ -490,45 +490,24 @@ function normalizeJewelleryTypeKey(t) {
     .replace(/[\s_-]+/g, '');
 }
 
-function sizeStandardOptionsForJewelleryType(jewelleryType) {
-  const key = normalizeJewelleryTypeKey(jewelleryType);
-  if (key === 'bracelet' || key === 'flexibangle') {
-    return [
-      'Extra Small (14-15 cm)',
-      'Small (16-17 cm)',
-      'Medium (18-19 cm)',
-      'Large (20-21 cm)',
-      'Extra Large (22-23 cm)',
-    ];
-  }
-  if (key === 'ring') {
-    return [
-      'A (37.8 mm)', 'B (39.1 mm)', 'C (40.4 mm)', 'D (41.7 mm)', 'E (42.9 mm)', 'F (44.2 mm)',
-      'G (45.5 mm)', 'H (46.8 mm)', 'I (48.0 mm)', 'J (49.3 mm)', 'K (50.6 mm)', 'L (51.9 mm)',
-      'M (53.1 mm)', 'N (54.4 mm)', 'O (55.7 mm)', 'P (57.0 mm)', 'Q (58.3 mm)', 'R (59.5 mm)',
-      'S (60.8 mm)', 'T (62.1 mm)', 'U (63.4 mm)', 'V (64.6 mm)', 'W (65.9 mm)', 'X (67.2 mm)',
-      'Y (68.5 mm)', 'Z (69.7 mm)',
-    ];
-  }
-  if (key === 'necklace' || key === 'pendant') {
-    return [
-      'Choker (14")',
-      'Collarbone (16")',
-      'Princess (18")',
-      'Matinee (20")',
-      'Opera (24")',
-      'Rope (30")',
-    ];
-  }
-  // Fallback (existing generic sizes)
-  return ['XS', 'S', 'M', 'L', 'XL'];
-}
-
 function defaultSizeCustomUnitForJewelleryType(jewelleryType) {
   const key = normalizeJewelleryTypeKey(jewelleryType);
   if (key === 'ring') return 'mm';
   if (key === 'necklace' || key === 'pendant') return 'in';
   return 'cm';
+}
+
+// Format an admin-configured category size into a selectable label, e.g.
+// { size: 'A', sizeDimension: 37.8, unit: 'mm' } -> "A (37.8 mm)".
+function formatCategorySizeLabel(s) {
+  const size = String(s?.size ?? '').trim();
+  if (!size) return '';
+  const dim = s?.sizeDimension;
+  const hasDim = dim != null && dim !== '' && !Number.isNaN(Number(dim));
+  const unit = String(s?.unit ?? '').trim();
+  if (hasDim && unit) return `${size} (${Number(dim)} ${unit})`;
+  if (hasDim) return `${size} (${Number(dim)})`;
+  return size;
 }
 
 function canCancelProject(p) {
@@ -773,7 +752,7 @@ export default function Projects() {
       engravingDetails: '',
       changesComparedToReference: '',
       budgetPerPiece: '',
-      quantityRequired: '',
+      quantityRequired: '1',
       preferredDeliveryDays: 20,
       preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
       additionalNotes: '',
@@ -785,7 +764,40 @@ export default function Projects() {
 
   const [createStep, setCreateStep] = useState(1); // 1..4
   const [mobileRefCollapsed, setMobileRefCollapsed] = useState(false);
+  const [jewelleryTypes, setJewelleryTypes] = useState([]);
   const prevRefImageRef = useRef('');
+
+  // Jewellery types (and their sizes) are admin-configured via Product Categories
+  // flagged with "Show as jewellery type in Create Project".
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const types = await productService.listProjectJewelleryTypes({ signal: controller.signal });
+        setJewelleryTypes(Array.isArray(types) ? types : []);
+      } catch {
+        // Non-fatal: leave the list empty if the fetch fails.
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  const selectedJewelleryType = String(createForm?.specs?.jewelleryType || '').trim();
+  const getSizeOptionsForType = useCallback(
+    (name) => {
+      const key = normalizeJewelleryTypeKey(name);
+      if (!key) return [];
+      const match = jewelleryTypes.find((t) => normalizeJewelleryTypeKey(t?.name) === key);
+      if (!match || !Array.isArray(match.sizes)) return [];
+      return match.sizes.map((s) => formatCategorySizeLabel(s)).filter(Boolean);
+    },
+    [jewelleryTypes],
+  );
+  const sizeOptionsForSelectedType = useMemo(
+    () => getSizeOptionsForType(selectedJewelleryType),
+    [getSizeOptionsForType, selectedJewelleryType],
+  );
+  const selectedTypeHasPresetSizes = sizeOptionsForSelectedType.length > 0;
   const stepLabels = useMemo(
     () => [
       { id: 1, label: 'Design' },
@@ -850,7 +862,6 @@ export default function Projects() {
         if (String(s?.metalColour || '').trim().toLowerCase() === 'two-tone') {
           if (!String(s?.twoToneDetails || '').trim()) return 'Two-tone details are required';
         }
-        if (!String(s?.metalFinish || '').trim()) return 'Metal finish is required';
 
         const stonesIncluded = String(s?.stonesIncluded || 'no').trim().toLowerCase();
         if (stonesIncluded !== 'yes' && stonesIncluded !== 'no') return 'Please select stones included (Yes/No)';
@@ -1125,7 +1136,7 @@ export default function Projects() {
         engravingDetails: '',
         changesComparedToReference: '',
         budgetPerPiece: '',
-        quantityRequired: '',
+        quantityRequired: '1',
         preferredDeliveryDays: 20,
         preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
         additionalNotes: '',
@@ -1241,7 +1252,7 @@ export default function Projects() {
         engravingDetails: '',
         changesComparedToReference: '',
         budgetPerPiece: '',
-        quantityRequired: '',
+        quantityRequired: '1',
         preferredDeliveryDays: 20,
         preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(20),
         additionalNotes: '',
@@ -1548,7 +1559,7 @@ export default function Projects() {
           engravingDetails: '',
           changesComparedToReference: '',
           budgetPerPiece: '',
-          quantityRequired: '',
+          quantityRequired: '1',
           preferredDeliveryTimeline: '',
           additionalNotes: '',
           confirmSpecs: false,
@@ -2292,7 +2303,7 @@ export default function Projects() {
                         Need help bringing your idea together?
                       </p>
                       <a
-                        href="mailto:sales@arviah.com?subject=Book%20a%20Consultation"
+                        href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
                         className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
@@ -2332,7 +2343,7 @@ export default function Projects() {
                         Need help bringing your idea together?
                       </p>
                       <a
-                        href="mailto:sales@arviah.com?subject=Book%20a%20Consultation"
+                        href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
                         className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-walnut text-blush text-[10px] font-bold hover:opacity-90 transition-opacity"
                       >
                         Book a Consultation
@@ -2605,13 +2616,16 @@ export default function Projects() {
                                   value={createForm?.specs?.jewelleryType || ''}
                                   onChange={(e) => {
                                     const nextType = String(e.target.value || '');
+                                    // If the selected category has no preset sizes, switch to
+                                    // manual entry directly; otherwise start with the preset list.
+                                    const hasPresets = getSizeOptionsForType(nextType).length > 0;
                                     setCreateForm((p) => ({
                                       ...p,
                                       specs: {
                                         ...(p.specs || {}),
                                         jewelleryType: nextType,
                                         // Reset size selection when type changes.
-                                        sizeMode: 'standard',
+                                        sizeMode: hasPresets ? 'standard' : 'custom',
                                         sizeStandard: '',
                                         sizeCustomValue: '',
                                         sizeCustomUnit: defaultSizeCustomUnitForJewelleryType(nextType),
@@ -2621,12 +2635,17 @@ export default function Projects() {
                                   className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                 >
                                   <option value="">Select</option>
-                                  {['Ring', 'Necklace', 'Bracelet', 'Flexi Bangle', 'Earrings', 'Pendant'].map((x) => (
-                                    <option key={x} value={x}>
-                                      {x}
+                                  {jewelleryTypes.map((t) => (
+                                    <option key={t.id ?? t.name} value={t.name}>
+                                      {t.name}
                                     </option>
                                   ))}
                                 </select>
+                                {jewelleryTypes.length === 0 ? (
+                                  <p className="text-[11px] text-muted">
+                                    No jewellery types are available yet. Please check back soon.
+                                  </p>
+                                ) : null}
                               </div>
                             </div>
 
@@ -2642,33 +2661,39 @@ export default function Projects() {
                                     How to Measure
                                   </button>
                                 </div>
-                                <select
-                                  value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
-                                  onChange={(e) => {
-                                    const v = String(e.target.value || '');
-                                    if (v === 'custom') {
-                                      setCreateForm((p) => ({
-                                        ...p,
-                                        specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
-                                      }));
-                                    } else {
-                                      setCreateForm((p) => ({
-                                        ...p,
-                                        specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
-                                      }));
-                                    }
-                                  }}
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                                >
-                                  <option value="">Select</option>
-                                  {sizeStandardOptionsForJewelleryType(createForm?.specs?.jewelleryType).map((label) => (
-                                    <option key={label} value={label}>
-                                      {label}
-                                    </option>
-                                  ))}
-                                  <option value="custom">Enter custom measurement</option>
-                                </select>
-                                {createForm?.specs?.sizeMode === 'custom' ? (
+                                {selectedTypeHasPresetSizes ? (
+                                  <select
+                                    value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
+                                    onChange={(e) => {
+                                      const v = String(e.target.value || '');
+                                      if (v === 'custom') {
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
+                                        }));
+                                      } else {
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
+                                        }));
+                                      }
+                                    }}
+                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
+                                  >
+                                    <option value="">Select</option>
+                                    {sizeOptionsForSelectedType.map((label) => (
+                                      <option key={label} value={label}>
+                                        {label}
+                                      </option>
+                                    ))}
+                                    <option value="custom">Enter custom measurement</option>
+                                  </select>
+                                ) : (
+                                  <p className="text-[12px] text-muted">
+                                    No preset sizes for this jewellery type — please enter the measurement manually.
+                                  </p>
+                                )}
+                                {(!selectedTypeHasPresetSizes || createForm?.specs?.sizeMode === 'custom') ? (
                                   <div className="mt-2 grid grid-cols-2 gap-2">
                                     <input
                                       type="number"
@@ -2676,7 +2701,7 @@ export default function Projects() {
                                       onChange={(e) =>
                                         setCreateForm((p) => ({
                                           ...p,
-                                          specs: { ...(p.specs || {}), sizeCustomValue: e.target.value },
+                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '', sizeCustomValue: e.target.value },
                                         }))
                                       }
                                       className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
@@ -2687,7 +2712,7 @@ export default function Projects() {
                                       onChange={(e) =>
                                         setCreateForm((p) => ({
                                           ...p,
-                                          specs: { ...(p.specs || {}), sizeCustomUnit: e.target.value },
+                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeCustomUnit: e.target.value },
                                         }))
                                       }
                                       className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
@@ -2797,27 +2822,6 @@ export default function Projects() {
                               />
                             </div>
                           ) : null}
-
-                          <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal finish *</label>
-                            <select
-                              value={createForm?.specs?.metalFinish || ''}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), metalFinish: e.target.value },
-                                }))
-                              }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                            >
-                              <option value="">Select</option>
-                              {['Matte', 'Polished'].map((x) => (
-                                <option key={x} value={x}>
-                                  {x}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
 
                           <div className="space-y-1.5">
                             <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Does your design include stones? *</label>
@@ -2950,9 +2954,10 @@ export default function Projects() {
                             <div className="space-y-1.5">
                               <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Quantity required *</label>
                               <input
-                                type="text"
+                                type="number"
+                                min="1"
+                                step="1"
                                 inputMode="numeric"
-                                pattern="[0-9]*"
                                 value={createForm?.specs?.quantityRequired || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
@@ -3263,7 +3268,6 @@ export default function Projects() {
                             {String(createForm?.specs?.twoToneDetails || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-muted">Two-tone details:</span> <span className="font-semibold text-ink">{createForm?.specs?.twoToneDetails}</span></div>
                             ) : null}
-                            <div><span className="text-muted">Metal finish:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalFinish || '—'}</span></div>
                             <div><span className="text-muted">Stones included:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No'}</span></div>
                             {String(createForm?.specs?.stoneType || '').trim() ? (
                               <div><span className="text-muted">Stone type:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneType}</span></div>

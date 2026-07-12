@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 
 const PERSONAL_INFO_BLOCK_TOAST =
-  'For your safety and to ensure a secure transaction, sharing personal contact details (such as phone numbers or addresses) is not allowed on Arviah. Please keep all communication within the platform.';
+  'Please avoid sharing personal contact details, such as phone numbers or addresses, and continue communicating through Arviah. This helps protect your personal data and identity while ensuring a secure transaction. Thank you.';
 
 function fullName(u) {
   if (!u) return '';

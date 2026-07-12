@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
+import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
@@ -313,6 +314,7 @@ export default function VendorManageProject() {
   const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
   const [loading, setLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [details, setDetails] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [paymentDetails, setPaymentDetails] = useState(null);
@@ -703,10 +705,12 @@ export default function VendorManageProject() {
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
       setDetails(res || null);
+      setHasLoaded(true);
     } catch (e) {
       if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
+      setHasLoaded(true);
     } finally {
       setLoading(false);
     }
@@ -1027,16 +1031,7 @@ export default function VendorManageProject() {
     ) : null;
 
   const DiamondQualityGuidelinesCard = ({ className = '' }) => (
-    <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
-      <p className="text-[12px] font-extrabold text-ink">Diamond Quality</p>
-      <p className="mt-1 text-[12px] text-muted">Understand which colour and clarity combinations we accept.</p>
-      <Link
-        to="/vendor/diamond-guidelines"
-        className="mt-3 inline-block text-[12px] font-bold text-walnut underline underline-offset-2 decoration-walnut/70 hover:decoration-walnut focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/30 rounded"
-      >
-        Click here to see which diamond quality is acceptable?
-      </Link>
-    </div>
+    <DiamondClassificationPanel className={`p-5 ${className}`} />
   );
 
   return (
@@ -1054,7 +1049,7 @@ export default function VendorManageProject() {
         </button>
       </div>
 
-      {loading && !details ? (
+      {!hasLoaded ? (
         <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
           <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
@@ -1062,7 +1057,10 @@ export default function VendorManageProject() {
           </svg>
         </div>
       ) : !project ? (
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Unable to load project.</div>
+        <div className="min-h-[calc(100vh-260px)] flex flex-col items-center justify-center text-center">
+          <p className="font-serif text-5xl font-extrabold text-ink">404</p>
+          <p className="mt-2 text-[13px] text-muted">Project not found.</p>
+        </div>
       ) : (
         <div className="flex flex-col lg:flex-row gap-5 items-start">
           <div className="w-full lg:w-[400px] shrink-0 lg:self-start">
@@ -1174,16 +1172,6 @@ export default function VendorManageProject() {
                               {formatMoney(
                                 paymentDetails.pricingBreakdown.jewellerBidJ ??
                                   paymentDetails.pricingBreakdown.jeweller_bid_j,
-                              )}
-                            </span>
-                          </p>
-                          <p>
-                            Platform :{' '}
-                            <span className="font-bold text-ink">
-                              ₹
-                              {formatMoney(
-                                paymentDetails.pricingBreakdown.platformAdjustedPriceP ??
-                                  paymentDetails.pricingBreakdown.platform_adjusted_price_p,
                               )}
                             </span>
                           </p>
