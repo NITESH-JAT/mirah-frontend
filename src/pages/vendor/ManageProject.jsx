@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
-import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
+import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
@@ -980,23 +980,6 @@ export default function VendorManageProject() {
     </div>
   );
 
-  const MetaCard = ({ className = '' }) =>
-    remainingMetaRows.length > 0 ? (
-      <div className={`rounded-2xl border border-pale bg-white overflow-hidden shadow-sm ${className}`}>
-        <div className="px-5 py-4 border-b border-pale">
-          <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
-        </div>
-        <div className="px-5 py-4 space-y-3">
-          {remainingMetaRows.map((r) => (
-            <div key={r.key} className="space-y-1">
-              <p className="text-[12px] text-muted font-semibold">{r.label}</p>
-              <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    ) : null;
-
   const AttachmentsCard = ({ className = '' }) =>
     attachments.length > 0 ? (
       <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
@@ -1029,10 +1012,6 @@ export default function VendorManageProject() {
         </div>
       </div>
     ) : null;
-
-  const DiamondQualityGuidelinesCard = ({ className = '' }) => (
-    <DiamondClassificationPanel className={`p-5 ${className}`} />
-  );
 
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
@@ -1102,9 +1081,8 @@ export default function VendorManageProject() {
             </div>
 
             <div className="hidden lg:block mt-4 space-y-4">
-              <MetaCard />
+              <VendorProjectMetaCard rows={remainingMetaRows} />
               <AttachmentsCard />
-              <DiamondQualityGuidelinesCard />
             </div>
           </div>
 
@@ -1112,11 +1090,10 @@ export default function VendorManageProject() {
             <div className="lg:hidden">
               <DetailsCardsRow />
               <div className="mt-4">
-                <MetaCard />
+                <VendorProjectMetaCard rows={remainingMetaRows} />
               </div>
               <div className="mt-4 space-y-4">
                 <AttachmentsCard />
-                <DiamondQualityGuidelinesCard />
               </div>
             </div>
 

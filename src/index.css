@@ -121,6 +121,35 @@ input.input-search-borderless:focus-visible {
   background: var(--color-muted);
 }
 
+/* Classic (non-overlay) scrollbar — stays visible without scrolling */
+.always-visible-scrollbar {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-walnut) 35%, transparent) var(--color-pale);
+}
+.always-visible-scrollbar::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 10px;
+  background: var(--color-pale);
+}
+.always-visible-scrollbar::-webkit-scrollbar-track {
+  background: var(--color-pale);
+  border-radius: 999px;
+}
+.always-visible-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-walnut) 35%, transparent);
+  border-radius: 999px;
+  border: 2px solid var(--color-pale);
+  background-clip: padding-box;
+  min-height: 48px;
+}
+.always-visible-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-walnut) 50%, transparent);
+  border: 2px solid var(--color-pale);
+  background-clip: padding-box;
+}
+
 @layer components {
   .card {
     @apply rounded-xl border border-pale bg-white p-4 md:p-5;

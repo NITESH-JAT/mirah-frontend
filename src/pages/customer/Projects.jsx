@@ -4,8 +4,11 @@ import { projectService } from '../../services/projectService';
 import { vendorService } from '../../services/vendorService';
 import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
+import { FinishPreviewPanel, SpecChoiceCard, SparkleTier } from '../../components/project/SpecChoiceCards';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
+import { labPictogram, naturalPictogram, otherMetalCircle, purityLabelForDisplay } from '../../utils/projectFinishPreview';
+import logo from '../../assets/logo.png';
 
 function toTitleCase(text) {
   return String(text || '')
@@ -115,7 +118,9 @@ function buildStructuredSpecsPayload(specs) {
   push('metalType', 'Metal type', s.metalType);
   push('metalPurity', 'Metal purity', s.metalPurity);
   push('metalColour', 'Metal colour', s.metalColour);
+  push('twoTonePair', 'Two-tone colours', s.twoTonePair);
   push('twoToneDetails', 'Two-tone specification and additional metal details', s.twoToneDetails);
+  push('otherMetalDetails', 'Specify metal', s.otherMetalDetails);
   push('stonesIncluded', 'Does your design include stones?', s.stonesIncluded);
   push('stoneType', 'Stone type', s.stoneType);
   push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
@@ -573,8 +578,12 @@ export default function Projects() {
         'metal_purity',
         'metalColour',
         'metal_colour',
+        'twoTonePair',
+        'two_tone_pair',
         'twoToneDetails',
         'two_tone_details',
+        'otherMetalDetails',
+        'other_metal_details',
         'metalFinish',
         'metal_finish',
         'stonesIncluded',
@@ -744,7 +753,9 @@ export default function Projects() {
       metalType: '',
       metalPurity: '',
       metalColour: '',
+      twoTonePair: '',
       twoToneDetails: '',
+      otherMetalDetails: '',
       metalFinish: '',
       stonesIncluded: 'no', // 'yes' | 'no'
       stoneType: '',
@@ -762,7 +773,7 @@ export default function Projects() {
     metaFields: [],
   });
 
-  const [createStep, setCreateStep] = useState(1); // 1..4
+  const [createStep, setCreateStep] = useState(1); // 1..5 Design → Metal → Diamonds → Details → Review
   const [mobileRefCollapsed, setMobileRefCollapsed] = useState(false);
   const [jewelleryTypes, setJewelleryTypes] = useState([]);
   const prevRefImageRef = useRef('');
@@ -801,9 +812,10 @@ export default function Projects() {
   const stepLabels = useMemo(
     () => [
       { id: 1, label: 'Design' },
-      { id: 2, label: 'Specifications' },
-      { id: 3, label: 'Details' },
-      { id: 4, label: 'Review' },
+      { id: 2, label: 'Metal' },
+      { id: 3, label: 'Diamonds' },
+      { id: 4, label: 'Details' },
+      { id: 5, label: 'Review' },
     ],
     [],
   );
@@ -811,6 +823,13 @@ export default function Projects() {
   useEffect(() => {
     if (!createModalOpen) return;
     setMobileRefCollapsed(createStep >= 2);
+  }, [createModalOpen, createStep]);
+
+  useEffect(() => {
+    if (!createModalOpen) return;
+    const el = createStepScrollRef.current;
+    if (!el) return;
+    el.scrollTop = 0;
   }, [createModalOpen, createStep]);
 
   useEffect(() => {
@@ -855,14 +874,24 @@ export default function Projects() {
         const metalType = String(s?.metalType || '').trim();
         if (!metalType) return 'Metal type is required';
         const isGold = metalType.toLowerCase() === 'gold';
+        const isOther = metalType.toLowerCase() === 'other';
         if (isGold) {
           if (!String(s?.metalPurity || '').trim()) return 'Metal purity is required';
-          if (!String(s?.metalColour || '').trim()) return 'Metal colour is required';
+          const colour = String(s?.metalColour || '').trim().toLowerCase();
+          if (!colour) return 'Metal colour is required';
+          if (colour === 'two-tone') {
+            if (!String(s?.twoToneDetails || '').trim()) {
+              return 'Two-tone specification and additional metal details is required';
+            }
+          }
         }
-        if (String(s?.metalColour || '').trim().toLowerCase() === 'two-tone') {
-          if (!String(s?.twoToneDetails || '').trim()) return 'Two-tone details are required';
+        if (isOther) {
+          if (!String(s?.otherMetalDetails || '').trim()) return 'Please specify the metal';
         }
+        return null;
+      }
 
+      if (step === 3) {
         const stonesIncluded = String(s?.stonesIncluded || 'no').trim().toLowerCase();
         if (stonesIncluded !== 'yes' && stonesIncluded !== 'no') return 'Please select stones included (Yes/No)';
         if (stonesIncluded === 'yes') {
@@ -872,11 +901,10 @@ export default function Projects() {
             if (!String(s?.stoneQualityBracket || '').trim()) return 'Preferred stone quality bracket is required';
           }
         }
-
         return null;
       }
 
-      if (step === 3) {
+      if (step === 4) {
         const budgetRaw = String(s?.budgetPerPiece ?? '').trim();
         const budget = Number(budgetRaw || 0);
         const qty = Number(s?.quantityRequired || 0);
@@ -892,7 +920,7 @@ export default function Projects() {
         return null;
       }
 
-      if (step === 4) {
+      if (step === 5) {
         if (!s?.confirmSpecs) return 'Please confirm specifications and terms';
         return null;
       }
@@ -935,15 +963,13 @@ export default function Projects() {
           ? budgetPerPiece
           : null;
 
-    const timelineExpectedRaw = String(createForm?.timelineExpected ?? '').trim();
+    // UI source of truth is the Details-step delivery slider (preferredDeliveryDays).
+    // Do not prefer createForm.timelineExpected — it stays stale on edit/hydrate and pinned payloads at 20.
     const preferredDeliveryDays = Number(createForm?.specs?.preferredDeliveryDays ?? 0);
-    const timelineExpectedParsed = timelineExpectedRaw ? Number(timelineExpectedRaw) : null;
     const timelineExpected =
-      Number.isFinite(timelineExpectedParsed) && timelineExpectedParsed > 0
-        ? timelineExpectedParsed
-        : Number.isFinite(preferredDeliveryDays) && preferredDeliveryDays > 0
-          ? preferredDeliveryDays
-          : null;
+      Number.isFinite(preferredDeliveryDays) && preferredDeliveryDays > 0
+        ? preferredDeliveryDays
+        : null;
 
     const payload = {
       title,
@@ -970,11 +996,15 @@ export default function Projects() {
   const [referenceDropActive, setReferenceDropActive] = useState(false);
   const attachmentInputRef = useRef(null);
   const referenceImageInputRef = useRef(null);
+  const createStepScrollRef = useRef(null);
   const listAbortRef = useRef(null);
   const listSearchRef = useRef('');
   const listSearchDebounceRef = useRef(null);
   const listSearchDebounceSkipFirstRef = useRef(true);
   const listSearchDebounceSkipAfterClearRef = useRef(false);
+
+  const createFormBusy =
+    createLoading || feasibilityLoading || attachmentUploading || referenceUploading || listMyProjectLoading;
 
   const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
   const howToMeasureText = useMemo(() => {
@@ -1100,6 +1130,7 @@ export default function Projects() {
   };
 
   const startCreateNew = () => {
+    if (createFormBusy) return;
     if (feasibilityAbortRef.current) {
       try {
         feasibilityAbortRef.current.abort();
@@ -1128,7 +1159,9 @@ export default function Projects() {
         metalType: '',
         metalPurity: '',
         metalColour: '',
+        twoTonePair: '',
         twoToneDetails: '',
+        otherMetalDetails: '',
         metalFinish: '',
         stonesIncluded: 'no',
         stoneType: '',
@@ -1175,7 +1208,13 @@ export default function Projects() {
       description: String(p?.description ?? ''),
       minAmount: String(p?.amountRange?.min ?? p?.amount_range?.min ?? p?.minAmount ?? p?.min_amount ?? ''),
       maxAmount: String(p?.amountRange?.max ?? p?.amount_range?.max ?? p?.maxAmount ?? p?.max_amount ?? ''),
-      timelineExpected: String(p?.timelineExpected ?? p?.timeline_expected ?? ''),
+      timelineExpected: (() => {
+        const fromProject = Number(p?.timelineExpected ?? p?.timeline_expected);
+        if (Number.isFinite(fromProject) && fromProject > 0) return String(clampNumber(fromProject, 20, 90));
+        return String(
+          preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline')),
+        );
+      })(),
       referenceImage: String(p?.referenceImage ?? p?.reference_image ?? ''),
       attachments: coerceUrlArray(p?.attachments),
       specs: {
@@ -1187,7 +1226,9 @@ export default function Projects() {
         metalType: pickMeta('metalType', 'metal_type'),
         metalPurity: pickMeta('metalPurity', 'metal_purity'),
         metalColour: pickMeta('metalColour', 'metal_colour'),
+        twoTonePair: pickMeta('twoTonePair', 'two_tone_pair'),
         twoToneDetails: pickMeta('twoToneDetails', 'two_tone_details'),
+        otherMetalDetails: pickMeta('otherMetalDetails', 'other_metal_details'),
         metalFinish: pickMeta('metalFinish', 'metal_finish'),
         stonesIncluded: pickMeta('stonesIncluded', 'stones_included') || 'no',
         stoneType: pickMeta('stoneType', 'stone_type'),
@@ -1196,10 +1237,19 @@ export default function Projects() {
         changesComparedToReference: pickMeta('changesComparedToReference', 'changes_compared_to_reference'),
         budgetPerPiece: sanitizeDecimalInput(pickMeta('budgetPerPiece', 'budget_per_piece'), { maxLen: 16 }),
         quantityRequired: sanitizeDigitsInput(pickMeta('quantityRequired', 'quantity_required'), { maxLen: 6 }),
-        preferredDeliveryDays: preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline')),
-        preferredDeliveryTimeline: preferredDeliveryTimelineFromDays(
-          preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'))
-        ),
+        preferredDeliveryDays: (() => {
+          const fromProject = Number(p?.timelineExpected ?? p?.timeline_expected);
+          if (Number.isFinite(fromProject) && fromProject > 0) return clampNumber(fromProject, 20, 90);
+          return preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'));
+        })(),
+        preferredDeliveryTimeline: (() => {
+          const fromProject = Number(p?.timelineExpected ?? p?.timeline_expected);
+          const days =
+            Number.isFinite(fromProject) && fromProject > 0
+              ? clampNumber(fromProject, 20, 90)
+              : preferredDeliveryDaysFromTimeline(pickMeta('preferredDeliveryTimeline', 'preferred_delivery_timeline'));
+          return preferredDeliveryTimelineFromDays(days);
+        })(),
         additionalNotes: pickMeta('additionalNotes', 'additional_notes'),
         confirmSpecs:
           String(pickMeta('confirmSpecs', 'confirm_specs') || '')
@@ -1213,7 +1263,7 @@ export default function Projects() {
   };
 
   const closeCreateModal = ({ refreshList = true } = {}) => {
-    if (createLoading || attachmentUploading || referenceUploading) return;
+    if (createFormBusy) return;
     const shouldRefresh = refreshList && Boolean(editingId);
     if (feasibilityAbortRef.current) {
       try {
@@ -1244,7 +1294,9 @@ export default function Projects() {
         metalType: '',
         metalPurity: '',
         metalColour: '',
+        twoTonePair: '',
         twoToneDetails: '',
+        otherMetalDetails: '',
         metalFinish: '',
         stonesIncluded: 'no',
         stoneType: '',
@@ -1346,15 +1398,16 @@ export default function Projects() {
   };
 
   const persistProject = async ({ validateUpToStep = 1, silent = true } = {}) => {
-    const maxStep = Math.max(1, Math.min(4, Number(validateUpToStep || 1)));
+    const maxStep = Math.max(1, Math.min(5, Number(validateUpToStep || 1)));
     const err1 = maxStep >= 1 ? validateStep(1) : null;
     const err2 = err1 ? null : maxStep >= 2 ? validateStep(2) : null;
     const err3 = err1 || err2 ? null : maxStep >= 3 ? validateStep(3) : null;
     const err4 = err1 || err2 || err3 ? null : maxStep >= 4 ? validateStep(4) : null;
-    const err = err1 || err2 || err3 || err4;
+    const err5 = err1 || err2 || err3 || err4 ? null : maxStep >= 5 ? validateStep(5) : null;
+    const err = err1 || err2 || err3 || err4 || err5;
     if (err) {
       addToast(err, 'error');
-      setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : 4);
+      setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : err4 ? 4 : 5);
       return null;
     }
 
@@ -1381,15 +1434,15 @@ export default function Projects() {
   };
 
   const persistAndAdvance = async (fromStep) => {
-    const step = Math.max(1, Math.min(3, Number(fromStep || createStep || 1)));
+    const step = Math.max(1, Math.min(4, Number(fromStep || createStep || 1)));
     const saved = await persistProject({ validateUpToStep: step, silent: true });
     if (!saved) return;
-    setCreateStep((s) => Math.min(4, Number(s || step) + 1));
+    setCreateStep((s) => Math.min(5, Number(s || step) + 1));
   };
 
   const prepareReviewStep = async () => {
     if (feasibilityLoading || createLoading) return;
-    const saved = await persistProject({ validateUpToStep: 3, silent: true });
+    const saved = await persistProject({ validateUpToStep: 4, silent: true });
     if (!saved) return;
 
     if (feasibilityAbortRef.current) {
@@ -1418,7 +1471,7 @@ export default function Projects() {
       }
     } finally {
       setFeasibilityLoading(false);
-      if (shouldAdvance) setCreateStep(4);
+      if (shouldAdvance) setCreateStep(5);
     }
   };
 
@@ -1427,7 +1480,7 @@ export default function Projects() {
     setListMyProjectLoading(true);
     try {
       setProjectLiveDays(null);
-      const saved = await persistProject({ validateUpToStep: 4, silent: true });
+      const saved = await persistProject({ validateUpToStep: 5, silent: true });
       if (!saved) return;
       const id = localProjectIdOf(saved) || editingId;
       if (!id) return;
@@ -1551,7 +1604,9 @@ export default function Projects() {
           metalType: '',
           metalPurity: '',
           metalColour: '',
+          twoTonePair: '',
           twoToneDetails: '',
+          otherMetalDetails: '',
           metalFinish: '',
           stonesIncluded: 'no',
           stoneType: '',
@@ -1849,17 +1904,19 @@ export default function Projects() {
                               key={t.id}
                               type="button"
                               onClick={() => setListFilterPersist(t.id)}
-                              className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-1.5 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-5 md:py-3 md:text-[12px] ${
+                              className={`group shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-1.5 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-5 md:py-3 md:text-[12px] ${
                                 active
-                                  ? 'border-walnut bg-walnut/10 font-bold text-ink'
-                                  : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
+                                  ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                                  : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
                               }`}
                             >
                               <span className="whitespace-nowrap">{t.label}</span>
                               {typeof t.count === 'number' ? (
                                 <span
-                                  className={`min-w-[14px] h-[12px] px-0.5 rounded-full text-[8px] font-extrabold flex items-center justify-center md:min-h-[1.25rem] md:min-w-[22px] md:h-auto md:px-1.5 md:text-[11px] ${
-                                    active ? 'bg-walnut text-blush' : 'bg-blush text-mid'
+                                  className={`min-w-[14px] h-[12px] px-0.5 rounded-full text-[8px] font-extrabold flex items-center justify-center transition-colors md:min-h-[1.25rem] md:min-w-[22px] md:h-auto md:px-1.5 md:text-[11px] ${
+                                    active
+                                      ? 'bg-walnut text-blush'
+                                      : 'bg-blush text-mid group-hover:bg-walnut group-hover:text-blush'
                                   }`}
                                 >
                                   {t.count}
@@ -1878,7 +1935,8 @@ export default function Projects() {
                       <button
                         type="button"
                         onClick={startCreateNew}
-                        className="order-1 shrink-0 inline-flex items-center justify-center rounded-xl bg-walnut px-1.5 py-1.5 text-[10px] font-bold text-blush whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer md:order-3 md:min-h-[2.25rem] md:px-5 md:py-3 md:text-[12px]"
+                        disabled={createModalOpen && createFormBusy}
+                        className="order-1 shrink-0 inline-flex items-center justify-center rounded-xl bg-walnut px-1.5 py-1.5 text-[10px] font-bold text-blush whitespace-nowrap hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed md:order-3 md:min-h-[2.25rem] md:px-5 md:py-3 md:text-[12px]"
                       >
                         Create Project
                       </button>
@@ -2282,23 +2340,57 @@ export default function Projects() {
 
             {createModalOpen ? (
               <div
-                className="fixed inset-0 z-[120] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+                className="fixed inset-0 z-[120] bg-ink/25 flex items-end md:items-center justify-center px-2 md:px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-[calc(env(safe-area-inset-bottom)+8px)]"
                 onMouseDown={closeCreateModal}
               >
                 <div
-                  className="w-full max-w-3xl md:w-[calc(100vw-64px)] md:max-w-6xl lg:max-w-7xl bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden h-[calc(100dvh-24px)] md:h-[calc(100dvh-64px)] flex flex-col"
+                  className="w-full max-w-3xl md:w-[calc(100vw-24px)] md:max-w-[1440px] lg:max-w-[1600px] bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] flex flex-col"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
-                  <div className="relative px-5 pt-4 pb-6 md:pb-7 border-b border-pale flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-extrabold text-ink">{editingId ? 'Edit Project' : 'Create Project'}</p>
-                      <p className="mt-1 text-[12px] text-muted">
-                        {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
+                  {/* Mobile header — cream banner (design) */}
+                  <div className="md:hidden bg-[#F7F1E8] px-2.5 py-2.5 border-b border-pale flex items-center gap-1.5">
+                    <img src={logo} alt="Arviah" className="h-6 w-6 shrink-0 object-contain" />
+                    <p className="text-[13px] font-extrabold text-ink leading-none whitespace-nowrap shrink-0">
+                      {editingId ? 'Edit Project' : 'Create Project'}
+                    </p>
+                    <div className="ml-auto flex items-center gap-1.5 min-w-0">
+                      <p className="text-[10px] font-medium text-ink leading-none whitespace-nowrap shrink-0">
+                        Need help?
                       </p>
+                      <a
+                        href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
+                        className="inline-flex shrink-0 items-center justify-center px-2 py-1 rounded-full bg-walnut text-blush text-[9px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity"
+                      >
+                        Book a consultation
+                      </a>
+                      <button
+                        type="button"
+                        onClick={closeCreateModal}
+                        disabled={createFormBusy}
+                        className="p-1 shrink-0 text-muted cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                        aria-label="Close"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 6 6 18" />
+                          <path d="m6 6 12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Desktop header */}
+                  <div className="relative hidden md:flex px-5 pt-4 pb-7 border-b border-pale items-start justify-between gap-3">
+                    <div className="min-w-0 flex items-start gap-3">
+                      <img src={logo} alt="Arviah" className="h-10 w-10 shrink-0 object-contain" />
+                      <div className="min-w-0">
+                        <p className="text-[14px] font-extrabold text-ink">{editingId ? 'Edit Project' : 'Create Project'}</p>
+                        <p className="mt-1 text-[12px] text-muted">
+                          {editingId ? 'Editing an existing project (saved as draft).' : 'Creates a draft project.'}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Desktop: consultation prompt — top-aligned with “Create Project” (matches header pt-4) */}
-                    <div className="hidden md:flex absolute left-1/2 top-4 -translate-x-1/2 flex-col items-center text-center gap-2 max-w-[52%] z-10 pb-1">
+                    <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center text-center gap-2 max-w-[52%] z-10 pb-1">
                       <p className="text-[14px] font-extrabold text-ink">
                         Need help bringing your idea together?
                       </p>
@@ -2315,8 +2407,8 @@ export default function Projects() {
                         <button
                           type="button"
                           onClick={startCreateNew}
-                          disabled={createLoading || attachmentUploading || referenceUploading}
-                          className="hidden sm:inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          disabled={createFormBusy}
+                          className="inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
                           New project
                         </button>
@@ -2324,7 +2416,7 @@ export default function Projects() {
                       <button
                         type="button"
                         onClick={closeCreateModal}
-                        disabled={createLoading || attachmentUploading || referenceUploading}
+                        disabled={createFormBusy}
                         className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         aria-label="Close"
                       >
@@ -2337,18 +2429,6 @@ export default function Projects() {
                   </div>
 
                   <div className="px-4 pt-1 pb-3 md:px-5 md:py-3 border-b border-pale bg-white">
-                    {/* Mobile: compact consultation prompt above stepper */}
-                    <div className="md:hidden mb-2.5 border-b border-pale -mx-4 px-4 pt-2 pb-3 flex flex-col items-center justify-center text-center gap-1.5">
-                      <p className="text-[11px] font-bold text-ink leading-tight">
-                        Need help bringing your idea together?
-                      </p>
-                      <a
-                        href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
-                        className="inline-flex items-center justify-center px-2.5 py-1 rounded-md bg-walnut text-blush text-[10px] font-bold hover:opacity-90 transition-opacity"
-                      >
-                        Book a Consultation
-                      </a>
-                    </div>
                     <div className="sm:hidden mb-1.5 text-[12px] font-bold text-ink">
                       {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
                     </div>
@@ -2380,11 +2460,21 @@ export default function Projects() {
                   </div>
 
                   <div className="flex-1 min-h-0 overflow-hidden">
-                    <div className={`h-full grid grid-cols-1 ${createStep === 4 ? 'md:grid-cols-1' : 'md:grid-cols-[420px_1fr]'}`}>
-                      {/* Left: reference image (desktop, hidden on Review step) */}
-                      {createStep !== 4 ? (
-                      <div className="hidden md:block h-full overflow-y-auto border-r border-pale bg-white px-5 py-5">
+                    <fieldset
+                      disabled={createFormBusy}
+                      aria-busy={createFormBusy}
+                      className={`h-full min-h-0 border-0 p-0 m-0 min-w-0 ${
+                        createFormBusy ? 'opacity-60 pointer-events-none' : ''
+                      }`}
+                    >
+                    <div className={`h-full grid grid-cols-1 ${createStep === 5 ? 'md:grid-cols-1' : 'md:grid-cols-[480px_1fr]'}`}>
+                      {/* Left: finish preview + reference image (hidden on Review — shown in review content instead) */}
+                      {createStep !== 5 ? (
+                      <div className="hidden md:block h-full always-visible-scrollbar border-r border-pale bg-white px-5 py-5">
                         <div className="p-4">
+                          {createStep >= 2 ? (
+                            <FinishPreviewPanel specs={createForm?.specs} includeDiamonds={createStep >= 3} />
+                          ) : null}
                           <div>
                             <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image *</p>
                             <p className="text-[12px] text-muted">Upload one image as the project reference.</p>
@@ -2396,7 +2486,11 @@ export default function Projects() {
                                 <SafeImage
                                   src={String(createForm.referenceImage || '').trim()}
                                   alt="Reference"
-                                  className="w-full h-48 md:h-[360px] object-contain bg-white"
+                                  className={`w-full object-contain bg-white ${
+                                    createStep >= 2
+                                      ? 'h-40 md:h-[220px]'
+                                      : 'h-48 md:h-[360px]'
+                                  }`}
                                 />
                                 <button
                                   type="button"
@@ -2427,7 +2521,9 @@ export default function Projects() {
                                 disabled={referenceUploading}
                                 aria-busy={referenceUploading}
                                 aria-label="Upload reference image. You can also drag and drop a file here."
-                                className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center min-h-[320px] flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                                className={`relative w-full rounded-2xl border-2 border-dashed p-6 text-center flex flex-col items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60 ${
+                                  createStep >= 2 ? 'min-h-[180px]' : 'min-h-[320px]'
+                                } ${
                                   referenceDropActive
                                     ? 'border-walnut bg-walnut/[0.06] ring-2 ring-walnut/20'
                                     : 'border-pale bg-cream hover:border-walnut/45 hover:bg-cream/90'
@@ -2470,7 +2566,7 @@ export default function Projects() {
                       ) : null}
 
                       {/* Right: step content (scrollable) */}
-                      <div className="h-full overflow-y-auto px-5 py-5">
+                      <div ref={createStepScrollRef} className="h-full overflow-y-auto px-5 py-5">
                         <input
                           ref={referenceImageInputRef}
                           type="file"
@@ -2482,8 +2578,14 @@ export default function Projects() {
                           }}
                         />
 
-                        {/* Mobile: reference image block at top (always visible) */}
+                        {/* Mobile: finish preview + reference image at top (hidden on Review) */}
+                        {createStep !== 5 ? (
                         <div className="md:hidden mb-6">
+                          {createStep >= 2 ? (
+                            <div className="px-4 pt-2 pb-2">
+                              <FinishPreviewPanel specs={createForm?.specs} includeDiamonds={createStep >= 3} />
+                            </div>
+                          ) : null}
                           <div className="p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
@@ -2596,6 +2698,7 @@ export default function Projects() {
                             ) : null}
                           </div>
                         </div>
+                        ) : null}
 
                         {createStep === 1 ? (
                           <div className="space-y-6">
@@ -2730,199 +2833,341 @@ export default function Projects() {
 
                         {createStep === 2 ? (
                       <div className="p-4">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery specifications</p>
-                            <p className="text-[12px] text-muted">These details will be shared with the jeweller to prepare your order.</p>
-                          </div>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal</p>
+                          <p className="text-[12px] text-muted">Choose the metal finish for your piece. Preview updates on the left.</p>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal type *</label>
-                            <select
-                              value={createForm?.specs?.metalType || ''}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), metalType: e.target.value },
-                                }))
-                              }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                            >
-                              <option value="">Select</option>
-                              {['Gold', 'Platinum', 'Silver', 'Other'].map((x) => (
-                                <option key={x} value={x}>
-                                  {x}
-                                </option>
+                        <div className="mt-5 space-y-5">
+                          <div>
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Metal type *</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                              {[
+                                { value: 'Gold', swatch: '#E4B84A' },
+                                { value: 'Silver', swatch: '#C8CCD0' },
+                                { value: 'Platinum', swatch: '#E8E6E3' },
+                                { value: 'Other', swatch: null },
+                              ].map((opt) => (
+                                <SpecChoiceCard
+                                  key={opt.value}
+                                  label={opt.value}
+                                  swatchColor={opt.swatch}
+                                  iconNode={
+                                    !opt.swatch ? (
+                                      <img
+                                        src={otherMetalCircle}
+                                        alt=""
+                                        className="h-9 w-9 rounded-full object-cover border border-pale/80 shadow-sm"
+                                      />
+                                    ) : null
+                                  }
+                                  selected={String(createForm?.specs?.metalType || '') === opt.value}
+                                  onClick={() =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: {
+                                        ...(p.specs || {}),
+                                        metalType: opt.value,
+                                        ...(opt.value === 'Gold'
+                                          ? {}
+                                          : { metalPurity: '', metalColour: '', twoToneDetails: '', twoTonePair: '' }),
+                                        ...(opt.value !== 'Other' ? { otherMetalDetails: '' } : {}),
+                                      },
+                                    }))
+                                  }
+                                />
                               ))}
-                            </select>
+                            </div>
                           </div>
 
                           {String(createForm?.specs?.metalType || '').trim().toLowerCase() === 'gold' ? (
                             <>
-                              <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal purity *</label>
-                                <select
-                                  value={createForm?.specs?.metalPurity || ''}
-                                  onChange={(e) =>
-                                    setCreateForm((p) => ({
-                                      ...p,
-                                      specs: { ...(p.specs || {}), metalPurity: e.target.value },
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                                >
-                                  <option value="">Select</option>
-                                  {['9KT', '14KT', '18KT', '22KT'].map((x) => (
-                                    <option key={x} value={x}>
-                                      {x}
-                                    </option>
+                              <div>
+                                <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Metal colour *</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  {[
+                                    { value: 'White', swatch: '#E8E6E3' },
+                                    { value: 'Yellow', swatch: '#E4B84A' },
+                                    { value: 'Rose', swatch: '#E7B19B' },
+                                    { value: 'Two-tone', swatch: null },
+                                  ].map((opt) => (
+                                    <SpecChoiceCard
+                                      key={opt.value}
+                                      label={opt.value}
+                                      swatchColor={opt.swatch}
+                                      iconNode={
+                                        !opt.swatch ? (
+                                          <span
+                                            className="h-9 w-9 shrink-0 rounded-full border border-pale/80 shadow-sm"
+                                            style={{
+                                              /* Pair slices: W+Y, Y+W, W+R, R+W, Y+R, R+Y (30° each) */
+                                              background:
+                                                'conic-gradient(' +
+                                                '#E8E6E3 0deg 30deg, #E4B84A 30deg 60deg, ' +
+                                                '#E4B84A 60deg 90deg, #E8E6E3 90deg 120deg, ' +
+                                                '#E8E6E3 120deg 150deg, #E7B19B 150deg 180deg, ' +
+                                                '#E7B19B 180deg 210deg, #E8E6E3 210deg 240deg, ' +
+                                                '#E4B84A 240deg 270deg, #E7B19B 270deg 300deg, ' +
+                                                '#E7B19B 300deg 330deg, #E4B84A 330deg 360deg)',
+                                            }}
+                                            aria-hidden
+                                          />
+                                        ) : null
+                                      }
+                                      selected={String(createForm?.specs?.metalColour || '') === opt.value}
+                                      onClick={() =>
+                                        setCreateForm((p) => ({
+                                          ...p,
+                                          specs: {
+                                            ...(p.specs || {}),
+                                            metalColour: opt.value,
+                                            ...(opt.value === 'Two-tone'
+                                              ? {}
+                                              : { twoToneDetails: '', twoTonePair: '' }),
+                                          },
+                                        }))
+                                      }
+                                    />
                                   ))}
-                                </select>
+                                </div>
                               </div>
-                              <div className="space-y-1.5">
-                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal colour *</label>
-                                <select
-                                  value={createForm?.specs?.metalColour || ''}
-                                  onChange={(e) =>
-                                    setCreateForm((p) => ({
-                                      ...p,
-                                      specs: { ...(p.specs || {}), metalColour: e.target.value },
-                                    }))
-                                  }
-                                  className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                                >
-                                  <option value="">Select</option>
-                                  {['Yellow', 'White', 'Rose', 'Two-tone'].map((x) => (
-                                    <option key={x} value={x}>
-                                      {x}
-                                    </option>
-                                  ))}
-                                </select>
+                              {String(createForm?.specs?.metalColour || '').trim().toLowerCase() === 'two-tone' ? (
+                                <div className="space-y-1.5">
+                                  <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
+                                    Two-tone specification and additional metal details *
+                                  </label>
+                                  <textarea
+                                    rows={3}
+                                    value={createForm?.specs?.twoToneDetails || ''}
+                                    onChange={(e) =>
+                                      setCreateForm((p) => ({
+                                        ...p,
+                                        specs: { ...(p.specs || {}), twoToneDetails: e.target.value },
+                                      }))
+                                    }
+                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
+                                    placeholder="e.g. Yellow gold shank with white gold setting"
+                                  />
+                                </div>
+                              ) : null}
+                              <div>
+                                <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Metal purity *</p>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                  {[
+                                    { value: '9KT', label: '9k', swatch: '#F0D78C' },
+                                    { value: '14KT', label: '14k', swatch: '#E8C45A' },
+                                    { value: '18KT', label: '18k', swatch: '#E4B84A' },
+                                    { value: '22KT', label: '22k', swatch: '#D4A017' },
+                                  ].map((opt) => {
+                                    const colour = String(createForm?.specs?.metalColour || 'Yellow').toLowerCase();
+                                    const swatch =
+                                      colour === 'white'
+                                        ? { '9KT': '#F2F1EF', '14KT': '#E8E6E3', '18KT': '#DEDCDA', '22KT': '#D4D2D0' }[opt.value]
+                                        : colour === 'rose'
+                                          ? { '9KT': '#F0C9B8', '14KT': '#EBB5A0', '18KT': '#E7B19B', '22KT': '#D99A82' }[opt.value]
+                                          : opt.swatch;
+                                    return (
+                                      <SpecChoiceCard
+                                        key={opt.value}
+                                        label={opt.label}
+                                        swatchColor={swatch}
+                                        selected={String(createForm?.specs?.metalPurity || '') === opt.value}
+                                        onClick={() =>
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), metalPurity: opt.value },
+                                          }))
+                                        }
+                                      />
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </>
                           ) : null}
 
-                          {String(createForm?.specs?.metalColour || '').trim().toLowerCase() === 'two-tone' ? (
-                            <div className="space-y-1.5 md:col-span-2">
-                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
-                                Two-tone specification and additional metal details *
-                              </label>
+                          {String(createForm?.specs?.metalType || '').trim().toLowerCase() === 'other' ? (
+                            <div className="space-y-1.5">
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Specify metal *</label>
                               <input
-                                value={createForm?.specs?.twoToneDetails || ''}
+                                value={createForm?.specs?.otherMetalDetails || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
                                     ...p,
-                                    specs: { ...(p.specs || {}), twoToneDetails: e.target.value },
+                                    specs: { ...(p.specs || {}), otherMetalDetails: e.target.value },
                                   }))
                                 }
                                 className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
-                                placeholder="Describe the exact combination and placement of colours"
+                                placeholder="e.g. Titanium, Palladium"
                               />
                             </div>
                           ) : null}
 
-                          <div className="space-y-1.5">
-                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Does your design include stones? *</label>
-                            <select
-                              value={createForm?.specs?.stonesIncluded || 'no'}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), stonesIncluded: e.target.value },
-                                }))
-                              }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                            >
-                              <option value="yes">Yes</option>
-                              <option value="no">No</option>
-                            </select>
-                          </div>
-
-                          {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' ? (
-                            <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stone type *</label>
-                              <select
-                                value={createForm?.specs?.stoneType || ''}
+                          <div className="space-y-4 pt-1">
+                            <div>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stamping or engraving details</label>
+                              <textarea
+                                rows={3}
+                                value={createForm?.specs?.engravingDetails || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
                                     ...p,
-                                    specs: { ...(p.specs || {}), stoneType: e.target.value },
+                                    specs: { ...(p.specs || {}), engravingDetails: e.target.value },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                              >
-                                <option value="">Select</option>
-                                <option value="Natural Diamonds">Natural Diamonds</option>
-                                <option value="Lab-Grown Diamonds">Lab-Grown Diamonds</option>
-                              </select>
+                                className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
+                                placeholder="Specify any initials, names, dates, or markings required"
+                              />
                             </div>
-                          ) : null}
-
-                          {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' &&
-                          String(createForm?.specs?.stoneType || '').toLowerCase().includes('natural') ? (
-                            <div className="space-y-1.5">
-                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Preferred stone quality bracket *</label>
-                              <select
-                                value={createForm?.specs?.stoneQualityBracket || ''}
+                            <div>
+                              <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Changes compared to reference image</label>
+                              <textarea
+                                rows={3}
+                                value={createForm?.specs?.changesComparedToReference || ''}
                                 onChange={(e) =>
                                   setCreateForm((p) => ({
                                     ...p,
-                                    specs: { ...(p.specs || {}), stoneQualityBracket: e.target.value },
+                                    specs: { ...(p.specs || {}), changesComparedToReference: e.target.value },
                                   }))
                                 }
-                                className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                              >
-                                <option value="">Select</option>
-                                {['Standard', 'Premium', 'Luxury'].map((x) => (
-                                  <option key={x} value={x}>
-                                    {x}
-                                  </option>
-                                ))}
-                              </select>
-                              <p className="text-[12px] text-muted">
-                                Based on your selected quality bracket and budget, we will determine the appropriate stone colour, clarity, and size.
-                              </p>
+                                className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
+                                placeholder="Specify any changes beyond the selections above"
+                              />
                             </div>
-                          ) : null}
-
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Stamping or engraving details</label>
-                            <textarea
-                              rows={3}
-                              value={createForm?.specs?.engravingDetails || ''}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), engravingDetails: e.target.value },
-                                }))
-                              }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
-                              placeholder="Specify any initials, names, dates, or markings required"
-                            />
-                          </div>
-
-                          <div className="space-y-1.5 md:col-span-2">
-                            <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Changes compared to reference image</label>
-                            <textarea
-                              rows={3}
-                              value={createForm?.specs?.changesComparedToReference || ''}
-                              onChange={(e) =>
-                                setCreateForm((p) => ({
-                                  ...p,
-                                  specs: { ...(p.specs || {}), changesComparedToReference: e.target.value },
-                                }))
-                              }
-                              className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
-                              placeholder="Specify any changes beyond the selections above"
-                            />
                           </div>
                         </div>
                       </div>
                         ) : null}
 
-                    {createStep === 3 ? (
+                        {createStep === 3 ? (
+                      <div className="p-4">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Diamonds</p>
+                          <p className="text-[12px] text-muted">Tell us if your design includes diamonds and your preferred quality.</p>
+                        </div>
+
+                        <div className="mt-5 space-y-5">
+                          <div>
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Does your design include stones? *</p>
+                            <div className="grid grid-cols-2 gap-2.5">
+                              {[
+                                { value: 'yes', label: 'Yes' },
+                                { value: 'no', label: 'No' },
+                              ].map((opt) => (
+                                <SpecChoiceCard
+                                  key={opt.value}
+                                  label={opt.label}
+                                  selected={String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === opt.value}
+                                  iconNode={
+                                    opt.value === 'yes' ? (
+                                      <span className="flex h-9 w-9 items-center justify-center text-black" aria-hidden>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                          <path d="M20 6 9 17l-5-5" />
+                                        </svg>
+                                      </span>
+                                    ) : (
+                                      <span className="flex h-9 w-9 items-center justify-center text-black" aria-hidden>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                          <path d="M18 6 6 18" />
+                                          <path d="m6 6 12 12" />
+                                        </svg>
+                                      </span>
+                                    )
+                                  }
+                                  onClick={() =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: {
+                                        ...(p.specs || {}),
+                                        stonesIncluded: opt.value,
+                                        ...(opt.value === 'no'
+                                          ? { stoneType: '', stoneQualityBracket: '' }
+                                          : {}),
+                                      },
+                                    }))
+                                  }
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' ? (
+                            <>
+                              <div>
+                                <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Stone type *</p>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                  <SpecChoiceCard
+                                    label="Natural Diamonds"
+                                    iconSrc={naturalPictogram}
+                                    layout="row"
+                                    className="min-h-[96px] px-4 py-3"
+                                    selected={String(createForm?.specs?.stoneType || '') === 'Natural Diamonds'}
+                                    onClick={() =>
+                                      setCreateForm((p) => ({
+                                        ...p,
+                                        specs: { ...(p.specs || {}), stoneType: 'Natural Diamonds' },
+                                      }))
+                                    }
+                                  />
+                                  <SpecChoiceCard
+                                    label="Lab-Grown Diamonds"
+                                    iconSrc={labPictogram}
+                                    layout="row"
+                                    className="min-h-[96px] px-4 py-3"
+                                    selected={String(createForm?.specs?.stoneType || '') === 'Lab-Grown Diamonds'}
+                                    onClick={() =>
+                                      setCreateForm((p) => ({
+                                        ...p,
+                                        specs: {
+                                          ...(p.specs || {}),
+                                          stoneType: 'Lab-Grown Diamonds',
+                                          stoneQualityBracket: '',
+                                        },
+                                      }))
+                                    }
+                                  />
+                                </div>
+                              </div>
+
+                              {String(createForm?.specs?.stoneType || '')
+                                .toLowerCase()
+                                .includes('natural') ? (
+                                <div>
+                                  <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">
+                                    Preferred stone quality bracket *
+                                  </p>
+                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                    {[
+                                      { value: 'Standard', sparks: 1 },
+                                      { value: 'Premium', sparks: 2 },
+                                      { value: 'Luxury', sparks: 3 },
+                                    ].map((opt) => (
+                                      <SpecChoiceCard
+                                        key={opt.value}
+                                        label={opt.value}
+                                        iconNode={<SparkleTier count={opt.sparks} />}
+                                        selected={String(createForm?.specs?.stoneQualityBracket || '') === opt.value}
+                                        onClick={() =>
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), stoneQualityBracket: opt.value },
+                                          }))
+                                        }
+                                      />
+                                    ))}
+                                  </div>
+                                  <p className="mt-2 text-[12px] text-muted">
+                                    Based on your selected quality bracket and budget, we will determine the appropriate stone colour, clarity, and size.
+                                  </p>
+                                </div>
+                              ) : null}
+                            </>
+                          ) : null}
+                        </div>
+                      </div>
+                        ) : null}
+
+                    {createStep === 4 ? (
                       <div className="space-y-6">
                         <div className="p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
@@ -2933,7 +3178,7 @@ export default function Projects() {
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
-                                Budget per piece{' '}
+                                Budget per piece (INR){' '}
                                 <span className="font-normal normal-case text-muted">(Recommended)</span>
                               </label>
                               <input
@@ -2996,6 +3241,7 @@ export default function Projects() {
                                           const nextDays = clampNumber(e.target.value, minDays, maxDays);
                                           setCreateForm((p) => ({
                                             ...p,
+                                            timelineExpected: String(nextDays),
                                             specs: {
                                               ...(p.specs || {}),
                                               preferredDeliveryDays: nextDays,
@@ -3133,7 +3379,7 @@ export default function Projects() {
                       </div>
                     ) : null}
 
-                    {createStep === 4 ? (
+                    {createStep === 5 ? (
                       <div className="space-y-4">
                         <div className="rounded-2xl border border-pale p-4">
                           <p className="text-[13px] font-extrabold text-ink">Review</p>
@@ -3253,21 +3499,65 @@ export default function Projects() {
                           <div className="mt-2 text-[13px] font-semibold text-ink">{createForm.title || '—'}</div>
                         </div>
 
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+                          <div className="rounded-2xl border border-pale p-4 min-w-0 h-full flex flex-col [&_.mb-4]:mb-0">
+                            <div className="flex-1">
+                              <FinishPreviewPanel specs={createForm?.specs} includeDiamonds />
+                            </div>
+                          </div>
+                          <div className="rounded-2xl border border-pale p-4 min-w-0 h-full flex flex-col">
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Reference Image</p>
+                            <p className="text-[11px] text-muted">Project reference for this design.</p>
+                            <div className="mt-2 flex-1 flex min-h-0">
+                              {String(createForm.referenceImage || '').trim() ? (
+                                <div className="overflow-hidden rounded-xl bg-cream w-full flex-1 flex items-center justify-center min-h-[200px]">
+                                  <SafeImage
+                                    src={String(createForm.referenceImage || '').trim()}
+                                    alt="Reference"
+                                    className="w-full h-full object-contain bg-white"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex flex-1 w-full min-h-[200px] items-center justify-center rounded-xl bg-cream text-[12px] text-muted">
+                                  No reference image
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
                         <div className="rounded-2xl border border-pale p-4">
-                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Jewellery specifications</p>
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Design</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
                             <div><span className="text-muted">Jewellery type:</span> <span className="font-semibold text-ink">{createForm?.specs?.jewelleryType || '—'}</span></div>
                             <div><span className="text-muted">Size:</span> <span className="font-semibold text-ink">{createForm?.specs?.sizeMode === 'custom' ? `${createForm?.specs?.sizeCustomValue || '—'} ${createForm?.specs?.sizeCustomUnit || ''}`.trim() : (createForm?.specs?.sizeStandard || '—')}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Metal</p>
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
                             <div><span className="text-muted">Metal type:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalType || '—'}</span></div>
                             {String(createForm?.specs?.metalPurity || '').trim() ? (
-                              <div><span className="text-muted">Metal purity:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalPurity}</span></div>
+                              <div><span className="text-muted">Metal purity:</span> <span className="font-semibold text-ink">{purityLabelForDisplay(createForm?.specs?.metalPurity)}</span></div>
                             ) : null}
                             {String(createForm?.specs?.metalColour || '').trim() ? (
                               <div><span className="text-muted">Metal colour:</span> <span className="font-semibold text-ink">{createForm?.specs?.metalColour}</span></div>
                             ) : null}
+                            {String(createForm?.specs?.otherMetalDetails || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-muted">Specify metal:</span> <span className="font-semibold text-ink">{createForm?.specs?.otherMetalDetails}</span></div>
+                            ) : null}
                             {String(createForm?.specs?.twoToneDetails || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-muted">Two-tone details:</span> <span className="font-semibold text-ink">{createForm?.specs?.twoToneDetails}</span></div>
                             ) : null}
+                            <div className="md:col-span-2"><span className="text-muted">Stamping or engraving details:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.engravingDetails || '').trim() || '—'}</span></div>
+                            <div className="md:col-span-2"><span className="text-muted">Changes compared to reference image:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.changesComparedToReference || '').trim() || '—'}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Diamonds</p>
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
                             <div><span className="text-muted">Stones included:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === 'yes' ? 'Yes' : 'No'}</span></div>
                             {String(createForm?.specs?.stoneType || '').trim() ? (
                               <div><span className="text-muted">Stone type:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneType}</span></div>
@@ -3275,19 +3565,13 @@ export default function Projects() {
                             {String(createForm?.specs?.stoneQualityBracket || '').trim() ? (
                               <div><span className="text-muted">Preferred stone quality bracket:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneQualityBracket}</span></div>
                             ) : null}
-                            {String(createForm?.specs?.engravingDetails || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-muted">Stamping / engraving:</span> <span className="font-semibold text-ink">{createForm?.specs?.engravingDetails}</span></div>
-                            ) : null}
-                            {String(createForm?.specs?.changesComparedToReference || '').trim() ? (
-                              <div className="md:col-span-2"><span className="text-muted">Changes vs reference:</span> <span className="font-semibold text-ink">{createForm?.specs?.changesComparedToReference}</span></div>
-                            ) : null}
                           </div>
                         </div>
 
                         <div className="rounded-2xl border border-pale p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
-                            <div><span className="text-muted">Budget per piece:</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
+                            <div><span className="text-muted">Budget per piece (INR):</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
                             <div><span className="text-muted">Quantity required:</span> <span className="font-semibold text-ink">{createForm?.specs?.quantityRequired || '—'}</span></div>
                             <div className="md:col-span-2"><span className="text-muted">Preferred delivery timeline:</span> <span className="font-semibold text-ink">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
                             {String(createForm?.specs?.additionalNotes || '').trim() ? (
@@ -3367,44 +3651,39 @@ export default function Projects() {
                     ) : null}
                   </div>
                 </div>
-              </div>
+                    </fieldset>
+                  </div>
 
                   <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
                     <button
                       type="button"
                       onClick={() => setCreateStep((s) => Math.max(1, Number(s || 1) - 1))}
-                      disabled={createLoading || attachmentUploading || referenceUploading || createStep === 1}
+                      disabled={createFormBusy || createStep === 1}
                       className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Back
                     </button>
 
-                    {createStep < 4 ? (
+                    {createStep < 5 ? (
                       <button
                         type="button"
                         onClick={() => {
-                          if (createStep === 3) {
+                          if (createStep === 4) {
                             prepareReviewStep();
                             return;
                           }
                           persistAndAdvance(createStep);
                         }}
-                        disabled={createLoading || attachmentUploading || referenceUploading || feasibilityLoading}
+                        disabled={createFormBusy}
                         className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {createStep === 3 ? (feasibilityLoading || createLoading ? 'Reviewing…' : 'Review') : createLoading ? 'Saving…' : 'Next'}
+                        {createStep === 4 ? (feasibilityLoading || createLoading ? 'Reviewing…' : 'Review') : createLoading ? 'Saving…' : 'Next'}
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={listMyProject}
-                        disabled={
-                          createLoading ||
-                          listMyProjectLoading ||
-                          attachmentUploading ||
-                          referenceUploading ||
-                          !createForm?.specs?.confirmSpecs
-                        }
+                        disabled={createFormBusy || !createForm?.specs?.confirmSpecs}
                         className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {listMyProjectLoading || createLoading ? 'Listing…' : 'List my project'}

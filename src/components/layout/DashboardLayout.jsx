@@ -170,19 +170,19 @@ export default function DashboardLayout() {
   const headerTitle = useMemo(() => {
     if (isProfilePage) return 'My Profile';
     if (isFaqPage) return 'FAQ';
-    if (isMessagesPage) return 'Messages';
-    if (isKycPage) return 'KYC';
+    if (isMessagesPage) return 'Chat';
+    if (isKycPage) return 'Verification';
     if (isVendorGuidelinesPage) return 'Diamond Guide';
     if (isShopPage) return 'Store';
     if (isVendorBidsPage) return path.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
-    if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (isVendorExplorePage) return path.startsWith('/vendor/explore/') ? 'Project' : 'Explore';
     if (isVendorReviewsPage) return 'Reviews';
-    if (isVendorProjectsPage) return 'My Projects';
+    if (isVendorProjectsPage) return 'My Studio';
     if (isCartPage) return 'Cart';
     if (isCheckoutPage) return 'Checkout';
     if (isOrdersPage) return 'My Orders';
     if (isShoppingPage) return 'Shop';
-    if (isProjectsPage) return 'My Projects';
+    if (isProjectsPage) return 'My Artisan';
     return '';
   }, [
     isCartPage,
@@ -589,7 +589,7 @@ export default function DashboardLayout() {
       </div>
 
       {/* Main Content Wrapper */}
-      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:ml-[240px] lg:pb-0">
+      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:ml-[260px] lg:pb-0">
 
         {/* HEADER */}
       <div className="relative z-40 flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0">
@@ -758,7 +758,7 @@ export default function DashboardLayout() {
 
              {/* PROFILE DROPDOWN */}
              {showUserMenu && (
-                <div className="absolute top-full right-0 mt-2 min-w-[11rem] w-44 bg-white rounded-xl shadow-sm border border-pale py-2 overflow-hidden animate-slide-in">
+                <div className="absolute top-full right-0 mt-2 min-w-[11rem] w-44 bg-white rounded-xl shadow-sm border border-pale overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
                           const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';

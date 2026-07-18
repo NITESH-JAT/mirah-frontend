@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 
 const BottomNavButton = ({ label, active, onClick, children }) => (
@@ -14,7 +15,7 @@ const BottomNavButton = ({ label, active, onClick, children }) => (
   >
     <span
       className={`flex h-10 w-10 items-center justify-center rounded-full transition-colors
-        ${active ? 'bg-blush' : 'bg-transparent'}
+        ${active ? 'bg-[#F2E6D4]' : 'bg-transparent'}
       `}
     >
       {children}
@@ -45,7 +46,7 @@ export default function BottomNav() {
     if (!isVendorKycAccepted) {
       items.push({
         key: 'kyc',
-        label: 'KYC',
+        label: 'Verification',
         path: '/vendor/kyc',
         active: path.startsWith('/vendor/kyc'),
         icon: (
@@ -86,22 +87,22 @@ export default function BottomNav() {
       });
       items.push({
         key: 'vendor-projects',
-        label: 'My Projects',
+        label: 'My Studio',
         path: '/vendor/projects',
         active: isVendorProjectsRoute,
         icon: (
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-            <path d="M8 13h8" />
-            <path d="M8 17h8" />
-          </svg>
+          <img
+            src={logo}
+            alt=""
+            aria-hidden
+            className={`h-6 w-6 object-contain brightness-0 ${isVendorProjectsRoute ? 'opacity-100' : 'opacity-70'}`}
+          />
         ),
       });
     }
     items.push({
       key: 'vendor-messages',
-      label: 'Messages',
+      label: 'Chat',
       path: '/vendor/messages',
       active: path.startsWith('/vendor/messages'),
       icon: (
@@ -110,33 +111,33 @@ export default function BottomNav() {
     });
   } else {
     items.push({
+      key: 'projects',
+      label: 'My Artisan',
+      path: '/customer/projects?tab=list',
+      active: isProjectsRoute,
+      icon: (
+        <img
+          src={logo}
+          alt=""
+          aria-hidden
+            className={`h-6 w-6 object-contain brightness-0 ${isProjectsRoute ? 'opacity-100' : 'opacity-70'}`}
+        />
+      ),
+    });
+    items.push({
       key: 'shop',
       label: 'Shop',
       path: '/customer/shopping',
-      active: path === '/customer/shopping',
+      active: path === '/customer/shopping' || path.startsWith('/customer/shopping/'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.2-4h15.6L21 7"/><path d="M2 7h20"/><path d="M4 7v14h16V7"/><path d="M6 7v4"/><path d="M10 7v4"/><path d="M14 7v4"/><path d="M18 7v4"/><path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7"/></svg>
       ),
     });
     items.push({
-      key: 'projects',
-      label: 'My Projects',
-      path: '/customer/projects?tab=list',
-      active: isProjectsRoute,
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <path d="M8 13h8"/>
-          <path d="M8 17h8"/>
-        </svg>
-      ),
-    });
-    items.push({
       key: 'messages',
-      label: 'Messages',
+      label: 'Chat',
       path: '/customer/messages',
-      active: path === '/customer/messages',
+      active: path === '/customer/messages' || path.startsWith('/customer/messages'),
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
       ),

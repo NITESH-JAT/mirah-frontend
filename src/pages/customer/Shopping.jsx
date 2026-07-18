@@ -647,7 +647,11 @@ export default function Shopping() {
                   if (openFilters) setOpenFilters(false);
                   else openFilterModal();
                 }}
-                className="flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-pale bg-white px-2 py-2.5 text-[11px] font-semibold text-mid hover:bg-cream md:flex-initial md:shrink-0 md:gap-2 md:px-5 md:py-3 md:text-[12px]"
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border px-2 py-2.5 text-[11px] font-semibold transition-colors md:flex-initial md:shrink-0 md:gap-2 md:px-5 md:py-3 md:text-[12px] ${
+                  openFilters || hasActiveCatalogFilters
+                    ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                    : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                }`}
                 aria-label={hasActiveCatalogFilters ? 'Filters (category or collection active)' : 'Filters'}
               >
                 {hasActiveCatalogFilters ? (
@@ -660,7 +664,11 @@ export default function Shopping() {
                 <button
                   type="button"
                   onClick={() => setOpenSort((v) => !v)}
-                  className="w-full truncate rounded-full border border-pale bg-white px-2 py-2.5 text-[11px] font-semibold text-mid hover:bg-cream md:px-5 md:py-3 md:text-[12px]"
+                  className={`w-full truncate rounded-full border px-2 py-2.5 text-[11px] font-semibold transition-colors md:px-5 md:py-3 md:text-[12px] ${
+                    openSort
+                      ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                      : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                  }`}
                 >
                   Sort
                 </button>
@@ -674,8 +682,8 @@ export default function Shopping() {
                           setSortId(opt.id);
                           setOpenSort(false);
                         }}
-                        className={`w-full px-4 py-3 text-left text-[12px] font-semibold hover:bg-cream ${
-                          sortId === opt.id ? 'text-ink' : 'text-mid'
+                        className={`w-full px-4 py-3 text-left text-[12px] font-semibold hover:bg-[#F2E6D4] ${
+                          sortId === opt.id ? 'bg-[#F2E6D4] text-ink' : 'text-mid'
                         }`}
                       >
                         {opt.label}

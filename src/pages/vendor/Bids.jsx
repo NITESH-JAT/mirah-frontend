@@ -292,38 +292,9 @@ export default function VendorBids() {
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
       {/* Tabs + search */}
-      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 pt-2 pb-4 border-b border-pale/60">
-        <div className="grid grid-cols-10 gap-2 md:flex md:w-full md:flex-nowrap md:items-center md:justify-between md:gap-4">
-          <div className="col-span-4 min-w-0 md:order-2 md:col-auto md:w-auto md:shrink-0">
-            <div className="flex w-full min-w-0 rounded-2xl border border-pale bg-cream p-0.5 md:p-1 md:w-auto md:shrink-0 md:ml-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('active');
-                  navigate('/vendor/bids?tab=active', { replace: true });
-                }}
-                className={`min-w-0 flex-1 truncate px-1.5 py-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer sm:px-2 sm:text-[11px] md:px-4 md:py-2 md:rounded-xl md:text-[12px] md:flex-initial ${
-                  tab === 'active' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
-                }`}
-              >
-                Active
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setTab('completed');
-                  navigate('/vendor/bids?tab=completed', { replace: true });
-                }}
-                className={`min-w-0 flex-1 truncate px-1.5 py-2 rounded-lg text-[10px] font-bold transition-colors cursor-pointer sm:px-2 sm:text-[11px] md:px-4 md:py-2 md:rounded-xl md:text-[12px] md:flex-initial ${
-                  tab === 'completed' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'
-                }`}
-              >
-                Completed
-              </button>
-            </div>
-          </div>
-
-          <div className="relative col-span-6 min-w-0 md:order-1 md:w-[420px] md:max-w-[55vw] md:shrink-0">
+      <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">
+        <div className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
+          <div className="relative min-w-0 w-full md:w-[420px] md:max-w-[55vw] md:shrink-0">
             <input
               value={tab === 'active' ? queryActive : queryCompleted}
               onChange={(e) => (tab === 'active' ? setQueryActive(e.target.value) : setQueryCompleted(e.target.value))}
@@ -345,6 +316,32 @@ export default function VendorBids() {
                 <path d="m21 21-4.3-4.3" />
               </svg>
             </div>
+          </div>
+
+          <div className="flex w-full min-w-0 flex-nowrap items-center gap-1.5 border-t border-pale/70 pt-3 md:gap-2 md:flex-1 md:justify-end md:border-0 md:pt-0">
+            {[
+              { id: 'active', label: 'Active' },
+              { id: 'completed', label: 'Completed' },
+            ].map((t) => {
+              const active = tab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setTab(t.id);
+                    navigate(`/vendor/bids?tab=${t.id}`, { replace: true });
+                  }}
+                  className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-3 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:px-7 md:py-3 md:text-[12px] ${
+                    active
+                      ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                      : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

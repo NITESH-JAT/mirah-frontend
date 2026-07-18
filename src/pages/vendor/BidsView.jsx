@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
-import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
+import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
 import { formatMoney } from '../../utils/formatMoney';
 
 function isCanceledRequest(err) {
@@ -719,23 +719,6 @@ export default function VendorBidsView() {
     </div>
   );
 
-  const MetaCard = ({ className = '' }) =>
-    remainingMetaRows.length > 0 ? (
-      <div className={`rounded-2xl border border-pale bg-white overflow-hidden shadow-sm ${className}`}>
-        <div className="px-5 py-4 border-b border-pale">
-          <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
-        </div>
-        <div className="px-5 py-4 space-y-3">
-          {remainingMetaRows.map((r) => (
-            <div key={r.key} className="space-y-1">
-              <p className="text-[12px] text-muted font-semibold">{r.label}</p>
-              <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    ) : null;
-
   const AttachmentsCard = ({ className = '' }) =>
     attachments.length > 0 ? (
       <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
@@ -858,9 +841,8 @@ export default function VendorBidsView() {
             </div>
 
             <div className="hidden lg:block mt-4 space-y-4">
-              <MetaCard />
+              <VendorProjectMetaCard rows={remainingMetaRows} />
               <AttachmentsCard />
-              <DiamondClassificationPanel />
             </div>
           </div>
 
@@ -868,13 +850,10 @@ export default function VendorBidsView() {
             <div className="lg:hidden">
               <DetailsCard />
               <div className="mt-4">
-                <MetaCard />
+                <VendorProjectMetaCard rows={remainingMetaRows} />
               </div>
               <div className="mt-4">
                 <AttachmentsCard />
-              </div>
-              <div className="mt-4">
-                <DiamondClassificationPanel />
               </div>
             </div>
 

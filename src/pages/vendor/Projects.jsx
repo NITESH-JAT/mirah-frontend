@@ -431,8 +431,8 @@ export default function VendorProjects() {
                     onClick={() => setUrlTab(t.id)}
                     className={`shrink-0 whitespace-nowrap inline-flex items-center justify-center gap-0.5 rounded-xl border px-3 py-1.5 text-[10px] font-semibold transition-colors md:min-h-[2.25rem] md:gap-2 md:px-7 md:py-3 md:text-[12px] ${
                       active
-                        ? 'border-walnut bg-walnut/10 font-bold text-ink'
-                        : 'border-pale bg-white text-mid hover:bg-cream hover:text-ink'
+                        ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                        : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
                     }`}
                   >
                     <span className="whitespace-nowrap">{t.label}</span>

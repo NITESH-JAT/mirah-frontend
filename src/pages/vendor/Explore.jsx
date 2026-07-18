@@ -260,7 +260,11 @@ export default function VendorExplore() {
               <button
                 type="button"
                 onClick={() => setOpenSort((v) => !v)}
-                className="min-w-0 truncate rounded-full border border-pale bg-white px-5 py-3 text-[12px] font-semibold text-mid hover:bg-cream inline-flex items-center gap-2"
+                className={`min-w-0 truncate rounded-full border px-5 py-3 text-[12px] font-semibold transition-colors inline-flex items-center gap-2 ${
+                  openSort
+                    ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                    : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                }`}
               >
                 Sort
               </button>
@@ -274,8 +278,8 @@ export default function VendorExplore() {
                         setSortKey(opt.id);
                         setOpenSort(false);
                       }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-cream ${
-                        sortKey === opt.id ? 'text-ink' : 'text-mid'
+                      className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-[#F2E6D4] ${
+                        sortKey === opt.id ? 'bg-[#F2E6D4] text-ink' : 'text-mid'
                       }`}
                     >
                       {opt.label}
@@ -308,7 +312,11 @@ export default function VendorExplore() {
             <button
               type="button"
               onClick={() => setOpenSort((v) => !v)}
-              className="min-w-0 shrink-0 truncate rounded-full border border-pale bg-white px-4 py-2.5 text-[12px] font-semibold text-mid hover:bg-cream"
+              className={`min-w-0 shrink-0 truncate rounded-full border px-4 py-2.5 text-[12px] font-semibold transition-colors ${
+                openSort
+                  ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                  : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+              }`}
             >
               Sort
             </button>
@@ -322,8 +330,8 @@ export default function VendorExplore() {
                       setSortKey(opt.id);
                       setOpenSort(false);
                     }}
-                    className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-cream ${
-                      sortKey === opt.id ? 'text-ink' : 'text-mid'
+                    className={`w-full text-left px-4 py-3 text-[12px] font-semibold hover:bg-[#F2E6D4] ${
+                      sortKey === opt.id ? 'bg-[#F2E6D4] text-ink' : 'text-mid'
                     }`}
                   >
                     {opt.label}

@@ -23,7 +23,7 @@ function roleLabelForUser(u) {
   return 'Guest';
 }
 
-const NavItem = ({ icon, label, path, active }) => {
+const NavItem = ({ icon, label, subtitle, path, active, emphasize = false }) => {
   const navigate = useNavigate();
   return (
     <div
@@ -36,20 +36,59 @@ const NavItem = ({ icon, label, path, active }) => {
           navigate(path);
         }
       }}
-      className={`flex w-full items-center gap-3 py-3 mb-1 cursor-pointer transition-all duration-200 font-sans text-[14px] border-l-4 pr-4
-        ${active
-          ? 'border-l-walnut bg-blush pl-3 text-ink font-medium'
-          : 'border-l-transparent pl-3 text-muted hover:bg-blush hover:text-ink'
+      className={`group flex w-full items-start gap-3 py-3 mb-1 cursor-pointer transition-all duration-200 font-sans border-l-4 pr-4
+        ${
+          active
+            ? emphasize
+              ? 'border-l-walnut bg-[#F2E6D4] pl-3 text-ink'
+              : 'border-l-walnut bg-blush pl-3 text-ink'
+            : emphasize
+              ? 'border-l-transparent pl-3 text-ink hover:bg-[#F2E6D4]/hover:text-ink'
+              : 'border-l-transparent pl-3 text-muted hover:bg-blush hover:text-ink'
         }
       `}
     >
-      <div className={`${active ? 'text-ink' : 'text-muted group-hover:text-ink'}`}>
+      <div
+        className={`mt-0.5 shrink-0 ${
+          active || emphasize ? 'text-ink' : 'text-muted group-hover:text-ink'
+        }`}
+      >
         {icon}
       </div>
-      <span>{label}</span>
+      <div className="min-w-0 flex-1 pt-px">
+        <span
+          className={`block text-[14px] leading-tight ${
+            active || emphasize ? 'font-bold text-ink' : 'font-medium'
+          }`}
+        >
+          {label}
+        </span>
+        {subtitle ? (
+          <span
+            className={`mt-0.5 block text-[11px] leading-snug ${
+              active || emphasize ? 'text-mid' : 'text-muted group-hover:text-mid'
+            }`}
+          >
+            {subtitle}
+          </span>
+        ) : null}
+      </div>
     </div>
   );
 };
+
+function ArviahNavIcon({ active }) {
+  return (
+    <img
+      src={logo}
+      alt=""
+      aria-hidden
+      className={`h-6 w-6 object-contain transition-[filter,opacity] ${
+        active ? 'opacity-100 brightness-0' : 'opacity-70 brightness-0 group-hover:opacity-100'
+      }`}
+    />
+  );
+}
 
 export default function Sidebar({ isOpen = false, onClose }) {
   const location = useLocation();
@@ -69,19 +108,19 @@ export default function Sidebar({ isOpen = false, onClose }) {
     const p = location.pathname || '';
     if (p.includes('profile')) return 'My Profile';
     if (p.includes('faq')) return 'FAQ';
-    if (p.includes('messages')) return 'Messages';
-    if (p.includes('/vendor/kyc')) return 'KYC';
+    if (p.includes('messages')) return 'Chat';
+    if (p.includes('/vendor/kyc')) return 'Verification';
     if (p.startsWith('/vendor/diamond-guidelines') || p === '/vendor/guidelines') return 'Diamond Guide';
     if (p.includes('/vendor/shop')) return 'Store';
     if (p.startsWith('/vendor/bids')) return p.startsWith('/vendor/bids/') ? 'Biddings' : 'Bids';
-    if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore Projects';
+    if (p.startsWith('/vendor/explore')) return p.startsWith('/vendor/explore/') ? 'Project' : 'Explore';
     if (p.startsWith('/vendor/reviews')) return 'Reviews';
-    if (p.startsWith('/vendor/projects')) return 'My Projects';
+    if (p.startsWith('/vendor/projects')) return 'My Studio';
     if (p.includes('/customer/cart')) return 'Cart';
     if (p.includes('/customer/checkout')) return 'Checkout';
     if (p.includes('/customer/orders')) return 'My Orders';
     if (p.includes('/customer/shopping')) return 'Shop';
-    if (p.startsWith('/customer/projects')) return 'My Projects';
+    if (p.startsWith('/customer/projects')) return 'My Artisan';
     return '';
   })();
 
@@ -89,11 +128,10 @@ export default function Sidebar({ isOpen = false, onClose }) {
 
   return (
     <div
-      className={`flex h-[100dvh] max-h-[100dvh] w-[240px] flex-col border-r border-pale bg-white fixed left-0 top-0 z-50 transform transition-transform duration-300 rounded-bl-2xl
+      className={`flex h-[100dvh] max-h-[100dvh] w-[260px] flex-col border-r border-pale bg-white fixed left-0 top-0 z-50 transform transition-transform duration-300 rounded-bl-2xl
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
       `}
     >
-      
       {/* Logo Area — lg: h-16 matches main header; no gap below border on desktop */}
       <div className="mb-2 flex shrink-0 items-center justify-between border-b border-pale px-6 py-4 lg:mb-0 lg:h-16 lg:py-0">
         <div className="flex items-center gap-3">
@@ -114,7 +152,10 @@ export default function Sidebar({ isOpen = false, onClose }) {
           className="lg:hidden p-2 rounded-lg hover:bg-cream text-muted hover:text-mid transition-colors cursor-pointer"
           aria-label="Close menu"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M18 6 6 18" />
+            <path d="m6 6 12 12" />
+          </svg>
         </button>
       </div>
 
@@ -126,8 +167,17 @@ export default function Sidebar({ isOpen = false, onClose }) {
               <NavItem
                 active={location.pathname.startsWith('/vendor/kyc')}
                 path="/vendor/kyc"
-                label="KYC"
-                icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>}
+                label="Verification"
+                subtitle="Unlock bidding access"
+                emphasize
+                icon={
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 7h-9" />
+                    <path d="M14 17H5" />
+                    <circle cx="17" cy="17" r="3" />
+                    <circle cx="7" cy="7" r="3" />
+                  </svg>
+                }
               />
             )}
             {isVendorKycAccepted ? (
@@ -135,6 +185,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
                 active={location.pathname.startsWith('/vendor/explore')}
                 path="/vendor/explore"
                 label="Explore"
+                subtitle="Find open commissions"
                 icon={
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" />
@@ -154,6 +205,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
                 active={location.pathname.startsWith('/vendor/bids')}
                 path="/vendor/bids"
                 label="Bids"
+                subtitle="Track your offers"
                 icon={
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="18" height="18">
                     <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
@@ -167,55 +219,65 @@ export default function Sidebar({ isOpen = false, onClose }) {
                 }
               />
             ) : null}
-
             {isVendorKycAccepted ? (
               <NavItem
                 active={isVendorProjectsRoute}
                 path="/vendor/projects"
-                label="My Projects"
-                icon={
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <path d="M8 13h8" />
-                    <path d="M8 17h8" />
-                  </svg>
-                }
+                label="My Studio"
+                subtitle="Commissions in progress"
+                icon={<ArviahNavIcon active={isVendorProjectsRoute} />}
               />
             ) : null}
             <NavItem
               active={location.pathname.startsWith('/vendor/messages')}
               path="/vendor/messages"
-              label="Messages"
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+              label="Chat"
+              subtitle="Talk with your clients"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              }
             />
           </>
         ) : (
           <>
-            <NavItem 
-              active={location.pathname === '/customer/shopping'}
-              path="/customer/shopping"
-              label="Shop" 
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.2-4h15.6L21 7"/><path d="M2 7h20"/><path d="M4 7v14h16V7"/><path d="M6 7v4"/><path d="M10 7v4"/><path d="M14 7v4"/><path d="M18 7v4"/><path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7"/></svg>}
-            />
             <NavItem
               active={isProjectsRoute}
               path="/customer/projects?tab=list"
-              label="My Projects"
+              label="My Artisan"
+              subtitle="Your bespoke requests"
+              emphasize
+              icon={<ArviahNavIcon active={isProjectsRoute} />}
+            />
+            <NavItem
+              active={location.pathname === '/customer/shopping' || location.pathname.startsWith('/customer/shopping/')}
+              path="/customer/shopping"
+              label="Shop"
+              subtitle="Discover ready-to-buy"
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <path d="M8 13h8"/>
-                  <path d="M8 17h8"/>
+                  <path d="M3 7l1.2-4h15.6L21 7" />
+                  <path d="M2 7h20" />
+                  <path d="M4 7v14h16V7" />
+                  <path d="M6 7v4" />
+                  <path d="M10 7v4" />
+                  <path d="M14 7v4" />
+                  <path d="M18 7v4" />
+                  <path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7" />
                 </svg>
               }
             />
-            <NavItem 
-              active={location.pathname === '/customer/messages'}
+            <NavItem
+              active={location.pathname === '/customer/messages' || location.pathname.startsWith('/customer/messages')}
               path="/customer/messages"
-              label="Messages" 
-              icon={<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>}
+              label="Chat"
+              subtitle="Stay in touch with your artisans"
+              icon={
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+              }
             />
           </>
         )}
