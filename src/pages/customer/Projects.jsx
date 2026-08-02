@@ -5,6 +5,7 @@ import { vendorService } from '../../services/vendorService';
 import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
 import { FinishPreviewPanel, SpecChoiceCard, SparkleTier } from '../../components/project/SpecChoiceCards';
+import FeasibilityCalculatingPanel from '../../components/project/FeasibilityCalculatingPanel';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { labPictogram, naturalPictogram, otherMetalCircle, purityLabelForDisplay } from '../../utils/projectFinishPreview';
@@ -1005,6 +1006,9 @@ export default function Projects() {
 
   const createFormBusy =
     createLoading || feasibilityLoading || attachmentUploading || referenceUploading || listMyProjectLoading;
+  /** Dim/disable the form chrome — exclude feasibility so the Review loader stays full-opacity. */
+  const createFormLockUi =
+    createLoading || attachmentUploading || referenceUploading || listMyProjectLoading;
 
   const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
   const howToMeasureText = useMemo(() => {
@@ -1455,8 +1459,12 @@ export default function Projects() {
     const controller = new AbortController();
     feasibilityAbortRef.current = controller;
 
+    setFeasibilityReview(null);
+    setFeasibilitySuggestions([]);
     setFeasibilityLoading(true);
-    let shouldAdvance = true;
+    // Move to Review immediately so the calculating loader/skeleton is visible.
+    setCreateStep(5);
+
     try {
       const data = await projectService.reviewFeasibility(projectApiPayload, { signal: controller.signal });
       setFeasibilityReview(data || null);
@@ -1464,14 +1472,16 @@ export default function Projects() {
       setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') {
-        shouldAdvance = false;
+        // aborted — leave whatever state we have
       } else {
         setFeasibilityReview(null);
         setFeasibilitySuggestions([]);
+        addToast(e?.message || 'Could not estimate cost. You can still review and list your project.', 'error');
       }
     } finally {
-      setFeasibilityLoading(false);
-      if (shouldAdvance) setCreateStep(5);
+      if (feasibilityAbortRef.current === controller) {
+        setFeasibilityLoading(false);
+      }
     }
   };
 
@@ -1649,16 +1659,30 @@ export default function Projects() {
     }
   };
 
-  const goToBids = (p) => {
-    const id = localProjectIdOf(p);
-    if (!id) return;
+  const persistListNavState = () => {
     try {
       sessionStorage.setItem(PROJECTS_TAB_KEY, 'list');
       sessionStorage.setItem(PROJECTS_LIST_FILTER_KEY, String(listFilter || 'all'));
     } catch {
       // ignore
     }
+  };
+
+  const goToBids = (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    persistListNavState();
     navigate(`/customer/projects/${id}/bids`, {
+      state: { projectTitle: p?.title ?? '', fromProjectsTab: 'list', fromListFilter: listFilter || 'all' },
+    });
+  };
+
+  /** After jeweller accepts, land on Track (payments + timeline), not bids. */
+  const goToTrack = (p) => {
+    const id = localProjectIdOf(p);
+    if (!id) return;
+    persistListNavState();
+    navigate(`/customer/projects/${id}`, {
       state: { projectTitle: p?.title ?? '', fromProjectsTab: 'list', fromListFilter: listFilter || 'all' },
     });
   };
@@ -2040,6 +2064,8 @@ export default function Projects() {
                       const existingReview = vendorReviewOf(p);
                       const hasVendorReview = Boolean(p?.hasVendorReview) || Boolean(existingReview);
                       const primaryAssignment = primaryAssignmentOf(p);
+                      const assignmentAccepted =
+                        String(primaryAssignment?.status ?? '').trim().toLowerCase() === 'accepted';
                       const reviewVendorId =
                         assignmentVendorIdOf(primaryAssignment) ??
                         existingReview?.vendorId ??
@@ -2173,7 +2199,15 @@ export default function Projects() {
                                   </button>
                                 ) : null}
 
-                                {hasBidHistory ? (
+                                {assignmentAccepted ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => goToTrack(p)}
+                                    className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-semibold hover:opacity-90 cursor-pointer"
+                                  >
+                                    Track
+                                  </button>
+                                ) : hasBidHistory ? (
                                   <button
                                     type="button"
                                     onClick={() => goToBids(p)}
@@ -2461,10 +2495,10 @@ export default function Projects() {
 
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <fieldset
-                      disabled={createFormBusy}
+                      disabled={createFormLockUi}
                       aria-busy={createFormBusy}
                       className={`h-full min-h-0 border-0 p-0 m-0 min-w-0 ${
-                        createFormBusy ? 'opacity-60 pointer-events-none' : ''
+                        createFormLockUi ? 'opacity-60 pointer-events-none' : ''
                       }`}
                     >
                     <div className={`h-full grid grid-cols-1 ${createStep === 5 ? 'md:grid-cols-1' : 'md:grid-cols-[480px_1fr]'}`}>
@@ -2566,7 +2600,12 @@ export default function Projects() {
                       ) : null}
 
                       {/* Right: step content (scrollable) */}
-                      <div ref={createStepScrollRef} className="h-full overflow-y-auto px-5 py-5">
+                      <div
+                        ref={createStepScrollRef}
+                        className={`h-full overflow-y-auto px-5 py-5 ${
+                          createStep === 5 && feasibilityLoading ? 'flex flex-col' : ''
+                        }`}
+                      >
                         <input
                           ref={referenceImageInputRef}
                           type="file"
@@ -2857,7 +2896,7 @@ export default function Projects() {
                                       <img
                                         src={otherMetalCircle}
                                         alt=""
-                                        className="h-9 w-9 rounded-full object-cover border border-pale/80 shadow-sm"
+                                        className="h-7 w-7 rounded-full object-cover border border-pale/80 shadow-sm"
                                       />
                                     ) : null
                                   }
@@ -2898,7 +2937,7 @@ export default function Projects() {
                                       iconNode={
                                         !opt.swatch ? (
                                           <span
-                                            className="h-9 w-9 shrink-0 rounded-full border border-pale/80 shadow-sm"
+                                            className="h-7 w-7 shrink-0 rounded-full border border-pale/80 shadow-sm"
                                             style={{
                                               /* Pair slices: W+Y, Y+W, W+R, R+W, Y+R, R+Y (30° each) */
                                               background:
@@ -3060,14 +3099,14 @@ export default function Projects() {
                                   selected={String(createForm?.specs?.stonesIncluded || 'no').toLowerCase() === opt.value}
                                   iconNode={
                                     opt.value === 'yes' ? (
-                                      <span className="flex h-9 w-9 items-center justify-center text-black" aria-hidden>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <span className="flex h-7 w-7 items-center justify-center text-black" aria-hidden>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                           <path d="M20 6 9 17l-5-5" />
                                         </svg>
                                       </span>
                                     ) : (
-                                      <span className="flex h-9 w-9 items-center justify-center text-black" aria-hidden>
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                      <span className="flex h-7 w-7 items-center justify-center text-black" aria-hidden>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                           <path d="M18 6 6 18" />
                                           <path d="m6 6 12 12" />
                                         </svg>
@@ -3099,8 +3138,7 @@ export default function Projects() {
                                   <SpecChoiceCard
                                     label="Natural Diamonds"
                                     iconSrc={naturalPictogram}
-                                    layout="row"
-                                    className="min-h-[96px] px-4 py-3"
+                                    className="min-h-[84px]"
                                     selected={String(createForm?.specs?.stoneType || '') === 'Natural Diamonds'}
                                     onClick={() =>
                                       setCreateForm((p) => ({
@@ -3112,8 +3150,7 @@ export default function Projects() {
                                   <SpecChoiceCard
                                     label="Lab-Grown Diamonds"
                                     iconSrc={labPictogram}
-                                    layout="row"
-                                    className="min-h-[96px] px-4 py-3"
+                                    className="min-h-[84px]"
                                     selected={String(createForm?.specs?.stoneType || '') === 'Lab-Grown Diamonds'}
                                     onClick={() =>
                                       setCreateForm((p) => ({
@@ -3298,7 +3335,7 @@ export default function Projects() {
                               type="button"
                               onClick={() => attachmentInputRef.current?.click()}
                               disabled={attachmentUploading}
-                              className="px-4 py-2 rounded-xl bg-walnut text-blush text-xs font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                              className="shrink-0 px-2.5 py-1 rounded-lg bg-walnut text-blush text-[10px] font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer md:px-4 md:py-2 md:rounded-xl md:text-xs"
                             >
                               {attachmentUploading ? 'Uploading…' : 'Upload files'}
                             </button>
@@ -3380,7 +3417,11 @@ export default function Projects() {
                     ) : null}
 
                     {createStep === 5 ? (
-                      <div className="space-y-4">
+                      <div className={feasibilityLoading ? 'h-full min-h-[min(62vh,560px)]' : 'space-y-4'}>
+                        {feasibilityLoading ? (
+                          <FeasibilityCalculatingPanel specs={createForm?.specs} />
+                        ) : (
+                          <>
                         <div className="rounded-2xl border border-pale p-4">
                           <p className="text-[13px] font-extrabold text-ink">Review</p>
                           <p className="mt-1 text-[12px] text-muted">Confirm all details before submitting.</p>
@@ -3647,6 +3688,8 @@ export default function Projects() {
                             </span>
                           </label>
                         </div>
+                          </>
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -3654,12 +3697,22 @@ export default function Projects() {
                     </fieldset>
                   </div>
 
-                  <div className="shrink-0 px-5 py-4 border-t border-pale bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+                  <div className="shrink-0 px-5 py-3 border-t border-pale bg-white flex items-center justify-between gap-2 pb-[calc(env(safe-area-inset-bottom)+12px)]">
                     <button
                       type="button"
-                      onClick={() => setCreateStep((s) => Math.max(1, Number(s || 1) - 1))}
+                      onClick={() => {
+                        if (feasibilityLoading && feasibilityAbortRef.current) {
+                          try {
+                            feasibilityAbortRef.current.abort();
+                          } catch {
+                            // ignore
+                          }
+                          setFeasibilityLoading(false);
+                        }
+                        setCreateStep((s) => Math.max(1, Number(s || 1) - 1));
+                      }}
                       disabled={createFormBusy || createStep === 1}
-                      className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="px-3.5 py-1.5 rounded-lg border border-pale text-[11px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Back
                     </button>
@@ -3675,7 +3728,7 @@ export default function Projects() {
                           persistAndAdvance(createStep);
                         }}
                         disabled={createFormBusy}
-                        className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {createStep === 4 ? (feasibilityLoading || createLoading ? 'Reviewing…' : 'Review') : createLoading ? 'Saving…' : 'Next'}
                       </button>
@@ -3683,8 +3736,8 @@ export default function Projects() {
                       <button
                         type="button"
                         onClick={listMyProject}
-                        disabled={createFormBusy || !createForm?.specs?.confirmSpecs}
-                        className="px-5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={createFormBusy || feasibilityLoading || !createForm?.specs?.confirmSpecs}
+                        className="px-4 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {listMyProjectLoading || createLoading ? 'Listing…' : 'List my project'}
                       </button>

@@ -20,10 +20,10 @@ export function SpecChoiceCard({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`relative flex rounded-2xl border px-3 py-3.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[88px] ${
+      className={`relative flex rounded-xl border px-2.5 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer min-h-[68px] ${
         isRow
-          ? 'flex-row items-center justify-start gap-3 text-left'
-          : 'flex-col items-center justify-center gap-2 text-center'
+          ? 'flex-row items-center justify-start gap-2.5 text-left'
+          : 'flex-col items-center justify-center gap-1.5 text-center'
       } ${
         selected
           ? 'border-walnut ring-1 ring-walnut/25 bg-[#FAF5EE]'
@@ -31,37 +31,37 @@ export function SpecChoiceCard({
       } ${className}`}
     >
       {selected ? (
-        <span className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-walnut text-blush">
-          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+        <span className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-walnut text-blush">
+          <svg xmlns="http://www.w3.org/2000/svg" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
             <path d="M20 6 9 17l-5-5" />
           </svg>
         </span>
       ) : null}
       {swatchColor ? (
-        <span className="h-9 w-9 shrink-0 rounded-full border border-pale/80 shadow-sm" style={{ backgroundColor: swatchColor }} aria-hidden />
+        <span className="h-7 w-7 shrink-0 rounded-full border border-pale/80 shadow-sm" style={{ backgroundColor: swatchColor }} aria-hidden />
       ) : null}
       {iconSrc ? (
         <img
           src={iconSrc}
           alt=""
-          className="h-20 w-20 shrink-0 object-contain bg-transparent mix-blend-multiply"
+          className={`shrink-0 object-contain bg-transparent mix-blend-multiply ${isRow ? 'h-10 w-10' : 'h-11 w-11'}`}
         />
       ) : null}
       {iconNode || null}
-      <span className={`text-[12px] font-bold leading-tight ${isRow ? 'pr-6' : ''} ${selected ? 'text-ink' : 'text-mid'}`}>{label}</span>
+      <span className={`text-[11px] font-bold leading-tight ${isRow ? 'pr-5' : ''} ${selected ? 'text-ink' : 'text-mid'}`}>{label}</span>
     </button>
   );
 }
 
 export function SparkleTier({ count = 1 }) {
   return (
-    <span className="flex items-center justify-center gap-1" aria-hidden>
+    <span className="flex items-center justify-center gap-0.5" aria-hidden>
       {[1, 2, 3].map((i) => (
         <svg
           key={i}
           xmlns="http://www.w3.org/2000/svg"
-          width="22"
-          height="22"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill={i <= count ? '#E4B84A' : 'none'}
           stroke={i <= count ? '#D4A017' : '#E4B84A'}

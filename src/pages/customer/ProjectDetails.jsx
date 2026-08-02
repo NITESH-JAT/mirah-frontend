@@ -1091,22 +1091,13 @@ export default function ProjectDetails() {
           Back
         </button>
         {canShowTrackNav ? (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => navigate(`/customer/projects/${projectId}/bids`, { state: navStateForProject() })}
-              className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
-            >
-              View Bids
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(`/customer/projects/${projectId}`, { state: navStateForProject() })}
-              className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
-            >
-              Track
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate(`/customer/projects/${projectId}/bids`, { state: navStateForProject() })}
+            className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream shrink-0"
+          >
+            View Bids
+          </button>
         ) : null}
       </div>
 
