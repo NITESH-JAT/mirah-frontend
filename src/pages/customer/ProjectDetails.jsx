@@ -281,6 +281,12 @@ function metaRowsOf(project) {
       }
     }
     const key = String(k).trim();
+    if (key === 'confirmSpecs' || key === 'confirm_specs') {
+      const confirmed = value === true || String(value).trim().toLowerCase() === 'true';
+      value = confirmed ? 'Confirmed' : 'Not confirmed';
+    } else if (typeof value === 'boolean') {
+      value = value ? 'Yes' : 'No';
+    }
     if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
       if (normalized === 'custom') value = 'Custom';
@@ -425,13 +431,86 @@ function parseProjectPaymentOrder(raw, envKeyId) {
   return { orderId, amount, currency, keyId, raw: data };
 }
 
+function SkeletonBar({ className = '' }) {
+  return <div className={`animate-pulse rounded-md bg-pale ${className}`} aria-hidden />;
+}
+
+function ProjectDetailsPageSkeleton() {
+  return (
+    <div className="w-full flex flex-col lg:flex-row gap-5 items-start" aria-busy="true" aria-live="polite">
+      <div className="w-full lg:w-[400px] shrink-0 lg:self-start space-y-4">
+        <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+          <div className="relative h-[280px] sm:h-[340px] overflow-hidden bg-blush">
+            <SkeletonBar className="absolute inset-0 rounded-none bg-pale/80" />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-pale bg-white p-4 md:p-6 shadow-sm">
+          <SkeletonBar className="h-5 w-2/3" />
+          <div className="mt-5 space-y-3">
+            <SkeletonBar className="h-3 w-full" />
+            <SkeletonBar className="h-3 w-[88%]" />
+            <SkeletonBar className="h-3 w-[72%]" />
+          </div>
+          <div className="mt-5 space-y-2">
+            <SkeletonBar className="h-10 w-full rounded-xl" />
+            <SkeletonBar className="h-10 w-full rounded-xl" />
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full lg:flex-1 min-w-0 md:self-start">
+        <div className="space-y-4">
+          <div className="bg-white rounded-2xl border border-pale overflow-hidden">
+            <div className="p-4 md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <SkeletonBar className="h-4 w-24" />
+                <SkeletonBar className="h-8 w-32 rounded-xl" />
+              </div>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-pale p-4 space-y-3">
+                  <SkeletonBar className="h-3 w-20" />
+                  <SkeletonBar className="h-3 w-28" />
+                  <SkeletonBar className="h-9 w-full rounded-xl" />
+                </div>
+                <div className="rounded-2xl border border-pale p-4 space-y-3">
+                  <SkeletonBar className="h-3 w-16" />
+                  <SkeletonBar className="h-3 w-24" />
+                  <SkeletonBar className="h-9 w-full rounded-xl" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-pale overflow-hidden">
+            <div className="p-4 md:p-6">
+              <SkeletonBar className="h-4 w-36" />
+              <div className="mt-5 space-y-5">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <SkeletonBar className="h-6 w-6 shrink-0 rounded-full" />
+                    <div className="flex-1 space-y-2 pt-0.5">
+                      <SkeletonBar className="h-3 w-40" />
+                      <SkeletonBar className="h-2.5 w-24" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectDetails() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
   const { id } = useParams();
   const location = useLocation();
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [details, setDetails] = useState(null);
   const [payLoading, setPayLoading] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
@@ -773,6 +852,21 @@ export default function ProjectDetails() {
     return t && typeof t === 'object' ? t : null;
   }, [advancePayment, finalPayment]);
 
+  /** True when tariff keeps GST/delivery on final (advance ≈ 50% of pre-tax quote, not of total payable). */
+  const advanceIsHalfOfPreTaxQuote = useMemo(() => {
+    const t = customerPricingTariff;
+    if (!t) return false;
+    const quote = Number(t.jewellerBidJ ?? t.jeweller_bid_j ?? assignedAmount);
+    const bundled = Number(t.bundledCustomerDue ?? t.bundled_customer_due);
+    const adv = Number(
+      t.advanceCustomerDue ?? t.advance_customer_due ?? advancePayment?.suggestedAmount,
+    );
+    if (![quote, bundled, adv].every(Number.isFinite) || quote <= 0 || bundled <= 0) return false;
+    const halfQuote = Math.round((quote / 2) * 100) / 100;
+    const halfBundled = Math.round((bundled / 2) * 100) / 100;
+    return Math.abs(adv - halfQuote) < 1 && Math.abs(adv - halfBundled) >= 1;
+  }, [advancePayment?.suggestedAmount, assignedAmount, customerPricingTariff]);
+
   const listingBudgetDisplay = useMemo(() => {
     if (!budgetPerPieceRaw) return null;
     const n = Number(budgetPerPieceRaw);
@@ -792,6 +886,8 @@ export default function ProjectDetails() {
       'size_custom_value',
       'sizeCustomUnit',
       'size_custom_unit',
+      'confirmSpecs',
+      'confirm_specs',
     ]);
     const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
     if (sizeModeRaw === 'custom') {
@@ -812,15 +908,21 @@ export default function ProjectDetails() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      if (abortRef.current !== ctrl) return;
       setDetails(res || null);
+      setLoadFailed(!res);
     } catch (e) {
-      if (isCanceledRequest(e)) return;
+      if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
+      setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (abortRef.current === ctrl) {
+        setLoading(false);
+      }
     }
   }, [addToast, projectId]);
 
@@ -906,6 +1008,8 @@ export default function ProjectDetails() {
     const k = String(primaryAssignment?.status ?? '').trim().toLowerCase();
     return k === 'accepted' && Boolean(projectId);
   }, [primaryAssignment, projectId]);
+
+  const showSkeleton = !project && !loadFailed;
 
   const navStateForProject = useCallback(
     () => ({
@@ -1101,18 +1205,14 @@ export default function ProjectDetails() {
         ) : null}
       </div>
 
+      {showSkeleton ? (
+        <ProjectDetailsPageSkeleton />
+      ) : (
       <div className="w-full flex flex-col lg:flex-row gap-5 items-start">
         <div className="w-full lg:w-[400px] shrink-0 lg:self-start space-y-4">
           <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
             <div className="relative h-[280px] sm:h-[340px] bg-gradient-to-br from-cream via-blush to-pale overflow-hidden">
-              {loading ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-              ) : referenceImage ? (
+              {referenceImage ? (
                 <ImageWithFullscreenZoom
                   src={referenceImage}
                   alt={project?.title || location?.state?.projectTitle || 'Project'}
@@ -1131,11 +1231,11 @@ export default function ProjectDetails() {
             </div>
           </div>
 
-          {!loading && !project ? (
+          {!project ? (
             <div className="rounded-2xl border border-pale bg-white p-5 text-[13px] text-mid shadow-sm">Unable to load project.</div>
           ) : null}
 
-          {!loading && project ? (
+          {project ? (
             <>
               <div className="rounded-2xl border border-pale bg-white p-4 md:p-6 shadow-sm">
                 <p className="text-[16px] md:text-[18px] font-extrabold text-ink break-words">{project?.title || 'Project'}</p>
@@ -1271,14 +1371,7 @@ export default function ProjectDetails() {
         <div className="w-full lg:flex-1 min-w-0 md:self-start">
           <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-pale overflow-hidden">
-              {loading ? (
-                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-              ) : !project ? (
+              {!project ? (
                 <div className="p-8 text-[13px] text-mid">Unable to load project.</div>
               ) : (
                 <div className="p-4 md:p-6">
@@ -1340,6 +1433,11 @@ export default function ProjectDetails() {
                       {advancePayment?.suggestedAmount != null ? (
                         <p className="mt-1 text-[12px] text-muted">
                           Suggested: <span className="font-semibold text-mid">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                        </p>
+                      ) : null}
+                      {advanceIsHalfOfPreTaxQuote ? (
+                        <p className="mt-1 text-[11px] text-muted leading-relaxed">
+                          50% of the agreed quote (before tax). GST and delivery are included in the final payment.
                         </p>
                       ) : null}
                       {advanceStatus === 'due' ? (
@@ -1418,14 +1516,7 @@ export default function ProjectDetails() {
             ) : null}
 
             <div className="bg-white rounded-2xl border border-pale overflow-hidden">
-              {loading ? (
-                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-              ) : !project ? (
+              {!project ? (
                 <div className="p-8 text-[13px] text-mid">Unable to load project updates.</div>
               ) : (
                 <div className="p-4 md:p-6">
@@ -1573,6 +1664,7 @@ export default function ProjectDetails() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

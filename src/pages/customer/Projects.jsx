@@ -647,7 +647,8 @@ export default function Projects() {
     };
   }, [createModalOpen]);
 
-  const [listLoading, setListLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
+  const [listHydrated, setListHydrated] = useState(false);
   const [listMoreLoading, setListMoreLoading] = useState(false);
   const [projects, setProjects] = useState([]);
   const [listMeta, setListMeta] = useState({ page: 1, totalPages: 1, total: null });
@@ -1071,8 +1072,14 @@ export default function Projects() {
       addToast(e?.message || 'Failed to load projects', 'error');
       if (!append) setProjects([]);
     } finally {
-      if (append) setListMoreLoading(false);
-      else setListLoading(false);
+      // Ignore stale/aborted requests so the badge doesn't flash 0 while a newer fetch is in flight.
+      if (listAbortRef.current === ctrl) {
+        if (append) setListMoreLoading(false);
+        else {
+          setListLoading(false);
+          setListHydrated(true);
+        }
+      }
     }
   }, [addToast]);
 
@@ -1917,7 +1924,12 @@ export default function Projects() {
                       <div className="order-3 flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-1.5 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:order-1 md:min-w-0 md:flex-initial md:max-w-full md:gap-2">
                         {[
                           { id: 'all', label: 'All', count: null },
-                          { id: 'action_required', label: 'Action Required', count: projectCategories.actionRequired.length },
+                          {
+                            id: 'action_required',
+                            label: 'Action Required',
+                            count: projectCategories.actionRequired.length,
+                            pending: !listHydrated || listLoading,
+                          },
                           { id: 'active', label: 'Active', count: null },
                           { id: 'completed', label: 'Completed', count: null },
                           { id: 'drafts', label: 'Drafts', count: null },
@@ -1936,6 +1948,21 @@ export default function Projects() {
                             >
                               <span className="whitespace-nowrap">{t.label}</span>
                               {typeof t.count === 'number' ? (
+                                t.pending ? (
+                                  <span
+                                    className={`min-w-[14px] h-[12px] px-0.5 rounded-full text-[8px] font-extrabold inline-flex items-center justify-center leading-none md:min-h-[1.25rem] md:h-5 md:min-w-[22px] md:px-1.5 md:text-[11px] ${
+                                      active
+                                        ? 'bg-walnut text-blush'
+                                        : 'bg-blush text-mid group-hover:bg-walnut group-hover:text-blush'
+                                    }`}
+                                    aria-label="Loading count"
+                                    role="status"
+                                  >
+                                    <span className="-translate-y-[1px] md:-translate-y-[2px]" aria-hidden="true">
+                                      ...
+                                    </span>
+                                  </span>
+                                ) : (
                                 <span
                                   className={`min-w-[14px] h-[12px] px-0.5 rounded-full text-[8px] font-extrabold flex items-center justify-center transition-colors md:min-h-[1.25rem] md:min-w-[22px] md:h-auto md:px-1.5 md:text-[11px] ${
                                     active
@@ -1945,6 +1972,7 @@ export default function Projects() {
                                 >
                                   {t.count}
                                 </span>
+                                )
                               ) : null}
                             </button>
                           );

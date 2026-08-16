@@ -41,6 +41,17 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
   const adv = pickNum(tariff, ['advanceCustomerDue', 'advance_customer_due']);
   const fin = pickNum(tariff, ['finalCustomerDue', 'final_customer_due']);
 
+  const quoteBasis =
+    agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount)) ? Number(agreedQuoteAmount) : J;
+  const advanceIsPreTaxHalf =
+    quoteBasis != null &&
+    bundled != null &&
+    adv != null &&
+    quoteBasis > 0 &&
+    bundled > 0 &&
+    Math.abs(adv - quoteBasis / 2) < 1 &&
+    Math.abs(adv - bundled / 2) >= 1;
+
   const hasAny =
     [
       J,
@@ -131,11 +142,27 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
                 <div className="mt-4">
                   <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">How you may pay</p>
                   <p className="text-[11px] text-muted mb-2 leading-relaxed">
-                    Your payments are usually split across milestones approved at checkout — amounts are rounded per instalment rules.
+                    {advanceIsPreTaxHalf
+                      ? 'Advance is 50% of the agreed quote before tax. GST and delivery are collected with the final payment.'
+                      : 'Your payments are usually split across milestones approved at checkout — amounts are rounded per instalment rules.'}
                   </p>
                   <div className="rounded-xl border border-pale divide-y divide-pale px-3">
-                    <ModalRow label="Suggested advance instalment" value={adv} />
-                    <ModalRow label="Suggested final instalment (incl. delivery & delivery tax when applicable)" value={fin} />
+                    <ModalRow
+                      label={
+                        advanceIsPreTaxHalf
+                          ? 'Suggested advance (50% of agreed quote, before tax)'
+                          : 'Suggested advance instalment'
+                      }
+                      value={adv}
+                    />
+                    <ModalRow
+                      label={
+                        advanceIsPreTaxHalf
+                          ? 'Suggested final (remaining quote + GST + delivery)'
+                          : 'Suggested final instalment (incl. delivery & delivery tax when applicable)'
+                      }
+                      value={fin}
+                    />
                   </div>
                 </div>
               ) : null}

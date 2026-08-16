@@ -18,7 +18,8 @@ export const vendorService = {
     if (data?.vendor) {
       const v = data.vendor || {};
       const stats = data?.stats ?? v?.stats ?? null;
-      return stats ? { ...v, stats } : v;
+      const portfolio = Array.isArray(data?.portfolio) ? data.portfolio : [];
+      return stats ? { ...v, stats, portfolio } : { ...v, portfolio };
     }
     return data?.user ?? data?.data ?? data;
   },
@@ -61,6 +62,29 @@ export const vendorService = {
     };
     if (vendorId != null && vendorId !== '') payload.vendorId = vendorId;
     const res = await api.post('/api/user/vendor-reviews', payload, { signal });
+    return unwrap(res);
+  },
+
+  listMyPortfolio: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/profile/portfolio', { signal });
+    const data = unwrap(res) || {};
+    const itemsRaw = data?.items ?? data?.photos ?? data ?? [];
+    return {
+      items: coerceArray(itemsRaw).filter((x) => x && (x.imageUrl || x.image_url || x.url)),
+      max: Number(data?.max) || 24,
+    };
+  },
+
+  uploadPortfolioPhoto: async (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post('/api/user/profile/portfolio', form);
+    return unwrap(res);
+  },
+
+  deletePortfolioPhoto: async (id) => {
+    if (!id) return null;
+    const res = await api.delete(`/api/user/profile/portfolio/${id}`);
     return unwrap(res);
   },
 };

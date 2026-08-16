@@ -88,6 +88,82 @@ function collectionNameOf(product) {
   return flat || null;
 }
 
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
+
+function isNotFoundError(err) {
+  const status = Number(err?.response?.status);
+  if (status === 404) return true;
+  const msg = String(err?.message || '').trim().toLowerCase();
+  return msg.includes('not found');
+}
+
+function SkeletonBar({ className = '' }) {
+  return <div className={`animate-pulse rounded-md bg-pale ${className}`} aria-hidden />;
+}
+
+function ProductDetailsPageSkeleton() {
+  return (
+    <div className="w-full" aria-busy="true" aria-live="polite">
+      <div className="mb-4 flex items-center gap-2 md:mb-5">
+        <SkeletonBar className="h-4 w-14" />
+        <SkeletonBar className="h-3 w-3 rounded-full" />
+        <SkeletonBar className="h-4 w-40" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-[1.25fr_1fr] gap-4 md:gap-6">
+        <div className="rounded-2xl bg-white p-3 md:p-4 md:pr-5">
+          <SkeletonBar className="aspect-square w-full rounded-2xl bg-pale/80" />
+          <div className="mt-5">
+            <SkeletonBar className="h-11 w-full rounded-full" />
+          </div>
+        </div>
+        <div className="rounded-2xl border border-pale bg-white p-4 md:p-6">
+          <SkeletonBar className="h-6 w-3/4" />
+          <SkeletonBar className="mt-3 h-3 w-1/3" />
+          <SkeletonBar className="mt-5 h-7 w-36" />
+          <SkeletonBar className="mt-2 h-3 w-28" />
+          <div className="mt-6 space-y-3 border-t border-pale pt-4">
+            <SkeletonBar className="h-3 w-full" />
+            <SkeletonBar className="h-3 w-[88%]" />
+            <SkeletonBar className="h-3 w-[70%]" />
+            <SkeletonBar className="h-3 w-[80%]" />
+            <SkeletonBar className="h-3 w-[62%]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductNotFoundState({ onBack }) {
+  return (
+    <div className="flex min-h-[calc(100dvh-12rem)] w-full flex-col items-center justify-center px-6 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full border border-pale bg-white text-muted shadow-sm">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+          <path d="M6 3h12l4 6-10 13L2 9z" />
+          <path d="M2 9h20" />
+          <path d="M12 22 7.5 9" />
+          <path d="M12 22 16.5 9" />
+          <path d="M6 3 12 9 18 3" />
+        </svg>
+      </div>
+      <p className="mt-4 font-serif text-[22px] font-bold text-ink md:text-[24px]">Product not found</p>
+      <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
+        This piece isn’t available, or the link may be incorrect.
+      </p>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-walnut px-5 py-2.5 text-[12px] font-bold text-blush hover:opacity-90"
+      >
+        Back to Shop
+      </button>
+    </div>
+  );
+}
+
 export default function ProductDetails() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
@@ -128,7 +204,7 @@ export default function ProductDetails() {
     });
   };
 
-  const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [product, setProduct] = useState(null);
 
   const [openDetails, setOpenDetails] = useState(true);
@@ -223,20 +299,25 @@ export default function ProductDetails() {
     if (abortProductRef.current) abortProductRef.current.abort();
     const ctrl = new AbortController();
     abortProductRef.current = ctrl;
-    setLoading(true);
+    setLoadFailed(false);
+    setProduct(null);
     try {
       const p = await productService.getCustomerProduct(id, { signal: ctrl.signal });
+      if (abortProductRef.current !== ctrl) return;
       setProduct(p || null);
+      setLoadFailed(!p);
       const m = extractMedia(p || {});
       setMode(m.images.length ? 'images' : m.videos.length ? 'videos' : 'images');
       setActiveIndex(0);
       setActiveVideoIndex(0);
       setOpenDetails(true);
     } catch (e) {
-      if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
-      addToast(e?.message || 'Failed to load product', 'error');
-    } finally {
-      setLoading(false);
+      if (isCanceledRequest(e) || abortProductRef.current !== ctrl) return;
+      setProduct(null);
+      setLoadFailed(true);
+      if (!isNotFoundError(e)) {
+        addToast(e?.message || 'Failed to load product', 'error');
+      }
     }
   };
 
@@ -325,7 +406,8 @@ export default function ProductDetails() {
     setReviews([]);
     setReviewsMeta({ page: 1, totalPages: 1, total: 0 });
     setReviewsSummary(null);
-    loadReviews({ page: 1, append: false });
+    setOtherItems([]);
+    setOtherHasMore(false);
     return () => {
       if (abortProductRef.current) abortProductRef.current.abort();
       if (abortReviewsRef.current) abortReviewsRef.current.abort();
@@ -336,6 +418,7 @@ export default function ProductDetails() {
 
   useEffect(() => {
     if (!product) return;
+    loadReviews({ page: 1, append: false });
     if (!product?.category) {
       setOtherItems([]);
       setOtherHasMore(false);
@@ -538,28 +621,10 @@ export default function ProductDetails() {
 
   return (
     <div className="w-full pb-[140px] md:pb-10 animate-fade-in">
-      {loading ? (
-        <div className="flex min-h-[calc(100dvh-10rem)] w-full items-center justify-center" role="status" aria-label="Loading">
-          <svg
-            className="animate-spin text-ink"
-            xmlns="http://www.w3.org/2000/svg"
-            width="28"
-            height="28"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden
-          >
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-            <path
-              d="M22 12a10 10 0 0 0-10-10"
-              stroke="currentColor"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-          </svg>
-        </div>
+      {!product && !loadFailed ? (
+        <ProductDetailsPageSkeleton />
       ) : !product ? (
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">Product not found.</div>
+        <ProductNotFoundState onBack={goToShop} />
       ) : (
         <>
           <nav

@@ -285,6 +285,100 @@ function attachmentIcon(name) {
   );
 }
 
+function SkeletonBar({ className = '' }) {
+  return <div className={`animate-pulse rounded-md bg-pale ${className}`} aria-hidden />;
+}
+
+function BidsTableSkeleton() {
+  return (
+    <>
+      <div className="md:hidden space-y-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="rounded-2xl border border-pale bg-white px-5 py-4">
+            <div className="flex items-start gap-3">
+              <SkeletonBar className="h-10 w-10 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2 pt-1">
+                <SkeletonBar className="h-3 w-32" />
+                <SkeletonBar className="h-3 w-24" />
+              </div>
+              <SkeletonBar className="h-4 w-16 shrink-0" />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="hidden md:block overflow-hidden rounded-xl border border-pale bg-white shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[520px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-pale bg-walnut/[0.07]">
+                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Bid amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[0, 1, 2, 3].map((i) => (
+                <tr key={i} className="border-b border-pale/70 last:border-b-0">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <SkeletonBar className="h-9 w-9 shrink-0 rounded-full" />
+                      <SkeletonBar className="h-3 w-36" />
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <SkeletonBar className="h-3 w-20" />
+                  </td>
+                  <td className="px-4 py-3">
+                    <SkeletonBar className="ml-auto h-3 w-16" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ProjectBidsPageSkeleton() {
+  return (
+    <div className="flex w-full flex-col items-start gap-5 lg:flex-row" aria-busy="true" aria-live="polite">
+      <div className="w-full shrink-0 space-y-4 lg:w-[400px]">
+        <div className="overflow-hidden rounded-2xl border border-pale bg-white shadow-sm">
+          <SkeletonBar className="h-[280px] rounded-none sm:h-[340px]" />
+        </div>
+        <div className="rounded-2xl border border-pale bg-white p-5 shadow-sm">
+          <SkeletonBar className="h-3 w-20" />
+          <div className="mt-4 space-y-3">
+            <SkeletonBar className="h-3 w-full" />
+            <SkeletonBar className="h-3 w-[88%]" />
+            <SkeletonBar className="h-3 w-[70%]" />
+          </div>
+        </div>
+      </div>
+      <div className="flex min-w-0 w-full flex-1 flex-col gap-4">
+        <div className="rounded-2xl border border-pale bg-white p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1 space-y-3">
+              <SkeletonBar className="h-5 w-2/3" />
+              <SkeletonBar className="h-3 w-1/2" />
+              <SkeletonBar className="h-3 w-2/5" />
+              <SkeletonBar className="h-3 w-1/3" />
+            </div>
+            <SkeletonBar className="h-7 w-24 shrink-0 rounded-full" />
+          </div>
+        </div>
+        <div className="flex w-full items-center gap-2 sm:gap-3">
+          <SkeletonBar className="h-10 min-w-0 flex-1 rounded-xl" />
+          <SkeletonBar className="h-10 w-16 shrink-0 rounded-xl" />
+        </div>
+        <BidsTableSkeleton />
+      </div>
+    </div>
+  );
+}
+
 export default function ProjectBids() {
   const { addToast } = useOutletContext();
   const { id } = useParams();
@@ -293,9 +387,10 @@ export default function ProjectBids() {
   const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
 
   const projectId = id;
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [details, setDetails] = useState(null);
-  const [bidsLoading, setBidsLoading] = useState(false);
+  const [bidsLoading, setBidsLoading] = useState(true);
   const [bids, setBids] = useState([]);
 
   const [search, setSearch] = useState('');
@@ -402,6 +497,8 @@ export default function ProjectBids() {
       'size_custom_value',
       'sizeCustomUnit',
       'size_custom_unit',
+      'confirmSpecs',
+      'confirm_specs',
     ]);
     const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
     if (sizeModeRaw === 'custom') {
@@ -429,15 +526,21 @@ export default function ProjectBids() {
     const ctrl = new AbortController();
     abortRef.current = ctrl;
     setLoading(true);
+    setLoadFailed(false);
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      if (abortRef.current !== ctrl) return;
       setDetails(res || null);
+      setLoadFailed(!res);
     } catch (e) {
-      if (isCanceledRequest(e)) return;
+      if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
+      setLoadFailed(true);
     } finally {
-      setLoading(false);
+      if (abortRef.current === ctrl) {
+        setLoading(false);
+      }
     }
   }, [addToast, projectId]);
 
@@ -679,6 +782,8 @@ export default function ProjectBids() {
     [location.state, project?.title],
   );
 
+  const showSkeleton = !project && !loadFailed;
+
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -703,6 +808,9 @@ export default function ProjectBids() {
         ) : null}
       </div>
 
+      {showSkeleton ? (
+        <ProjectBidsPageSkeleton />
+      ) : (
       <div className="w-full flex flex-col lg:flex-row gap-5 items-start">
         {/* Left column: hero image + Details meta (vendor Explore-style) */}
         <div className="w-full lg:w-[400px] shrink-0 lg:self-start space-y-4">
@@ -907,44 +1015,7 @@ export default function ProjectBids() {
           <div className="flex flex-col flex-1 min-w-0">
             <div className="w-full">
             {loading || bidsLoading ? (
-              <>
-                <div className="md:hidden rounded-2xl border border-pale bg-white p-10 flex items-center justify-center min-h-[200px]">
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
-                  <div className="overflow-x-auto">
-                    <table className="w-full min-w-[520px] text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-pale bg-walnut/[0.07]">
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td colSpan={3} className="px-4 py-12 text-center align-middle bg-cream/20">
-                            <svg
-                              className="animate-spin text-ink inline-block"
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="28"
-                              height="28"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                            >
-                              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                              <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                            </svg>
-                          </td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </>
+              <BidsTableSkeleton />
             ) : visibleBids.length === 0 ? (
               <>
                 <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
@@ -1396,6 +1467,7 @@ export default function ProjectBids() {
           ) : null}
         </div>
       </div>
+      )}
 
       {/* Manual end modal */}
       {endOpen ? (

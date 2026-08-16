@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { vendorService } from '../../services/vendorService';
+import { SkeletonBar } from '../../components/project/VendorProjectPageSkeleton';
+import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -30,17 +32,95 @@ function starRow(rating) {
   return Array.from({ length: 5 }).map((_, i) => i < full);
 }
 
+function VendorProfilePageSkeleton() {
+  return (
+    <div className="w-full" aria-busy="true" aria-live="polite">
+      <div className="rounded-2xl border border-pale bg-white p-4 md:p-6">
+        <div className="flex items-start justify-between gap-3">
+          <SkeletonBar className="mt-2 h-6 w-48" />
+          <SkeletonBar className="h-9 w-16 rounded-xl" />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="rounded-2xl border border-pale bg-white p-5">
+          <div className="flex items-start gap-4">
+            <SkeletonBar className="h-16 w-16 shrink-0 rounded-2xl" />
+            <div className="min-w-0 flex-1 space-y-2 pt-1">
+              <SkeletonBar className="h-4 w-36" />
+              <SkeletonBar className="h-3 w-28" />
+            </div>
+          </div>
+          <SkeletonBar className="mt-5 h-11 w-full rounded-2xl" />
+        </div>
+        <div className="rounded-2xl border border-pale bg-white p-5 lg:col-span-2">
+          <SkeletonBar className="h-3 w-48" />
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-2xl border border-pale bg-cream p-4">
+                <SkeletonBar className="h-3 w-28" />
+                <SkeletonBar className="mt-3 h-6 w-12" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-pale bg-white p-5">
+        <SkeletonBar className="h-3 w-40" />
+        <SkeletonBar className="mt-3 h-3 w-56" />
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rounded-2xl border border-pale p-4">
+              <div className="flex items-start gap-3">
+                <SkeletonBar className="h-9 w-9 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2 pt-1">
+                  <SkeletonBar className="h-3 w-28" />
+                  <SkeletonBar className="h-2.5 w-20" />
+                </div>
+              </div>
+              <SkeletonBar className="mt-3 h-3 w-full" />
+              <SkeletonBar className="mt-2 h-3 w-[80%]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReviewsGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+      {[0, 1, 2].map((i) => (
+        <div key={i} className="rounded-2xl border border-pale p-4">
+          <div className="flex items-start gap-3">
+            <SkeletonBar className="h-9 w-9 shrink-0 rounded-full" />
+            <div className="min-w-0 flex-1 space-y-2 pt-1">
+              <SkeletonBar className="h-3 w-28" />
+              <SkeletonBar className="h-2.5 w-20" />
+            </div>
+          </div>
+          <SkeletonBar className="mt-3 h-3 w-full" />
+          <SkeletonBar className="mt-2 h-3 w-[80%]" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function VendorProfile() {
   const { addToast } = useOutletContext();
   const { vendorId } = useParams();
   const navigate = useNavigate();
 
-  const [loading, setLoading] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [vendor, setVendor] = useState(null);
-  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
   const [reviewsMoreLoading, setReviewsMoreLoading] = useState(false);
   const [reviews, setReviews] = useState([]);
   const [reviewsMeta, setReviewsMeta] = useState({ page: 1, totalPages: 1, total: null });
+  const [portfolioPage, setPortfolioPage] = useState(1);
 
   const abortRef = useRef(null);
 
@@ -49,16 +129,18 @@ export default function VendorProfile() {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    setLoading(true);
+    setLoadFailed(false);
     try {
       const v = await vendorService.getDetails(vendorId, { signal: ctrl.signal });
+      if (abortRef.current !== ctrl) return;
       setVendor(v || null);
+      setLoadFailed(!v);
+      setPortfolioPage(1);
     } catch (e) {
-      if (isCanceledRequest(e)) return;
+      if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load jeweller', 'error');
       setVendor(null);
-    } finally {
-      setLoading(false);
+      setLoadFailed(true);
     }
   }, [addToast, vendorId]);
 
@@ -132,19 +214,61 @@ export default function VendorProfile() {
   const activeBids = stats?.activeBids ?? stats?.activeBidsCount ?? stats?.activeBidCount ?? null;
   const ongoing = stats?.onGoingProject ?? stats?.ongoingProjects ?? stats?.runningAssignments ?? stats?.runningProjects ?? null;
 
+  const PORTFOLIO_PAGE_SIZE = 4;
+  const portfolioPhotos = useMemo(() => {
+    const raw = vendor?.portfolio ?? vendor?.portfolioPhotos ?? vendor?.previousWork ?? [];
+    return (Array.isArray(raw) ? raw : [])
+      .map((row) => ({
+        id: row?.id ?? row?._id ?? null,
+        imageUrl: String(row?.imageUrl ?? row?.image_url ?? row?.url ?? '').trim(),
+      }))
+      .filter((row) => row.imageUrl);
+  }, [vendor]);
+  const portfolioTotalPages = Math.max(1, Math.ceil(portfolioPhotos.length / PORTFOLIO_PAGE_SIZE));
+  const safePortfolioPage = Math.min(Math.max(1, portfolioPage), portfolioTotalPages);
+  const pagedPortfolioPhotos = useMemo(() => {
+    const start = (safePortfolioPage - 1) * PORTFOLIO_PAGE_SIZE;
+    return portfolioPhotos.slice(start, start + PORTFOLIO_PAGE_SIZE);
+  }, [portfolioPhotos, safePortfolioPage]);
+
   const chatNow = () => {
     if (!vendorId) return;
     navigate('/customer/messages', { state: { openRecipientId: vendorId } });
   };
 
   const canLoadMoreReviews = (Number(reviewsMeta?.page ?? 1) || 1) < (Number(reviewsMeta?.totalPages ?? 1) || 1);
+  const showSkeleton = !vendor && !loadFailed;
 
   return (
     <div className="w-full pb-10 animate-fade-in">
+      {showSkeleton ? (
+        <VendorProfilePageSkeleton />
+      ) : !vendor ? (
+        <div className="flex min-h-[calc(100dvh-12rem)] w-full flex-col items-center justify-center px-6 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full border border-pale bg-white text-muted shadow-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden>
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+          </div>
+          <p className="mt-4 font-serif text-[22px] font-bold text-ink md:text-[24px]">Jeweller not found</p>
+          <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
+            This profile isn’t available, or the link may be incorrect.
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="mt-5 inline-flex cursor-pointer items-center gap-2 rounded-full bg-walnut px-5 py-2.5 text-[12px] font-bold text-blush hover:opacity-90"
+          >
+            Go back
+          </button>
+        </div>
+      ) : (
+        <>
       <div className="bg-white rounded-2xl border border-pale p-4 md:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="mt-2 text-[20px] md:text-[22px] font-extrabold text-ink">{loading ? 'Loading…' : name}</p>
+            <p className="mt-2 text-[20px] md:text-[22px] font-extrabold text-ink">{name}</p>
           </div>
           <button
             type="button"
@@ -204,6 +328,57 @@ export default function VendorProfile() {
         </div>
       </div>
 
+      {portfolioPhotos.length > 0 ? (
+        <div className="mt-4 rounded-2xl border border-pale bg-white p-5">
+          <p className="text-[13px] font-extrabold text-ink">Portfolio</p>
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            {pagedPortfolioPhotos.map((row, idx) => (
+              <div
+                key={String(row.id || row.imageUrl || idx)}
+                className="overflow-hidden rounded-2xl border border-pale bg-cream"
+              >
+                <div className="aspect-square">
+                  <ImageWithFullscreenZoom
+                    src={row.imageUrl}
+                    alt=""
+                    imageClassName="h-full w-full object-cover"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          {portfolioPhotos.length > PORTFOLIO_PAGE_SIZE ? (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[12px] text-muted">
+                Page <span className="font-extrabold text-ink">{safePortfolioPage}</span> of{' '}
+                <span className="font-extrabold text-ink">{portfolioTotalPages}</span>
+                <span className="opacity-60"> · {portfolioPhotos.length} photos</span>
+              </p>
+              <div className="flex items-center gap-2">
+                {safePortfolioPage > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioPage((p) => Math.max(1, p - 1))}
+                    className="rounded-2xl border border-pale bg-white px-4 py-2 text-[12px] font-extrabold text-ink hover:bg-cream"
+                  >
+                    Prev
+                  </button>
+                ) : null}
+                {safePortfolioPage < portfolioTotalPages ? (
+                  <button
+                    type="button"
+                    onClick={() => setPortfolioPage((p) => Math.min(portfolioTotalPages, p + 1))}
+                    className="rounded-2xl bg-walnut px-4 py-2 text-[12px] font-extrabold text-blush hover:opacity-95"
+                  >
+                    Next
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="mt-4 bg-white rounded-2xl border border-pale p-5">
         <div>
           <p className="text-[13px] font-extrabold text-ink">Review and Rating</p>
@@ -218,12 +393,7 @@ export default function VendorProfile() {
 
         <div className="mt-4">
           {reviewsLoading ? (
-            <div className="rounded-2xl border border-pale bg-cream p-10 flex items-center justify-center">
-              <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-              </svg>
-            </div>
+            <ReviewsGridSkeleton />
           ) : reviews.length === 0 ? (
             <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">No reviews yet.</div>
           ) : (
@@ -275,6 +445,8 @@ export default function VendorProfile() {
           ) : null}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

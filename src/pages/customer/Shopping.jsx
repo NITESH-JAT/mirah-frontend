@@ -895,16 +895,18 @@ export default function Shopping() {
                           <button
                             key={row.category}
                             type="button"
+                            aria-label={formatCategoryDisplayName(row.category)}
                             onClick={() => selectShopCategoryFromCatalog(row.category)}
-                            className="group min-w-full max-w-full md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                            className="group min-w-full max-w-full cursor-pointer md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                           >
-                            <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
+                            <div className="pointer-events-none flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
                               <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
                                 {imgSrc ? (
                                   <SafeImage
                                     src={imgSrc}
                                     alt=""
-                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                    draggable={false}
+                                    className="h-full w-full object-cover select-none [-webkit-user-drag:none] transition duration-300 group-hover:scale-[1.02]"
                                     loading="lazy"
                                   />
                                 ) : (
@@ -945,16 +947,18 @@ export default function Shopping() {
                         <button
                           key={row.id}
                           type="button"
+                          aria-label={formatCategoryDisplayName(row.name)}
                           onClick={() => selectShopCollectionFromCatalog(row.id)}
-                          className="group min-w-full max-w-full md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
+                          className="group min-w-full max-w-full cursor-pointer md:min-w-[calc((100%-1.5rem)/3)] md:max-w-[calc((100%-1.5rem)/3)] shrink-0 snap-start text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream"
                         >
-                          <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
+                          <div className="pointer-events-none flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-pale/90 bg-[#F2E6D4] shadow-sm transition group-hover:border-walnut/30 group-hover:shadow-md">
                             <div className="relative aspect-square w-full overflow-hidden rounded-t-2xl bg-[#F2E6D4]">
                               {imgSrc ? (
                                 <SafeImage
                                   src={imgSrc}
                                   alt=""
-                                  className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.02]"
+                                  draggable={false}
+                                  className="h-full w-full object-cover select-none [-webkit-user-drag:none] transition duration-300 group-hover:scale-[1.02]"
                                   loading="lazy"
                                 />
                               ) : (

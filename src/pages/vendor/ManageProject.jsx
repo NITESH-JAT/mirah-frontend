@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useOutletContext, useParams } from 'react-rou
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
+import { SkeletonBar, VendorManageProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
@@ -313,7 +314,7 @@ export default function VendorManageProject() {
   const { id } = useParams();
   const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
 
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [details, setDetails] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -445,6 +446,8 @@ export default function VendorManageProject() {
       'size_custom_value',
       'sizeCustomUnit',
       'size_custom_unit',
+      'confirmSpecs',
+      'confirm_specs',
     ]);
     const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
     if (sizeModeRaw === 'custom') {
@@ -704,15 +707,18 @@ export default function VendorManageProject() {
     setLoading(true);
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      if (abortRef.current !== ctrl) return;
       setDetails(res || null);
       setHasLoaded(true);
     } catch (e) {
-      if (isCanceledRequest(e)) return;
+      if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
       setHasLoaded(true);
     } finally {
-      setLoading(false);
+      if (abortRef.current === ctrl) {
+        setLoading(false);
+      }
     }
   }, [addToast, projectId]);
 
@@ -1029,12 +1035,7 @@ export default function VendorManageProject() {
       </div>
 
       {!hasLoaded ? (
-        <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        </div>
+        <VendorManageProjectSkeleton />
       ) : !project ? (
         <div className="min-h-[calc(100vh-260px)] flex flex-col items-center justify-center text-center">
           <p className="font-serif text-5xl font-extrabold text-ink">404</p>
@@ -1592,18 +1593,19 @@ export default function VendorManageProject() {
             {/* Project updates timeline */}
             <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {loading ? (
-                <div className="p-10 md:p-14 bg-cream flex items-center justify-center min-h-[220px]">
-                  <svg
-                    className="animate-spin text-ink"
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="28"
-                    height="28"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                  >
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
+                <div className="p-4 md:p-6">
+                  <SkeletonBar className="h-3 w-36" />
+                  <div className="mt-5 space-y-5">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <SkeletonBar className="h-6 w-6 shrink-0 rounded-full" />
+                        <div className="flex-1 space-y-2 pt-0.5">
+                          <SkeletonBar className="h-3 w-40" />
+                          <SkeletonBar className="h-2.5 w-24" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : !project ? (
                 <div className="p-8 text-[13px] text-mid">Unable to load project updates.</div>

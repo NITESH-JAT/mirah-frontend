@@ -8,6 +8,7 @@ import {
 } from '../../utils/stateRegionLabel';
 import { addressLocationParts } from '../../utils/addressLocationParts';
 import CountrySelect from '../../components/CountrySelect';
+import VendorPortfolioPanel from '../../components/vendor/VendorPortfolioPanel';
 
 const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text", inputMode }) => (
   <div className="space-y-1.5">
@@ -104,6 +105,7 @@ export default function Profile() {
   // Delete account modal
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
+  const [profileTab, setProfileTab] = useState('profile');
 
   // --- Addresses (customers only) ---
   const [addressTab, setAddressTab] = useState('billing'); // 'billing' | 'shipping'
@@ -428,7 +430,43 @@ export default function Profile() {
 
   return (
     <div className="w-full pb-10 animate-fade-in">
-      
+      {isJeweller ? (
+        <div className="mb-6 flex w-full border-b border-pale/60" role="tablist" aria-label="Profile sections">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={profileTab === 'profile'}
+            onClick={() => setProfileTab('profile')}
+            className={`relative flex-1 cursor-pointer py-3.5 text-center text-[12px] font-semibold tracking-wide transition-colors md:text-[13px] ${
+              profileTab === 'profile' ? 'text-walnut' : 'text-muted hover:text-mid'
+            }`}
+          >
+            Profile
+            {profileTab === 'profile' ? (
+              <span className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 bg-walnut" aria-hidden />
+            ) : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={profileTab === 'portfolio'}
+            onClick={() => setProfileTab('portfolio')}
+            className={`relative flex-1 cursor-pointer py-3.5 text-center text-[12px] font-semibold tracking-wide transition-colors md:text-[13px] ${
+              profileTab === 'portfolio' ? 'text-walnut' : 'text-muted hover:text-mid'
+            }`}
+          >
+            Portfolio
+            {profileTab === 'portfolio' ? (
+              <span className="pointer-events-none absolute inset-x-0 -bottom-px h-0.5 bg-walnut" aria-hidden />
+            ) : null}
+          </button>
+        </div>
+      ) : null}
+
+      {isJeweller && profileTab === 'portfolio' ? (
+        <VendorPortfolioPanel addToast={addToast} />
+      ) : (
+      <>
       {/* 1. BASIC INFO CARD */}
       <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-6">
         <div className="flex items-center justify-between mb-6 lg:mb-8">
@@ -927,6 +965,8 @@ export default function Profile() {
         </div>
       ) : null}
 
+      </>
+      )}
     </div>
   );
 }

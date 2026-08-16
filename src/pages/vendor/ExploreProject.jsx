@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
+import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatMoney } from '../../utils/formatMoney';
 
 function isCanceledRequest(err) {
@@ -280,10 +281,9 @@ export default function VendorExploreProject() {
 
   const abortRef = useRef(null);
 
-  const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [details, setDetails] = useState(null);
-  const [bidsLoading, setBidsLoading] = useState(false);
+  const [bidsLoading, setBidsLoading] = useState(true);
   const [bids, setBids] = useState([]);
   const [bidModalOpen, setBidModalOpen] = useState(false);
   const [bidForm, setBidForm] = useState({ price: '', daysToComplete: '' });
@@ -338,6 +338,8 @@ export default function VendorExploreProject() {
       'size_custom_value',
       'sizeCustomUnit',
       'size_custom_unit',
+      'confirmSpecs',
+      'confirm_specs',
     ]);
     const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
     if (sizeModeRaw === 'custom') {
@@ -364,18 +366,16 @@ export default function VendorExploreProject() {
     if (abortRef.current) abortRef.current.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    setLoading(true);
     try {
       const res = await projectService.getDetails(projectId, { signal: ctrl.signal });
+      if (abortRef.current !== ctrl) return;
       setDetails(res || null);
       setHasLoaded(true);
     } catch (e) {
-      if (isCanceledRequest(e)) return;
+      if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load project', 'error');
       setDetails(null);
       setHasLoaded(true);
-    } finally {
-      setLoading(false);
     }
   }, [addToast, projectId]);
 
@@ -550,12 +550,7 @@ export default function VendorExploreProject() {
       </div>
 
       {!hasLoaded ? (
-        <div className="min-h-[calc(100vh-260px)] flex items-center justify-center">
-          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-            <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-          </svg>
-        </div>
+        <VendorExploreProjectSkeleton />
       ) : !project ? (
         <div className="min-h-[calc(100vh-260px)] flex flex-col items-center justify-center text-center">
           <p className="font-serif text-5xl font-extrabold text-ink">404</p>
@@ -637,52 +632,8 @@ export default function VendorExploreProject() {
             </div>
 
             {bidsLoading ? (
-                <>
-                  <div className="md:hidden rounded-2xl border border-pale bg-white p-10 flex items-center justify-center min-h-[200px]">
-                    <svg
-                      className="animate-spin text-ink"
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="28"
-                      height="28"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                    >
-                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full min-w-[520px] text-left border-collapse">
-                        <thead>
-                          <tr className="border-b border-pale bg-walnut/[0.07]">
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            <td colSpan={3} className="px-4 py-12 text-center align-middle bg-cream/20">
-                              <svg
-                                className="animate-spin text-ink inline-block"
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="28"
-                                height="28"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                              >
-                                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                              </svg>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </>
-              ) : bids.length === 0 ? (
+              <BidsTableSkeleton />
+            ) : bids.length === 0 ? (
                 <>
                   <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
                     <div className="flex flex-col items-center text-center">
