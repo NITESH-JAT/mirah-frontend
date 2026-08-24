@@ -532,7 +532,12 @@ export default function ProjectDetails() {
   const statusModel = details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
   const shipmentModel = details?.shipmentModel ?? details?.shipment_model ?? details?.data?.shipmentModel ?? null;
   const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
-  const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
+  const fullUpfront = Boolean(
+    details?.fullUpfront ?? details?.full_upfront ?? Number(advancePayment?.percent) === 100,
+  );
+  const deferredProductionStarted = Boolean(
+    details?.deferredProductionStarted ?? details?.deferred_production_started,
+  );
   const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
 
   const projectId = project?.id ?? project?._id ?? id ?? null;
@@ -552,10 +557,10 @@ export default function ProjectDetails() {
   );
   const projectStatusLabel = useMemo(() => {
     if (projectStatusKey === 'invoice') {
-      return invoiceProjectStatusLabel(advanceStatus, finalStatus);
+      return invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront });
     }
     return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
-  }, [advanceStatus, finalStatus, project, projectStatusKey]);
+  }, [advanceStatus, finalStatus, project, projectStatusKey, fullUpfront]);
 
   const statusSteps = useMemo(() => {
     const steps = statusStepsFromStatusModel(statusModel);
@@ -590,8 +595,12 @@ export default function ProjectDetails() {
       out.splice(idx + 1, 0, ...items);
     };
 
-    const advanceMilestones = [{ key: 'invoice_advance', label: 'Invoice (Advance)' }, { key: 'paid_advance', label: 'Advance Paid' }];
-    const finalMilestones = [{ key: 'invoice_final', label: 'Invoice (Final)' }, { key: 'paid_final', label: 'Final Paid' }];
+    const advanceMilestones = fullUpfront
+      ? [{ key: 'invoice_advance', label: 'Invoice (Full Payment)' }, { key: 'paid_advance', label: 'Full Payment Received' }]
+      : [{ key: 'invoice_advance', label: 'Invoice (Advance)' }, { key: 'paid_advance', label: 'Advance Paid' }];
+    const finalMilestones = fullUpfront
+      ? []
+      : [{ key: 'invoice_final', label: 'Invoice (Final)' }, { key: 'paid_final', label: 'Final Paid' }];
 
     // Advance is relevant early; put it after started (or at top if missing).
     insertAfter('started', advanceMilestones);
@@ -600,8 +609,6 @@ export default function ProjectDetails() {
 
     // Final is expected after QC; if QC missing, append near end.
     insertAfter('qc', finalMilestones);
-
-    // Final dedupe in case steps already included similar keys
     const seen2 = new Set();
     return out.filter((s) => {
       const k = normalizeStatusKey(s?.key);
@@ -609,7 +616,7 @@ export default function ProjectDetails() {
       seen2.add(k);
       return true;
     });
-  }, [project, statusModel, shipmentModel]);
+  }, [project, statusModel, shipmentModel, fullUpfront]);
 
   const statusTimelineMulti = useMemo(() => {
     const list = Array.isArray(statusModel?.timeline) ? statusModel.timeline : [];
@@ -719,15 +726,15 @@ export default function ProjectDetails() {
   const currentStepKey = useMemo(() => {
     if (currentOperationalStatusKey === 'invoice') {
       if (advanceStatus === 'due') return 'invoice_advance';
-      if (finalStatus === 'due') return 'invoice_final';
-      if (finalStatus === 'paid') return 'paid_final';
+      if (!fullUpfront && finalStatus === 'due') return 'invoice_final';
+      if (!fullUpfront && finalStatus === 'paid') return 'paid_final';
       if (advanceStatus === 'paid') return 'paid_advance';
       return 'invoice_advance';
     }
     if (currentOperationalStatusKey === 'paid') {
-      if (finalStatus === 'paid') return 'paid_final';
+      if (!fullUpfront && finalStatus === 'paid') return 'paid_final';
       if (advanceStatus === 'paid') return 'paid_advance';
-      return 'paid_final';
+      return fullUpfront ? 'paid_advance' : 'paid_final';
     }
     if (qcFailedPendingRework) return 'in_progress';
     if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
@@ -740,6 +747,7 @@ export default function ProjectDetails() {
     activeInbound,
     currentOperationalStatusKey,
     finalStatus,
+    fullUpfront,
     inTransitToArviahReached,
     qcFailedPendingRework,
     shipmentModel,
@@ -1043,7 +1051,7 @@ export default function ProjectDetails() {
         order_id: parsed.orderId,
         currency: parsed.currency || 'INR',
         name: 'Arviah',
-        description: type === 'advance' ? 'Advance payment' : 'Final payment',
+        description: fullUpfront || type === 'advance' ? 'Full payment' : 'Final payment',
         modal: {
           ondismiss: () => {
             if (handlerInvoked) return;
@@ -1423,21 +1431,32 @@ export default function ProjectDetails() {
                       </div>
                     ) : null}
                     <div className="rounded-2xl border border-pale p-4">
-                      <p className="text-[12px] font-bold text-ink">Advance</p>
+                      <p className="text-[12px] font-bold text-ink">{fullUpfront ? 'Full payment' : 'Advance'}</p>
                       <p className="mt-1 text-[12px] text-muted">
                         Status:{' '}
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(advanceStatus)}`}>
                         {paymentStatusLabel(advanceStatus)}
                       </span>
                       </p>
-                      {advancePayment?.suggestedAmount != null ? (
-                        <p className="mt-1 text-[12px] text-muted">
-                          Suggested: <span className="font-semibold text-mid">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                      {deferredProductionStarted && advanceStatus === 'due' ? (
+                        <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
+                          Production has started. Payment is still due before dispatch.
                         </p>
                       ) : null}
-                      {advanceIsHalfOfPreTaxQuote ? (
+                      {advancePayment?.suggestedAmount != null ? (
+                        <p className="mt-1 text-[12px] text-muted">
+                          {fullUpfront ? 'Total due' : 'Suggested'}:{' '}
+                          <span className="font-semibold text-mid">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
+                        </p>
+                      ) : null}
+                      {advanceIsHalfOfPreTaxQuote && !fullUpfront ? (
                         <p className="mt-1 text-[11px] text-muted leading-relaxed">
                           50% of the agreed quote (before tax). GST and delivery are included in the final payment.
+                        </p>
+                      ) : null}
+                      {fullUpfront ? (
+                        <p className="mt-1 text-[11px] text-muted leading-relaxed">
+                          Pay 100% upfront to start production on your bespoke piece.
                         </p>
                       ) : null}
                       {advanceStatus === 'due' ? (
@@ -1447,11 +1466,12 @@ export default function ProjectDetails() {
                           disabled={payLoading}
                           className="mt-3 w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {payLoading ? 'Processing…' : 'Pay Advance'}
+                          {payLoading ? 'Processing…' : fullUpfront ? 'Pay in Full' : 'Pay Advance'}
                         </button>
                       ) : null}
                     </div>
 
+                    {!fullUpfront && finalStatus !== 'not_applicable' ? (
                     <div className="rounded-2xl border border-pale p-4">
                       <p className="text-[12px] font-bold text-ink">Final</p>
                       <p className="mt-1 text-[12px] text-muted">
@@ -1476,9 +1496,12 @@ export default function ProjectDetails() {
                         </button>
                       ) : null}
                     </div>
+                    ) : null}
                   </div>
                   <p className="mt-3 text-[11px] text-muted">
-                    Note: Advance payment is required to start the project. Final payment can be paid after project completion.
+                    {fullUpfront
+                      ? 'Note: Full payment is required to start production. Trusted customers may have production started before payment by Arviah admin.'
+                      : 'Note: Advance payment is required to start the project. Final payment can be paid after project completion.'}
                   </p>
                 </div>
               )}
@@ -1616,9 +1639,9 @@ export default function ProjectDetails() {
 
                             const labelRaw = (() => {
                               const k = normalizeStatusKey(key);
-                              if (k === 'invoice_advance') return 'Invoice (Advance)';
+                              if (k === 'invoice_advance') return fullUpfront ? 'Invoice (Full Payment)' : 'Invoice (Advance)';
                               if (k === 'invoice_final') return 'Invoice (Final)';
-                              if (k === 'paid_advance') return 'Advance Paid';
+                              if (k === 'paid_advance') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
                               if (k === 'paid_final') return 'Final Paid';
                               if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
                               if (k === 'qc') return 'Arviah QC Checks';

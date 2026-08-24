@@ -40,6 +40,8 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
   const bundled = pickNum(tariff, ['bundledCustomerDue', 'bundled_customer_due']);
   const adv = pickNum(tariff, ['advanceCustomerDue', 'advance_customer_due']);
   const fin = pickNum(tariff, ['finalCustomerDue', 'final_customer_due']);
+  const fullUpfront =
+    bundled != null && adv != null && (fin == null || fin <= 0) && Math.abs(Number(adv) - Number(bundled)) < 1.05;
 
   const quoteBasis =
     agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount)) ? Number(agreedQuoteAmount) : J;
@@ -141,29 +143,42 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
               {(adv != null || fin != null) ? (
                 <div className="mt-4">
                   <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">How you may pay</p>
-                  <p className="text-[11px] text-muted mb-2 leading-relaxed">
-                    {advanceIsPreTaxHalf
-                      ? 'Advance is 50% of the agreed quote before tax. GST and delivery are collected with the final payment.'
-                      : 'Your payments are usually split across milestones approved at checkout — amounts are rounded per instalment rules.'}
-                  </p>
-                  <div className="rounded-xl border border-pale divide-y divide-pale px-3">
-                    <ModalRow
-                      label={
-                        advanceIsPreTaxHalf
-                          ? 'Suggested advance (50% of agreed quote, before tax)'
-                          : 'Suggested advance instalment'
-                      }
-                      value={adv}
-                    />
-                    <ModalRow
-                      label={
-                        advanceIsPreTaxHalf
-                          ? 'Suggested final (remaining quote + GST + delivery)'
-                          : 'Suggested final instalment (incl. delivery & delivery tax when applicable)'
-                      }
-                      value={fin}
-                    />
-                  </div>
+                  {fullUpfront ? (
+                    <>
+                      <p className="text-[11px] text-muted mb-2 leading-relaxed">
+                        Pay 100% upfront when you select your jeweller to start production.
+                      </p>
+                      <div className="rounded-xl border border-pale divide-y divide-pale px-3">
+                        <ModalRow label="Full payment due upfront" value={adv ?? bundled} />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-muted mb-2 leading-relaxed">
+                        {advanceIsPreTaxHalf
+                          ? 'Advance is 50% of the agreed quote before tax. GST and delivery are collected with the final payment.'
+                          : 'Your payments are usually split across milestones approved at checkout — amounts are rounded per instalment rules.'}
+                      </p>
+                      <div className="rounded-xl border border-pale divide-y divide-pale px-3">
+                        <ModalRow
+                          label={
+                            advanceIsPreTaxHalf
+                              ? 'Suggested advance (50% of agreed quote, before tax)'
+                              : 'Suggested advance instalment'
+                          }
+                          value={adv}
+                        />
+                        <ModalRow
+                          label={
+                            advanceIsPreTaxHalf
+                              ? 'Suggested final (remaining quote + GST + delivery)'
+                              : 'Suggested final instalment (incl. delivery & delivery tax when applicable)'
+                          }
+                          value={fin}
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
               ) : null}
 

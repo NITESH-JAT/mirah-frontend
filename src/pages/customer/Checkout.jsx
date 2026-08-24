@@ -4,9 +4,10 @@ import { cartService } from '../../services/cartService';
 import { addressService } from '../../services/addressService';
 import { getVendorId, getVendorDisplayName } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
-import { priceForCartLine } from '../../utils/cartVariant';
+import { priceForCartLine, formatCartVariantLabel } from '../../utils/cartVariant';
 import { formatMoney } from '../../utils/formatMoney';
 import { authService } from '../../services/authService';
+import { systemService } from '../../services/systemService';
 import {
   getStateRegionLabelForCountry,
   normalizeCountryLookupRows,
@@ -36,6 +37,12 @@ export default function Checkout() {
   const [partialCalc, setPartialCalc] = useState(null);
   const [pickupOpen, setPickupOpen] = useState(false);
   const [pickupMode, setPickupMode] = useState('offline'); // 'offline' | 'partial'
+  const [offlineShopCheckout, setOfflineShopCheckout] = useState({
+    status: 'coming_soon',
+    comingSoonMessage: 'Coming soon — not enough partner showrooms yet.',
+    visible: true,
+    enabled: false,
+  });
   const [billingForm, setBillingForm] = useState({
     id: null,
     type: 'billing',
@@ -82,27 +89,27 @@ export default function Checkout() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const data = await systemService.getOfflineShopCheckout();
+        if (!cancelled && data) setOfflineShopCheckout(data);
+      } catch {
+        // Keep default coming-soon state if config cannot be loaded.
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const pickProductId = (it) => it?.productId ?? it?.product?._id ?? it?.product?.id ?? it?.product?.productId ?? null;
   const pickCartItemId = (it) => it?.cartItemId ?? it?.cart_item_id ?? it?.id ?? it?._id ?? null;
 
   function variantTextOf(variants) {
-    if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return '';
-    const parts = [];
-    const type = String(variants?.type ?? '').trim();
-    const size = String(variants?.size ?? '').trim();
-    const dimRaw = variants?.sizeDimensions ?? variants?.size_dimensions ?? null;
-    const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
-    const unit = String(variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? '').trim();
-    const dimPart =
-      dim && unit
-        ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
-          ? `${dim}${unit}`
-          : `${dim} ${unit}`
-        : dim || '';
-    if (type) parts.push(type);
-    if (size) parts.push(size);
-    if (dimPart) parts.push(dimPart);
-    return parts.join(' · ');
+    return formatCartVariantLabel(variants) || '';
   }
 
   const normalizeAddress = (a, fallbackType) => {
@@ -167,6 +174,61 @@ export default function Checkout() {
     const total = Number(totals?.total || 0) || 0;
     return total <= OFFLINE_PAYMENT_LIMIT;
   }, [totals?.total]);
+
+  const offlineShopVisible = Boolean(offlineShopCheckout?.visible);
+  const offlineShopEnabled = Boolean(offlineShopCheckout?.enabled);
+  const offlineComingSoonMessage = String(
+    offlineShopCheckout?.comingSoonMessage || 'Coming soon — not enough partner showrooms yet.',
+  );
+
+  const paymentMethodOptions = useMemo(() => {
+    const opts = [{ id: 'razorpay', label: 'Online', hint: 'Pay with Razorpay', info: null }];
+    if (offlineShopVisible) {
+      opts.push({
+        id: 'offline',
+        label: 'Offline',
+        hint: !offlineShopEnabled
+          ? 'Coming soon'
+          : offlineAllowed
+            ? 'Pay offline'
+            : 'Not available above ₹2,00,000',
+        info: 'Pay in person at our office during order pickup.',
+        blocked: !offlineShopEnabled || !offlineAllowed,
+        comingSoon: !offlineShopEnabled,
+      });
+      opts.push({
+        id: 'partial',
+        label: 'Pay part now',
+        hint: !offlineShopEnabled ? 'Coming soon' : 'Rest offline',
+        info: 'Pay part now, balance payable in person at pickup',
+        blocked: !offlineShopEnabled,
+        comingSoon: !offlineShopEnabled,
+      });
+    }
+    return opts;
+  }, [offlineAllowed, offlineShopEnabled, offlineShopVisible]);
+
+  const selectPaymentMethod = (methodId) => {
+    if (methodId === 'offline' || methodId === 'partial') {
+      if (!offlineShopVisible) return;
+      if (!offlineShopEnabled) {
+        addToast(offlineComingSoonMessage, 'info');
+        return;
+      }
+      if (methodId === 'offline' && !offlineAllowed) {
+        addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
+        return;
+      }
+    }
+    setPaymentMethod(methodId);
+    setMobilePayInfoOpen(null);
+  };
+
+  useEffect(() => {
+    if ((paymentMethod === 'offline' || paymentMethod === 'partial') && (!offlineShopVisible || !offlineShopEnabled)) {
+      setPaymentMethod('razorpay');
+    }
+  }, [offlineShopEnabled, offlineShopVisible, paymentMethod]);
 
   const providerCheck = useMemo(() => {
     const providers = new Set();
@@ -502,6 +564,11 @@ export default function Checkout() {
   const proceedCheckout = async (pickup = {}) => {
     if (!hasSelection) return;
     if (!providerCheck.ok) return;
+    if ((paymentMethod === 'offline' || paymentMethod === 'partial') && !offlineShopEnabled) {
+      addToast(offlineComingSoonMessage, 'info');
+      setPaymentMethod('razorpay');
+      return;
+    }
     if (paymentMethod === 'offline' && !offlineAllowed) {
       addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
       setPaymentMethod('razorpay');
@@ -641,6 +708,11 @@ export default function Checkout() {
   const onContinue = async () => {
     if (!hasSelection) return;
     if (!providerCheck.ok) return;
+    if ((paymentMethod === 'offline' || paymentMethod === 'partial') && !offlineShopEnabled) {
+      addToast(offlineComingSoonMessage, 'info');
+      setPaymentMethod('razorpay');
+      return;
+    }
     if (paymentMethod === 'offline' && !offlineAllowed) {
       addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
       setPaymentMethod('razorpay');
@@ -1144,33 +1216,21 @@ export default function Checkout() {
 
               <div className="hidden md:block bg-white rounded-2xl border border-pale p-4 md:p-6">
                 <p className="text-[13px] font-extrabold text-ink">Payment method</p>
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  {[
-                    { id: 'razorpay', label: 'Online', hint: 'Pay with Razorpay' },
-                    {
-                      id: 'offline',
-                      label: 'Offline',
-                      hint: offlineAllowed ? 'Pay offline' : 'Not available above ₹2,00,000',
-                      info: 'Pay in person at our office during order pickup.',
-                    },
-                    {
-                      id: 'partial',
-                      label: 'Pay part now',
-                      hint: 'Rest offline',
-                      info: 'Pay part now, balance payable in person at pickup',
-                    },
-                  ].map((m) => (
+                <div
+                  className={`mt-3 grid gap-2 ${
+                    paymentMethodOptions.length >= 3
+                      ? 'grid-cols-1 sm:grid-cols-3'
+                      : paymentMethodOptions.length === 2
+                        ? 'grid-cols-1 sm:grid-cols-2'
+                        : 'grid-cols-1'
+                  }`}
+                >
+                  {paymentMethodOptions.map((m) => (
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => {
-                        if (m.id === 'offline' && !offlineAllowed) {
-                          addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
-                          return;
-                        }
-                        setPaymentMethod(m.id);
-                      }}
-                      disabled={m.id === 'offline' && !offlineAllowed}
+                      onClick={() => selectPaymentMethod(m.id)}
+                      disabled={Boolean(m.blocked)}
                       className={`relative text-left px-4 py-3 rounded-2xl border ${
                         paymentMethod === m.id
                           ? 'border-walnut bg-walnut/5 text-ink'
@@ -1200,6 +1260,14 @@ export default function Checkout() {
                     </button>
                   ))}
                 </div>
+                {offlineShopVisible && !offlineShopEnabled ? (
+                  <p className="mt-3 text-[11px] font-semibold text-amber-700">{offlineComingSoonMessage}</p>
+                ) : null}
+                {offlineShopEnabled && !offlineAllowed ? (
+                  <p className="mt-3 text-[11px] font-semibold text-amber-700">
+                    Offline payment is not available above ₹2,00,000.
+                  </p>
+                ) : null}
 
                 <button
                   type="button"
@@ -1226,41 +1294,32 @@ export default function Checkout() {
                 <p className="text-[12px] font-extrabold text-ink">Payment method</p>
                 <p className="text-[11px] text-muted">Select one</p>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {[
-                  { id: 'razorpay', label: 'Online', info: null },
-                  { id: 'offline', label: 'Offline', info: 'Pay in person at our office during order pickup.' },
-                  { id: 'partial', label: 'Pay part now', info: 'Pay part now, balance payable in person at pickup' },
-                ].map((m) => (
+              <div
+                className={`mt-3 grid gap-2 ${
+                  paymentMethodOptions.length >= 3
+                    ? 'grid-cols-3'
+                    : paymentMethodOptions.length === 2
+                      ? 'grid-cols-2'
+                      : 'grid-cols-1'
+                }`}
+              >
+                {paymentMethodOptions.map((m) => (
                   <div
                     key={m.id}
-                    onClick={() => {
-                      if (m.id === 'offline' && !offlineAllowed) {
-                        addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
-                        return;
-                      }
-                      setPaymentMethod(m.id);
-                      // Close any open info tooltip after selecting a method.
-                      setMobilePayInfoOpen(null);
-                    }}
+                    onClick={() => selectPaymentMethod(m.id)}
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter' && e.key !== ' ') return;
                       e.preventDefault();
-                      if (m.id === 'offline' && !offlineAllowed) {
-                        addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
-                        return;
-                      }
-                      setPaymentMethod(m.id);
-                      setMobilePayInfoOpen(null);
+                      selectPaymentMethod(m.id);
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-disabled={m.id === 'offline' && !offlineAllowed}
+                    aria-disabled={Boolean(m.blocked)}
                     className={`relative w-full px-2 py-2 rounded-xl border text-[11px] font-extrabold select-none text-center ${
                       paymentMethod === m.id
                         ? 'border-walnut bg-walnut/5 text-ink'
                         : 'border-pale bg-white text-mid'
-                    } ${m.id === 'offline' && !offlineAllowed ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    } ${m.blocked ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                   >
                     {m.info ? (
                       <button
@@ -1283,10 +1342,15 @@ export default function Checkout() {
                 <div className="mt-3 rounded-2xl border border-pale bg-cream px-3 py-2 text-[11px] font-semibold text-mid">
                   {mobilePayInfoOpen === 'offline'
                     ? 'Pay in person at our office during order pickup.'
-                    : 'Pay part now, balance payable in person at pickup'}
+                    : mobilePayInfoOpen === 'partial'
+                      ? 'Pay part now, balance payable in person at pickup'
+                      : ''}
                 </div>
               ) : null}
-              {!offlineAllowed ? (
+              {offlineShopVisible && !offlineShopEnabled ? (
+                <p className="mt-2 text-center text-[11px] font-semibold text-amber-700">{offlineComingSoonMessage}</p>
+              ) : null}
+              {offlineShopEnabled && !offlineAllowed ? (
                 <p className="mt-2 text-center text-[11px] font-semibold text-amber-700">
                   Offline payment is not available above ₹2,00,000.
                 </p>

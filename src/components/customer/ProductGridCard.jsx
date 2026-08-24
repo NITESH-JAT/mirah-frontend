@@ -56,6 +56,11 @@ function materialSpecLine(p) {
     p?.metalColour ?? p?.metal_colour ?? p?.metalColor ?? p?.metal_color ?? ''
   ).trim();
   const diamondRaw = String(p?.diamondType ?? p?.diamond_type ?? '').trim();
+  const types = Array.isArray(p?.diamondTypes ?? p?.diamond_types)
+    ? (p?.diamondTypes ?? p?.diamond_types)
+        .map((x) => String(x || '').trim().toLowerCase())
+        .filter((x) => x === 'natural' || x === 'lab')
+    : [];
 
   let metalPart = '';
   if (metalColour && metalType) {
@@ -66,7 +71,12 @@ function materialSpecLine(p) {
     metalPart = capitalizeWord(metalType);
   }
 
-  const diamondPart = diamondRaw ? capitalizeWord(diamondRaw) : '';
+  const diamondPart =
+    types.length > 0
+      ? types.map((t) => capitalizeWord(t === 'lab' ? 'lab grown' : t)).join(' / ')
+      : diamondRaw
+        ? capitalizeWord(diamondRaw)
+        : '';
   const parts = [metalPart, diamondPart].filter(Boolean);
   return parts.length ? parts.join(' · ') : null;
 }

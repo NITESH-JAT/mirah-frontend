@@ -39,31 +39,6 @@ function formatDateOnlyFromInput(value) {
   return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }
 
-function startOfLocalDay(date) {
-  const d = date instanceof Date ? new Date(date.getTime()) : new Date(date);
-  if (!d || Number.isNaN(d.getTime())) return null;
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-function bidPlaceholderBudgetAmount(budgetPerPieceRaw) {
-  const n = Number(String(budgetPerPieceRaw ?? '').replace(/,/g, '').trim());
-  if (Number.isFinite(n) && n > 0) return Math.round(n);
-  return 700000;
-}
-
-function bidPlaceholderDeliveryDays(preferredDeliveryRaw) {
-  const raw = String(preferredDeliveryRaw || '').trim();
-  if (!raw) return 23;
-  const base = startOfLocalDay(new Date());
-  const target = parseLocalDateInput(raw);
-  if (!base || !target) return 23;
-  const diffMs = startOfLocalDay(target)?.getTime() - base.getTime();
-  const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
-  if (!Number.isFinite(diffDays) || diffDays <= 0) return 23;
-  return diffDays;
-}
-
 function bidVendorIdOf(b) {
   return b?.vendorId ?? b?.vendor_id ?? b?.vendor?.id ?? b?.vendor?._id ?? null;
 }
@@ -85,38 +60,6 @@ function bidDaysOf(b) {
   const v = b?.daysToComplete ?? b?.days_to_complete ?? b?.noOfDays ?? b?.no_of_days ?? b?.timeline ?? null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
-}
-
-function bidCreatedAtOf(b) {
-  return b?.createdAt ?? b?.created_at ?? b?.placedAt ?? b?.placed_at ?? b?.timestamp ?? null;
-}
-
-function pickWinningBid(bids) {
-  const list = Array.isArray(bids) ? bids : [];
-  let winner = null;
-  for (const b of list) {
-    const price = bidPriceOf(b);
-    const days = bidDaysOf(b);
-    if (price == null || days == null) continue;
-    if (!winner) {
-      winner = b;
-      continue;
-    }
-    const wp = bidPriceOf(winner);
-    const wd = bidDaysOf(winner);
-    if (wp == null || wd == null) {
-      winner = b;
-      continue;
-    }
-    if (price < wp) winner = b;
-    else if (price === wp && days < wd) winner = b;
-    else if (price === wp && days === wd) {
-      const tA = new Date(bidCreatedAtOf(b) || 0).getTime();
-      const tW = new Date(bidCreatedAtOf(winner) || 0).getTime();
-      if (Number.isFinite(tA) && Number.isFinite(tW) && tA < tW) winner = b;
-    }
-  }
-  return winner;
 }
 
 function daysLabel(days) {
@@ -333,10 +276,6 @@ export default function VendorBidsView() {
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('amount_asc');
   const [nowTs, setNowTs] = useState(Date.now());
-  const [bidModalOpen, setBidModalOpen] = useState(false);
-  const [bidForm, setBidForm] = useState({ price: '', daysToComplete: '' });
-  const [bidSubmitting, setBidSubmitting] = useState(false);
-  const [bidPreview, setBidPreview] = useState({ loading: false, commission: null, net: null, forPrice: null });
   const [withdrawingAll, setWithdrawingAll] = useState(false);
   const [withdrawAllModalOpen, setWithdrawAllModalOpen] = useState(false);
   const [cancellingId, setCancellingId] = useState(null);
@@ -360,7 +299,8 @@ export default function VendorBidsView() {
   const isActive = Boolean(activeBidWindow) && !bidEnded;
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
-  const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
+  // Sealed bidding: jewellers only see their own bid, so do not show a "winning" badge.
+  const winningBidId = null;
 
   const assignments = useMemo(() => {
     const raw =
@@ -473,7 +413,6 @@ export default function VendorBidsView() {
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
-  const winningBidId = useMemo(() => bidStableId(winningBid), [winningBid]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -524,38 +463,6 @@ export default function VendorBidsView() {
     return () => clearInterval(t);
   }, []);
 
-  // Live commission + net-payable preview as the jeweller types their bid.
-  useEffect(() => {
-    if (!bidModalOpen) return undefined;
-    const price = Number(bidForm.price);
-    if (!Number.isFinite(price) || price <= 0) {
-      setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
-      return undefined;
-    }
-    setBidPreview((prev) => ({ ...prev, loading: true }));
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const data = await projectService.previewBid(projectId, price, { signal: controller.signal });
-        const commission = Number(data?.commissionC);
-        const net = Number(data?.jewellerEstimatedNetAfterFees);
-        setBidPreview({
-          loading: false,
-          commission: Number.isFinite(commission) ? commission : null,
-          net: Number.isFinite(net) ? net : null,
-          forPrice: price,
-        });
-      } catch (e) {
-        if (isCanceledRequest(e)) return;
-        setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
-      }
-    }, 400);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [bidModalOpen, bidForm.price, projectId]);
-
   const filteredBids = useMemo(() => {
     const q = String(search || '').trim().toLowerCase();
     let list = bids;
@@ -586,12 +493,12 @@ export default function VendorBidsView() {
     setWithdrawingAll(true);
     try {
       await projectService.withdrawAllBids(projectId);
-      addToast('All bids withdrawn.', 'success');
-      // If vendor withdrew all bids, this project should disappear from vendor participation list (per PRD).
+      addToast('Bid withdrawn.', 'success');
+      // If vendor withdrew, this project should disappear from vendor participation list (per PRD).
       // Take them back to the vendor bids list (Active tab).
       navigate('/vendor/bids?tab=active', { replace: true });
     } catch (e) {
-      addToast(e?.message || 'Failed to withdraw bids', 'error');
+      addToast(e?.message || 'Failed to withdraw bid', 'error');
     } finally {
       setWithdrawingAll(false);
       setWithdrawAllModalOpen(false);
@@ -650,33 +557,7 @@ export default function VendorBidsView() {
     }
   };
 
-  const submitBid = async () => {
-    if (bidSubmitting || !projectId || bidEnded) return;
-    const price = Number(bidForm.price);
-    const daysToComplete = Number(bidForm.daysToComplete);
-    if (!Number.isFinite(price) || price <= 0) {
-      addToast('Enter a valid bid amount.', 'error');
-      return;
-    }
-    if (!Number.isFinite(daysToComplete) || daysToComplete <= 0) {
-      addToast('Enter a valid delivery duration (days).', 'error');
-      return;
-    }
-    setBidSubmitting(true);
-    try {
-      await projectService.placeBid(projectId, { price, daysToComplete });
-      addToast('Bid updated.', 'success');
-      setBidModalOpen(false);
-      setBidForm({ price: '', daysToComplete: '' });
-      await loadBids();
-      await load();
-    } catch (e) {
-      addToast(e?.message || 'Failed to update bid', 'error');
-    } finally {
-      setBidSubmitting(false);
-    }
-  };
-
+  
 
 
   const chatWithCustomer = useCallback(() => {
@@ -824,16 +705,11 @@ export default function VendorBidsView() {
                         disabled={withdrawingAll}
                         className="w-full px-5 py-3 rounded-2xl border border-red-200 text-[13px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
-                        {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
+                        {withdrawingAll ? 'Withdrawing…' : 'Withdraw Bid'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setBidModalOpen(true)}
-                        disabled={bidEnded}
-                        className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Update Bid
-                      </button>
+                      <p className="text-[11px] text-muted text-center">
+                        Your bid is sealed. It cannot be changed or replaced.
+                      </p>
                     </>
                   ) : null}
                 </div>
@@ -868,7 +744,7 @@ export default function VendorBidsView() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder='Search "Jewellers"'
+                    placeholder="Search your bid"
                     className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid bg-white"
                   />
                 </div>
@@ -906,9 +782,9 @@ export default function VendorBidsView() {
                         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                       </svg>
                     </div>
-                    <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bids yet' : 'No bids found'}</p>
+                    <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bid placed yet' : 'No bids found'}</p>
                     <p className="mt-1 text-[12px] text-muted">
-                      {bids.length === 0 ? 'Be the first to place a bid.' : 'Try adjusting search or sorting.'}
+                      {bids.length === 0 ? 'Only you can see your own sealed bid.' : 'Try adjusting search or sorting.'}
                     </p>
                   </div>
                 </div>
@@ -933,9 +809,9 @@ export default function VendorBidsView() {
                                   <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                                 </svg>
                               </div>
-                              <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bids yet' : 'No bids found'}</p>
+                              <p className="mt-3 text-[14px] font-bold text-ink">{bids.length === 0 ? 'No bid placed yet' : 'No bids found'}</p>
                               <p className="mt-1 text-[12px] text-muted">
-                                {bids.length === 0 ? 'Be the first to place a bid.' : 'Try adjusting search or sorting.'}
+                                {bids.length === 0 ? 'Only you can see your own sealed bid.' : 'Try adjusting search or sorting.'}
                               </p>
                             </div>
                           </td>
@@ -1027,24 +903,9 @@ export default function VendorBidsView() {
                         {(isMe && myPendingAssignment) || (isActive && isMe) ? (
                           <div className="mt-3 flex flex-col items-end gap-2">
                             {isMe && myPendingAssignment ? (
-                              <div className="flex items-center justify-end gap-2 flex-wrap">
-                                <button
-                                  type="button"
-                                  onClick={() => openAssignmentConfirm('reject')}
-                                  disabled={assignmentActing}
-                                  className="px-3 py-1.5 rounded-lg border border-pale bg-white text-[11px] font-bold text-mid hover:bg-cream disabled:opacity-50"
-                                >
-                                  Reject
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => openAssignmentConfirm('accept')}
-                                  disabled={assignmentActing}
-                                  className="px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50"
-                                >
-                                  Accept
-                                </button>
-                              </div>
+                              <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-200 text-amber-800">
+                                Assigned — awaiting customer payment
+                              </span>
                             ) : null}
                             {isActive && isMe ? (
                               <button
@@ -1152,24 +1013,9 @@ export default function VendorBidsView() {
                                 <td className="px-4 py-3 align-middle text-right">
                                   <div className="inline-flex flex-col items-end gap-2">
                                     {isMe && myPendingAssignment ? (
-                                      <div className="flex items-center justify-end gap-1.5 flex-wrap">
-                                        <button
-                                          type="button"
-                                          onClick={() => openAssignmentConfirm('reject')}
-                                          disabled={assignmentActing}
-                                          className="px-3 py-1.5 rounded-lg border border-pale bg-white text-[11px] font-bold text-mid hover:bg-cream disabled:opacity-50"
-                                        >
-                                          Reject
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => openAssignmentConfirm('accept')}
-                                          disabled={assignmentActing}
-                                          className="px-3 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50"
-                                        >
-                                          Accept
-                                        </button>
-                                      </div>
+                                      <span className="inline-flex px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-200 text-amber-800">
+                                        Awaiting customer payment
+                                      </span>
                                     ) : null}
                                     {isActive && isMe ? (
                                       <button
@@ -1198,98 +1044,7 @@ export default function VendorBidsView() {
       </div>
       )}
 
-      {/* Update bid modal */}
-      {bidModalOpen ? (
-        <div
-          className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
-          onMouseDown={() => !bidSubmitting && setBidModalOpen(false)}
-        >
-          <div
-            className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden"
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
-              <p className="text-[14px] font-extrabold text-ink">Update Bid</p>
-              <button
-                type="button"
-                onClick={() => setBidModalOpen(false)}
-                disabled={bidSubmitting}
-                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer disabled:opacity-60"
-                aria-label="Close"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
-            </div>
-            <div className="px-5 py-4">
-              <div className="grid grid-cols-1 gap-3">
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount (₹)</p>
-                  <input
-                    type="number"
-                    value={bidForm.price}
-                    onChange={(e) => setBidForm((p) => ({ ...(p || {}), price: e.target.value }))}
-                    placeholder={`Budget is ₹ ${formatMoney(bidPlaceholderBudgetAmount(budgetPerPieceRaw))}`}
-                    inputMode="numeric"
-                    min="0"
-                    step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
-                  />
-                  {Number(bidForm.price) > 0 ? (
-                    <div className="mt-2 rounded-2xl border border-pale bg-cream/40 px-4 py-3">
-                      {bidPreview.loading && bidPreview.commission == null ? (
-                        <p className="text-[12px] text-muted">Calculating commission…</p>
-                      ) : bidPreview.commission != null && bidPreview.net != null ? (
-                        <>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[12px] font-semibold text-mid">Arviah commission</span>
-                            <span className="text-[12px] font-extrabold text-ink tabular-nums">− ₹ {formatMoney(bidPreview.commission)}</span>
-                          </div>
-                          <div className="mt-1.5 flex items-center justify-between gap-3">
-                            <span className="text-[12px] font-extrabold text-ink">Your net payable</span>
-                            <span className="text-[13px] font-extrabold text-walnut tabular-nums">₹ {formatMoney(bidPreview.net)}</span>
-                          </div>
-                          <p className="mt-2 text-[10px] text-muted leading-snug">
-                            Commission is deducted from your bid. Adjust your bid to reach your target net amount.
-                          </p>
-                        </>
-                      ) : (
-                        <p className="text-[12px] text-muted">Enter a valid amount to see your net payable.</p>
-                      )}
-                    </div>
-                  ) : null}
-                </div>
-                <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Delivery duration (days)</p>
-                  <input
-                    type="number"
-                    value={bidForm.daysToComplete}
-                    onChange={(e) => setBidForm((p) => ({ ...(p || {}), daysToComplete: e.target.value }))}
-                    placeholder={`Preferred delivery in ${bidPlaceholderDeliveryDays(preferredDeliveryRaw)} days`}
-                    inputMode="numeric"
-                    min="1"
-                    step="1"
-                    className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex items-center justify-end gap-2">
-                <button type="button" onClick={() => setBidModalOpen(false)} disabled={bidSubmitting} className="px-4 py-2.5 rounded-xl border border-pale text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50">
-                  Cancel
-                </button>
-                <button type="button" onClick={submitBid} disabled={bidSubmitting || bidEnded} className="px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {bidSubmitting ? 'Submitting…' : 'Update Bid'}
-                </button>
-              </div>
-              {bidEnded ? <p className="mt-3 text-[11px] text-muted">Bidding window has ended.</p> : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Withdraw all bids confirm modal */}
+      {/* Withdraw bid confirm modal */}
       {withdrawAllModalOpen ? (
         <div
           className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
@@ -1301,9 +1056,9 @@ export default function VendorBidsView() {
           >
             <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-ink">Withdraw All Bids</p>
+                <p className="text-[14px] font-extrabold text-ink">Withdraw Bid</p>
                 <p className="mt-1 text-[12px] text-muted">
-                  This will withdraw all your bids for this project. This cannot be undone.
+                  This will withdraw your bid for this project. You cannot place another bid on this auction.
                 </p>
               </div>
               <button
@@ -1336,7 +1091,7 @@ export default function VendorBidsView() {
                   disabled={withdrawingAll}
                   className="px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {withdrawingAll ? 'Withdrawing…' : 'Withdraw All Bids'}
+                  {withdrawingAll ? 'Withdrawing…' : 'Withdraw Bid'}
                 </button>
               </div>
             </div>

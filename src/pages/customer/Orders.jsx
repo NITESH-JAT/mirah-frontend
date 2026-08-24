@@ -4,6 +4,7 @@ import { orderService } from '../../services/orderService';
 import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
 import { formatMoney } from '../../utils/formatMoney';
+import { formatCartVariantLabel } from '../../utils/cartVariant';
 
 function normalizeOrder(o) {
   return o || {};
@@ -106,27 +107,7 @@ function normalizeVariants(variants) {
 }
 
 function variantTextOf(variants) {
-  const v = normalizeVariants(variants);
-  if (!v) return '';
-
-  const parts = [];
-  const type = String(v?.type ?? '').trim();
-  const size = String(v?.size ?? '').trim();
-  const dimRaw = v?.sizeDimensions ?? null;
-  const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
-  const unit = String(v?.sizeDimensionsUnit ?? '').trim();
-  const dimPart =
-    dim && unit
-      ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
-        ? `${dim}${unit}`
-        : `${dim} ${unit}`
-      : dim || '';
-
-  if (type) parts.push(type);
-  if (size) parts.push(size);
-  if (dimPart) parts.push(dimPart);
-
-  return parts.join(' · ');
+  return formatCartVariantLabel(variants) || '';
 }
 
 export default function Orders() {

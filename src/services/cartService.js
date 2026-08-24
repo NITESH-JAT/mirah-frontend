@@ -11,6 +11,7 @@ function normalizeVariants(variants) {
     size: variants?.size ?? undefined,
     sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
     sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
+    diamondType: variants?.diamondType ?? variants?.diamond_type ?? undefined,
   };
   // Remove empty keys so backend doesn't see noise
   for (const k of Object.keys(out)) {
@@ -44,10 +45,13 @@ export const cartService = {
     return { raw: data, items, meta };
   },
 
-  addItem: async ({ productId, quantity = 1, variants } = {}) => {
+  addItem: async ({ productId, quantity = 1, variants, diamondType } = {}) => {
     const body = { productId, quantity };
     const v = normalizeVariants(variants);
     if (v) body.variants = v;
+    if (!v?.diamondType && (diamondType === 'natural' || diamondType === 'lab')) {
+      body.diamondType = diamondType;
+    }
     const res = await api.post('/api/user/cart', body);
     const data = unwrap(res);
     // Mark cart as "updated" so UI can show a red dot / update badge.

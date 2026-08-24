@@ -11,6 +11,7 @@ import SafeImage from '../SafeImage';
 import { priceForCartLine } from '../../utils/cartVariant';
 import { formatMoney } from '../../utils/formatMoney';
 import { resolveNotificationHref } from '../../utils/notificationNavigation';
+import { CustomerStorefrontProvider, useCustomerStorefront } from '../../context/CustomerStorefrontContext';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, onClose }) => {
@@ -134,9 +135,20 @@ function normalizeYouTubeForIframe(url) {
 }
 
 export default function DashboardLayout() {
+  const { user: currentUser } = useAuth();
+  const isVendor = currentUser?.userType === 'vendor' || currentUser?.userType === 'jeweller';
+  return (
+    <CustomerStorefrontProvider enabled={!isVendor}>
+      <DashboardLayoutShell />
+    </CustomerStorefrontProvider>
+  );
+}
+
+function DashboardLayoutShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user: currentUser, setUser: setCurrentUser, logout } = useAuth();
+  const { purchasingEnabled: storePurchasingEnabled } = useCustomerStorefront();
   const path = location.pathname;
   const isProfilePage = path.includes('profile');
   const isFaqPage = path.includes('faq');
@@ -469,17 +481,20 @@ export default function DashboardLayout() {
   }, []);
 
   const refreshCartCount = useCallback(async () => {
-    if (isVendor) return;
+    if (isVendor || !storePurchasingEnabled) {
+      setCartCount(0);
+      return;
+    }
     try {
       const res = await cartService.getCart();
       setCartCount(cartItemCountOf(res?.items || []));
     } catch {
       // ignore badge failures
     }
-  }, [cartItemCountOf, isVendor]);
+  }, [cartItemCountOf, isVendor, storePurchasingEnabled]);
 
   const loadCartDrawer = useCallback(async () => {
-    if (isVendor) return;
+    if (isVendor || !storePurchasingEnabled) return;
     if (cartDrawerAbortRef.current) cartDrawerAbortRef.current.abort();
     const ctrl = new AbortController();
     cartDrawerAbortRef.current = ctrl;
@@ -505,7 +520,7 @@ export default function DashboardLayout() {
     } finally {
       setCartDrawerLoading(false);
     }
-  }, [addToast, cartItemCountOf, isVendor, normalizeCartItems]);
+  }, [addToast, cartItemCountOf, isVendor, normalizeCartItems, storePurchasingEnabled]);
 
   const closeCartDrawer = useCallback(() => {
     if (cartDrawerAbortRef.current) cartDrawerAbortRef.current.abort();
@@ -605,7 +620,7 @@ export default function DashboardLayout() {
           
           <div className="flex items-center gap-2 sm:gap-3 relative">
             {/* Cart icon (customer) — circular, subtle border */}
-            {!isVendor ? (
+            {!isVendor && storePurchasingEnabled ? (
               <button
                 type="button"
                 onClick={() => {
@@ -785,7 +800,7 @@ export default function DashboardLayout() {
                         View Reviews
                       </button>
                     ) : null}
-                    {!isVendor ? (
+                    {!isVendor && storePurchasingEnabled ? (
                       <button
                         onClick={() => {
                           navigate('/customer/orders');
@@ -880,7 +895,7 @@ export default function DashboardLayout() {
         </div>
 
         {/* CART DRAWER (customer) */}
-        {cartDrawerOpen && !isVendor ? (
+        {cartDrawerOpen && !isVendor && storePurchasingEnabled ? (
           <div
             className="fixed inset-0 z-[160] bg-ink/25 flex items-end md:items-stretch md:justify-end justify-center px-3 md:px-0 pt-[calc(env(safe-area-inset-top)+12px)] md:pt-0 pb-[calc(env(safe-area-inset-bottom)+12px)] md:pb-0"
             onMouseDown={closeCartDrawer}

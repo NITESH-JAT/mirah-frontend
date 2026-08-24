@@ -60,6 +60,7 @@ export const productService = {
     search,
     sortBy,
     sortOrder,
+    diamondType,
     signal,
   } = {}) => {
     const params = { page, limit };
@@ -74,6 +75,7 @@ export const productService = {
     if (search) params.search = search;
     if (sortBy) params.sortBy = sortBy;
     if (sortOrder) params.sortOrder = sortOrder;
+    if (diamondType === 'natural' || diamondType === 'lab') params.diamondType = diamondType;
 
     const res = await api.get('/api/user/product/customer', { params, signal });
     const data = unwrap(res);
@@ -204,8 +206,10 @@ export const productService = {
       .filter(Boolean);
   },
 
-  getCustomerProduct: async (id, { signal } = {}) => {
-    const res = await api.get(`/api/user/product/customer/${id}`, { signal });
+  getCustomerProduct: async (id, { signal, diamondType } = {}) => {
+    const params = {};
+    if (diamondType === 'natural' || diamondType === 'lab') params.diamondType = diamondType;
+    const res = await api.get(`/api/user/product/customer/${id}`, { params, signal });
     const data = unwrap(res);
     return (
       data?.product ??

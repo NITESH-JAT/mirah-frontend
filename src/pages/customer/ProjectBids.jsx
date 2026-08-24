@@ -721,15 +721,16 @@ export default function ProjectBids() {
       const payload = { bidEntryId: overrideFor.bidEntryId, amount: overrideFor.amount, noOfDays: overrideFor.noOfDays };
       if (activeAssignment) {
         await projectService.reassignWinner(projectId, payload);
-        addToast('Assignment overridden.', 'success');
+        addToast('Jeweller updated. Please pay in full to start production.', 'success');
       } else {
         await projectService.selectWinner(projectId, payload);
-        addToast('Assignment sent to Jeweller.', 'success');
+        addToast('Jeweller selected. Please pay in full to start production.', 'success');
       }
       setOverrideOpen(false);
       setOverrideFor(null);
       await load();
       await loadBids();
+      navigate(`/customer/projects/${projectId}`, { state: navStateForProject() });
     } catch (e) {
       addToast(e?.message || 'Failed to assign Jeweller', 'error');
     } finally {
@@ -1381,12 +1382,8 @@ export default function ProjectBids() {
                         if (!bid) return;
                         const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
                         const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                        if (assignmentPending && isAssigned) {
-                          addToast('Assignment is pending. Please wait for Jeweller response before overriding.', 'error');
-                          return;
-                        }
-                        if (assignmentAccepted && isAssigned) {
-                          addToast('This bid is already assigned and accepted.', 'error');
+                        if (assignmentAccepted && isAssigned && advancePaid) {
+                          addToast('This bid is already assigned and paid.', 'error');
                           return;
                         }
                         openOverride(bid);
@@ -1398,7 +1395,7 @@ export default function ProjectBids() {
                         canProceed ? 'bg-walnut text-blush hover:opacity-90' : 'bg-pale text-muted cursor-not-allowed'
                       }`}
                     >
-                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Override Assignment' : 'Confirm Jeweller'}
+                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Change Jeweller' : 'Select Jeweller & Pay'}
                     </button>
                   );
                 })()}
@@ -1514,16 +1511,16 @@ export default function ProjectBids() {
         <div className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={() => setOverrideOpen(false)}>
           <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-pale">
-              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Override Assignment' : 'Confirm Jeweller'}</p>
+              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Change Jeweller' : 'Select Jeweller'}</p>
               <p className="mt-1 text-[12px] text-muted">
                 {activeAssignment ? (
                   <>
-                    This will override the current assignment and assign to{' '}
-                    <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span>.
+                    This will assign the project to{' '}
+                    <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> instead. You will need to pay in full before production starts.
                   </>
                 ) : (
                   <>
-                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span>?
+                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> and pay 100% upfront to start production.
                   </>
                 )}
               </p>
@@ -1547,7 +1544,7 @@ export default function ProjectBids() {
                   disabled={Boolean(actionLoading?.override)}
                   className="px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Confirm Override' : 'Confirm Assignment'}
+                  {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Confirm Change' : 'Select & Continue to Payment'}
                 </button>
               </div>
             </div>

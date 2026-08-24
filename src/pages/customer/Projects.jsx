@@ -9,7 +9,34 @@ import FeasibilityCalculatingPanel from '../../components/project/FeasibilityCal
 import { formatMoney } from '../../utils/formatMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { labPictogram, naturalPictogram, otherMetalCircle, purityLabelForDisplay } from '../../utils/projectFinishPreview';
+import {
+  applySuggestionActionToSpecs,
+  resolveFeasibilitySuggestionActions,
+  suggestionActionApplyLabel,
+} from '../../utils/feasibilitySuggestionApply';
 import logo from '../../assets/logo.png';
+
+const METAL_SWATCH_BY_LABEL = {
+  Gold: '#E4B84A',
+  Silver: '#C8CCD0',
+  Platinum: '#E8E6E3',
+  Other: null,
+};
+
+const FALLBACK_PROJECT_METAL_TYPES = [
+  { id: 'gold', label: 'Gold', sortOrder: 1 },
+  { id: 'platinum', label: 'Platinum', sortOrder: 3 },
+  { id: 'other', label: 'Other', sortOrder: 4 },
+];
+
+function isEnabledProjectMetalType(value, enabledMetals) {
+  const v = String(value || '').trim().toLowerCase();
+  if (!v) return false;
+  const list = Array.isArray(enabledMetals) ? enabledMetals : FALLBACK_PROJECT_METAL_TYPES;
+  return list.some(
+    (m) => String(m?.label || '').trim().toLowerCase() === v || String(m?.id || '').trim().toLowerCase() === v,
+  );
+}
 
 function toTitleCase(text) {
   return String(text || '')
@@ -138,6 +165,51 @@ function buildStructuredSpecsPayload(specs) {
   push('confirmSpecs', 'Confirmation of specifications and terms', s.confirmSpecs);
 
   return buildExtraFieldsPayload(out);
+}
+
+function buildProjectApiPayloadFromForm(createForm) {
+  const title = String(createForm?.title || '').trim();
+  const description = String(createForm?.description || '').trim();
+  const referenceImage = String(createForm?.referenceImage || '').trim();
+  const attachments = coerceUrlArray(createForm?.attachments);
+  const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
+  const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
+
+  const budgetPerPieceRaw = String(createForm?.specs?.budgetPerPiece ?? '').trim();
+  const budgetPerPiece = Number(budgetPerPieceRaw || 0);
+
+  const minAmountRaw = String(createForm?.minAmount ?? '').trim();
+  const maxAmountRaw = String(createForm?.maxAmount ?? '').trim();
+  const minAmountParsed = minAmountRaw ? Number(minAmountRaw) : null;
+  const maxAmountParsed = maxAmountRaw ? Number(maxAmountRaw) : null;
+  const minAmount =
+    Number.isFinite(minAmountParsed) && minAmountParsed > 0
+      ? minAmountParsed
+      : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
+        ? budgetPerPiece
+        : null;
+  const maxAmount =
+    Number.isFinite(maxAmountParsed) && maxAmountParsed > 0
+      ? maxAmountParsed
+      : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
+        ? budgetPerPiece
+        : null;
+
+  const preferredDeliveryDays = Number(createForm?.specs?.preferredDeliveryDays ?? 0);
+  const timelineExpected =
+    Number.isFinite(preferredDeliveryDays) && preferredDeliveryDays > 0 ? preferredDeliveryDays : null;
+
+  const payload = {
+    title,
+    description,
+    referenceImage,
+    attachments,
+    meta,
+  };
+  if (minAmount != null) payload.minAmount = minAmount;
+  if (maxAmount != null) payload.maxAmount = maxAmount;
+  if (timelineExpected != null) payload.timelineExpected = timelineExpected;
+  return payload;
 }
 
 function coerceUrlArray(input) {
@@ -271,18 +343,21 @@ function projectStatusCardLabel(p) {
   const finalPayment = paymentBlockOf(p, 'final');
   const adv = normalizePaymentStatus(advancePayment?.status, { finishedLike });
   const fin = normalizePaymentStatus(finalPayment?.status, { finishedLike });
+  const fullUpfront = Boolean(
+    p?.fullUpfront ?? p?.full_upfront ?? Number(advancePayment?.percent) === 100,
+  );
 
   if (projectStatus === 'invoice') {
-    return invoiceProjectStatusLabel(adv, fin);
+    return invoiceProjectStatusLabel(adv, fin, { fullUpfront });
   }
 
   // If any payment is marked paid, prefer showing payment milestones over bidding labels.
-  if (fin === 'paid') return 'Final Paid';
-  if (adv === 'paid') return 'Advance Paid';
+  if (fin === 'paid') return fullUpfront ? 'Full Payment Received' : 'Final Paid';
+  if (adv === 'paid') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
 
   if (projectStatus === 'paid') {
-    if (fin === 'paid') return 'Final Paid';
-    if (adv === 'paid') return 'Advance Paid';
+    if (fin === 'paid') return fullUpfront ? 'Full Payment Received' : 'Final Paid';
+    if (adv === 'paid') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
     return 'Paid';
   }
 
@@ -738,6 +813,7 @@ export default function Projects() {
   });
 
   const [assignmentsSearch, setAssignmentsSearch] = useState('');
+  const [enabledProjectMetalTypes, setEnabledProjectMetalTypes] = useState(FALLBACK_PROJECT_METAL_TYPES);
 
   const [createForm, setCreateForm] = useState({
     title: '',
@@ -823,6 +899,23 @@ export default function Projects() {
   );
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const metals = await projectService.getMetalTypes();
+        if (!cancelled && Array.isArray(metals) && metals.length) {
+          setEnabledProjectMetalTypes(metals);
+        }
+      } catch {
+        // keep fallback defaults
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!createModalOpen) return;
     setMobileRefCollapsed(createStep >= 2);
   }, [createModalOpen, createStep]);
@@ -875,6 +968,9 @@ export default function Projects() {
       if (step === 2) {
         const metalType = String(s?.metalType || '').trim();
         if (!metalType) return 'Metal type is required';
+        if (!isEnabledProjectMetalType(metalType, enabledProjectMetalTypes)) {
+          return 'This metal type is no longer available. Please choose another metal type.';
+        }
         const isGold = metalType.toLowerCase() === 'gold';
         const isOther = metalType.toLowerCase() === 'other';
         if (isGold) {
@@ -929,62 +1025,40 @@ export default function Projects() {
 
       return null;
     },
-    [createForm],
+    [createForm, enabledProjectMetalTypes],
+  );
+
+  const createMetalTypeOptions = useMemo(
+    () =>
+      (Array.isArray(enabledProjectMetalTypes) ? enabledProjectMetalTypes : FALLBACK_PROJECT_METAL_TYPES).map(
+        (m) => ({
+          value: m.label,
+          swatch: Object.prototype.hasOwnProperty.call(METAL_SWATCH_BY_LABEL, m.label)
+            ? METAL_SWATCH_BY_LABEL[m.label]
+            : null,
+        }),
+      ),
+    [enabledProjectMetalTypes],
   );
 
   const [feasibilityLoading, setFeasibilityLoading] = useState(false);
   const [feasibilitySuggestions, setFeasibilitySuggestions] = useState([]);
   const [feasibilityReview, setFeasibilityReview] = useState(null);
+  const [applyingSuggestionIndex, setApplyingSuggestionIndex] = useState(null);
   const feasibilityAbortRef = useRef(null);
 
-  const projectApiPayload = useMemo(() => {
-    const title = String(createForm?.title || '').trim();
-    const description = String(createForm?.description || '').trim();
-    const referenceImage = String(createForm?.referenceImage || '').trim();
-    const attachments = coerceUrlArray(createForm?.attachments);
-    const specsMeta = buildStructuredSpecsPayload(createForm?.specs);
-    const meta = buildExtraFieldsPayload([...(extraFieldsToArray(specsMeta) || [])]);
+  const projectApiPayload = useMemo(() => buildProjectApiPayloadFromForm(createForm), [createForm]);
 
-    const budgetPerPieceRaw = String(createForm?.specs?.budgetPerPiece ?? '').trim();
-    const budgetPerPiece = Number(budgetPerPieceRaw || 0);
-
-    const minAmountRaw = String(createForm?.minAmount ?? '').trim();
-    const maxAmountRaw = String(createForm?.maxAmount ?? '').trim();
-    const minAmountParsed = minAmountRaw ? Number(minAmountRaw) : null;
-    const maxAmountParsed = maxAmountRaw ? Number(maxAmountRaw) : null;
-    const minAmount =
-      Number.isFinite(minAmountParsed) && minAmountParsed > 0
-        ? minAmountParsed
-        : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
-          ? budgetPerPiece
-          : null;
-    const maxAmount =
-      Number.isFinite(maxAmountParsed) && maxAmountParsed > 0
-        ? maxAmountParsed
-        : budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
-          ? budgetPerPiece
-          : null;
-
-    // UI source of truth is the Details-step delivery slider (preferredDeliveryDays).
-    // Do not prefer createForm.timelineExpected — it stays stale on edit/hydrate and pinned payloads at 20.
-    const preferredDeliveryDays = Number(createForm?.specs?.preferredDeliveryDays ?? 0);
-    const timelineExpected =
-      Number.isFinite(preferredDeliveryDays) && preferredDeliveryDays > 0
-        ? preferredDeliveryDays
-        : null;
-
-    const payload = {
-      title,
-      description,
-      referenceImage,
-      attachments,
-      meta,
-    };
-    if (minAmount != null) payload.minAmount = minAmount;
-    if (maxAmount != null) payload.maxAmount = maxAmount;
-    if (timelineExpected != null) payload.timelineExpected = timelineExpected;
-    return payload;
-  }, [createForm]);
+  const feasibilitySuggestionActions = useMemo(
+    () =>
+      resolveFeasibilitySuggestionActions({
+        suggestions: feasibilitySuggestions,
+        suggestionActions: feasibilityReview?.suggestionActions,
+        review: feasibilityReview,
+        specs: createForm?.specs,
+      }),
+    [createForm?.specs, feasibilityReview, feasibilitySuggestions],
+  );
 
   const [listMyProjectLoading, setListMyProjectLoading] = useState(false);
   const [projectLiveOpen, setProjectLiveOpen] = useState(false);
@@ -1234,7 +1308,11 @@ export default function Projects() {
         sizeStandard: pickMeta('sizeStandard', 'size_standard'),
         sizeCustomValue: sanitizeDigitsInput(pickMeta('sizeCustomValue', 'size_custom_value'), { maxLen: 10 }),
         sizeCustomUnit: pickMeta('sizeCustomUnit', 'size_custom_unit') || defaultSizeCustomUnitForJewelleryType(pickMeta('jewelleryType', 'jewellery_type')),
-        metalType: pickMeta('metalType', 'metal_type'),
+        metalType: (() => {
+          const raw = pickMeta('metalType', 'metal_type');
+          // Drafts: disabled metals (e.g. Silver) must be re-selected. Posted projects are not edited here.
+          return isEnabledProjectMetalType(raw, enabledProjectMetalTypes) ? raw : '';
+        })(),
         metalPurity: pickMeta('metalPurity', 'metal_purity'),
         metalColour: pickMeta('metalColour', 'metal_colour'),
         twoTonePair: pickMeta('twoTonePair', 'two_tone_pair'),
@@ -1451,11 +1529,7 @@ export default function Projects() {
     setCreateStep((s) => Math.min(5, Number(s || step) + 1));
   };
 
-  const prepareReviewStep = async () => {
-    if (feasibilityLoading || createLoading) return;
-    const saved = await persistProject({ validateUpToStep: 4, silent: true });
-    if (!saved) return;
-
+  const rerunFeasibilityReview = async (payload, { silentError = false, initialReview = false } = {}) => {
     if (feasibilityAbortRef.current) {
       try {
         feasibilityAbortRef.current.abort();
@@ -1469,27 +1543,81 @@ export default function Projects() {
     setFeasibilityReview(null);
     setFeasibilitySuggestions([]);
     setFeasibilityLoading(true);
-    // Move to Review immediately so the calculating loader/skeleton is visible.
-    setCreateStep(5);
 
     try {
-      const data = await projectService.reviewFeasibility(projectApiPayload, { signal: controller.signal });
+      const data = await projectService.reviewFeasibility(payload, { signal: controller.signal });
       setFeasibilityReview(data || null);
       const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
       setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
+      return data;
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') {
-        // aborted — leave whatever state we have
-      } else {
-        setFeasibilityReview(null);
-        setFeasibilitySuggestions([]);
-        addToast(e?.message || 'Could not estimate cost. You can still review and list your project.', 'error');
+        return null;
       }
+      setFeasibilityReview(null);
+      setFeasibilitySuggestions([]);
+      if (!silentError) {
+        addToast(
+          e?.message ||
+            (initialReview
+              ? 'Could not estimate cost. You can still review and list your project.'
+              : 'Could not update cost estimate.'),
+          'error',
+        );
+      }
+      return null;
     } finally {
       if (feasibilityAbortRef.current === controller) {
         setFeasibilityLoading(false);
       }
     }
+  };
+
+  const applyFeasibilitySuggestion = async (index) => {
+    const action = feasibilitySuggestionActions[index];
+    if (!action || applyingSuggestionIndex != null || feasibilityLoading || createLoading) return;
+
+    setApplyingSuggestionIndex(index);
+    try {
+      const nextSpecs = applySuggestionActionToSpecs(createForm?.specs, action, {
+        preferredDeliveryTimelineFromDays,
+      });
+      const nextForm = { ...createForm, specs: nextSpecs };
+      setCreateForm(nextForm);
+
+      const payload = buildProjectApiPayloadFromForm(nextForm);
+      setCreateLoading(true);
+      try {
+        if (editingId) {
+          await projectService.update(editingId, payload);
+        } else {
+          const saved = await projectService.create(payload);
+          const newId = localProjectIdOf(saved);
+          if (newId) setEditingId(newId);
+        }
+      } catch (e) {
+        addToast(e?.message || 'Failed to save changes', 'error');
+        return;
+      } finally {
+        setCreateLoading(false);
+      }
+
+      const data = await rerunFeasibilityReview(payload, { silentError: false });
+      if (data) {
+        addToast('Suggestion applied and cost estimate updated.', 'success');
+      }
+    } finally {
+      setApplyingSuggestionIndex(null);
+    }
+  };
+
+  const prepareReviewStep = async () => {
+    if (feasibilityLoading || createLoading) return;
+    const saved = await persistProject({ validateUpToStep: 4, silent: true });
+    if (!saved) return;
+
+    setCreateStep(5);
+    await rerunFeasibilityReview(buildProjectApiPayloadFromForm(createForm), { initialReview: true });
   };
 
   const listMyProject = async () => {
@@ -1684,7 +1812,7 @@ export default function Projects() {
     });
   };
 
-  /** After jeweller accepts, land on Track (payments + timeline), not bids. */
+  /** After jeweller is assigned, land on Track (payments + timeline), not bids. */
   const goToTrack = (p) => {
     const id = localProjectIdOf(p);
     if (!id) return;
@@ -2908,13 +3036,8 @@ export default function Projects() {
                         <div className="mt-5 space-y-5">
                           <div>
                             <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Metal type *</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                              {[
-                                { value: 'Gold', swatch: '#E4B84A' },
-                                { value: 'Silver', swatch: '#C8CCD0' },
-                                { value: 'Platinum', swatch: '#E8E6E3' },
-                                { value: 'Other', swatch: null },
-                              ].map((opt) => (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                              {createMetalTypeOptions.map((opt) => (
                                 <SpecChoiceCard
                                   key={opt.value}
                                   label={opt.value}
@@ -3540,7 +3663,8 @@ export default function Projects() {
                               <div className="min-w-0">
                                 <p className="text-[11px] font-medium text-amber-900 uppercase tracking-wide">Suggestions</p>
                                 <p className="mt-1 text-[12px] text-amber-800/80">
-                                  Based on your budget and timeline, here are some suggestions.
+                                  Based on your budget and timeline, here are some suggestions. Use Apply to
+                                  update your project details automatically.
                                 </p>
                               </div>
                               {feasibilityLoading ? (
@@ -3551,14 +3675,39 @@ export default function Projects() {
                               ) : null}
                             </div>
                             <ul className="mt-3 space-y-2">
-                              {feasibilitySuggestions.map((sug, idx) => (
-                                <li key={`sug-${idx}`} className="flex items-start gap-2 text-[13px] text-amber-900">
-                                  <span className="mt-[2px] w-5 h-5 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-[11px] font-extrabold text-amber-800">
-                                    {idx + 1}
-                                  </span>
-                                  <span className="text-amber-900">{String(sug)}</span>
-                                </li>
-                              ))}
+                              {feasibilitySuggestions.map((sug, idx) => {
+                                const action = feasibilitySuggestionActions[idx];
+                                const applyLabel = suggestionActionApplyLabel(action);
+                                const isApplying = applyingSuggestionIndex === idx;
+                                return (
+                                  <li key={`sug-${idx}`} className="flex items-start gap-2 text-[13px] text-amber-900">
+                                    <span className="mt-[2px] w-5 h-5 shrink-0 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-[11px] font-extrabold text-amber-800">
+                                      {idx + 1}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-amber-900">{String(sug)}</span>
+                                      {applyLabel ? (
+                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => applyFeasibilitySuggestion(idx)}
+                                            disabled={
+                                              createFormBusy ||
+                                              isApplying ||
+                                              applyingSuggestionIndex != null
+                                            }
+                                            className="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                                            title={applyLabel}
+                                          >
+                                            {isApplying ? 'Applying…' : 'Apply'}
+                                          </button>
+                                          <span className="text-[11px] text-amber-800/80">{applyLabel}</span>
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         ) : null}

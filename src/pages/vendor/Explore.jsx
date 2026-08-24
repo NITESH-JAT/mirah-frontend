@@ -392,12 +392,6 @@ export default function VendorExplore() {
                     <div className="relative">
                       <Thumbnail src={x.thumbnailUrl} alt={x.title} />
 
-                      {x.bestBid != null ? (
-                        <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink">
-                          Best bid: ₹{formatMoney(x.bestBid)}
-                        </span>
-                      ) : null}
-
                       <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink inline-flex items-center gap-2">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <circle cx="12" cy="12" r="10" />
@@ -430,10 +424,6 @@ export default function VendorExplore() {
                         <p>
                           Expected delivery:{' '}
                           <span className="font-extrabold text-ink">{preferredDelivery ? formatDateOnlyFromInput(preferredDelivery) : '—'}</span>
-                        </p>
-                        <p>
-                          Bid Count:{' '}
-                          <span className="font-extrabold text-ink">{x.bidCount != null ? x.bidCount : '—'}</span>
                         </p>
                       </div>
 

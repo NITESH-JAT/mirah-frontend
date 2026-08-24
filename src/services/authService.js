@@ -210,6 +210,18 @@ export const authService = {
     }
   },
 
+  createSeepzChangeRequest: async (requestedIsSeepz) => {
+    try {
+      const body =
+        typeof requestedIsSeepz === 'boolean' ? { requestedIsSeepz } : {};
+      await api.post('/api/user/profile/seepz-change-request', body);
+      const hydrated = await authService.me();
+      return hydrated;
+    } catch (error) {
+      throw error.response?.data || { message: 'Failed to create SEEPZ change request' };
+    }
+  },
+
   getVendorSellingEnabled: async () => {
     try {
       const response = await api.get('/api/user/system/vendor-selling-enabled');

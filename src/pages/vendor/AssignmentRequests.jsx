@@ -319,24 +319,9 @@ export default function VendorAssignmentRequests() {
                         </p>
                       ) : null}
                       {isPending ? (
-                        <div className="flex flex-row items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openConfirm('reject', r)}
-                            disabled={busy}
-                            className="px-4 py-2 rounded-xl border border-red-200 bg-red-50 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openConfirm('accept', r)}
-                            disabled={busy}
-                            className="px-4 py-2 rounded-xl border border-green-200 bg-green-50 text-[12px] font-extrabold text-green-700 hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Accept
-                          </button>
-                        </div>
+                        <span className="px-4 py-2 rounded-xl border border-amber-200 bg-amber-50 text-[12px] font-extrabold text-amber-800">
+                          Awaiting customer payment
+                        </span>
                       ) : isAccepted ? (
                         <button
                           type="button"

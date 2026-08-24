@@ -254,7 +254,8 @@ export const RegisterForm = () => {
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
     countryCode: '', phone: '', country: '', state: '', 
-    pinCode: '', userType: 'customer', termsAccepted: false
+    pinCode: '', userType: 'customer', termsAccepted: false,
+    isSeepzPrimaryProductionUnit: false,
   });
 
   // --- NOTIFICATION HELPERS ---
@@ -410,7 +411,10 @@ export const RegisterForm = () => {
         pinCode: formData.pinCode,
         userType: formData.userType,
         city: null,
-        address: null
+        address: null,
+        ...(formData.userType === 'vendor'
+          ? { isSeepzPrimaryProductionUnit: Boolean(formData.isSeepzPrimaryProductionUnit) }
+          : {}),
     };
 
     try {
@@ -467,7 +471,7 @@ export const RegisterForm = () => {
         
         {/* Role Switcher */}
         <div className="bg-blush p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
-          <button onClick={() => setFormData({...formData, userType: 'customer'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a User</button>
+          <button onClick={() => setFormData({...formData, userType: 'customer', isSeepzPrimaryProductionUnit: false})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a User</button>
           <button onClick={() => setFormData({...formData, userType: 'vendor'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'vendor' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a Jeweller</button>
         </div>
       </div>
@@ -515,6 +519,21 @@ export const RegisterForm = () => {
             <PasswordInput required name="password" placeholder="Password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
             <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
         </div>
+
+        {formData.userType === 'vendor' ? (
+          <label className="mt-1 flex items-start gap-2.5 px-1 cursor-pointer">
+            <input
+              type="checkbox"
+              name="isSeepzPrimaryProductionUnit"
+              checked={Boolean(formData.isSeepzPrimaryProductionUnit)}
+              onChange={handleChange}
+              className="mt-0.5 w-4 h-4 rounded border-pale text-ink focus:ring-walnut cursor-pointer"
+            />
+            <span className="text-[12px] lg:text-[13px] font-sans text-ink leading-snug">
+              My primary production unit is in SEEPZ
+            </span>
+          </label>
+        ) : null}
       </div>
 
       {/* FOOTER */}

@@ -31,6 +31,7 @@ export function readShopCatalogSession() {
       q: String(data.q || ''),
       sortId,
       page,
+      diamondType: data.diamondType === 'natural' || data.diamondType === 'lab' ? data.diamondType : '',
     };
   } catch {
     return null;
@@ -60,6 +61,14 @@ export function writeShopCatalogSession(state) {
       featured: state.featured !== undefined ? Boolean(state.featured) : Boolean(prev.featured),
       q: state.q !== undefined ? String(state.q || '') : prev.q || '',
       sortId: state.sortId !== undefined && SORT_IDS.has(state.sortId) ? state.sortId : prev.sortId || 'newest',
+      diamondType:
+        state.diamondType !== undefined
+          ? state.diamondType === 'natural' || state.diamondType === 'lab'
+            ? state.diamondType
+            : ''
+          : prev.diamondType === 'natural' || prev.diamondType === 'lab'
+            ? prev.diamondType
+            : '',
       page:
         state.page !== undefined
           ? (() => {
@@ -85,6 +94,7 @@ export function clearShopCatalogProductSession(catalogBrowseMode = 'category') {
     q: '',
     sortId: 'newest',
     page: 1,
+    diamondType: '',
   });
 }
 
@@ -98,4 +108,5 @@ export function clearShopCatalogProductSession(catalogBrowseMode = 'category') {
  * @property {string} q
  * @property {'newest' | 'price_asc' | 'price_desc'} sortId
  * @property {number} page
+ * @property {'natural' | 'lab' | ''} diamondType
  */

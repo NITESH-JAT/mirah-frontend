@@ -194,38 +194,6 @@ function bidDaysOf(b) {
   return Number.isFinite(n) ? n : null;
 }
 
-function bidCreatedAtOf(b) {
-  return b?.createdAt ?? b?.created_at ?? b?.placedAt ?? b?.placed_at ?? b?.timestamp ?? null;
-}
-
-function pickWinningBid(bids) {
-  const list = Array.isArray(bids) ? bids : [];
-  let winner = null;
-  for (const b of list) {
-    const price = bidPriceOf(b);
-    const days = bidDaysOf(b);
-    if (price == null || days == null) continue;
-    if (!winner) {
-      winner = b;
-      continue;
-    }
-    const wp = bidPriceOf(winner);
-    const wd = bidDaysOf(winner);
-    if (wp == null || wd == null) {
-      winner = b;
-      continue;
-    }
-    if (price < wp) winner = b;
-    else if (price === wp && days < wd) winner = b;
-    else if (price === wp && days === wd) {
-      const tA = new Date(bidCreatedAtOf(b) || 0).getTime();
-      const tW = new Date(bidCreatedAtOf(winner) || 0).getTime();
-      if (Number.isFinite(tA) && Number.isFinite(tW) && tA < tW) winner = b;
-    }
-  }
-  return winner;
-}
-
 function customerIdOf(project, details) {
   const p = project ?? {};
   const d = details ?? {};
@@ -355,8 +323,14 @@ export default function VendorExploreProject() {
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
-  const winningBid = useMemo(() => pickWinningBid(bids), [bids]);
-  const winningBidId = useMemo(() => bidStableId(winningBid), [winningBid]);
+  const hasMyBid = useMemo(() => {
+    if (!myVendorId) return Array.isArray(bids) && bids.length > 0;
+    return (Array.isArray(bids) ? bids : []).some(
+      (b) => String(bidVendorIdOf(b) ?? '') === String(myVendorId),
+    );
+  }, [bids, myVendorId]);
+  // Sealed bidding: do not show winning status from a self-only bid list.
+  const winningBidId = null;
 
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
@@ -438,7 +412,7 @@ export default function VendorExploreProject() {
   }, [bidModalOpen, bidForm.price, projectId]);
 
   const submitBid = async () => {
-    if (bidSubmitting || !projectId) return;
+    if (bidSubmitting || !projectId || hasMyBid) return;
     const price = Number(bidForm.price);
     const daysToComplete = Number(bidForm.daysToComplete);
     if (!Number.isFinite(price) || price <= 0) {
@@ -592,14 +566,21 @@ export default function VendorExploreProject() {
                       Send message
                     </button>
                   ) : null}
-                  <button
-                    type="button"
-                    onClick={() => setBidModalOpen(true)}
-                    disabled={bidEnded || bidSubmitting}
-                    className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Bid Now
-                  </button>
+                  {hasMyBid ? (
+                    <div className="w-full px-5 py-3 rounded-2xl border border-pale bg-cream text-center text-[13px] font-extrabold text-ink">
+                      Bid placed
+                      <p className="mt-1 text-[11px] font-semibold text-muted">Sealed — cannot be changed or replaced</p>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setBidModalOpen(true)}
+                      disabled={bidEnded || bidSubmitting}
+                      className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Bid Now
+                    </button>
+                  )}
                 </div>
                 {bidEnded ? <p className="mt-2 text-[11px] text-muted text-center">Bidding window has ended.</p> : null}
               </div>
@@ -643,8 +624,8 @@ export default function VendorExploreProject() {
                           <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                         </svg>
                       </div>
-                      <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
-                      <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
+                      <p className="mt-3 text-[14px] font-bold text-ink">No bid placed yet</p>
+                      <p className="mt-1 text-[12px] text-muted">Place your sealed bid. Competitor bids stay hidden.</p>
                     </div>
                   </div>
                   <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
@@ -667,8 +648,8 @@ export default function VendorExploreProject() {
                                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                                   </svg>
                                 </div>
-                                <p className="mt-3 text-[14px] font-bold text-ink">No bids yet</p>
-                                <p className="mt-1 text-[12px] text-muted">Be the first to place a bid.</p>
+                                <p className="mt-3 text-[14px] font-bold text-ink">No bid placed yet</p>
+                                <p className="mt-1 text-[12px] text-muted">Place your sealed bid. Competitor bids stay hidden.</p>
                               </div>
                             </td>
                           </tr>

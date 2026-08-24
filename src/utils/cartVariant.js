@@ -1,3 +1,5 @@
+import { resolveDiamondUnitPricing, resolveSelectedDiamondType } from './productDiamondPricing';
+
 function normText(x) {
   const s = String(x ?? '').trim();
   return s ? s.toLowerCase() : '';
@@ -20,9 +22,11 @@ export function normalizeCartVariantSelector(variants) {
   const size = normText(variants?.size);
   const sizeDimensions = normDim(variants?.sizeDimensions ?? variants?.size_dimensions);
   const sizeDimensionsUnit = normUnit(variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit);
+  const diamondTypeRaw = String(variants?.diamondType ?? variants?.diamond_type ?? '').trim().toLowerCase();
+  const diamondType = diamondTypeRaw === 'natural' || diamondTypeRaw === 'lab' ? diamondTypeRaw : '';
 
-  if (!type && !size && sizeDimensions == null && !sizeDimensionsUnit) return null;
-  return { type, size, sizeDimensions, sizeDimensionsUnit };
+  if (!type && !size && sizeDimensions == null && !sizeDimensionsUnit && !diamondType) return null;
+  return { type, size, sizeDimensions, sizeDimensionsUnit, ...(diamondType ? { diamondType } : {}) };
 }
 
 function dimEq(a, b) {
@@ -36,7 +40,6 @@ export function findMatchingProductVariant(productVariants, selectedVariants) {
   const list = Array.isArray(productVariants) ? productVariants : [];
   if (!sel || !list.length) return null;
 
-  // Most reliable match: type+size+dim+unit (dim/unit are optional in some data)
   const strict = list.find((v) => {
     const vt = normText(v?.type);
     const vs = normText(v?.size);
@@ -50,7 +53,6 @@ export function findMatchingProductVariant(productVariants, selectedVariants) {
   });
   if (strict) return strict;
 
-  // Fallback: type+size only (handles backends that omit dims in cart selector)
   const loose = list.find((v) => {
     const vt = normText(v?.type);
     const vs = normText(v?.size);
@@ -64,12 +66,38 @@ export function findMatchingProductVariant(productVariants, selectedVariants) {
 export function priceForCartLine({ cartItem, product } = {}) {
   const p = product || cartItem?.product || null;
   const matched = findMatchingProductVariant(p?.variants, cartItem?.variants);
+  const diamondType = resolveSelectedDiamondType(p, cartItem?.variants);
+  const resolved = resolveDiamondUnitPricing(p, matched, diamondType);
   const unitPrice =
-    Number(matched?.price ?? cartItem?.price ?? cartItem?.unitPrice ?? cartItem?.unit_price ?? cartItem?.raw?.price ?? cartItem?.raw?.unitPrice ?? cartItem?.raw?.unit_price ?? p?.price ?? 0) ||
+    Number(resolved.price) ||
+    Number(matched?.price ?? cartItem?.price ?? cartItem?.unitPrice ?? cartItem?.unit_price ?? p?.price ?? 0) ||
     0;
   const compareAt =
-    Number(matched?.compareAtPrice ?? matched?.compare_at_price ?? cartItem?.compareAtPrice ?? cartItem?.compare_at_price ?? cartItem?.raw?.compareAtPrice ?? cartItem?.raw?.compare_at_price ?? p?.compareAtPrice ?? p?.compare_at_price ?? 0) ||
+    Number(resolved.compareAt) ||
+    Number(
+      matched?.compareAtPrice ??
+        matched?.compare_at_price ??
+        cartItem?.compareAtPrice ??
+        cartItem?.compare_at_price ??
+        p?.compareAtPrice ??
+        p?.compare_at_price ??
+        0,
+    ) ||
     0;
-  return { unitPrice, compareAt, matchedVariant: matched };
+  return { unitPrice, compareAt, matchedVariant: matched, diamondType };
 }
 
+export function formatCartVariantLabel(variants) {
+  const sel = normalizeCartVariantSelector(variants);
+  if (!sel) return '';
+  const parts = [];
+  if (sel.type) parts.push(sel.type);
+  if (sel.size) parts.push(`Size ${sel.size}`);
+  if (sel.sizeDimensions != null) {
+    parts.push(sel.sizeDimensionsUnit ? `${sel.sizeDimensions} ${sel.sizeDimensionsUnit}` : String(sel.sizeDimensions));
+  }
+  if (sel.diamondType) {
+    parts.push(sel.diamondType === 'lab' ? 'Lab grown diamonds' : 'Natural diamonds');
+  }
+  return parts.join(' · ');
+}

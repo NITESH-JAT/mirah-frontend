@@ -101,11 +101,12 @@ export default function Profile() {
     confirmNewPassword: ''
   });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [seepzRequestLoading, setSeepzRequestLoading] = useState(false);
+  const [profileTab, setProfileTab] = useState('profile');
 
   // Delete account modal
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
-  const [profileTab, setProfileTab] = useState('profile');
 
   // --- Addresses (customers only) ---
   const [addressTab, setAddressTab] = useState('billing'); // 'billing' | 'shipping'
@@ -181,8 +182,8 @@ export default function Profile() {
     let cancelled = false;
     const run = async () => {
       try {
-        const data = await authService.getProfile();
-        const merged = data;
+        const data = await authService.me();
+        const merged = data?.data || data;
         if (cancelled) return;
         setProfile(merged);
         // Initialize edit form with data
@@ -278,6 +279,22 @@ export default function Profile() {
     navigate('/login');
   };
 
+  const handleRaiseSeepzChange = async () => {
+    if (seepzRequestLoading) return;
+    setSeepzRequestLoading(true);
+    try {
+      const hydrated = await authService.createSeepzChangeRequest();
+      const merged = hydrated?.data || hydrated;
+      setProfile((prev) => ({ ...(prev || {}), ...(merged || {}) }));
+      if (setCurrentUser) setCurrentUser(merged);
+      addToast('SEEPZ change request submitted.', 'success');
+    } catch (err) {
+      addToast(err?.message || 'Failed to raise SEEPZ change request', 'error');
+    } finally {
+      setSeepzRequestLoading(false);
+    }
+  };
+
   const handleChangePassword = async () => {
     if (!passwordForm.currentPassword) {
       addToast("Please enter your current password.", "error");
@@ -322,6 +339,29 @@ export default function Profile() {
 
   const isJeweller = profile.userType === 'vendor' || profile.userType === 'jeweller';
   const isCustomer = !isJeweller;
+  const isSeepz = Boolean(profile?.isSeepzPrimaryProductionUnit);
+  const seepzReq = profile?.seepzChangeRequest || null;
+  const seepzLifecycle = seepzReq?.lifecycle || {
+    raised: Boolean(seepzReq?.hasRequest || seepzReq?.id),
+    pending:
+      String(seepzReq?.status || '').toLowerCase() === 'pending' ||
+      String(seepzReq?.status || '').toLowerCase() === 'raised',
+    updated: String(seepzReq?.status || '').toLowerCase() === 'updated',
+  };
+  const canRaiseSeepz =
+    typeof profile?.canRaiseSeepzChangeRequest === 'boolean'
+      ? profile.canRaiseSeepzChangeRequest
+      : !(
+          seepzReq?.hasRequest &&
+          (String(seepzReq?.status || '').toLowerCase() === 'pending' ||
+            String(seepzReq?.status || '').toLowerCase() === 'raised')
+        );
+  const requestedSeepzLabel =
+    typeof seepzReq?.requestedIsSeepz === 'boolean'
+      ? seepzReq.requestedIsSeepz
+        ? 'Yes (SEEPZ)'
+        : 'No (non-SEEPZ)'
+      : null;
 
   const openCreateAddress = (type) => {
     const t = type || addressTab;
@@ -567,6 +607,79 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {isJeweller ? (
+        <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-6">
+          <div className="mb-4">
+            <h3 className="font-sans text-lg font-bold text-ink">SEEPZ production unit</h3>
+            <p className="mt-1 text-[12px] text-muted">
+              Captured at signup. You cannot edit this here — raise a request for admin to update it.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-pale bg-cream/40 px-4 py-3 text-[13px] text-mid">
+            Current status:{' '}
+            <span className="font-extrabold text-ink">
+              {isSeepz ? 'Yes — primary unit in SEEPZ' : 'No — not SEEPZ'}
+            </span>
+          </div>
+
+          {seepzReq?.id || seepzReq?.hasRequest ? (
+            <div className="mt-4">
+              <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-2">Request lifecycle</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { key: 'raised', label: 'Raised', done: Boolean(seepzLifecycle.raised) },
+                  { key: 'pending', label: 'Pending', done: Boolean(seepzLifecycle.pending || seepzLifecycle.updated) },
+                  { key: 'updated', label: 'Updated', done: Boolean(seepzLifecycle.updated) },
+                ].map((step, idx, arr) => (
+                  <React.Fragment key={step.key}>
+                    <span
+                      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold ${
+                        step.done
+                          ? step.key === 'pending' && !seepzLifecycle.updated
+                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                            : 'bg-green-50 text-green-700 border border-green-200'
+                          : 'bg-white text-muted border border-pale'
+                      }`}
+                    >
+                      {step.label}
+                    </span>
+                    {idx < arr.length - 1 ? <span className="text-muted text-[12px]">→</span> : null}
+                  </React.Fragment>
+                ))}
+              </div>
+              {requestedSeepzLabel ? (
+                <p className="mt-2 text-[12px] text-muted">
+                  Requested change to: <span className="font-semibold text-ink">{requestedSeepzLabel}</span>
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={handleRaiseSeepzChange}
+              disabled={seepzRequestLoading || !canRaiseSeepz}
+              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {seepzRequestLoading
+                ? 'Submitting…'
+                : !canRaiseSeepz
+                  ? 'Request pending'
+                  : isSeepz
+                    ? 'Request change to non-SEEPZ'
+                    : 'Request change to SEEPZ'}
+            </button>
+            {!canRaiseSeepz ? (
+              <p className="mt-2 text-[11px] text-muted">
+                You already have an open request. You can raise another after admin updates your status.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {/* 2. CHANGE PASSWORD */}
       <div className="bg-white rounded-2xl p-5 lg:p-8 shadow-sm border border-pale mb-8">

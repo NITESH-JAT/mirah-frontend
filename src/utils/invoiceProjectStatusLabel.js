@@ -1,10 +1,17 @@
 /**
- * When operational status is `invoice`, always show **Invoice (Advance)** or **Invoice (Final)**,
- * never bare "Invoice". Uses normalized payment statuses (e.g. from `normalizePaymentStatus`).
+ * When operational status is `invoice`, show payment-due labels.
+ * Supports full-upfront (single payment) and legacy advance/final split.
  */
-export function invoiceProjectStatusLabel(advanceStatus, finalStatus) {
+export function invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront = false } = {}) {
   const adv = String(advanceStatus ?? '').trim().toLowerCase();
   const fin = String(finalStatus ?? '').trim().toLowerCase();
+
+  if (fullUpfront || fin === 'not_applicable' || fin === 'not_applicble') {
+    if (adv === 'due') return 'Invoice (Full Payment)';
+    if (adv === 'paid') return 'Full Payment Received';
+    return 'Invoice (Full Payment)';
+  }
+
   const advDone = adv === 'paid' || adv === 'not_applicable' || adv === 'not_applicble';
   const finDone = fin === 'paid' || fin === 'not_applicable' || fin === 'not_applicble';
 

@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { cartService } from '../../services/cartService';
 import { vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
-import { priceForCartLine } from '../../utils/cartVariant';
+import { priceForCartLine, formatCartVariantLabel } from '../../utils/cartVariant';
 import { formatMoney } from '../../utils/formatMoney';
 
 function firstImageUrl(p) {
@@ -52,28 +52,7 @@ function stableVariantsKey(variants) {
 }
 
 function variantTextOf(variants) {
-  const v = normalizeVariants(variants);
-  if (!v) return '';
-
-  const parts = [];
-  const type = String(v?.type ?? '').trim();
-  const size = String(v?.size ?? '').trim();
-  const dimRaw = v?.sizeDimensions ?? null;
-  const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
-  const unit = String(v?.sizeDimensionsUnit ?? '').trim();
-
-  const dimPart =
-    dim && unit
-      ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
-        ? `${dim}${unit}`
-        : `${dim} ${unit}`
-      : dim || '';
-
-  if (type) parts.push(type);
-  if (size) parts.push(size);
-  if (dimPart) parts.push(dimPart);
-
-  return parts.join(' · ');
+  return formatCartVariantLabel(variants) || '';
 }
 
 function pickCartItemId(item) {

@@ -11,6 +11,7 @@ import {
   writeSimilarProductsSession,
 } from '../../utils/similarProductsSession';
 import { similarProductsStripBorderClasses } from '../../utils/productListingGrid';
+import { getProductDiamondTypes, resolveDiamondUnitPricing } from '../../utils/productDiamondPricing';
 
 function discountPercent({ price, compareAtPrice }) {
   const p = Number(price);
@@ -218,6 +219,7 @@ export default function ProductDetails() {
   const [cartQty, setCartQty] = useState(1);
   const [cartAdding, setCartAdding] = useState(false);
   const [cartVariantIdx, setCartVariantIdx] = useState(null);
+  const [selectedDiamondType, setSelectedDiamondType] = useState('');
 
   const [reviews, setReviews] = useState([]);
   const [reviewsMoreLoading, setReviewsMoreLoading] = useState(false);
@@ -252,10 +254,34 @@ export default function ProductDetails() {
     () => product?.isFeatured === true || product?.isFeatured === 1 || String(product?.isFeatured).toLowerCase() === 'true',
     [product]
   );
+  const displayPricing = useMemo(() => {
+    const types = getProductDiamondTypes(product);
+    const dt =
+      selectedDiamondType === 'natural' || selectedDiamondType === 'lab'
+        ? selectedDiamondType
+        : types.length === 1
+          ? types[0]
+          : null;
+    const resolved = resolveDiamondUnitPricing(product, null, dt);
+    return {
+      diamondType: dt,
+      price: resolved.price,
+      compareAtPrice: resolved.compareAtPrice,
+    };
+  }, [product, selectedDiamondType]);
+
+  const productDiamondTypes = useMemo(() => getProductDiamondTypes(product), [product]);
+
   const off = useMemo(
-    () => discountPercent({ price: product?.price, compareAtPrice: product?.compareAtPrice }),
-    [product]
+    () => discountPercent({ price: displayPricing.price, compareAtPrice: displayPricing.compareAtPrice }),
+    [displayPricing]
   );
+
+  useEffect(() => {
+    const types = getProductDiamondTypes(product);
+    if (types.length === 1) setSelectedDiamondType(types[0]);
+    else if (!types.includes(selectedDiamondType)) setSelectedDiamondType(types[0] || '');
+  }, [product?.id, product?._id]);
 
   const detailsPairs = useMemo(() => {
     const pairs = [];
@@ -263,9 +289,15 @@ export default function ProductDetails() {
       if (value == null || value === '') return;
       pairs.push({ label, value: String(value) });
     };
-    const diamondTypeRaw = String(product?.diamondType ?? product?.diamond_type ?? '').trim().toLowerCase();
-    const diamondType =
-      diamondTypeRaw ? `${diamondTypeRaw.slice(0, 1).toUpperCase()}${diamondTypeRaw.slice(1)}` : null;
+    const types = getProductDiamondTypes(product);
+    const diamondTypeLabel =
+      types.length > 1
+        ? types.map((t) => (t === 'lab' ? 'Lab grown' : 'Natural')).join(', ')
+        : types[0]
+          ? types[0] === 'lab'
+            ? 'Lab grown'
+            : 'Natural'
+          : null;
     const totalDiamondWeightRaw = product?.totalDiamondWeight ?? product?.total_diamond_weight ?? null;
     const totalDiamondWeightNum = Number(totalDiamondWeightRaw);
     const totalDiamondWeight =
@@ -279,7 +311,7 @@ export default function ProductDetails() {
     add('SKU', product?.sku);
     add('Metal type', product?.metalType ?? product?.metal_type);
     add('Metal colour', product?.metalColour ?? product?.metal_colour ?? product?.metalColor ?? product?.metal_color);
-    add('Diamond type', diamondType);
+    add('Diamond type', diamondTypeLabel);
     add('Total diamond weight', totalDiamondWeight);
     const unit = String(product?.unit ?? '').trim();
     const stockVal = product?.stock ?? null;
@@ -483,10 +515,18 @@ export default function ProductDetails() {
             sizeDimensions: selectedCartVariant?.sizeDimensions ?? selectedCartVariant?.size_dimensions ?? undefined,
             sizeDimensionsUnit:
               selectedCartVariant?.sizeDimensionsUnit ?? selectedCartVariant?.size_dimensions_unit ?? undefined,
+            ...(displayPricing.diamondType ? { diamondType: displayPricing.diamondType } : {}),
           }
-        : undefined;
+        : displayPricing.diamondType
+          ? { diamondType: displayPricing.diamondType }
+          : undefined;
 
-      await cartService.addItem({ productId: pid, quantity: qty, variants: variantsPayload });
+      await cartService.addItem({
+        productId: pid,
+        quantity: qty,
+        variants: variantsPayload,
+        diamondType: displayPricing.diamondType,
+      });
       addToast(`${qty} ${qty === 1 ? 'item' : 'items'} added to cart`, 'success');
       setCartOpen(false);
     } catch (e) {
@@ -909,9 +949,9 @@ export default function ProductDetails() {
               ) : null}
 
               <div className="mt-2 flex items-center flex-wrap gap-2">
-                <div className="text-[20px] md:text-[22px] font-extrabold text-ink">₹{formatMoney(product?.price)}</div>
-                {Number(product?.compareAtPrice || 0) > Number(product?.price || 0) ? (
-                  <div className="text-[13px] text-muted line-through">M.R.P. ₹{formatMoney(product?.compareAtPrice)}</div>
+                <div className="text-[20px] md:text-[22px] font-extrabold text-ink">₹{formatMoney(displayPricing.price)}</div>
+                {Number(displayPricing.compareAtPrice || 0) > Number(displayPricing.price || 0) ? (
+                  <div className="text-[13px] text-muted line-through">M.R.P. ₹{formatMoney(displayPricing.compareAtPrice)}</div>
                 ) : null}
                 {off != null ? (
                   <span className="px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
@@ -919,6 +959,26 @@ export default function ProductDetails() {
                   </span>
                 ) : null}
               </div>
+              {productDiamondTypes.length > 1 ? (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className="text-[12px] font-semibold text-muted">Diamonds:</span>
+                  {productDiamondTypes.map((dt) => {
+                    const active = selectedDiamondType === dt;
+                    return (
+                      <button
+                        key={dt}
+                        type="button"
+                        onClick={() => setSelectedDiamondType(dt)}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                          active ? 'border-walnut bg-walnut text-blush' : 'border-pale bg-white text-mid hover:bg-cream'
+                        }`}
+                      >
+                        {dt === 'lab' ? 'Lab grown' : 'Natural'}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
               <div className="mt-1 text-[13px] text-muted">(Incl. of all taxes)</div>
 
               <div className="mt-4 border-t border-pale pt-4">

@@ -112,6 +112,20 @@ export const projectService = {
     return Number.isFinite(days) && days > 0 ? days : null;
   },
 
+  getMetalTypes: async ({ signal } = {}) => {
+    const res = await api.get('/api/user/projects/metal-types', { signal });
+    const data = unwrap(res) || {};
+    const metals = Array.isArray(data?.metals) ? data.metals : [];
+    return metals
+      .map((m) => ({
+        id: String(m?.id || '').trim(),
+        label: String(m?.label || '').trim(),
+        sortOrder: Number(m?.sortOrder) || 0,
+      }))
+      .filter((m) => m.id && m.label)
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+  },
+
   cancel: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.post(`/api/user/projects/${projectId}/cancel`, {}, { signal });

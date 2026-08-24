@@ -11,6 +11,8 @@ import AuthGuard from '../components/guards/AuthGuard';
 import GuestGuard from '../components/guards/GuestGuard';
 import CustomerOnlyGuard from '../components/guards/CustomerOnlyGuard';
 import VendorOnlyGuard from '../components/guards/VendorOnlyGuard';
+import CustomerStoreRouteGuard from '../components/guards/CustomerStoreRouteGuard';
+import CustomerHomeRedirect from '../components/routing/CustomerHomeRedirect';
 
 // Lazy Pages
 const LoginForm = lazy(() => import('../components/Auth/LoginForm').then(m => ({ default: m.LoginForm })));
@@ -78,15 +80,57 @@ export const routes = [
       </AuthGuard>
     ),
     children: [
-      { index: true, element: <Navigate to="/customer/shopping" replace /> },
+      { index: true, element: <CustomerHomeRedirect /> },
     
       { path: 'shopping', element: <Shopping /> },
-      { path: 'shopping/:id', element: <ProductDetails /> },
-      { path: 'shopping/:id/similar', element: <SimilarProducts /> },
-      { path: 'cart', element: <Cart /> },
-      { path: 'checkout', element: <Checkout /> },
-      { path: 'orders', element: <Orders /> },
-      { path: 'orders/success', element: <OrderSuccess /> },
+      {
+        path: 'shopping/:id',
+        element: (
+          <CustomerStoreRouteGuard requireCatalog>
+            <ProductDetails />
+          </CustomerStoreRouteGuard>
+        ),
+      },
+      {
+        path: 'shopping/:id/similar',
+        element: (
+          <CustomerStoreRouteGuard requireCatalog>
+            <SimilarProducts />
+          </CustomerStoreRouteGuard>
+        ),
+      },
+      {
+        path: 'cart',
+        element: (
+          <CustomerStoreRouteGuard requirePurchasing>
+            <Cart />
+          </CustomerStoreRouteGuard>
+        ),
+      },
+      {
+        path: 'checkout',
+        element: (
+          <CustomerStoreRouteGuard requirePurchasing>
+            <Checkout />
+          </CustomerStoreRouteGuard>
+        ),
+      },
+      {
+        path: 'orders',
+        element: (
+          <CustomerStoreRouteGuard requirePurchasing>
+            <Orders />
+          </CustomerStoreRouteGuard>
+        ),
+      },
+      {
+        path: 'orders/success',
+        element: (
+          <CustomerStoreRouteGuard requirePurchasing>
+            <OrderSuccess />
+          </CustomerStoreRouteGuard>
+        ),
+      },
 
       { 
         path: 'profile', 

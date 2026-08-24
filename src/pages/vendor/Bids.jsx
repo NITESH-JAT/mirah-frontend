@@ -394,18 +394,8 @@ export default function VendorBids() {
                   >
                     <div className="relative">
                       <Thumbnail src={x.thumbnailUrl} alt={x.title} />
-                      {x.bestBid != null ? (
-                        <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink">
-                          Best bid: ₹{formatMoney(x.bestBid)}
-                        </span>
-                      ) : null}
-                      {tab === 'active' && x.isCurrentlyWinning ? (
-                        <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
-                          Winning
-                        </span>
-                      ) : null}
                       {tab === 'completed' && x.isWinnerSelected && x.isWinnerVendor ? (
-                        <span className="absolute left-3 top-12 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
+                        <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
                           Winner
                         </span>
                       ) : null}
@@ -438,9 +428,6 @@ export default function VendorBids() {
                         <p>
                           Expected delivery:{' '}
                           <span className="font-extrabold text-ink">{preferredDelivery ? formatDateOnlyFromInput(preferredDelivery) : '—'}</span>
-                        </p>
-                        <p>
-                          Bid Count: <span className="font-extrabold text-ink">{x.bidCount != null ? x.bidCount : '—'}</span>
                         </p>
                       </div>
                       <div className="mt-4" onClick={(e) => e.stopPropagation()}>

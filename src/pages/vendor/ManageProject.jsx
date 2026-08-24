@@ -338,6 +338,9 @@ export default function VendorManageProject() {
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
+  const fullUpfront = Boolean(
+    details?.fullUpfront ?? details?.full_upfront ?? Number(advancePayment?.percent) === 100,
+  );
   const statusModel =
     details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
   const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
@@ -479,13 +482,13 @@ export default function VendorManageProject() {
 
   const projectStatusLabel = useMemo(() => {
     if (projectStatusKey === 'invoice') {
-      return invoiceProjectStatusLabel(advanceStatus, finalStatus);
+      return invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront });
     }
     if (projectStatusKey === 'qc') {
       return 'QC';
     }
     return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
-  }, [advanceStatus, finalStatus, project, projectStatusKey]);
+  }, [advanceStatus, finalStatus, project, projectStatusKey, fullUpfront]);
 
   const statusSteps = useMemo(() => {
     const steps = statusStepsFromStatusModel(statusModel);
@@ -521,14 +524,18 @@ export default function VendorManageProject() {
       out.splice(idx + 1, 0, ...items);
     };
 
-    const advanceMilestones = [
-      { key: 'invoice_advance', label: 'Invoice (Advance)' },
-      { key: 'paid_advance', label: 'Advance Paid' },
-    ];
-    const finalMilestones = [
-      { key: 'invoice_final', label: 'Invoice (Final)' },
-      { key: 'paid_final', label: 'Final Paid' },
-    ];
+    const advanceMilestones = fullUpfront
+      ? [{ key: 'invoice_advance', label: 'Invoice (Full Payment)' }, { key: 'paid_advance', label: 'Full Payment Received' }]
+      : [
+          { key: 'invoice_advance', label: 'Invoice (Advance)' },
+          { key: 'paid_advance', label: 'Advance Paid' },
+        ];
+    const finalMilestones = fullUpfront
+      ? []
+      : [
+          { key: 'invoice_final', label: 'Invoice (Final)' },
+          { key: 'paid_final', label: 'Final Paid' },
+        ];
     const settlementMilestone = { key: 'payment_settlement', label: 'Payment Settlement' };
 
     // Advance is relevant early; put it after started (or at top if missing).
@@ -550,7 +557,7 @@ export default function VendorManageProject() {
       seen2.add(k);
       return true;
     });
-  }, [project, statusModel]);
+  }, [project, statusModel, fullUpfront]);
 
   const statusTimelineMulti = useMemo(() => {
     const list = Array.isArray(statusModel?.timeline) ? statusModel.timeline : [];
@@ -671,15 +678,15 @@ export default function VendorManageProject() {
   const currentStepKey = useMemo(() => {
     if (currentOperationalStatusKey === 'invoice') {
       if (advanceStatus === 'due') return 'invoice_advance';
-      if (finalStatus === 'due') return 'invoice_final';
-      if (finalStatus === 'paid') return 'paid_final';
+      if (!fullUpfront && finalStatus === 'due') return 'invoice_final';
+      if (!fullUpfront && finalStatus === 'paid') return 'paid_final';
       if (advanceStatus === 'paid') return 'paid_advance';
       return 'invoice_advance';
     }
     if (currentOperationalStatusKey === 'paid') {
-      if (finalStatus === 'paid') return 'paid_final';
+      if (!fullUpfront && finalStatus === 'paid') return 'paid_final';
       if (advanceStatus === 'paid') return 'paid_advance';
-      return 'paid_final';
+      return fullUpfront ? 'paid_advance' : 'paid_final';
     }
     if (qcFailedPendingRework) return 'in_progress';
     if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
@@ -694,6 +701,7 @@ export default function VendorManageProject() {
     finalStatus,
     inTransitToArviahReached,
     qcFailedPendingRework,
+    fullUpfront,
     shipmentModel,
   ]);
 
@@ -1716,14 +1724,14 @@ export default function VendorManageProject() {
 
                         const labelRaw = (() => {
                           const k = normalizeStatusKey(key);
-                          if (k === 'invoice_advance') return 'Invoice (Advance)';
+                          if (k === 'invoice_advance') return fullUpfront ? 'Invoice (Full Payment)' : 'Invoice (Advance)';
                           if (k === 'invoice_final') return 'Invoice (Final)';
-                          if (k === 'paid_advance') return 'Advance Paid';
+                          if (k === 'paid_advance') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
                           if (k === 'paid_final') return 'Final Paid';
                           if (k === 'payment_settlement') return 'Payment Settlement';
                           if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
                           if (k === 'qc') return 'Arviah QC Checks';
-                          if (k === 'invoice') return invoiceProjectStatusLabel(advanceStatus, finalStatus);
+                          if (k === 'invoice') return invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront });
                           return s?.label ?? toTitleCase(key);
                         })();
                         const label = String(labelRaw ?? key).toUpperCase();

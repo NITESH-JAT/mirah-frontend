@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
+import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
 
 const BottomNavButton = ({ label, active, onClick, children }) => (
   <button
@@ -39,6 +40,7 @@ export default function BottomNav() {
   const isProjectsRoute = !isVendor && path.startsWith('/customer/projects');
   const isVendorProjectsRoute = isVendor && path.startsWith('/vendor/projects');
   const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
+  const { navVisible: storeNavVisible } = useCustomerStorefront();
 
   const items = [];
 
@@ -124,15 +126,17 @@ export default function BottomNav() {
         />
       ),
     });
-    items.push({
-      key: 'shop',
-      label: 'Shop',
-      path: '/customer/shopping',
-      active: path === '/customer/shopping' || path.startsWith('/customer/shopping/'),
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.2-4h15.6L21 7"/><path d="M2 7h20"/><path d="M4 7v14h16V7"/><path d="M6 7v4"/><path d="M10 7v4"/><path d="M14 7v4"/><path d="M18 7v4"/><path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7"/></svg>
-      ),
-    });
+    if (storeNavVisible) {
+      items.push({
+        key: 'shop',
+        label: 'Shop',
+        path: '/customer/shopping',
+        active: path === '/customer/shopping' || path.startsWith('/customer/shopping/'),
+        icon: (
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7l1.2-4h15.6L21 7"/><path d="M2 7h20"/><path d="M4 7v14h16V7"/><path d="M6 7v4"/><path d="M10 7v4"/><path d="M14 7v4"/><path d="M18 7v4"/><path d="M9 21v-7a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v7"/></svg>
+        ),
+      });
+    }
     items.push({
       key: 'messages',
       label: 'Chat',

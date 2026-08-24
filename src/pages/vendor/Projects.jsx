@@ -114,9 +114,16 @@ function projectStatusLabelLikeManage(project, rootRow) {
   const finishedLike = isFinishedLike(project);
   const advanceStatus = normalizePaymentStatus(advancePayment?.status, { finishedLike });
   const finalStatus = normalizePaymentStatus(finalPayment?.status, { finishedLike });
+  const fullUpfront = Boolean(
+    rootRow?.fullUpfront ??
+      rootRow?.full_upfront ??
+      project?.fullUpfront ??
+      project?.full_upfront ??
+      Number(advancePayment?.percent) === 100,
+  );
   const projectStatusKey = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
   if (projectStatusKey === 'invoice') {
-    return invoiceProjectStatusLabel(advanceStatus, finalStatus);
+    return invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront });
   }
   if (projectStatusKey === 'qc') {
     return 'QC';
@@ -135,7 +142,7 @@ function badgeForRow(row) {
   const overridden = !active && replacedById != null;
 
   if (overridden) return { text: 'Overridden', tone: 'muted' };
-  if (status === 'pending') return { text: 'Pending', tone: 'warn' };
+  if (status === 'pending') return { text: 'Awaiting customer payment', tone: 'warn' };
   if (status === 'accepted') {
     return { text: projectStatusLabelLikeManage(project, rootRow), tone: 'blush' };
   }
@@ -543,24 +550,9 @@ export default function VendorProjects() {
                   >
                     {isPending ? (
                       <>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => openConfirm('reject', { assignment, project })}
-                            disabled={Boolean(actingId)}
-                            className="px-3 py-2 rounded-xl border border-pale bg-white text-[12px] font-extrabold text-mid hover:bg-cream disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => openConfirm('accept', { assignment, project })}
-                            disabled={Boolean(actingId)}
-                            className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
-                          >
-                            Accept
-                          </button>
-                        </div>
+                        <span className="px-3 py-2 rounded-xl border border-amber-200 bg-amber-50 text-[11px] font-extrabold text-amber-800">
+                          Awaiting customer payment
+                        </span>
                         <button
                           type="button"
                           onClick={() => navigate(`/vendor/bids/${projectId}`, { state: { fromProjectsTab: tab } })}

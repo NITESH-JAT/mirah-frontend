@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Navigate, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
 import CatalogContextBanner from '../../components/customer/CatalogContextBanner';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import SafeImage from '../../components/SafeImage';
+import StorefrontComingSoon from '../../components/customer/StorefrontComingSoon';
+import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
 import { formatMoney } from '../../utils/formatMoney';
 import {
   clearShopCatalogProductSession,
@@ -93,6 +95,7 @@ function categoryCardImageSrc(apiImage) {
 export default function Shopping() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
+  const { loading: storefrontLoading, navVisible, catalogEnabled, comingSoonMessage } = useCustomerStorefront();
   const [searchParams, setSearchParams] = useSearchParams();
   const listView = searchParams.get('view');
   const restoredSession = useMemo(() => restoredProductsSession(), []);
@@ -138,6 +141,11 @@ export default function Shopping() {
   const [category, setCategory] = useState(() => restoredSession?.category ?? '');
   const [collectionId, setCollectionId] = useState(() => restoredSession?.collectionId ?? '');
   const [featured, setFeatured] = useState(() => restoredSession?.featured ?? false);
+  const [diamondTypeFilter, setDiamondTypeFilter] = useState(() =>
+    restoredSession?.diamondType === 'natural' || restoredSession?.diamondType === 'lab'
+      ? restoredSession.diamondType
+      : ''
+  );
 
   const hasActiveCatalogFilters = useMemo(
     () =>
@@ -294,6 +302,7 @@ export default function Shopping() {
         category: category || undefined,
         collectionId: collectionId !== '' && collectionId != null ? collectionId : undefined,
         featured: featured ? true : undefined,
+        diamondType: diamondTypeFilter || undefined,
         search: search || undefined,
         sortBy: sort?.sortBy,
         sortOrder: sort?.sortOrder,
@@ -325,6 +334,7 @@ export default function Shopping() {
       category,
       collectionId,
       featured,
+      diamondType: diamondTypeFilter,
       q,
       sortId,
       page,
@@ -337,6 +347,9 @@ export default function Shopping() {
     setCategory(saved.category || '');
     setCollectionId(saved.collectionId ?? '');
     setFeatured(Boolean(saved.featured));
+    setDiamondTypeFilter(
+      saved.diamondType === 'natural' || saved.diamondType === 'lab' ? saved.diamondType : ''
+    );
     setQ(saved.q || '');
     setSortId(saved.sortId || 'newest');
     setPage(saved.page || 1);
@@ -381,7 +394,7 @@ export default function Shopping() {
   useEffect(() => {
     persistShopSession();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browseMode, catalogBrowseMode, category, collectionId, featured, q, sortId, page]);
+  }, [browseMode, catalogBrowseMode, category, collectionId, featured, diamondTypeFilter, q, sortId, page]);
 
   // Keep Filters dropdowns in sync with applied filters (grid / Apply / history).
   useEffect(() => {
@@ -408,7 +421,7 @@ export default function Shopping() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, collectionId, featured, sortId, browseMode]);
+  }, [q, category, collectionId, featured, diamondTypeFilter, sortId, browseMode]);
 
   // Load filter metadata (categories/collections) once
   useEffect(() => {
@@ -498,7 +511,12 @@ export default function Shopping() {
               selectedCartVariant?.sizeDimensionsUnit ?? selectedCartVariant?.size_dimensions_unit ?? undefined,
           }
         : undefined;
-      await cartService.addItem({ productId: pid, quantity: qty, variants: variantsPayload });
+      await cartService.addItem({
+        productId: pid,
+        quantity: qty,
+        variants: variantsPayload,
+        diamondType: diamondTypeFilter || undefined,
+      });
       addToast(`${qty} ${qty === 1 ? 'item' : 'items'} added to cart`, 'success');
       setCartOpen(false);
       setCartProduct(null);
@@ -609,6 +627,22 @@ export default function Shopping() {
     );
   };
 
+  if (storefrontLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <ShopListingSpinner />
+      </div>
+    );
+  }
+
+  if (!navVisible) {
+    return <Navigate to="/customer/projects?tab=list" replace />;
+  }
+
+  if (!catalogEnabled) {
+    return <StorefrontComingSoon message={comingSoonMessage} />;
+  }
+
   return (
     <div
       className={`flex w-full flex-col pb-0 animate-fade-in ${
@@ -641,6 +675,34 @@ export default function Shopping() {
             </div>
 
             <div className="col-span-4 flex min-w-0 items-center gap-2 md:min-w-0 md:shrink-0 md:justify-end">
+              <div className="flex shrink-0 items-center rounded-full border border-pale bg-white p-0.5">
+                {[
+                  { id: 'natural', label: 'Natural' },
+                  { id: 'lab', label: 'Lab grown' },
+                ].map((opt) => {
+                  const active = diamondTypeFilter === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => {
+                        setDiamondTypeFilter((prev) => (prev === opt.id ? '' : opt.id));
+                        setPage(1);
+                        productsFetchInitializedRef.current = false;
+                      }}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-2 text-[10px] font-semibold transition-colors md:px-3 md:py-2.5 md:text-[11px] ${
+                        active ? 'bg-walnut text-blush' : 'text-mid hover:bg-[#F2E6D4]'
+                      }`}
+                      aria-pressed={active}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path d="M6 3h12l4 6-10 13L2 9z" />
+                      </svg>
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
               <button
                 type="button"
                 onClick={() => {
