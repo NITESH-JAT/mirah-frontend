@@ -1,11 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -235,7 +239,12 @@ export default function VendorBidsView() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
   const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
   const abortRef = useRef(null);
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
+
   const backTab = useMemo(() => {
     try {
       const t = String(new URLSearchParams(location.search || '').get('tab') || '').toLowerCase();
@@ -272,9 +281,7 @@ export default function VendorBidsView() {
   const [details, setDetails] = useState(null);
   const [bidsLoading, setBidsLoading] = useState(true);
   const [bids, setBids] = useState([]);
-  const [search, setSearch] = useState('');
-  const [sortOpen, setSortOpen] = useState(false);
-  const [sortBy, setSortBy] = useState('amount_asc');
+  const [hasOtherSealedBids, setHasOtherSealedBids] = useState(false);
   const [nowTs, setNowTs] = useState(Date.now());
   const [withdrawingAll, setWithdrawingAll] = useState(false);
   const [withdrawAllModalOpen, setWithdrawAllModalOpen] = useState(false);
@@ -286,6 +293,7 @@ export default function VendorBidsView() {
   const [assignmentActing, setAssignmentActing] = useState(false);
 
   const project = details?.project ?? details?.data?.project ?? details ?? null;
+  const moneyCurrency = projectPresentmentCurrency(project, regionCurrency);
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const finishingAt =
     activeBidWindow?.finishingTimestamp ??
@@ -411,6 +419,7 @@ export default function VendorBidsView() {
     }
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
+  const deliveryDetailRows = useMemo(() => buildVendorDeliveryDetailRows(project), [project]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
 
@@ -441,47 +450,33 @@ export default function VendorBidsView() {
     if (!projectId) return;
     setBidsLoading(true);
     try {
-      const list = await projectService.listBids(projectId);
-      setBids(Array.isArray(list) ? list : []);
+      const result = await projectService.listBids(projectId);
+      const list = Array.isArray(result?.bids) ? result.bids : Array.isArray(result) ? result : [];
+      setBids(list);
+      setHasOtherSealedBids(Boolean(result?.hasOtherSealedBids));
     } catch (e) {
       if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load bids', 'error');
       setBids([]);
+      setHasOtherSealedBids(false);
     } finally {
       setBidsLoading(false);
     }
   }, [addToast, projectId]);
 
   useEffect(() => {
+    if (!kycAccepted) return;
     load();
     loadBids();
     return () => abortRef.current?.abort();
-  }, [load, loadBids]);
+  }, [load, loadBids, kycAccepted]);
 
   useEffect(() => {
     const t = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  const filteredBids = useMemo(() => {
-    const q = String(search || '').trim().toLowerCase();
-    let list = bids;
-    if (q) {
-      list = list.filter((b) => {
-        const name = (bidVendorNameOf(b) || '').toLowerCase();
-        return name.includes(q);
-      });
-    }
-    const key = String(sortBy || '').trim().toLowerCase();
-    const byPrice = (b) => bidPriceOf(b) ?? 0;
-    const byDays = (b) => bidDaysOf(b) ?? 0;
-    const arr = [...list];
-    if (key === 'amount_desc') arr.sort((a, b) => byPrice(b) - byPrice(a));
-    else if (key === 'delivery_asc') arr.sort((a, b) => byDays(a) - byDays(b));
-    else if (key === 'delivery_desc') arr.sort((a, b) => byDays(b) - byDays(a));
-    else arr.sort((a, b) => byPrice(a) - byPrice(b));
-    return arr;
-  }, [bids, search, sortBy]);
+  const filteredBids = bids;
 
   const handleWithdrawAll = async () => {
     if (!projectId || !isActive) return;
@@ -574,7 +569,7 @@ export default function VendorBidsView() {
             <p>
               Budget per piece:{' '}
               <span className="font-extrabold text-ink">
-                {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+                {budgetPerPieceRaw ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency) : '—'}
               </span>
             </p>
             <p>
@@ -595,7 +590,15 @@ export default function VendorBidsView() {
           </div>
         </div>
 
-        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
+        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center gap-1.5 tabular-nums">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2 2" />
+            <path d="M5 3 2 6" />
+            <path d="m22 6-3-3" />
+            <path d="M6.38 18.7 4 21" />
+            <path d="M17.64 18.67 20 21" />
+          </svg>
           {loading && !project
             ? '—'
             : hasActiveWindow && finishesMs != null
@@ -638,6 +641,10 @@ export default function VendorBidsView() {
         </div>
       </div>
     ) : null;
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to view bid details." />;
+  }
 
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
@@ -685,32 +692,34 @@ export default function VendorBidsView() {
               </div>
               <div className="p-4 border-t border-pale">
                 <div className="flex flex-col gap-2">
-                  {customerId ? (
-                    <button
-                      type="button"
-                      onClick={chatWithCustomer}
-                      className="w-full px-5 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                      Send message
-                    </button>
-                  ) : null}
-                  {isActive ? (
-                    <>
+                  <div className="flex flex-row items-stretch gap-2">
+                    {customerId ? (
+                      <button
+                        type="button"
+                        onClick={chatWithCustomer}
+                        className="flex-1 min-w-0 px-3 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        Send Message
+                      </button>
+                    ) : null}
+                    {isActive ? (
                       <button
                         type="button"
                         onClick={handleWithdrawAll}
                         disabled={withdrawingAll}
-                        className="w-full px-5 py-3 rounded-2xl border border-red-200 text-[13px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                        className="flex-1 min-w-0 px-3 py-3 rounded-2xl border border-red-200 text-[13px] font-extrabold text-red-600 hover:bg-red-50 disabled:opacity-50"
                       >
                         {withdrawingAll ? 'Withdrawing…' : 'Withdraw Bid'}
                       </button>
-                      <p className="text-[11px] text-muted text-center">
-                        Your bid is sealed. It cannot be changed or replaced.
-                      </p>
-                    </>
+                    ) : null}
+                  </div>
+                  {isActive ? (
+                    <p className="text-[11px] text-muted text-center">
+                      Your bid is sealed. It cannot be changed or replaced.
+                    </p>
                   ) : null}
                 </div>
                 {bidEnded ? <p className="mt-2 text-[11px] text-muted text-center">Bidding window has ended.</p> : null}
@@ -719,6 +728,7 @@ export default function VendorBidsView() {
 
             <div className="hidden lg:block mt-4 space-y-4">
               <VendorProjectMetaCard rows={remainingMetaRows} />
+              <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               <AttachmentsCard />
             </div>
           </div>
@@ -730,6 +740,9 @@ export default function VendorBidsView() {
                 <VendorProjectMetaCard rows={remainingMetaRows} />
               </div>
               <div className="mt-4">
+                <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
+              </div>
+              <div className="mt-4">
                 <AttachmentsCard />
               </div>
             </div>
@@ -739,40 +752,9 @@ export default function VendorBidsView() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex flex-row items-center gap-2 sm:gap-3 w-full min-w-0 sm:justify-between">
-                <div className="flex-1 min-w-0 sm:max-w-md">
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search your bid"
-                    className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid bg-white"
-                  />
-                </div>
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setSortOpen((v) => !v)}
-                    className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
-                  >
-                    Sort
-                  </button>
-                  {sortOpen ? (
-                    <div
-                      className="absolute right-0 mt-2 w-56 rounded-2xl border border-pale bg-white shadow-sm overflow-hidden z-20"
-                      onMouseDown={(e) => e.stopPropagation()}
-                    >
-                      <button type="button" onClick={() => { setSortBy('amount_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">Low amount</button>
-                      <button type="button" onClick={() => { setSortBy('amount_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">High amount</button>
-                      <button type="button" onClick={() => { setSortBy('delivery_asc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">Low delivery duration</button>
-                      <button type="button" onClick={() => { setSortBy('delivery_desc'); setSortOpen(false); }} className="w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream">High delivery duration</button>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-
               {bidsLoading ? (
               <BidsTableSkeleton columns={4} />
-            ) : filteredBids.length === 0 ? (
+            ) : filteredBids.length === 0 && !(bids.length === 0 && hasOtherSealedBids) ? (
               <>
                 <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
                   <div className="flex flex-col items-center text-center">
@@ -821,9 +803,82 @@ export default function VendorBidsView() {
                   </div>
                 </div>
               </>
+            ) : filteredBids.length === 0 && hasOtherSealedBids ? (
+              <>
+                <div className="md:hidden space-y-3">
+                  <div className="rounded-2xl border border-pale bg-cream/40 px-5 py-5 flex items-center justify-center">
+                    <div className="inline-flex items-center justify-center gap-2.5 text-muted">
+                      <span className="w-8 h-8 rounded-full border border-pale bg-white/80 flex items-center justify-center shrink-0 text-mid">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" aria-hidden>
+                          <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                          <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                          <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                          <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                          <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                          <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                          <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[560px] text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-pale bg-walnut/[0.07]">
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="bg-cream/40">
+                          <td colSpan={4} className="px-4 py-5 text-center align-middle">
+                            <div className="inline-flex items-center justify-center gap-2.5 text-muted">
+                              <span className="w-8 h-8 rounded-full border border-pale bg-white/80 flex items-center justify-center shrink-0 text-mid">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" aria-hidden>
+                                  <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                                  <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                                  <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                                  <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                                  <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                                  <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                                  <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                                </svg>
+                              </span>
+                              <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
             ) : (
               <>
                 <div className="md:hidden space-y-3">
+                  {hasOtherSealedBids ? (
+                    <div className="rounded-2xl border border-pale bg-cream/40 px-5 py-5 flex items-center justify-center">
+                      <div className="inline-flex items-center justify-center gap-2.5 text-muted">
+                        <span className="w-8 h-8 rounded-full border border-pale bg-white/80 flex items-center justify-center shrink-0 text-mid">
+                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" aria-hidden>
+                            <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                            <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                            <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                            <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                            <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                            <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                            <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                          </svg>
+                        </span>
+                        <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                      </div>
+                    </div>
+                  ) : null}
                   {filteredBids.map((b, idx) => {
                     const bidId = bidStableId(b);
                     const vendorId = bidVendorIdOf(b);
@@ -876,9 +931,8 @@ export default function VendorBidsView() {
                           </div>
                           <div className="shrink-0 text-right pl-1">
                             <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
-                              {price != null ? `₹${formatMoney(price)}` : '—'}
+                              {price != null ? formatCurrency(price, moneyCurrency) : '—'}
                             </p>
-                            <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
                           </div>
                         </div>
                         {isMe && myAssignmentOutcomeBadge === 'rejected' ? (
@@ -914,7 +968,7 @@ export default function VendorBidsView() {
                                 disabled={cancellingId != null}
                                 className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                               >
-                                {cancellingId != null ? '…' : 'Cancel bid'}
+                                {cancellingId != null ? '…' : 'Withdraw Bid'}
                               </button>
                             ) : null}
                           </div>
@@ -937,6 +991,26 @@ export default function VendorBidsView() {
                           </tr>
                         </thead>
                         <tbody>
+                          {hasOtherSealedBids ? (
+                            <tr className="border-b border-pale last:border-b-0 bg-cream/40">
+                              <td colSpan={4} className="px-4 py-5 text-center align-middle">
+                                <div className="inline-flex items-center justify-center gap-2.5 text-muted">
+                                  <span className="w-8 h-8 rounded-full border border-pale bg-white/80 flex items-center justify-center shrink-0 text-mid">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" aria-hidden>
+                                      <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                                      <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                                      <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                                      <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                                      <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                                      <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                                      <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                                    </svg>
+                                  </span>
+                                  <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
                           {filteredBids.map((b, idx) => {
                             const bidId = bidStableId(b);
                             const vendorId = bidVendorIdOf(b);
@@ -1006,9 +1080,8 @@ export default function VendorBidsView() {
                                 </td>
                                 <td className="px-4 py-3 align-middle text-right">
                                   <p className="text-[14px] font-extrabold text-ink tabular-nums">
-                                    {price != null ? `₹${formatMoney(price)}` : '—'}
+                                    {price != null ? formatCurrency(price, moneyCurrency) : '—'}
                                   </p>
-                                  <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
                                 </td>
                                 <td className="px-4 py-3 align-middle text-right">
                                   <div className="inline-flex flex-col items-end gap-2">
@@ -1024,7 +1097,7 @@ export default function VendorBidsView() {
                                         disabled={cancellingId != null}
                                         className="px-3 py-1.5 rounded-lg border border-red-200 text-[11px] font-bold text-red-600 hover:bg-red-50 disabled:opacity-50"
                                       >
-                                        {cancellingId != null ? '…' : 'Cancel bid'}
+                                        {cancellingId != null ? '…' : 'Withdraw Bid'}
                                       </button>
                                     ) : null}
                                   </div>
@@ -1044,7 +1117,7 @@ export default function VendorBidsView() {
       </div>
       )}
 
-      {/* Withdraw bid confirm modal */}
+      {/* Withdraw Bid confirm modal */}
       {withdrawAllModalOpen ? (
         <div
           className="fixed inset-0 z-[90] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
@@ -1058,7 +1131,7 @@ export default function VendorBidsView() {
               <div className="min-w-0">
                 <p className="text-[14px] font-extrabold text-ink">Withdraw Bid</p>
                 <p className="mt-1 text-[12px] text-muted">
-                  This will withdraw your bid for this project. You cannot place another bid on this auction.
+                  This will withdraw your bid for this project. You can place a new bid from Explore while the auction is open.
                 </p>
               </div>
               <button
@@ -1111,7 +1184,7 @@ export default function VendorBidsView() {
           >
             <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-ink">Cancel Bid</p>
+                <p className="text-[14px] font-extrabold text-ink">Withdraw Bid</p>
                 <p className="mt-1 text-[12px] text-muted">
                   This will withdraw your latest bid for this project.
                 </p>
@@ -1146,7 +1219,7 @@ export default function VendorBidsView() {
                   disabled={cancelSubmitting}
                   className="px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {cancelSubmitting ? 'Cancelling…' : 'Cancel Bid'}
+                  {cancelSubmitting ? 'Withdrawing…' : 'Withdraw Bid'}
                 </button>
               </div>
             </div>

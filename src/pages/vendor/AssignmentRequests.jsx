@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { projectService } from '../../services/projectService';
 
 function isCanceledRequest(err) {
@@ -182,23 +183,7 @@ export default function VendorAssignmentRequests() {
   }
 
   if (!kycAccepted) {
-    return (
-      <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
-          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
-          <div>Please complete your KYC to access assignments.</div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              Go to KYC
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <VendorKycRequiredCard message="Please complete your KYC to access assignments." />;
   }
 
   // Assignments should be visible regardless of selling approval.

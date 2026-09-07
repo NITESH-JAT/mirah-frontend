@@ -5,7 +5,7 @@ import { addressService } from '../../services/addressService';
 import { getVendorId, getVendorDisplayName } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import { priceForCartLine, formatCartVariantLabel } from '../../utils/cartVariant';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 import { authService } from '../../services/authService';
 import { systemService } from '../../services/systemService';
 import {
@@ -28,7 +28,6 @@ export default function Checkout() {
   const [submitting, setSubmitting] = useState(false);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('razorpay'); // razorpay | offline | partial
-  const [mobilePayInfoOpen, setMobilePayInfoOpen] = useState(null); // 'offline' | 'partial' | null
 
   const [selectedItems, setSelectedItems] = useState([]);
   const [shippingSameAsBilling, setShippingSameAsBilling] = useState(false);
@@ -158,9 +157,9 @@ export default function Checkout() {
         String(pickCartItemId(it) ?? '') ||
         `${String(pickProductId(it) ?? '')}-${String(variantText || '')}-${String(idx)}`;
       const name = String(p?.name ?? p?.title ?? 'Product');
-      return { key, it, product: p, name, variantText, qty, unitPrice, lineTotal };
+      return { key, it, product: p, name, variantText, qty, unitPrice, lineTotal, currency: p?.currency || currentUser?.region?.currency || 'INR' };
     });
-  }, [selectedItems]);
+  }, [currentUser?.region?.currency, selectedItems]);
 
   const totals = useMemo(() => {
     const subtotal = lineItems.reduce((acc, x) => acc + (Number(x?.lineTotal) || 0), 0);
@@ -191,8 +190,10 @@ export default function Checkout() {
           ? 'Coming soon'
           : offlineAllowed
             ? 'Pay offline'
-            : 'Not available above ₹2,00,000',
-        info: 'Pay in person at our office during order pickup.',
+            : 'Not available above the configured order limit',
+        info: !offlineShopEnabled
+          ? offlineComingSoonMessage
+          : 'Pay in person at our office during order pickup.',
         blocked: !offlineShopEnabled || !offlineAllowed,
         comingSoon: !offlineShopEnabled,
       });
@@ -200,28 +201,33 @@ export default function Checkout() {
         id: 'partial',
         label: 'Pay part now',
         hint: !offlineShopEnabled ? 'Coming soon' : 'Rest offline',
-        info: 'Pay part now, balance payable in person at pickup',
+        info: !offlineShopEnabled
+          ? offlineComingSoonMessage
+          : 'Pay part now, balance payable in person at pickup',
         blocked: !offlineShopEnabled,
         comingSoon: !offlineShopEnabled,
       });
     }
     return opts;
-  }, [offlineAllowed, offlineShopEnabled, offlineShopVisible]);
+  }, [offlineAllowed, offlineComingSoonMessage, offlineShopEnabled, offlineShopVisible]);
 
   const selectPaymentMethod = (methodId) => {
     if (methodId === 'offline' || methodId === 'partial') {
       if (!offlineShopVisible) return;
       if (!offlineShopEnabled) {
-        addToast(offlineComingSoonMessage, 'info');
+        addToast(
+          offlineComingSoonMessage,
+          'success',
+          methodId === 'partial' ? 'Pay part now' : 'Offline'
+        );
         return;
       }
       if (methodId === 'offline' && !offlineAllowed) {
-        addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
+        addToast('Offline payment is not available for this order total.', 'error');
         return;
       }
     }
     setPaymentMethod(methodId);
-    setMobilePayInfoOpen(null);
   };
 
   useEffect(() => {
@@ -398,7 +404,7 @@ export default function Checkout() {
     setPaymentMethod('razorpay');
     if (!offlineAutoToastRef.current) {
       offlineAutoToastRef.current = true;
-      addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
+      addToast('Offline payment is not available for this order total.', 'error');
     }
   }, [addToast, offlineAllowed, paymentMethod]);
 
@@ -501,7 +507,15 @@ export default function Checkout() {
       data?.razorpayAmount ??
       data?.order?.amount ??
       null;
-    const currency = raw?.currency ?? raw?.razorpay?.currency ?? raw?.order?.currency ?? dataOrder?.currency ?? 'INR';
+    // Razorpay widget must use settlement currency (INR). Presentment stays for UI totals.
+    const paymentCurrency =
+      raw?.paymentCurrency ??
+      data?.paymentCurrency ??
+      raw?.razorpay?.paymentCurrency ??
+      null;
+    const presentmentCurrency =
+      raw?.currency ?? raw?.razorpay?.currency ?? raw?.order?.currency ?? dataOrder?.currency ?? null;
+    const currency = paymentCurrency || presentmentCurrency || 'INR';
     const orderCode =
       data?.orderCode ??
       data?.order_code ??
@@ -548,7 +562,6 @@ export default function Checkout() {
     setPartialCalc(null);
     try {
       const res = await cartService.calculatePartialPayment({
-        currency: 'INR',
         cartItemIds: Array.isArray(cartItemIds) && cartItemIds.length ? cartItemIds : undefined,
         productIds: Array.isArray(productIds) && productIds.length ? productIds : undefined,
       });
@@ -565,12 +578,16 @@ export default function Checkout() {
     if (!hasSelection) return;
     if (!providerCheck.ok) return;
     if ((paymentMethod === 'offline' || paymentMethod === 'partial') && !offlineShopEnabled) {
-      addToast(offlineComingSoonMessage, 'info');
+      addToast(
+        offlineComingSoonMessage,
+        'success',
+        paymentMethod === 'partial' ? 'Pay part now' : 'Offline'
+      );
       setPaymentMethod('razorpay');
       return;
     }
     if (paymentMethod === 'offline' && !offlineAllowed) {
-      addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
+      addToast('Offline payment is not available for this order total.', 'error');
       setPaymentMethod('razorpay');
       return;
     }
@@ -605,7 +622,6 @@ export default function Checkout() {
 
       const checkoutRes = await cartService.checkout({
         paymentMethod,
-        currency: 'INR',
         cartItemIds: Array.isArray(cartItemIds) && cartItemIds.length ? cartItemIds : undefined,
         productIds: Array.isArray(productIds) && productIds.length ? productIds : undefined,
         showroomId: pickup?.showroomId ?? undefined,
@@ -709,12 +725,16 @@ export default function Checkout() {
     if (!hasSelection) return;
     if (!providerCheck.ok) return;
     if ((paymentMethod === 'offline' || paymentMethod === 'partial') && !offlineShopEnabled) {
-      addToast(offlineComingSoonMessage, 'info');
+      addToast(
+        offlineComingSoonMessage,
+        'success',
+        paymentMethod === 'partial' ? 'Pay part now' : 'Offline'
+      );
       setPaymentMethod('razorpay');
       return;
     }
     if (paymentMethod === 'offline' && !offlineAllowed) {
-      addToast('Offline payment is not available for orders above ₹2,00,000.', 'error');
+      addToast('Offline payment is not available for this order total.', 'error');
       setPaymentMethod('razorpay');
       return;
     }
@@ -783,6 +803,7 @@ export default function Checkout() {
                 total: partialCalc?.total,
                 onlineAmount: partialCalc?.onlineAmount,
                 offlineAmount: partialCalc?.offlineAmount,
+                currency: partialCalc?.currency,
               }
             : null
         }
@@ -809,11 +830,12 @@ export default function Checkout() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-pale bg-cream p-10 md:p-14 flex items-center justify-center">
-          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <div className="flex min-h-[min(60vh,28rem)] w-full items-center justify-center bg-transparent">
+          <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
             <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
           </svg>
+          <span className="sr-only">Loading checkout</span>
         </div>
       ) : !((Array.isArray(cartItemIds) && cartItemIds.length > 0) || (Array.isArray(productIds) && productIds.length > 0)) ? (
         <div className="rounded-2xl border border-pale bg-white p-6 text-[13px] text-mid">
@@ -867,22 +889,22 @@ export default function Checkout() {
                     <div className="space-y-3 text-[12px]">
                       <div className="flex items-center justify-between text-mid">
                         <span>Total</span>
-                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.total)}</span>
+                        <span className="font-extrabold text-ink">{formatCurrency(partialCalc.total, partialCalc.currency)}</span>
                       </div>
                       <div className="flex items-center justify-between text-mid">
                         <span>Pay online now</span>
-                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.onlineAmount)}</span>
+                        <span className="font-extrabold text-ink">{formatCurrency(partialCalc.onlineAmount, partialCalc.currency)}</span>
                       </div>
                       <div className="flex items-center justify-between text-mid">
                         <span>Pay offline later</span>
-                        <span className="font-extrabold text-ink">₹{formatMoney(partialCalc.offlineAmount)}</span>
+                        <span className="font-extrabold text-ink">{formatCurrency(partialCalc.offlineAmount, partialCalc.currency)}</span>
                       </div>
                     </div>
 
                     {partialCalc?.rules ? (
                       <div className="mt-4 rounded-2xl border border-pale bg-cream p-3 text-[11px] text-muted">
                         {partialCalc.rules?.offlineCap != null ? (
-                          <div className="mt-1">Offline cap: <span className="font-semibold text-mid">₹{formatMoney(partialCalc.rules.offlineCap)}</span></div>
+                          <div className="mt-1">Offline cap: <span className="font-semibold text-mid">{formatCurrency(partialCalc.rules.offlineCap, partialCalc.currency)}</span></div>
                         ) : null}
                       </div>
                     ) : null}
@@ -963,10 +985,10 @@ export default function Checkout() {
                             <p className="text-[11px] text-muted mt-0.5 font-semibold truncate">{x.variantText}</p>
                           ) : null}
                           <p className="text-[11px] text-muted mt-0.5">
-                            Qty: {x.qty} • ₹{formatMoney(x.unitPrice)} <span className="text-muted">/</span> piece
+                            Qty: {x.qty} • {formatCurrency(x.unitPrice, x.currency)} <span className="text-muted">/</span> piece
                           </p>
                         </div>
-                        <div className="text-[12px] font-extrabold text-ink">₹{formatMoney(x.unitPrice)}</div>
+                        <div className="text-[12px] font-extrabold text-ink">{formatCurrency(x.unitPrice, x.currency)}</div>
                       </div>
                     );
                   })}
@@ -1047,7 +1069,7 @@ export default function Checkout() {
 
                         <div>
                           <label className="block text-[11px] font-medium text-ink uppercase tracking-wide">
-                            Phone *
+                            Phone * <span className="font-normal normal-case text-muted">(include country code)</span>
                           </label>
                           <input
                             type="tel"
@@ -1055,15 +1077,16 @@ export default function Checkout() {
                             onChange={(e) =>
                               x.setForm((p) => {
                                 const raw = e.target.value || '';
-                                const digits = raw.replace(/\D/g, '');
-                                return { ...p, phone: digits };
+                                // Allow + for country code; keep digits and spaces.
+                                const cleaned = raw.replace(/[^\d+\s]/g, '').replace(/(?!^)\+/g, '');
+                                return { ...p, phone: cleaned };
                               })
                             }
-                            inputMode="numeric"
+                            inputMode="tel"
                             className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
                               x.valid.missing.phone ? 'border-amber-300' : 'border-pale'
                             }`}
-                            placeholder="Phone"
+                            placeholder="+9191234XXX"
                           />
                         </div>
 
@@ -1181,10 +1204,10 @@ export default function Checkout() {
                             <p className="text-[11px] text-muted font-semibold truncate">{x.variantText}</p>
                           ) : null}
                           <p className="text-[11px] text-muted">
-                            ₹{formatMoney(x.unitPrice)} / piece
+                            {formatCurrency(x.unitPrice, x.currency)} / piece
                           </p>
                         </div>
-                        <div className="shrink-0 font-bold text-ink">₹{formatMoney(x.lineTotal)}</div>
+                        <div className="shrink-0 font-bold text-ink">{formatCurrency(x.lineTotal, x.currency)}</div>
                       </div>
                     ))}
                   </div>
@@ -1192,23 +1215,29 @@ export default function Checkout() {
                   <div className="mt-4 border-t border-pale pt-3 space-y-2">
                     <div className="flex items-center justify-between text-mid hidden">
                       <span>Item total</span>
-                      <span className="font-bold text-ink">₹{formatMoney(totals.subtotal)}</span>
+                      <span className="font-bold text-ink">{formatCurrency(totals.subtotal, lineItems[0]?.currency)}</span>
                     </div>
                     {Number(totals.delivery || 0) !== 0 ? (
                       <div className="flex items-center justify-between text-mid">
                         <span>Delivery</span>
-                        <span className="font-bold text-ink">₹{formatMoney(totals.delivery)}</span>
+                        <span className="font-bold text-ink">{formatCurrency(totals.delivery, lineItems[0]?.currency)}</span>
                       </div>
                     ) : null}
                     {Number(totals.handling || 0) !== 0 ? (
                       <div className="flex items-center justify-between text-mid">
                         <span>Handling</span>
-                        <span className="font-bold text-ink">₹{formatMoney(totals.handling)}</span>
+                        <span className="font-bold text-ink">{formatCurrency(totals.handling, lineItems[0]?.currency)}</span>
                       </div>
                     ) : null}
-                    <div className="border-t border-pale pt-3 flex items-center justify-between">
+                    <div
+                      className={`flex items-center justify-between ${
+                        Number(totals.delivery || 0) !== 0 || Number(totals.handling || 0) !== 0
+                          ? 'border-t border-pale pt-3'
+                          : ''
+                      }`}
+                    >
                       <span className="font-extrabold text-ink">Grand Total</span>
-                      <span className="font-extrabold text-ink">₹{formatMoney(totals.total)}</span>
+                      <span className="font-extrabold text-ink">{formatCurrency(totals.total, lineItems[0]?.currency)}</span>
                     </div>
                   </div>
                 </div>
@@ -1226,46 +1255,41 @@ export default function Checkout() {
                   }`}
                 >
                   {paymentMethodOptions.map((m) => (
-                    <button
+                    <div
                       key={m.id}
-                      type="button"
-                      onClick={() => selectPaymentMethod(m.id)}
-                      disabled={Boolean(m.blocked)}
-                      className={`relative text-left px-4 py-3 rounded-2xl border ${
+                      className={`relative rounded-2xl border ${
                         paymentMethod === m.id
                           ? 'border-walnut bg-walnut/5 text-ink'
-                          : 'border-pale bg-white text-mid hover:bg-cream'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                          : 'border-pale bg-white text-mid'
+                      } ${m.blocked ? 'opacity-50' : ''}`}
                     >
                       {m.info ? (
-                        <div
-                          className="absolute top-2 right-2"
-                          onClick={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
+                        <button
+                          type="button"
+                          aria-label={`${m.label} info`}
+                          onClick={() => addToast(m.info, 'success', m.label)}
+                          className="absolute top-2 right-2 z-10 inline-flex h-5 w-5 cursor-pointer items-center justify-center rounded-full border border-pale bg-white text-[11px] font-extrabold text-muted hover:border-walnut/40 hover:text-ink"
                         >
-                          <div className="relative group">
-                            <div className="w-5 h-5 rounded-full border border-pale bg-white text-muted flex items-center justify-center text-[11px] font-extrabold">
-                              i
-                            </div>
-                            <div className="pointer-events-none absolute right-0 top-full mt-2 w-64 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="rounded-xl border border-pale bg-white shadow-sm px-3 py-2 text-[11px] font-semibold text-mid">
-                                {m.info}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                          i
+                        </button>
                       ) : null}
-                      <div className="text-[12px] font-extrabold">{m.label}</div>
-                      <div className="text-[11px] text-muted mt-1">{m.hint}</div>
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => selectPaymentMethod(m.id)}
+                        disabled={Boolean(m.blocked)}
+                        className={`w-full text-left px-4 py-3 rounded-2xl ${
+                          m.blocked ? 'cursor-not-allowed' : 'hover:bg-cream/60 cursor-pointer'
+                        } disabled:pointer-events-none`}
+                      >
+                        <div className="text-[12px] font-extrabold pr-6">{m.label}</div>
+                        <div className="text-[11px] text-muted mt-1">{m.hint}</div>
+                      </button>
+                    </div>
                   ))}
                 </div>
-                {offlineShopVisible && !offlineShopEnabled ? (
-                  <p className="mt-3 text-[11px] font-semibold text-amber-700">{offlineComingSoonMessage}</p>
-                ) : null}
                 {offlineShopEnabled && !offlineAllowed ? (
                   <p className="mt-3 text-[11px] font-semibold text-amber-700">
-                    Offline payment is not available above ₹2,00,000.
+                    Offline payment is not available above the configured order limit.
                   </p>
                 ) : null}
 
@@ -1306,10 +1330,14 @@ export default function Checkout() {
                 {paymentMethodOptions.map((m) => (
                   <div
                     key={m.id}
-                    onClick={() => selectPaymentMethod(m.id)}
+                    onClick={() => {
+                      if (m.blocked) return;
+                      selectPaymentMethod(m.id);
+                    }}
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter' && e.key !== ' ') return;
                       e.preventDefault();
+                      if (m.blocked) return;
                       selectPaymentMethod(m.id);
                     }}
                     role="button"
@@ -1324,12 +1352,12 @@ export default function Checkout() {
                     {m.info ? (
                       <button
                         type="button"
-                        aria-label="More info"
+                        aria-label={`${m.label} info`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setMobilePayInfoOpen((prev) => (prev === m.id ? null : m.id));
+                          addToast(m.info, 'success', m.label);
                         }}
-                        className="absolute top-1 right-1 w-4 h-4 rounded-full border border-pale bg-white text-muted inline-flex items-center justify-center text-[10px] font-extrabold"
+                        className="absolute top-1 right-1 z-10 inline-flex h-4 w-4 items-center justify-center rounded-full border border-pale bg-white text-[10px] font-extrabold text-muted"
                       >
                         i
                       </button>
@@ -1338,21 +1366,9 @@ export default function Checkout() {
                   </div>
                 ))}
               </div>
-              {mobilePayInfoOpen ? (
-                <div className="mt-3 rounded-2xl border border-pale bg-cream px-3 py-2 text-[11px] font-semibold text-mid">
-                  {mobilePayInfoOpen === 'offline'
-                    ? 'Pay in person at our office during order pickup.'
-                    : mobilePayInfoOpen === 'partial'
-                      ? 'Pay part now, balance payable in person at pickup'
-                      : ''}
-                </div>
-              ) : null}
-              {offlineShopVisible && !offlineShopEnabled ? (
-                <p className="mt-2 text-center text-[11px] font-semibold text-amber-700">{offlineComingSoonMessage}</p>
-              ) : null}
               {offlineShopEnabled && !offlineAllowed ? (
                 <p className="mt-2 text-center text-[11px] font-semibold text-amber-700">
-                  Offline payment is not available above ₹2,00,000.
+                  Offline payment is not available above the configured order limit.
                 </p>
               ) : null}
               <button
@@ -1370,4 +1386,3 @@ export default function Checkout() {
     </div>
   );
 }
-

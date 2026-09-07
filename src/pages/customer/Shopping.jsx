@@ -8,13 +8,17 @@ import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import SafeImage from '../../components/SafeImage';
 import StorefrontComingSoon from '../../components/customer/StorefrontComingSoon';
 import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
-import { formatMoney } from '../../utils/formatMoney';
+import { useRegion } from '../../context/RegionProvider';
+import { formatCurrency } from '../../utils/formatMoney';
 import {
   clearShopCatalogProductSession,
   readShopCatalogSession,
   writeShopCatalogSession,
 } from '../../utils/shopCatalogSession';
 import { productListingGridBorderClasses, shopListingFullBleedClass } from '../../utils/productListingGrid';
+import { getProductDiamondTypes, resolveDiamondUnitPricing } from '../../utils/productDiamondPricing';
+import { SpecChoiceCard } from '../../components/project/SpecChoiceCards';
+import { labPictogram, naturalPictogram } from '../../utils/projectFinishPreview';
 
 function restoredProductsSession() {
   try {
@@ -86,6 +90,19 @@ function ShopListingSpinner() {
   );
 }
 
+/** Center loader in the main column (below header, right of desktop sidebar). */
+function ShopPageLoader() {
+  return (
+    <div
+      className="flex w-full flex-1 items-center justify-center min-h-[calc(100dvh-4rem-3.5rem-env(safe-area-inset-bottom))] lg:min-h-[calc(100dvh-4rem)]"
+      aria-busy="true"
+    >
+      <ShopListingSpinner />
+      <span className="sr-only">Loading shop</span>
+    </div>
+  );
+}
+
 /** Category tiles use only the `image` URL from `GET .../customer/categories`. */
 function categoryCardImageSrc(apiImage) {
   const url = String(apiImage || '').trim();
@@ -95,6 +112,7 @@ function categoryCardImageSrc(apiImage) {
 export default function Shopping() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
+  const { ready: regionReady } = useRegion();
   const { loading: storefrontLoading, navVisible, catalogEnabled, comingSoonMessage } = useCustomerStorefront();
   const [searchParams, setSearchParams] = useSearchParams();
   const listView = searchParams.get('view');
@@ -150,8 +168,9 @@ export default function Shopping() {
   const hasActiveCatalogFilters = useMemo(
     () =>
       Boolean(String(category || '').trim()) ||
-      (collectionId !== '' && collectionId != null && !Number.isNaN(Number(collectionId))),
-    [category, collectionId]
+      (collectionId !== '' && collectionId != null && !Number.isNaN(Number(collectionId))) ||
+      Boolean(featured),
+    [category, collectionId, featured]
   );
 
   // Draft filters (only applied on "Apply")
@@ -164,7 +183,9 @@ export default function Shopping() {
   const [draftFeatured, setDraftFeatured] = useState(() => restoredSession?.featured ?? false);
 
   const [openFilters, setOpenFilters] = useState(false);
+  const [openDiamondFilter, setOpenDiamondFilter] = useState(false);
   const [openSort, setOpenSort] = useState(false);
+  const [openGridCols, setOpenGridCols] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
@@ -324,7 +345,17 @@ export default function Shopping() {
     setDraftCategory(category);
     setDraftCollectionId(collectionId !== '' && collectionId != null ? String(collectionId) : '');
     setDraftFeatured(featured);
+    setOpenDiamondFilter(false);
+    setOpenSort(false);
+    setOpenGridCols(false);
     setOpenFilters(true);
+  };
+
+  const openDiamondFilterModal = () => {
+    setOpenFilters(false);
+    setOpenSort(false);
+    setOpenGridCols(false);
+    setOpenDiamondFilter(true);
   };
 
   const persistShopSession = (patch = {}) => {
@@ -371,6 +402,7 @@ export default function Shopping() {
       }
       skipSessionRestoreRef.current = false;
       setOpenFilters(false);
+      setOpenDiamondFilter(false);
       setOpenSort(false);
       return;
     }
@@ -385,6 +417,7 @@ export default function Shopping() {
     setItems([]);
     setMeta({ page: 1, totalPages: 1, total: null });
     setOpenFilters(false);
+    setOpenDiamondFilter(false);
     setOpenSort(false);
     productsFetchInitializedRef.current = false;
     clearShopCatalogProductSession(catalogBrowseMode);
@@ -400,14 +433,17 @@ export default function Shopping() {
   useEffect(() => {
     setDraftCategory(category);
     setDraftCollectionId(collectionId !== '' && collectionId != null ? String(collectionId) : '');
-  }, [category, collectionId]);
+    setDraftFeatured(Boolean(featured));
+  }, [category, collectionId, featured]);
 
-  // Debounced search + filter/sort refresh (products browse only)
+  // Debounced search + filter/sort refresh (products browse only).
+  // Wait for region cookie bootstrap so first paint is not INR-then-AED.
   useEffect(() => {
     if (browseMode !== 'products') {
       productsFetchInitializedRef.current = false;
       return;
     }
+    if (!regionReady) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const query = q;
     debounceRef.current = setTimeout(() => {
@@ -421,7 +457,20 @@ export default function Shopping() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, collectionId, featured, diamondTypeFilter, sortId, browseMode]);
+  }, [q, category, collectionId, featured, diamondTypeFilter, sortId, browseMode, regionReady]);
+
+  // Manual currency change (navbar) — refresh localized prices.
+  useEffect(() => {
+    const onRegion = (ev) => {
+      if (ev?.detail?.bootstrap) return;
+      if (browseMode !== 'products' || !regionReady) return;
+      productsFetchInitializedRef.current = true;
+      fetchList({ nextPage: page, query: q });
+    };
+    window.addEventListener('mirah_region_updated', onRegion);
+    return () => window.removeEventListener('mirah_region_updated', onRegion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [browseMode, regionReady, page, q, category, collectionId, featured, diamondTypeFilter, sortId]);
 
   // Load filter metadata (categories/collections) once
   useEffect(() => {
@@ -502,6 +551,18 @@ export default function Shopping() {
     }
     setCartAdding(true);
     try {
+      const diamondTypes = getProductDiamondTypes(cartProduct);
+      let diamondType = null;
+      if (diamondTypes.length === 1) {
+        diamondType = diamondTypes[0];
+      } else if (diamondTypes.includes(diamondTypeFilter)) {
+        diamondType = diamondTypeFilter;
+      } else if (diamondTypes.length > 1) {
+        addToast('Open the product to choose Natural or Lab grown diamonds', 'error');
+        setCartAdding(false);
+        return;
+      }
+
       const variantsPayload = selectedCartVariant
         ? {
             type: selectedCartVariant?.type ?? undefined,
@@ -509,13 +570,16 @@ export default function Shopping() {
             sizeDimensions: selectedCartVariant?.sizeDimensions ?? selectedCartVariant?.size_dimensions ?? undefined,
             sizeDimensionsUnit:
               selectedCartVariant?.sizeDimensionsUnit ?? selectedCartVariant?.size_dimensions_unit ?? undefined,
+            ...(diamondType ? { diamondType } : {}),
           }
-        : undefined;
+        : diamondType
+          ? { diamondType }
+          : undefined;
       await cartService.addItem({
         productId: pid,
         quantity: qty,
         variants: variantsPayload,
-        diamondType: diamondTypeFilter || undefined,
+        diamondType: diamondType || undefined,
       });
       addToast(`${qty} ${qty === 1 ? 'item' : 'items'} added to cart`, 'success');
       setCartOpen(false);
@@ -537,6 +601,7 @@ export default function Shopping() {
       category: v,
       collectionId: '',
       featured: false,
+      diamondType: '',
       q: '',
       sortId,
       page: 1,
@@ -547,6 +612,7 @@ export default function Shopping() {
     setDraftCollectionId('');
     setFeatured(false);
     setDraftFeatured(false);
+    setDiamondTypeFilter('');
     setBrowseMode('products');
     setQ('');
     setPage(1);
@@ -571,6 +637,7 @@ export default function Shopping() {
       category: '',
       collectionId: n,
       featured: false,
+      diamondType: '',
       q: '',
       sortId,
       page: 1,
@@ -581,6 +648,7 @@ export default function Shopping() {
     setDraftCategory('');
     setFeatured(false);
     setDraftFeatured(false);
+    setDiamondTypeFilter('');
     setBrowseMode('products');
     setQ('');
     setPage(1);
@@ -603,6 +671,7 @@ export default function Shopping() {
       category: '',
       collectionId: '',
       featured: false,
+      diamondType: '',
       q: '',
       sortId,
       page: 1,
@@ -613,6 +682,7 @@ export default function Shopping() {
     setDraftCollectionId('');
     setFeatured(false);
     setDraftFeatured(false);
+    setDiamondTypeFilter('');
     setBrowseMode('products');
     setQ('');
     setPage(1);
@@ -628,11 +698,7 @@ export default function Shopping() {
   };
 
   if (storefrontLoading) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <ShopListingSpinner />
-      </div>
-    );
+    return <ShopPageLoader />;
   }
 
   if (!navVisible) {
@@ -674,65 +740,124 @@ export default function Shopping() {
               </div>
             </div>
 
-            <div className="col-span-4 flex min-w-0 items-center gap-2 md:min-w-0 md:shrink-0 md:justify-end">
-              <div className="flex shrink-0 items-center rounded-full border border-pale bg-white p-0.5">
-                {[
-                  { id: 'natural', label: 'Natural' },
-                  { id: 'lab', label: 'Lab grown' },
-                ].map((opt) => {
-                  const active = diamondTypeFilter === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => {
-                        setDiamondTypeFilter((prev) => (prev === opt.id ? '' : opt.id));
-                        setPage(1);
-                        productsFetchInitializedRef.current = false;
-                      }}
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-2 text-[10px] font-semibold transition-colors md:px-3 md:py-2.5 md:text-[11px] ${
-                        active ? 'bg-walnut text-blush' : 'text-mid hover:bg-[#F2E6D4]'
-                      }`}
-                      aria-pressed={active}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                        <path d="M6 3h12l4 6-10 13L2 9z" />
-                      </svg>
-                      {opt.label}
-                    </button>
-                  );
-                })}
-              </div>
+            <div className="col-span-4 flex min-w-0 items-center justify-end gap-2 md:min-w-0 md:shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  if (openDiamondFilter) setOpenDiamondFilter(false);
+                  else openDiamondFilterModal();
+                }}
+                className={`relative inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
+                  openDiamondFilter || Boolean(diamondTypeFilter)
+                    ? 'border-walnut bg-[#F2E6D4] text-ink'
+                    : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                }`}
+                aria-label={
+                  diamondTypeFilter === 'lab'
+                    ? 'Diamond type: Lab grown'
+                    : diamondTypeFilter === 'natural'
+                      ? 'Diamond type: Natural'
+                      : 'Diamond type'
+                }
+                aria-expanded={openDiamondFilter}
+                title="Diamonds"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="M6 3h12l4 6-10 12L2 9z" />
+                  <path d="M2 9h20" />
+                  <path d="M12 3 8 9l4 12 4-12-4-6" />
+                </svg>
+                {diamondTypeFilter ? (
+                  <span
+                    className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-walnut"
+                    aria-hidden
+                  />
+                ) : null}
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
                   if (openFilters) setOpenFilters(false);
                   else openFilterModal();
                 }}
-                className={`flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border px-2 py-2.5 text-[11px] font-semibold transition-colors md:flex-initial md:shrink-0 md:gap-2 md:px-5 md:py-3 md:text-[12px] ${
+                className={`relative inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
                   openFilters || hasActiveCatalogFilters
-                    ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                    ? 'border-walnut bg-[#F2E6D4] text-ink'
                     : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
                 }`}
-                aria-label={hasActiveCatalogFilters ? 'Filters (category or collection active)' : 'Filters'}
+                aria-label={hasActiveCatalogFilters ? 'Filters (active)' : 'Filters'}
+                title="Filters"
               >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <line x1="4" y1="6" x2="20" y2="6" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                  <line x1="11" y1="18" x2="13" y2="18" />
+                </svg>
                 {hasActiveCatalogFilters ? (
-                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-walnut md:h-2 md:w-2" aria-hidden />
+                  <span
+                    className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-walnut"
+                    aria-hidden
+                  />
                 ) : null}
-                Filters
               </button>
 
-              <div className="relative min-w-0 flex-1 md:shrink-0">
+              <div className="relative shrink-0">
                 <button
                   type="button"
-                  onClick={() => setOpenSort((v) => !v)}
-                  className={`w-full truncate rounded-full border px-2 py-2.5 text-[11px] font-semibold transition-colors md:px-5 md:py-3 md:text-[12px] ${
+                  onClick={() => {
+                    setOpenGridCols(false);
+                    setOpenDiamondFilter(false);
+                    setOpenSort((v) => !v);
+                  }}
+                  className={`inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
                     openSort
-                      ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                      ? 'border-walnut bg-[#F2E6D4] text-ink'
                       : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
                   }`}
+                  aria-label="Sort"
+                  aria-expanded={openSort}
+                  title="Sort"
                 >
-                  Sort
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="m3 8 4-4 4 4" />
+                    <path d="M7 4v16" />
+                    <path d="m21 16-4 4-4-4" />
+                    <path d="M17 20V4" />
+                  </svg>
                 </button>
                 {openSort ? (
                   <div className="absolute right-0 z-40 mt-2 w-56 overflow-hidden rounded-2xl border border-pale bg-white shadow-sm">
@@ -755,23 +880,77 @@ export default function Shopping() {
                 ) : null}
               </div>
 
-              <div className="hidden shrink-0 items-center gap-2 md:flex">
-                {[2, 3, 4].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setDesktopGridCols(n)}
-                    className={`min-h-[2.25rem] min-w-[2.25rem] rounded-lg px-2 text-[12px] font-bold transition-colors sm:min-w-[2.5rem] ${
-                      desktopGridCols === n
-                        ? 'bg-walnut text-blush shadow-sm'
-                        : 'border border-pale bg-white text-mid hover:bg-cream'
-                    }`}
-                    aria-label={`${n} products per row`}
-                    title={`${n} per row`}
+              <div className="relative hidden shrink-0 md:block">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpenSort(false);
+                    setOpenDiamondFilter(false);
+                    setOpenGridCols((v) => !v);
+                  }}
+                  className={`inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
+                    openGridCols
+                      ? 'border-walnut bg-[#F2E6D4] text-ink'
+                      : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                  }`}
+                  aria-label={`Grid layout: ${desktopGridCols} per row`}
+                  aria-expanded={openGridCols}
+                  title={`${desktopGridCols} per row`}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
                   >
-                    {n}
-                  </button>
-                ))}
+                    <rect x="3" y="3" width="7" height="7" rx="1" />
+                    <rect x="14" y="3" width="7" height="7" rx="1" />
+                    <rect x="3" y="14" width="7" height="7" rx="1" />
+                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                  </svg>
+                </button>
+                {openGridCols ? (
+                  <div className="absolute right-0 z-40 mt-2 w-36 overflow-hidden rounded-2xl border border-pale bg-white shadow-sm">
+                    {[2, 3, 4].map((cols) => (
+                      <button
+                        key={cols}
+                        type="button"
+                        onClick={() => {
+                          setDesktopGridCols(cols);
+                          setOpenGridCols(false);
+                        }}
+                        className={`flex w-full items-center justify-center px-4 py-3 transition-colors hover:bg-[#F2E6D4] ${
+                          desktopGridCols === cols ? 'bg-[#F2E6D4] text-ink' : 'text-mid'
+                        }`}
+                        aria-label={`${cols} products per row`}
+                        title={`${cols} per row`}
+                      >
+                        <span
+                          className="grid w-full max-w-[5.5rem] gap-1"
+                          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+                          aria-hidden
+                        >
+                          {Array.from({ length: cols }, (_, i) => (
+                            <span
+                              key={i}
+                              className={`aspect-square rounded-[3px] border-2 ${
+                                desktopGridCols === cols
+                                  ? 'border-walnut bg-walnut/20'
+                                  : 'border-current bg-transparent'
+                              }`}
+                            />
+                          ))}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -892,6 +1071,83 @@ export default function Shopping() {
         </div>
       ) : null}
 
+      {browseMode === 'products' && openDiamondFilter ? (
+        <div
+          className="fixed inset-0 z-[80] bg-ink/25 flex items-end md:items-center justify-center px-3 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          onMouseDown={() => setOpenDiamondFilter(false)}
+        >
+          <div
+            className="w-full max-w-md bg-white rounded-2xl shadow-sm border border-pale overflow-hidden"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 pt-5 pb-4 border-b border-pale flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[15px] font-bold text-ink">Diamonds</p>
+                <p className="text-[12px] text-muted mt-1">Choose diamond type</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenDiamondFilter(false)}
+                className="p-2 rounded-xl hover:bg-cream text-muted cursor-pointer"
+                aria-label="Close"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5 p-4">
+              <SpecChoiceCard
+                label="Any"
+                className="min-h-[96px]"
+                selected={!diamondTypeFilter}
+                iconNode={
+                  <span className="flex h-11 w-11 items-center justify-center text-ink" aria-hidden>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="28"
+                      height="28"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M6 3h12l4 6-10 12L2 9z" />
+                      <path d="M2 9h20" />
+                      <path d="M12 3 8 9l4 12 4-12-4-6" />
+                    </svg>
+                  </span>
+                }
+                onClick={() => {
+                  setDiamondTypeFilter('');
+                  setOpenDiamondFilter(false);
+                }}
+              />
+              <SpecChoiceCard
+                label="Natural"
+                iconSrc={naturalPictogram}
+                className="min-h-[96px]"
+                selected={diamondTypeFilter === 'natural'}
+                onClick={() => {
+                  setDiamondTypeFilter('natural');
+                  setOpenDiamondFilter(false);
+                }}
+              />
+              <SpecChoiceCard
+                label="Lab grown"
+                iconSrc={labPictogram}
+                className="min-h-[96px]"
+                selected={diamondTypeFilter === 'lab'}
+                onClick={() => {
+                  setDiamondTypeFilter('lab');
+                  setOpenDiamondFilter(false);
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {browseMode === 'categories' ? (
         <>
           <div className="sticky top-0 z-30 isolate bg-cream -mx-4 border-b border-pale/60 lg:-mx-8 px-4 lg:px-8">
@@ -937,20 +1193,18 @@ export default function Shopping() {
             </div>
           </div>
 
-          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-0 pb-4">
-            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+          <div className="mt-4 flex w-full flex-col pb-4">
+            <div className="w-full min-w-0">
               {catalogBrowseMode === 'category' ? (
                 customerCategories.length === 0 && !filterMetaLoaded ? (
-                  <div className="flex flex-1 items-center justify-center">
-                    <ShopListingSpinner />
-                  </div>
+                  <ShopPageLoader />
                 ) : customerCategories.length === 0 ? (
                   <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
                     No categories are available yet.
                   </div>
                 ) : (
                   <>
-                    <div className="flex w-full min-w-0 flex-col md:flex-row md:snap-x md:snap-mandatory gap-3 md:overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                    <div className="flex w-full min-w-0 flex-col gap-3 md:flex-row md:snap-x md:snap-mandatory md:overflow-x-auto md:overflow-y-visible md:pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
                       {customerCategories.map((row) => {
                         const imgSrc = categoryCardImageSrc(row.image);
                         return (
@@ -985,24 +1239,17 @@ export default function Shopping() {
                         );
                       })}
                     </div>
-                    {customerCategories.length > 1 ? (
-                      <div className={`pt-3 pb-3 ${customerCategories.length > 3 ? "" : "md:hidden"}`}>
-                        <p className="text-center text-[11px] text-muted">Scroll to see all categories</p>
-                      </div>
-                    ) : null}
                   </>
                 )
               ) : customerCollections.length === 0 && !filterMetaLoaded ? (
-                <div className="flex flex-1 items-center justify-center">
-                  <ShopListingSpinner />
-                </div>
+                <ShopPageLoader />
               ) : customerCollections.length === 0 ? (
                 <div className="rounded-2xl border border-pale bg-cream px-4 py-10 text-center text-[13px] text-muted">
                   No collections are available yet.
                 </div>
               ) : (
                 <>
-                  <div className="flex w-full min-w-0 flex-col md:flex-row md:snap-x md:snap-mandatory gap-3 md:overflow-x-auto overflow-y-visible pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
+                  <div className="flex w-full min-w-0 flex-col gap-3 md:flex-row md:snap-x md:snap-mandatory md:overflow-x-auto md:overflow-y-visible md:pb-0 [scrollbar-width:thin] [-ms-overflow-style:auto] [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-pale/40 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-walnut/25 hover:[&::-webkit-scrollbar-thumb]:bg-walnut/40">
                     {customerCollections.map((row) => {
                       const imgSrc = categoryCardImageSrc(row.image);
                       return (
@@ -1037,11 +1284,6 @@ export default function Shopping() {
                       );
                     })}
                   </div>
-                  {customerCollections.length > 1 ? (
-                    <div className={`pt-3 pb-3 ${customerCollections.length > 3 ? "" : "md:hidden"}`}>
-                      <p className="text-center text-[11px] text-muted">Scroll to see all collections</p>
-                    </div>
-                  ) : null}
                 </>
               )}
             </div>
@@ -1049,11 +1291,7 @@ export default function Shopping() {
             <button
               type="button"
               onClick={openViewAllProducts}
-              className={`group relative isolate min-h-[5.75rem] w-full cursor-pointer overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:min-h-[6.25rem] ${
-                (catalogBrowseMode === 'category' ? customerCategories.length : customerCollections.length) > 3
-                  ? ''
-                  : 'mt-6'
-              }`}
+              className="group relative isolate mt-4 min-h-[5.75rem] w-full shrink-0 cursor-pointer overflow-hidden rounded-2xl border border-pale bg-white text-left shadow-sm transition hover:border-pale hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-walnut/40 focus-visible:ring-offset-2 focus-visible:ring-offset-cream md:mt-6 md:min-h-[6.25rem]"
             >
               <div className="relative z-10 flex min-h-[5.75rem] items-center justify-between gap-3 px-4 py-3 md:min-h-[6.25rem] md:gap-4 md:px-6 md:py-4">
                 <div className="min-w-0 flex-1">
@@ -1137,10 +1375,8 @@ export default function Shopping() {
               className={shopListingFullBleedClass}
             />
           ) : null}
-          {loading ? (
-            <div className="flex flex-1 items-center justify-center">
-              <ShopListingSpinner />
-            </div>
+          {loading || !regionReady ? (
+            <ShopPageLoader />
           ) : items.length === 0 ? (
             <div className="flex flex-1 items-center justify-center px-4">
               <div className="text-center">
@@ -1218,8 +1454,19 @@ export default function Shopping() {
                   <div className="mt-3 space-y-2">
                     {cartVariants.map((v, idx) => {
                       const checked = Number(cartVariantIdx) === idx;
-                      const price = Number(v?.price);
+                      const types = getProductDiamondTypes(cartProduct);
+                      const diamondType =
+                        types.length === 1
+                          ? types[0]
+                          : types.includes(diamondTypeFilter)
+                            ? diamondTypeFilter
+                            : null;
+                      const resolved = resolveDiamondUnitPricing(cartProduct, v, diamondType);
+                      const price = Number(resolved?.price);
+                      const compareAt = Number(resolved?.compareAt);
                       const showPrice = Number.isFinite(price) && price > 0;
+                      const showCompare =
+                        Number.isFinite(compareAt) && compareAt > 0 && compareAt > price;
                       return (
                         <label
                           key={String(idx)}
@@ -1237,7 +1484,16 @@ export default function Shopping() {
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
+                                <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                  <p className="text-[12px] font-extrabold text-ink">
+                                    {formatCurrency(price, cartProduct?.currency)}
+                                  </p>
+                                  {showCompare ? (
+                                    <p className="text-[11px] text-muted line-through">
+                                      {formatCurrency(compareAt, cartProduct?.currency)}
+                                    </p>
+                                  ) : null}
+                                </div>
                               ) : null}
                             </div>
                             <p className="mt-0.5 text-[11px] text-muted">Select this option to add this variant.</p>
@@ -1306,4 +1562,3 @@ export default function Shopping() {
     </div>
   );
 }
-

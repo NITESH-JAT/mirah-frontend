@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import CountrySelect from '../CountrySelect';
 import { showroomService } from '../../services/showroomService';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 
 const NO_SHOWROOM_MESSAGE =
   "We\u2019re so sorry! It looks like we don\u2019t have an available showroom nearby at the moment. Please try another location, or reach out to us and we\u2019ll do our best to help you find a suitable option.";
@@ -213,15 +213,15 @@ export default function ShowroomPickupModal({
                 <div className="space-y-2 text-[12px]">
                   <div className="flex items-center justify-between text-mid">
                     <span>Order total</span>
-                    <span className="font-extrabold text-ink">₹{formatMoney(partialInfo.total)}</span>
+                    <span className="font-extrabold text-ink">{formatCurrency(partialInfo.total, partialInfo.currency)}</span>
                   </div>
                   <div className="flex items-center justify-between text-mid">
                     <span>Pay online now</span>
-                    <span className="font-extrabold text-ink">₹{formatMoney(partialInfo.onlineAmount)}</span>
+                    <span className="font-extrabold text-ink">{formatCurrency(partialInfo.onlineAmount, partialInfo.currency)}</span>
                   </div>
                   <div className="flex items-center justify-between text-mid">
                     <span>Pay at showroom</span>
-                    <span className="font-extrabold text-ink">₹{formatMoney(partialInfo.offlineAmount)}</span>
+                    <span className="font-extrabold text-ink">{formatCurrency(partialInfo.offlineAmount, partialInfo.currency)}</span>
                   </div>
                 </div>
               ) : (

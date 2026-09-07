@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import SafeImage from '../SafeImage';
 import { getVendorDisplayName, sourceBadgeText } from '../../utils/productSource';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 
 const COLLECTION_ACCENTS = ['text-walnut', 'text-[#8B7355]', 'text-[#6B7B8C]', 'text-[#9A7B4F]', 'text-[#7A6B5D]'];
 const LISTING_IMAGE_BG_CLASS = 'bg-[#ffffff]';
@@ -22,10 +22,6 @@ function productImageUrls(p) {
     return url ? [url] : [];
   }
   return [];
-}
-
-function firstImageUrl(p) {
-  return productImageUrls(p)[0] ?? null;
 }
 
 function brandSubtitle(p) {
@@ -56,8 +52,9 @@ function materialSpecLine(p) {
     p?.metalColour ?? p?.metal_colour ?? p?.metalColor ?? p?.metal_color ?? ''
   ).trim();
   const diamondRaw = String(p?.diamondType ?? p?.diamond_type ?? '').trim();
-  const types = Array.isArray(p?.diamondTypes ?? p?.diamond_types)
-    ? (p?.diamondTypes ?? p?.diamond_types)
+  const diamondTypes = p?.diamondTypes ?? p?.diamond_types;
+  const types = Array.isArray(diamondTypes)
+    ? diamondTypes
         .map((x) => String(x || '').trim().toLowerCase())
         .filter((x) => x === 'natural' || x === 'lab')
     : [];
@@ -151,11 +148,9 @@ export default function ProductGridCard({
   const collectionName = collectionNameOf(p);
   const materialSpec = materialSpecLine(p);
   const listingBadge = isListing ? listingBadgeLabel(p, { isFeatured, showNew }) : null;
-  const [touchPreview, setTouchPreview] = useState(false);
-
-  useEffect(() => {
-    setTouchPreview(false);
-  }, [primaryImg, hoverImg]);
+  const imageKey = `${primaryImg || ''}|${hoverImg || ''}`;
+  const [touchPreviewKey, setTouchPreviewKey] = useState(null);
+  const touchPreview = touchPreviewKey === imageKey;
 
   if (isListing) {
     return (
@@ -171,10 +166,10 @@ export default function ProductGridCard({
             }
           }}
           onTouchStart={() => {
-            if (hoverImg) setTouchPreview(true);
+            if (hoverImg) setTouchPreviewKey(imageKey);
           }}
-          onTouchEnd={() => setTouchPreview(false)}
-          onTouchCancel={() => setTouchPreview(false)}
+          onTouchEnd={() => setTouchPreviewKey(null)}
+          onTouchCancel={() => setTouchPreviewKey(null)}
           className={`group relative aspect-[3/4] w-full cursor-pointer overflow-hidden border-b border-pale/70 ${LISTING_IMAGE_BG_CLASS}`}
         >
           {primaryImg ? (
@@ -253,15 +248,15 @@ export default function ProductGridCard({
           </button>
 
           <div className="mt-auto flex min-h-[2.25rem] items-end justify-between gap-3 pt-1">
-            <div className="min-w-0 font-sans">
+            <div className="flex min-w-0 flex-col items-start gap-0.5 font-sans">
+              <span className="text-[13px] tabular-nums text-ink md:text-[14px]">
+                {formatCurrency(p?.price, p?.currency)}
+              </span>
               {showStrikethroughCompare ? (
-                <span className="mr-2 text-[11px] tabular-nums text-muted line-through">
-                  ₹{formatMoney(compareAt)}
+                <span className="text-[11px] tabular-nums text-muted line-through">
+                  {formatCurrency(compareAt, p?.currency)}
                 </span>
               ) : null}
-              <span className="text-[13px] tabular-nums text-ink md:text-[14px]">
-                ₹{formatMoney(p?.price)}
-              </span>
             </div>
             {materialSpec ? (
               <p className="max-w-[48%] shrink-0 text-right font-sans text-[10px] leading-snug text-mid line-clamp-2 md:text-[11px]">
@@ -371,15 +366,15 @@ export default function ProductGridCard({
           {brand ? <p className="mt-1 font-sans text-[12px] text-muted">{brand}</p> : null}
 
           <div className="mt-auto flex items-end justify-between gap-2 pt-3">
-            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5 font-sans">
+            <div className="flex min-w-0 flex-col items-start gap-0.5 font-sans">
+              <span className="text-[14px] font-normal tabular-nums text-mid md:text-[15px]">
+                {formatCurrency(p?.price, p?.currency)}
+              </span>
               {showStrikethroughCompare ? (
                 <span className="text-[12px] font-normal tabular-nums text-muted line-through md:text-[13px]">
-                  ₹{formatMoney(compareAt)}
+                  {formatCurrency(compareAt, p?.currency)}
                 </span>
               ) : null}
-              <span className="text-[14px] font-normal tabular-nums text-mid md:text-[15px]">
-                ₹{formatMoney(p?.price)}
-              </span>
             </div>
             {rating != null ? (
               <span className="flex shrink-0 items-center gap-0.5 font-sans text-[12px] font-medium text-muted">

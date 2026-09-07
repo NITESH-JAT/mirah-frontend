@@ -65,8 +65,12 @@ export function findMatchingProductVariant(productVariants, selectedVariants) {
 
 export function priceForCartLine({ cartItem, product } = {}) {
   const p = product || cartItem?.product || null;
-  const matched = findMatchingProductVariant(p?.variants, cartItem?.variants);
-  const diamondType = resolveSelectedDiamondType(p, cartItem?.variants);
+  const variants = cartItem?.variants ?? cartItem?.raw?.variants ?? null;
+  const matched = findMatchingProductVariant(p?.variants, variants);
+  const topDiamond = String(cartItem?.diamondType ?? cartItem?.diamond_type ?? '').trim().toLowerCase();
+  const diamondType =
+    resolveSelectedDiamondType(p, variants) ||
+    (topDiamond === 'natural' || topDiamond === 'lab' ? topDiamond : null);
   const resolved = resolveDiamondUnitPricing(p, matched, diamondType);
   const unitPrice =
     Number(resolved.price) ||

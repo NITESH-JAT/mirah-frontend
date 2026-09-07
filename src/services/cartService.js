@@ -93,14 +93,13 @@ export const cartService = {
 
   checkout: async ({
     paymentMethod = 'razorpay',
-    currency = 'INR',
     cartItemIds = [],
     productIds = [],
     showroomId = null,
     pickupCountry = null,
     pickupPostcode = null,
   } = {}) => {
-    const body = { paymentMethod, currency };
+    const body = { paymentMethod };
     if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
     else body.productIds = productIds;
     if (showroomId != null) body.showroomId = showroomId;
@@ -110,8 +109,8 @@ export const cartService = {
     return unwrap(res);
   },
 
-  calculatePartialPayment: async ({ currency = 'INR', cartItemIds = [], productIds = [] } = {}) => {
-    const body = { currency };
+  calculatePartialPayment: async ({ cartItemIds = [], productIds = [] } = {}) => {
+    const body = {};
     if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
     else body.productIds = productIds;
     const res = await api.post('/api/user/cart/partial-payment/calculate', body);
@@ -137,4 +136,3 @@ export const cartService = {
     return unwrap(res);
   },
 };
-

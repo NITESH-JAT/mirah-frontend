@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
-import { formatMoney } from '../../utils/formatMoney';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
@@ -154,7 +158,12 @@ export default function VendorBids() {
   const location = useLocation();
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
+  const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
   const abortRef = useRef(null);
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
 
   const [loadingActive, setLoadingActive] = useState(false);
   const [loadingCompleted, setLoadingCompleted] = useState(false);
@@ -181,6 +190,7 @@ export default function VendorBids() {
 
   const loadActive = useCallback(
     async ({ nextPage = 1, append = false } = {}) => {
+      if (!kycAccepted) return;
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -208,11 +218,12 @@ export default function VendorBids() {
         setLoadingMoreActive(false);
       }
     },
-    [addToast],
+    [addToast, kycAccepted],
   );
 
   const loadCompleted = useCallback(
     async ({ nextPage = 1, append = false } = {}) => {
+      if (!kycAccepted) return;
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -240,10 +251,11 @@ export default function VendorBids() {
         setLoadingMoreCompleted(false);
       }
     },
-    [addToast],
+    [addToast, kycAccepted],
   );
 
   useEffect(() => {
+    if (!kycAccepted) return;
     if (tab === 'active') {
       setPageActive(1);
       loadActive({ nextPage: 1, append: false });
@@ -252,7 +264,7 @@ export default function VendorBids() {
       loadCompleted({ nextPage: 1, append: false });
     }
     return () => abortRef.current?.abort();
-  }, [tab, loadActive, loadCompleted]);
+  }, [tab, loadActive, loadCompleted, kycAccepted]);
 
   const filteredActive = useMemo(() => {
     const q = String(queryActive || '').trim().toLowerCase();
@@ -288,6 +300,10 @@ export default function VendorBids() {
       loadCompleted({ nextPage: pageCompleted + 1, append: true });
     }
   }, [canNext, loadingMore, tab, pageActive, pageCompleted, loadActive, loadCompleted]);
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to access bids." />;
+  }
 
   return (
     <div className="w-full pb-[120px] lg:pb-[96px] animate-fade-in">
@@ -383,6 +399,7 @@ export default function VendorBids() {
                 const preferredDelivery = String(
                   pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
                 ).trim();
+                const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
                 return (
                   <div
                     key={String(x.id)}
@@ -399,10 +416,14 @@ export default function VendorBids() {
                           Winner
                         </span>
                       ) : null}
-                      <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink inline-flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" />
+                      <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center gap-2 tabular-nums">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+                          <circle cx="12" cy="13" r="8" />
+                          <path d="M12 9v4l2 2" />
+                          <path d="M5 3 2 6" />
+                          <path d="m22 6-3-3" />
+                          <path d="M6.38 18.7 4 21" />
+                          <path d="M17.64 18.67 20 21" />
                         </svg>
                         {(() => {
                           const ms = x.finishesMs != null ? Math.max(0, x.finishesMs - Date.now()) : null;
@@ -420,7 +441,7 @@ export default function VendorBids() {
                           </p>
                         ) : null}
                         <p>
-                          Budget: <span className="font-extrabold text-ink">{Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? `₹ ${formatMoney(budgetPerPiece)}` : '—'}</span>
+                          Budget: <span className="font-extrabold text-ink">{Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? formatCurrency(budgetPerPiece, moneyCurrency) : '—'}</span>
                         </p>
                         <p>
                           Quantity: <span className="font-extrabold text-ink">{quantityRequired || '—'}</span>

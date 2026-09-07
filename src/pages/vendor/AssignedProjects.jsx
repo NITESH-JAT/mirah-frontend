@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -71,6 +75,7 @@ export default function VendorAssignedProjects() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
   const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
 
   const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
   const kycAccepted = vendorKycStatus === 'accepted';
@@ -196,23 +201,7 @@ export default function VendorAssignedProjects() {
   }, [filtered, sortKey]);
 
   if (!kycAccepted) {
-    return (
-      <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
-          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
-          <div>Please complete your KYC to access assigned projects.</div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              Go to KYC
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <VendorKycRequiredCard message="Please complete your KYC to access assigned projects." />;
   }
 
   // Assigned projects should be visible regardless of selling approval.
@@ -327,6 +316,7 @@ export default function VendorAssignedProjects() {
             {sorted.map((x) => {
               const agreedAmountNum = Number(x?.agreedAmount ?? NaN);
               const agreedDaysNum = Number(x?.agreedDaysToComplete ?? NaN);
+              const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
               return (
                 <div key={String(x.id)} className="bg-white rounded-2xl border border-pale overflow-hidden">
                   <div className="relative">
@@ -348,7 +338,7 @@ export default function VendorAssignedProjects() {
                       <p>
                         Agreed Amount:{' '}
                         <span className="font-extrabold text-ink">
-                          {Number.isFinite(agreedAmountNum) && agreedAmountNum > 0 ? `₹ ${formatMoney(agreedAmountNum)}` : '—'}
+                          {Number.isFinite(agreedAmountNum) && agreedAmountNum > 0 ? formatCurrency(agreedAmountNum, moneyCurrency) : '—'}
                         </span>
                       </p>
                     </div>

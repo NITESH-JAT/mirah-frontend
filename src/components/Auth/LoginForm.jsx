@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
+import {
+  formatDialCodeOptionLabel,
+  formatDialCodeTriggerLabel,
+  isoCountryCodeToFlagEmoji,
+} from '../../utils/countryFlag';
 
 const globalStyles = `
   @keyframes slideIn {
@@ -166,7 +171,17 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
     );
   }, [options, searchTerm]);
 
-  const selectedLabel = options.find(o => (o.value || o) === value)?.label || value || placeholder;
+  const selectedOption = options.find((o) => (o.value || o) === value);
+  const selectedLabel =
+    selectedOption
+      ? formatDialCodeTriggerLabel({
+          iso: selectedOption.code,
+          phoneCode: selectedOption.value,
+          fallback: selectedOption.label,
+        }) ||
+        selectedOption.label ||
+        value
+      : value || placeholder;
 
   return (
     <div className="relative w-full" ref={wrapperRef}>
@@ -174,7 +189,14 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full px-3 py-4 lg:px-3 lg:py-3 pr-8 rounded-[12px] border border-pale text-[15px] lg:text-[14px] font-medium bg-white cursor-pointer flex items-center hover:border-pale transition-colors"
       >
-        <span className="truncate">{selectedLabel}</span>
+        <span className="truncate flex items-center gap-1.5">
+          {selectedOption?.code ? (
+            <span className="text-[16px] leading-none" aria-hidden>
+              {isoCountryCodeToFlagEmoji(selectedOption.code)}
+            </span>
+          ) : null}
+          <span>{selectedOption?.value || selectedLabel}</span>
+        </span>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
            <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
         </div>
@@ -201,7 +223,17 @@ const CustomSelect = ({ options, placeholder, value, onChange }) => {
                         onClick={() => { onChange({ target: { value: opt.value } }); setIsOpen(false); setSearchTerm(""); }} 
                         className="px-3 py-3 text-[13px] text-mid hover:bg-cream cursor-pointer border-b border-pale last:border-0"
                     >
-                    {opt.label}
+                    <span className="inline-flex items-center gap-1.5">
+                      {opt.code ? (
+                        <span className="text-[15px] leading-none" aria-hidden>
+                          {isoCountryCodeToFlagEmoji(opt.code)}
+                        </span>
+                      ) : null}
+                      <span>
+                        {formatDialCodeOptionLabel({ phoneCode: opt.value }) ||
+                          opt.value}
+                      </span>
+                    </span>
                     </li>
                 ))
             ) : (
@@ -256,7 +288,11 @@ export const LoginForm = () => {
         const data = Array.isArray(response) ? response : (response.data || []);
         const validCodes = data.map(c => ({
           value: c.phoneCode,
-          label: `${c.countryCode} ${c.phoneCode}`,
+          label: formatDialCodeTriggerLabel({
+            iso: c.countryCode,
+            phoneCode: c.phoneCode,
+            fallback: `${c.countryCode} ${c.phoneCode}`,
+          }),
           countryName: c.countryName,
           code: c.countryCode
         }));

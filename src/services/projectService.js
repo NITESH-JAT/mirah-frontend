@@ -153,11 +153,15 @@ export const projectService = {
   },
 
   listBids: async (projectId, { signal } = {}) => {
-    if (!projectId) return [];
+    if (!projectId) return { bids: [], hasOtherSealedBids: false };
     const res = await api.get(`/api/user/projects/${projectId}/bids`, { signal });
     const data = unwrap(res);
     const items = data?.bids ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
-    return Array.isArray(items) ? items : items ? [items] : [];
+    const bids = Array.isArray(items) ? items : items ? [items] : [];
+    return {
+      bids,
+      hasOtherSealedBids: Boolean(data?.hasOtherSealedBids),
+    };
   },
 
   listActiveBids: async (projectId, { signal } = {}) => {
@@ -254,16 +258,19 @@ export const projectService = {
   },
 
   // Vendor bid actions
-  placeBid: async (projectId, { price, daysToComplete } = {}, { signal } = {}) => {
+  placeBid: async (projectId, { price, daysToComplete, currency } = {}, { signal } = {}) => {
     if (!projectId) return null;
     const payload = { price, daysToComplete };
+    if (currency) payload.currency = currency;
     const res = await api.post(`/api/user/projects/${projectId}/bid`, payload, { signal });
     return unwrap(res);
   },
 
-  previewBid: async (projectId, price, { signal } = {}) => {
+  previewBid: async (projectId, price, { signal, currency } = {}) => {
     if (!projectId) return null;
-    const res = await api.post(`/api/user/projects/${projectId}/bid/preview`, { price }, { signal });
+    const payload = { price };
+    if (currency) payload.currency = currency;
+    const res = await api.post(`/api/user/projects/${projectId}/bid/preview`, payload, { signal });
     return unwrap(res);
   },
 
@@ -306,6 +313,16 @@ export const projectService = {
     const res = await api.post(
       `/api/user/projects/${projectId}/shipments/inbound/generate`,
       packageDetails,
+      { signal },
+    );
+    return unwrap(res);
+  },
+
+  markInboundSelfShipped: async (projectId, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(
+      `/api/user/projects/${projectId}/shipments/inbound/self-ship/mark-shipped`,
+      {},
       { signal },
     );
     return unwrap(res);
@@ -401,6 +418,18 @@ export const projectService = {
         data.settlementMarked ??
         data.settlement_marked ??
         null,
+      settlementTransactionId:
+        data.settlementTransactionId ??
+        data.settlement_transaction_id ??
+        data.transactionId ??
+        data.transaction_id ??
+        null,
+      inboundShippingInr: data.inboundShippingInr ?? data.inbound_shipping_inr ?? null,
+      inboundShippingIsEstimate:
+        data.inboundShippingIsEstimate ?? data.inbound_shipping_is_estimate ?? null,
+      returnShippingInr: data.returnShippingInr ?? data.return_shipping_inr ?? null,
+      inboundShippingLegs: data.inboundShippingLegs ?? data.inbound_shipping_legs ?? null,
+      returnShippingLegs: data.returnShippingLegs ?? data.return_shipping_legs ?? null,
       raw: data,
     };
   },

@@ -1,18 +1,52 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { SkeletonBar, VendorManageProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
+import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 
-function isCanceledRequest(err) {
-  const e = err ?? {};
-  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+function pickBreakdownNum(breakdown, ...keys) {
+  if (!breakdown || typeof breakdown !== 'object') return null;
+  for (const k of keys) {
+    const n = Number(breakdown[k]);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
+
+function MoneyRow({ label, value, currency = 'INR', tone = 'neutral', hint = null }) {
+  const showSign = tone === 'plus' || tone === 'minus';
+  const prefix = tone === 'plus' ? '+ ' : tone === 'minus' ? '− ' : '';
+  const valueClass =
+    tone === 'plus'
+      ? 'text-emerald-700'
+      : tone === 'minus'
+        ? 'text-red-700'
+        : tone === 'total'
+          ? 'text-walnut'
+          : 'text-ink';
+  return (
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <p className={`text-[12px] font-semibold ${tone === 'total' ? 'text-ink font-extrabold' : 'text-mid'}`}>{label}</p>
+        {hint ? <p className="mt-0.5 text-[10px] text-muted leading-snug">{hint}</p> : null}
+      </div>
+      <p className={`shrink-0 text-[12px] font-extrabold tabular-nums ${valueClass}`}>
+        {value == null ? '—' : `${showSign ? prefix : ''}${formatCurrency(value, currency)}`}
+      </p>
+    </div>
+  );
+}
+
 
 function formatDateTime(ts) {
   if (!ts) return '—';
@@ -312,7 +346,12 @@ export default function VendorManageProject() {
   const location = useLocation();
   const navigate = useNavigate();
   const { id } = useParams();
+  const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
   const VENDOR_PROJECTS_TAB_KEY = 'mirah_vendor_projects_last_tab';
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
 
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -336,11 +375,21 @@ export default function VendorManageProject() {
   const paymentAbortRef = useRef(null);
 
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
+  const moneyCurrency =
+    paymentDetails?.presentmentCurrency ||
+    paymentDetails?.presentment_currency ||
+    projectPresentmentCurrency(project, regionCurrency);
+  const ProjectMoneyRow = (props) => <MoneyRow {...props} currency={moneyCurrency} />;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
   const fullUpfront = Boolean(
     details?.fullUpfront ?? details?.full_upfront ?? Number(advancePayment?.percent) === 100,
   );
+  const deferredProductionStarted = Boolean(
+    details?.deferredProductionStarted ?? details?.deferred_production_started,
+  );
+  const deferredProductionStartedAt =
+    details?.deferredProductionStartedAt ?? details?.deferred_production_started_at ?? null;
   const statusModel =
     details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
   const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
@@ -369,12 +418,21 @@ export default function VendorManageProject() {
     metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
   ).trim();
   const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
+  const vendorContext = details?.vendorContext ?? details?.vendor_context ?? null;
   const agreedPriceRaw = useMemo(() => {
     const root = details ?? {};
     const p = project ?? {};
-    const assignmentsRaw = p?.assignments ?? root?.data?.project?.assignments ?? root?.project?.assignments ?? null;
+    const vc = vendorContext ?? root?.vendorContext ?? root?.vendor_context ?? null;
+    const assignmentsRaw =
+      p?.assignments ??
+      vc?.assignmentRequests ??
+      root?.data?.project?.assignments ??
+      root?.project?.assignments ??
+      null;
     const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw.filter(Boolean) : assignmentsRaw ? [assignmentsRaw] : [];
     const activeAssignment =
+      vc?.activeAssignment ??
+      assignments.find((x) => x?.isActive && String(x?.status || '').toLowerCase() === 'accepted') ??
       assignments.find((x) => x?.isActive) ??
       assignments.find((x) => String(x?.status || '').toLowerCase() === 'accepted') ??
       assignments[0] ??
@@ -390,11 +448,16 @@ export default function VendorManageProject() {
       p?.assignedProject ??
       p?.assigned_project ??
       null;
+    const latestBid = vc?.latestBidEntry ?? vc?.latest_bid_entry ?? null;
     const v =
       a?.agreedPrice ??
       a?.agreed_price ??
       a?.agreedAmount ??
       a?.agreed_amount ??
+      latestBid?.bidPresentmentAmount ??
+      latestBid?.bid_presentment_amount ??
+      latestBid?.amount ??
+      latestBid?.price ??
       p?.agreedPrice ??
       p?.agreed_price ??
       p?.agreedAmount ??
@@ -405,13 +468,21 @@ export default function VendorManageProject() {
       root?.agreed_amount ??
       null;
     return v == null ? '' : String(v).trim();
-  }, [details, project]);
+  }, [details, project, vendorContext]);
   const agreedDaysToCompleteRaw = useMemo(() => {
     const root = details ?? {};
     const p = project ?? {};
-    const assignmentsRaw = p?.assignments ?? root?.data?.project?.assignments ?? root?.project?.assignments ?? null;
+    const vc = vendorContext ?? root?.vendorContext ?? root?.vendor_context ?? null;
+    const assignmentsRaw =
+      p?.assignments ??
+      vc?.assignmentRequests ??
+      root?.data?.project?.assignments ??
+      root?.project?.assignments ??
+      null;
     const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw.filter(Boolean) : assignmentsRaw ? [assignmentsRaw] : [];
     const activeAssignment =
+      vc?.activeAssignment ??
+      assignments.find((x) => x?.isActive && String(x?.status || '').toLowerCase() === 'accepted') ??
       assignments.find((x) => x?.isActive) ??
       assignments.find((x) => String(x?.status || '').toLowerCase() === 'accepted') ??
       assignments[0] ??
@@ -427,16 +498,21 @@ export default function VendorManageProject() {
       p?.assignedProject ??
       p?.assigned_project ??
       null;
+    const latestBid = vc?.latestBidEntry ?? vc?.latest_bid_entry ?? null;
     const v =
       a?.agreedDaysToComplete ??
       a?.agreed_days_to_complete ??
+      latestBid?.noOfDays ??
+      latestBid?.no_of_days ??
+      latestBid?.daysToComplete ??
+      latestBid?.days_to_complete ??
       p?.agreedDaysToComplete ??
       p?.agreed_days_to_complete ??
       root?.agreedDaysToComplete ??
       root?.agreed_days_to_complete ??
       null;
     return v == null ? '' : String(v).trim();
-  }, [details, project]);
+  }, [details, project, vendorContext]);
   const remainingMetaRows = useMemo(() => {
     const skip = new Set([
       'budgetPerPiece',
@@ -464,6 +540,7 @@ export default function VendorManageProject() {
     }
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
+  const deliveryDetailRows = useMemo(() => buildVendorDeliveryDetailRows(project), [project]);
 
   const finishedLike = useMemo(() => isFinishedLike(project), [project]);
   const advanceStatus = useMemo(
@@ -480,6 +557,17 @@ export default function VendorManageProject() {
     [project],
   );
 
+  const vendorSettlementDone = useMemo(
+    () =>
+      Boolean(
+        paymentDetails?.vendorSettlementDone ??
+          paymentDetails?.vendor_settlement_done ??
+          project?.vendorSettlementDone ??
+          project?.vendor_settlement_done,
+      ),
+    [paymentDetails, project],
+  );
+
   const projectStatusLabel = useMemo(() => {
     if (projectStatusKey === 'invoice') {
       return invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront });
@@ -487,8 +575,14 @@ export default function VendorManageProject() {
     if (projectStatusKey === 'qc') {
       return 'QC';
     }
+    if (
+      vendorSettlementDone &&
+      (finishedLike || projectStatusKey === 'completed' || projectStatusKey === 'finished')
+    ) {
+      return 'Payment Settled';
+    }
     return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
-  }, [advanceStatus, finalStatus, project, projectStatusKey, fullUpfront]);
+  }, [advanceStatus, finalStatus, finishedLike, fullUpfront, project, projectStatusKey, vendorSettlementDone]);
 
   const statusSteps = useMemo(() => {
     const steps = statusStepsFromStatusModel(statusModel);
@@ -525,7 +619,7 @@ export default function VendorManageProject() {
     };
 
     const advanceMilestones = fullUpfront
-      ? [{ key: 'invoice_advance', label: 'Invoice (Full Payment)' }, { key: 'paid_advance', label: 'Full Payment Received' }]
+      ? [{ key: 'invoice_advance', label: 'Invoice' }, { key: 'paid_advance', label: 'Payment Received' }]
       : [
           { key: 'invoice_advance', label: 'Invoice (Advance)' },
           { key: 'paid_advance', label: 'Advance Paid' },
@@ -614,8 +708,10 @@ export default function VendorManageProject() {
       if (!best) best = ts;
       else if (new Date(ts).getTime() > new Date(best).getTime()) best = ts;
     }
-    return best;
-  }, [advancePayment, ledger]);
+    if (best) return best;
+    // Deferred production: treat admin start as clearing the payment milestone for the timeline.
+    return deferredProductionStarted ? deferredProductionStartedAt : null;
+  }, [advancePayment, deferredProductionStarted, deferredProductionStartedAt, ledger]);
 
   const finalPaidAt = useMemo(() => {
     const fromBlock = paidAtFromPaymentBlock(finalPayment);
@@ -635,12 +731,25 @@ export default function VendorManageProject() {
   }, [finalPayment, ledger]);
 
   const activeInbound = shipmentModel?.inbound ?? null;
-  const inboundDiscardBlocked = ['picked_up', 'in_transit', 'out_for_delivery', 'delivered', 'received_at_arviah'].includes(
-    String(activeInbound?.status || '').toLowerCase(),
+  const inboundMode = String(shipmentModel?.inboundMode || shipmentModel?.inbound_mode || 'shiprocket').toLowerCase();
+  const isSelfShipMode = inboundMode === 'self_ship';
+  const qcHubAddress = shipmentModel?.qcHubAddress ?? shipmentModel?.qc_hub_address ?? null;
+  const isSelfShipInbound =
+    isSelfShipMode ||
+    String(activeInbound?.freightSource || activeInbound?.freight_source || '').toLowerCase() === 'self_ship';
+  const inboundReceivedAtArviah = Boolean(
+    shipmentModel?.flags?.inboundReceivedAtArviah ||
+      activeInbound?.receivedAt ||
+      activeInbound?.received_at ||
+      String(activeInbound?.status || '').toLowerCase() === 'received_at_arviah',
   );
-  const canGenerateShipment = currentOperationalStatusKey === 'in_progress' && !activeInbound;
-  const canDownloadShipment = Boolean(activeInbound?.labelAvailable);
-  const canDiscardShipment = Boolean(activeInbound) && !inboundDiscardBlocked;
+  const inboundInFlight = Boolean(shipmentModel?.flags?.hasActiveInbound && !inboundReceivedAtArviah);
+  const inboundDiscardBlocked = (() => {
+    const st = String(activeInbound?.status || '').toLowerCase();
+    if (!st || inboundReceivedAtArviah) return false;
+    if (isSelfShipInbound && st === 'in_transit') return false;
+    return ['picked_up', 'in_transit', 'out_for_delivery', 'delivered'].includes(st);
+  })();
 
   const qcEntries = useMemo(() => {
     const raw = qcModel?.logs ?? qcModel?.log ?? [];
@@ -655,11 +764,35 @@ export default function VendorManageProject() {
     return String(latest?.status ?? '').toLowerCase() === 'failed';
   }, [currentOperationalStatusKey, qcEntries]);
 
+  // After receive, hide Generate unless QC failed and a reship is needed.
+  const canGenerateShipment = Boolean(
+    !isSelfShipMode &&
+      shipmentModel?.flags?.canGenerateInbound &&
+      (!inboundReceivedAtArviah || qcFailedPendingRework),
+  );
+  const canMarkSelfShipped = Boolean(
+    isSelfShipMode &&
+      shipmentModel?.flags?.canMarkSelfShipped &&
+      (!inboundReceivedAtArviah || qcFailedPendingRework),
+  );
+  const canDownloadShipment = Boolean(activeInbound?.labelAvailable && inboundInFlight);
+  const canDiscardShipment = Boolean(
+    inboundInFlight && !inboundDiscardBlocked && shipmentModel?.flags?.canDiscardInbound,
+  );
+  const showShippingCard =
+    currentOperationalStatusKey === 'in_progress' ||
+    inboundInFlight ||
+    inboundReceivedAtArviah ||
+    canGenerateShipment ||
+    canMarkSelfShipped ||
+    canDownloadShipment;
+
   const inboundPastTransitPhase = useMemo(() => {
+    if (inboundReceivedAtArviah) return true;
     if (!activeInbound) return false;
     if (activeInbound.receivedAt ?? activeInbound.received_at) return true;
     return String(activeInbound.status ?? '').toLowerCase() === 'received_at_arviah';
-  }, [activeInbound]);
+  }, [activeInbound, inboundReceivedAtArviah]);
 
   const qcEverReached = useMemo(
     () => (statusTimelineMulti.get('qc') ?? []).length > 0,
@@ -668,12 +801,20 @@ export default function VendorManageProject() {
 
   const inTransitToArviahReached = useMemo(() => {
     if (qcFailedPendingRework) return false;
+    if (inboundReceivedAtArviah) return true;
     if (!activeInbound) return false;
     if (inboundPastTransitPhase) return true;
     if (shipmentModel?.flags?.inboundAwaitingReceive) return true;
     if (qcEverReached) return true;
     return false;
-  }, [activeInbound, inboundPastTransitPhase, qcEverReached, qcFailedPendingRework, shipmentModel]);
+  }, [
+    activeInbound,
+    inboundPastTransitPhase,
+    inboundReceivedAtArviah,
+    qcEverReached,
+    qcFailedPendingRework,
+    shipmentModel,
+  ]);
 
   const currentStepKey = useMemo(() => {
     if (currentOperationalStatusKey === 'invoice') {
@@ -688,9 +829,22 @@ export default function VendorManageProject() {
       if (advanceStatus === 'paid') return 'paid_advance';
       return fullUpfront ? 'paid_advance' : 'paid_final';
     }
+    // Admin deferred production: payment milestones are cleared; show In Progress as current.
+    if (deferredProductionStarted && currentOperationalStatusKey === 'started') {
+      return 'in_progress';
+    }
     if (qcFailedPendingRework) return 'in_progress';
+    // Past receive → stay on in_progress until QC status log advances the timeline.
+    if (inTransitToArviahReached && !qcEverReached && currentOperationalStatusKey === 'in_progress') {
+      return 'in_progress';
+    }
     if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
-    if (activeInbound && currentOperationalStatusKey === 'in_progress' && !inTransitToArviahReached) {
+    if (
+      activeInbound &&
+      currentOperationalStatusKey === 'in_progress' &&
+      !inTransitToArviahReached &&
+      shipmentModel?.flags?.hasActiveInbound
+    ) {
       return 'in_transit_to_arviah';
     }
     return currentOperationalStatusKey;
@@ -698,14 +852,16 @@ export default function VendorManageProject() {
     advanceStatus,
     activeInbound,
     currentOperationalStatusKey,
+    deferredProductionStarted,
     finalStatus,
     inTransitToArviahReached,
+    qcEverReached,
     qcFailedPendingRework,
     fullUpfront,
     shipmentModel,
   ]);
 
-  const canMarkInProgress = currentOperationalStatusKey === 'started';
+  const canMarkInProgress = currentOperationalStatusKey === 'started' && !deferredProductionStarted;
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -745,13 +901,14 @@ export default function VendorManageProject() {
   }, [projectId]);
 
   useEffect(() => {
+    if (!kycAccepted) return;
     load();
     loadPaymentDetails();
     return () => {
       abortRef.current?.abort();
       paymentAbortRef.current?.abort();
     };
-  }, [load, loadPaymentDetails]);
+  }, [load, loadPaymentDetails, kycAccepted]);
 
   const goBack = useCallback(() => {
     const stateTab = String(location?.state?.fromProjectsTab ?? '').trim().toLowerCase();
@@ -896,6 +1053,46 @@ export default function VendorManageProject() {
     }
   };
 
+  const formatQcHubAddressText = (addr) => {
+    if (!addr || typeof addr !== 'object') return '';
+    const lines = [
+      addr.contactName || addr.contact_name || addr.hubName || addr.hub_name,
+      [addr.addressLine1 || addr.address_line1, addr.addressLine2 || addr.address_line2].filter(Boolean).join(', '),
+      [addr.city, addr.state, addr.pincode].filter(Boolean).join(', '),
+      addr.country,
+      addr.phone ? `Phone: ${addr.phone}` : null,
+    ].filter(Boolean);
+    return lines.join('\n');
+  };
+
+  const handleCopyQcAddress = async () => {
+    const text = formatQcHubAddressText(qcHubAddress);
+    if (!text) {
+      addToast('QC address is not available yet.', 'error');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('Arviah QC address copied.', 'success');
+    } catch {
+      addToast('Could not copy address. Please copy it manually.', 'error');
+    }
+  };
+
+  const handleMarkSelfShipped = async () => {
+    if (!projectId || shipmentWorking || !canMarkSelfShipped) return;
+    setShipmentWorking(true);
+    try {
+      await projectService.markInboundSelfShipped(projectId);
+      addToast('Marked as shipped to Arviah QC.', 'success');
+      await load();
+    } catch (e) {
+      addToast(e?.message || 'Failed to mark as shipped', 'error');
+    } finally {
+      setShipmentWorking(false);
+    }
+  };
+
   const handleDownloadShipmentLabel = async () => {
     if (!projectId || !activeInbound?.id || shipmentWorking) return;
     setShipmentWorking(true);
@@ -926,9 +1123,9 @@ export default function VendorManageProject() {
   const DetailsSummaryCard = ({ className = '' }) => (
     <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm ${className}`}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[16px] font-extrabold text-ink break-words">{project?.title || 'Project'}</p>
-          <div className="mt-3 space-y-1.5 text-[12px] text-mid">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1.5 text-[12px] text-mid">
             <p>
               Budget per piece:{' '}
               <span className="font-extrabold text-ink">
@@ -936,13 +1133,31 @@ export default function VendorManageProject() {
                   ? (() => {
                       const n = Number(budgetPerPieceRaw);
                       if (Number.isNaN(n)) return budgetPerPieceRaw;
-                      return `₹ ${formatMoney(n)}`;
+                      return formatCurrency(n, moneyCurrency);
+                    })()
+                  : '—'}
+              </span>
+            </p>
+            <p>
+              Agreed amount:{' '}
+              <span className="font-extrabold text-ink">
+                {agreedPriceRaw
+                  ? (() => {
+                      const n = Number(agreedPriceRaw);
+                      if (Number.isNaN(n)) return agreedPriceRaw;
+                      return formatCurrency(n, moneyCurrency);
                     })()
                   : '—'}
               </span>
             </p>
             <p>
               Quantity required: <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
+            </p>
+            <p>
+              Agreed duration:{' '}
+              <span className="font-extrabold text-ink">
+                {agreedDaysToCompleteRaw ? `${agreedDaysToCompleteRaw} days` : '—'}
+              </span>
             </p>
             <p>
               Expected delivery:{' '}
@@ -964,33 +1179,9 @@ export default function VendorManageProject() {
     </div>
   );
 
-  const AgreedCard = ({ className = '' }) => (
-    <div className={`rounded-2xl border border-pale bg-white p-5 shadow-sm flex flex-col justify-center min-h-[120px] ${className}`}>
-      <div className="space-y-2.5 text-[15px] leading-snug text-mid">
-        <p>
-          Agreed amount:{' '}
-          <span className="font-extrabold text-ink">
-            {agreedPriceRaw
-              ? (() => {
-                  const n = Number(agreedPriceRaw);
-                  if (Number.isNaN(n)) return agreedPriceRaw;
-                  return `₹ ${formatMoney(n)}`;
-                })()
-              : '—'}
-          </span>
-        </p>
-        <p>
-          Agreed duration:{' '}
-          <span className="font-extrabold text-ink">{agreedDaysToCompleteRaw ? `${agreedDaysToCompleteRaw} days` : '—'}</span>
-        </p>
-      </div>
-    </div>
-  );
-
   const DetailsCardsRow = ({ className = '' }) => (
-    <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${className}`}>
+    <div className={className}>
       <DetailsSummaryCard />
-      <AgreedCard />
     </div>
   );
 
@@ -1026,6 +1217,10 @@ export default function VendorManageProject() {
         </div>
       </div>
     ) : null;
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to manage this project." />;
+  }
 
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
@@ -1082,7 +1277,7 @@ export default function VendorManageProject() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Send message
+                      Send Message
                     </button>
                   ) : null}
                 </div>
@@ -1091,6 +1286,7 @@ export default function VendorManageProject() {
 
             <div className="hidden lg:block mt-4 space-y-4">
               <VendorProjectMetaCard rows={remainingMetaRows} />
+              <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               <AttachmentsCard />
             </div>
           </div>
@@ -1100,6 +1296,9 @@ export default function VendorManageProject() {
               <DetailsCardsRow />
               <div className="mt-4">
                 <VendorProjectMetaCard rows={remainingMetaRows} />
+              </div>
+              <div className="mt-4">
+                <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               </div>
               <div className="mt-4 space-y-4">
                 <AttachmentsCard />
@@ -1111,13 +1310,14 @@ export default function VendorManageProject() {
             </div>
 
             <div className="space-y-4">
-            {/* Payable + Change status cards side-by-side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Payable card */}
+              {/* Payable: settlement + customer side by side */}
               <div className="bg-white rounded-2xl border border-pale overflow-hidden">
                 <div className="p-4 md:p-6">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-ink">Payable to You</p>
+                    <div className="min-w-0">
+                      <p className="text-[12px] font-extrabold text-ink">Payable to You</p>
+                      <p className="mt-0.5 text-[11px] text-muted">How your settlement is calculated</p>
+                    </div>
                     {paymentDetails?.vendorSettlementDone ? (
                       <span className="px-2 py-1 rounded-full border border-emerald-100 bg-emerald-50 text-[10px] font-extrabold text-emerald-700">
                         Payment Settled
@@ -1125,75 +1325,213 @@ export default function VendorManageProject() {
                     ) : null}
                   </div>
                   {paymentDetails ? (
-                    <div className="mt-3 space-y-1.5 text-[12px] text-mid">
-                      <p>
-                        Total Amount:{' '}
-                        <span className="font-extrabold text-ink">
-                          {paymentDetails.totalAmount != null ? `₹ ${formatMoney(paymentDetails.totalAmount)}` : '—'}
-                        </span>
-                      </p>
-                      <p>
-                        Total Commission:{' '}
-                        <span className="font-extrabold text-ink">
-                          {paymentDetails.totalCommission != null
-                            ? `₹ ${formatMoney(paymentDetails.totalCommission)}`
-                            : '—'}
-                        </span>
-                      </p>
-                      <p>
-                        Net Payable:{' '}
-                        <span className="font-extrabold text-ink">
-                          {paymentDetails.totalPayableToVendor != null
-                            ? `₹ ${formatMoney(paymentDetails.totalPayableToVendor)}`
-                            : '—'}
-                        </span>
-                      </p>
-                      {paymentDetails.pricingBreakdown ? (
-                        <div className="mt-3 pt-3 border-t border-pale space-y-1.5 text-[12px] text-mid">
-                          <p className="font-extrabold text-ink">Tariff</p>
-                          <p>
-                            Jeweller bid :{' '}
-                            <span className="font-bold text-ink">
-                              ₹
-                              {formatMoney(
-                                paymentDetails.pricingBreakdown.jewellerBidJ ??
-                                  paymentDetails.pricingBreakdown.jeweller_bid_j,
-                              )}
-                            </span>
-                          </p>
-                          <p>
-                            GST jewellery 3% :{' '}
-                            <span className="font-bold text-ink">
-                              ₹
-                              {formatMoney(
-                                paymentDetails.pricingBreakdown.jewelleryGstGj ??
-                                  paymentDetails.pricingBreakdown.jewellery_gst_gj,
-                              )}
-                            </span>
-                          </p>
-                          <p>
-                            GST on commission 18%:{' '}
-                            <span className="font-bold text-ink">
-                              ₹
-                              {formatMoney(
-                                paymentDetails.pricingBreakdown.commissionGstGc ??
-                                  paymentDetails.pricingBreakdown.commission_gst_gc,
-                              )}
-                            </span>
-                          </p>
-                          <p>
-                            Customer due with Delivery:{' '}
-                            <span className="font-bold text-ink">
-                              ₹
-                              {formatMoney(
-                                paymentDetails.pricingBreakdown.bundledCustomerDue ??
-                                  paymentDetails.pricingBreakdown.bundled_customer_due,
-                              )}
-                            </span>
-                          </p>
+                    (() => {
+                      const b = paymentDetails.pricingBreakdown || {};
+                      const bid =
+                        pickBreakdownNum(b, 'jewellerBidJ', 'jeweller_bid_j') ??
+                        (paymentDetails.totalAmount != null ? Number(paymentDetails.totalAmount) : null);
+                      const jewelleryTax = pickBreakdownNum(b, 'jewelleryGstGj', 'jewellery_gst_gj') ?? 0;
+                      const commission =
+                        pickBreakdownNum(b, 'commissionC', 'commission_c') ??
+                        (paymentDetails.totalCommission != null ? Number(paymentDetails.totalCommission) : null);
+                      const pgFee = pickBreakdownNum(b, 'paymentGatewayDeductionOnP', 'payment_gateway_deduction_on_p') ?? 0;
+                      const inboundFee =
+                        paymentDetails.inboundShippingInr != null
+                          ? Number(paymentDetails.inboundShippingInr)
+                          : pickBreakdownNum(b, 'inboundShippingInr', 'inbound_shipping_inr') ?? 0;
+                      const inboundIsEstimate =
+                        paymentDetails.inboundShippingIsEstimate ??
+                        b.inboundShippingIsEstimate ??
+                        b.inbound_shipping_is_estimate ??
+                        true;
+                      const returnFee =
+                        paymentDetails.returnShippingInr != null
+                          ? Number(paymentDetails.returnShippingInr)
+                          : pickBreakdownNum(b, 'returnShippingInr', 'return_shipping_inr') ?? 0;
+                      const inboundLegs = Array.isArray(paymentDetails.inboundShippingLegs)
+                        ? paymentDetails.inboundShippingLegs
+                        : Array.isArray(b.inboundShippingLegs)
+                          ? b.inboundShippingLegs
+                          : [];
+                      const returnLegs = Array.isArray(paymentDetails.returnShippingLegs)
+                        ? paymentDetails.returnShippingLegs
+                        : Array.isArray(b.returnShippingLegs)
+                          ? b.returnShippingLegs
+                          : [];
+                      const shippingTimeline = (() => {
+                        const rows = [];
+                        if (!inboundIsEstimate && inboundLegs.length > 0) {
+                          inboundLegs.forEach((leg, idx) => {
+                            const freight = Number(leg?.freightInr);
+                            if (!Number.isFinite(freight) || freight <= 0) return;
+                            rows.push({
+                              kind: 'inbound',
+                              key: `inbound-${leg?.shipmentId ?? idx}`,
+                              sortAt: leg?.createdAt ? Date.parse(leg.createdAt) : Number.NaN,
+                              inboundIndex: idx,
+                              freight,
+                              awb: leg?.awbCode ? String(leg.awbCode) : null,
+                            });
+                          });
+                        } else if (inboundFee > 0) {
+                          rows.push({
+                            kind: 'inbound_estimate',
+                            key: 'inbound-estimate',
+                            sortAt: Number.NEGATIVE_INFINITY,
+                            freight: inboundFee,
+                          });
+                        }
+
+                        if (returnLegs.length > 0) {
+                          returnLegs.forEach((leg, idx) => {
+                            const freight = Number(leg?.freightInr);
+                            if (!Number.isFinite(freight) || freight <= 0) return;
+                            rows.push({
+                              kind: 'return',
+                              key: `return-${leg?.ledgerId ?? idx}`,
+                              sortAt: leg?.createdAt ? Date.parse(leg.createdAt) : Number.NaN,
+                              returnIndex: idx,
+                              freight,
+                            });
+                          });
+                        } else if (returnFee > 0) {
+                          // Fallback when API has only a return total: place after first inbound.
+                          const firstInboundMs = rows
+                            .filter((r) => r.kind === 'inbound' && Number.isFinite(r.sortAt))
+                            .map((r) => r.sortAt)
+                            .sort((a, b) => a - b)[0];
+                          rows.push({
+                            kind: 'return',
+                            key: 'return-total',
+                            sortAt: Number.isFinite(firstInboundMs) ? firstInboundMs + 1 : Number.NaN,
+                            returnIndex: 0,
+                            freight: returnFee,
+                          });
+                        }
+
+                        const dated = rows.filter((r) => Number.isFinite(r.sortAt));
+                        const undated = rows.filter((r) => !Number.isFinite(r.sortAt));
+                        dated.sort((a, b) => a.sortAt - b.sortAt || String(a.key).localeCompare(String(b.key)));
+
+                        // If timestamps are missing, keep typical QC-fail order:
+                        // first inbound → returns → remaining inbounds.
+                        if (undated.length === rows.length) {
+                          const inbounds = rows.filter((r) => r.kind === 'inbound' || r.kind === 'inbound_estimate');
+                          const returns = rows.filter((r) => r.kind === 'return');
+                          if (inbounds.length === 0) return [...returns];
+                          return [inbounds[0], ...returns, ...inbounds.slice(1)];
+                        }
+
+                        return [...dated, ...undated];
+                      })();
+                      const inboundLegCount = shippingTimeline.filter((r) => r.kind === 'inbound').length;
+                      const returnLegCount = shippingTimeline.filter((r) => r.kind === 'return').length;
+                      const commissionGst = pickBreakdownNum(b, 'commissionGstGc', 'commission_gst_gc') ?? 0;
+                      const delivery = pickBreakdownNum(b, 'deliveryFeeD', 'delivery_fee_d') ?? 0;
+                      const deliveryGst = pickBreakdownNum(b, 'logisticsGstOnDelivery', 'logistics_gst_on_delivery') ?? 0;
+                      const importDuty = pickBreakdownNum(b, 'importDutyInr', 'import_duty_inr') ?? 0;
+                      const intlShipping = pickBreakdownNum(b, 'intlShippingInr', 'intl_shipping_inr') ?? 0;
+                      const customerDue =
+                        pickBreakdownNum(b, 'bundledCustomerDue', 'bundled_customer_due') ?? null;
+                      const net =
+                        paymentDetails.totalPayableToVendor != null
+                          ? Number(paymentDetails.totalPayableToVendor)
+                          : pickBreakdownNum(b, 'jewellerEstimatedNetAfterFees', 'jeweller_estimated_net_after_fees');
+                      const taxKind = b.jewelleryTaxKind ?? b.jewellery_tax_kind ?? null;
+                      const taxWaived =
+                        Boolean(b.jewelleryGstWaived ?? b.jewellery_gst_waived) || taxKind === 'waived_seepz';
+                      const taxLabel =
+                        taxKind === 'local_tax'
+                          ? 'Local tax on jewellery'
+                          : taxWaived
+                            ? 'GST on jewellery (waived)'
+                            : 'GST on jewellery';
+
+                      return (
+                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                          <div className="rounded-2xl border border-pale bg-cream/40 px-3.5 py-3 space-y-2.5">
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Your settlement</p>
+                            <ProjectMoneyRow label="Your bid" value={bid} />
+                            {taxWaived ? (
+                              <div className="flex items-start justify-between gap-3">
+                                <p className="text-[12px] font-semibold text-mid">{taxLabel}</p>
+                                <p className="text-[12px] font-extrabold text-muted">{formatCurrency(0, moneyCurrency)}</p>
+                              </div>
+                            ) : jewelleryTax > 0 ? (
+                              <ProjectMoneyRow
+                                label={taxLabel}
+                                value={jewelleryTax}
+                                tone="plus"
+                                hint="Collected from customer and passed to you for remittance"
+                              />
+                            ) : null}
+                            {commission != null && commission > 0 ? (
+                              <ProjectMoneyRow label="Arviah commission" value={commission} tone="minus" />
+                            ) : null}
+                            {pgFee > 0 ? (
+                              <ProjectMoneyRow label="Est. payment gateway fee" value={pgFee} tone="minus" />
+                            ) : null}
+                            {shippingTimeline.map((row) => {
+                              if (row.kind === 'inbound') {
+                                return (
+                                  <ProjectMoneyRow
+                                    key={row.key}
+                                    label={
+                                      inboundLegCount > 1
+                                        ? `Inbound shipping #${row.inboundIndex + 1} (to Arviah QC)`
+                                        : 'Inbound shipping (to Arviah QC)'
+                                    }
+                                    value={row.freight}
+                                    tone="minus"
+                                    hint={row.awb ? `AWB ${row.awb}` : undefined}
+                                  />
+                                );
+                              }
+                              if (row.kind === 'inbound_estimate') {
+                                return (
+                                  <ProjectMoneyRow
+                                    key={row.key}
+                                    label="Est. inbound shipping (to Arviah QC)"
+                                    value={row.freight}
+                                    tone="minus"
+                                  />
+                                );
+                              }
+                              return (
+                                <ProjectMoneyRow
+                                  key={row.key}
+                                  label={
+                                    returnLegCount > 1
+                                      ? `Return shipping #${row.returnIndex + 1} (to you)`
+                                      : 'Return shipping (to you)'
+                                  }
+                                  value={row.freight}
+                                  tone="minus"
+                                />
+                              );
+                            })}
+                            <div className="border-t border-dotted border-pale pt-2.5">
+                              <ProjectMoneyRow label="You receive" value={net} tone="total" />
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-pale px-3.5 py-3 space-y-2.5">
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Customer pays</p>
+                            <p className="text-[11px] text-muted leading-relaxed">
+                              These lines are billed to the customer. Only jewellery tax above is passed through to you.
+                            </p>
+                            {commissionGst > 0 ? <ProjectMoneyRow label="GST on Arviah commission" value={commissionGst} /> : null}
+                            {delivery > 0 ? <ProjectMoneyRow label="Delivery" value={delivery} /> : null}
+                            {deliveryGst > 0 ? <ProjectMoneyRow label="GST on delivery" value={deliveryGst} /> : null}
+                            {importDuty > 0 ? <ProjectMoneyRow label="Import duty" value={importDuty} /> : null}
+                            {intlShipping > 0 ? <ProjectMoneyRow label="Intl. shipping" value={intlShipping} /> : null}
+                            <div className="border-t border-pale pt-2.5">
+                              <ProjectMoneyRow label="Customer total due" value={customerDue} tone="total" />
+                            </div>
+                          </div>
                         </div>
-                      ) : null}
-                    </div>
+                      );
+                    })()
                   ) : (
                     <p className="mt-3 text-[12px] text-muted">
                       Payable details are not available yet.
@@ -1202,79 +1540,245 @@ export default function VendorManageProject() {
                 </div>
               </div>
 
-              {/* Shipping + status card */}
-              <div className="bg-white rounded-2xl border border-pale overflow-hidden">
-                <div className="p-4 md:p-6">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12px] font-extrabold text-ink">Mark In Progress</p>
-                  </div>
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => openStatusConfirm('in_progress')}
-                      disabled={!canMarkInProgress || statusUpdating}
-                      className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-emerald-300 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Mark In Progress
-                    </button>
-                  </div>
+              {/* Mark In Progress + Shipping action cards */}
+              <div className="space-y-4">
+                {/* Mark In Progress — green promo card (only before in progress) */}
+                {canMarkInProgress ? (
+                <div className="relative overflow-hidden rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50 via-emerald-50/80 to-white">
+                  <div
+                    className="pointer-events-none absolute inset-y-0 right-0 w-[46%] opacity-40"
+                    aria-hidden
+                    style={{
+                      background:
+                        'radial-gradient(ellipse 80% 70% at 70% 40%, rgba(16,185,129,0.18), transparent 70%)',
+                    }}
+                  />
+                  <div className="relative grid grid-cols-1 gap-4 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-6 md:p-5">
+                    <div className="flex min-w-0 items-start gap-3.5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <rect x="8" y="2" width="8" height="4" rx="1" />
+                          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                          <path d="m9 14 2 2 4-4" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-extrabold text-ink tracking-tight">Mark In Progress</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-mid">
+                          Update the job status to mark it as in progress and let the team know work has started.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => openStatusConfirm('in_progress')}
+                          disabled={!canMarkInProgress || statusUpdating}
+                          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                            <path d="M8 5v14l11-7L8 5z" />
+                          </svg>
+                          {statusUpdating ? 'Updating…' : 'Mark In Progress'}
+                        </button>
+                      </div>
+                    </div>
 
-                  <div className="mt-3 pt-3 border-t border-pale space-y-1.5 text-[12px] text-mid">
-                    <p className="font-extrabold text-ink">Shipping & Status</p>
-                    <p className="text-muted">
-                      Generate a Shiprocket tag to send jewellery to Arviah QC. Pickup address is the same as configured in your Profile section.
-                    </p>
-                    {activeInbound?.awbCode ? (
-                      <p>
-                        AWB: <span className="font-bold text-ink">{activeInbound.awbCode}</span>
-                        {activeInbound.trackingUrl ? (
-                          <>
-                            {' '}
-                            ·{' '}
-                            <a href={activeInbound.trackingUrl} target="_blank" rel="noreferrer" className="text-walnut underline">
-                              Track
-                            </a>
-                          </>
-                        ) : null}
-                      </p>
-                    ) : null}
-                    <div className="mt-4 grid grid-cols-1 gap-3">
-                    {canGenerateShipment ? (
-                      <button
-                        type="button"
-                        onClick={openShipmentPackageModal}
-                        disabled={shipmentWorking}
-                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-blue-300 bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
-                      >
-                        {shipmentWorking ? 'Generating…' : 'Generate & Download Shipping Tag'}
-                      </button>
-                    ) : null}
-                    {canDownloadShipment ? (
-                      <button
-                        type="button"
-                        onClick={handleDownloadShipmentLabel}
-                        disabled={shipmentWorking}
-                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-walnut/20 bg-white text-ink hover:bg-cream disabled:opacity-50"
-                      >
-                        Download Shipping Tag
-                      </button>
-                    ) : null}
-                    {canDiscardShipment ? (
-                      <button
-                        type="button"
-                        onClick={() => setShipmentDiscardModalOpen(true)}
-                        disabled={shipmentWorking}
-                        className="w-full px-4 py-2.5 rounded-xl text-[12px] font-extrabold border border-red-100 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50"
-                      >
-                        Discard Shipment
-                      </button>
-                    ) : null}
-                    {activeInbound && inboundDiscardBlocked ? (
-                      <p className="text-[11px] text-muted">Courier has picked up this shipment — discard is no longer available.</p>
-                    ) : null}
+                    <div className="hidden min-w-[140px] items-center justify-center px-2 md:flex" aria-hidden>
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="relative flex h-10 w-10 items-center justify-center rounded-full border-2 border-emerald-500 bg-white">
+                          <span className="absolute -top-1 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-emerald-500" />
+                          <span className="absolute top-0.5 left-[22%] h-1 w-1 rounded-full bg-emerald-400" />
+                          <span className="absolute top-0.5 right-[22%] h-1 w-1 rounded-full bg-emerald-400" />
+                          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        </div>
+                        <span className="text-[10px] font-extrabold text-emerald-600">In Progress</span>
+                      </div>
                     </div>
                   </div>
                 </div>
+                ) : null}
+
+                {/* Shipping & Status — blue promo card (only once in progress / shipping active) */}
+                {showShippingCard ? (
+                <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-sky-50/80 to-white">
+                  <div
+                    className="pointer-events-none absolute inset-y-0 right-0 w-[46%] opacity-50"
+                    aria-hidden
+                    style={{
+                      background:
+                        'radial-gradient(circle at 75% 35%, rgba(14,165,233,0.16), transparent 55%), radial-gradient(circle at 85% 75%, rgba(56,189,248,0.12), transparent 50%)',
+                    }}
+                  />
+                  <div className="relative grid grid-cols-1 gap-4 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-6 md:p-5">
+                    <div className="flex min-w-0 items-start gap-3.5">
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+                          <path d="M15 18H9" />
+                          <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+                          <circle cx="17" cy="18" r="2" />
+                          <circle cx="7" cy="18" r="2" />
+                        </svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[15px] font-extrabold text-ink tracking-tight">Shipping &amp; Status</p>
+                        <p className="mt-1 text-[12px] leading-relaxed text-mid">
+                          {inboundReceivedAtArviah && !qcFailedPendingRework
+                            ? 'Jewellery has been received at Arviah QC. Quality checks will begin next.'
+                            : qcFailedPendingRework
+                              ? isSelfShipMode
+                                ? 'QC needs a reship. Send again to the Arviah QC address below, then tap I’ve shipped.'
+                                : 'QC needs a reship. Generate a new shipping tag to send jewellery back to Arviah QC.'
+                              : isSelfShipMode
+                                ? 'Ship the jewellery to Arviah QC yourself using the address below. Inbound shipping is not charged on your payout.'
+                                : 'Generate a shipping tag to send jewellery to Arviah QC. The pickup address will be the same as configured in your Profile section.'}
+                        </p>
+                        {isSelfShipMode && qcHubAddress && (!activeInbound || qcFailedPendingRework) && !inboundInFlight ? (
+                          <div className="mt-3 rounded-xl border border-sky-100 bg-white/80 px-3 py-2.5 text-[12px] text-ink">
+                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-sky-800">Ship to Arviah QC</p>
+                            <p className="mt-1 font-bold">
+                              {qcHubAddress.contactName || qcHubAddress.contact_name || qcHubAddress.hubName || 'Arviah QC'}
+                            </p>
+                            <p className="mt-0.5 text-mid whitespace-pre-line">
+                              {[
+                                [qcHubAddress.addressLine1 || qcHubAddress.address_line1, qcHubAddress.addressLine2 || qcHubAddress.address_line2]
+                                  .filter(Boolean)
+                                  .join(', '),
+                                [qcHubAddress.city, qcHubAddress.state, qcHubAddress.pincode].filter(Boolean).join(', '),
+                                qcHubAddress.country,
+                                qcHubAddress.phone ? `Phone: ${qcHubAddress.phone}` : null,
+                              ]
+                                .filter(Boolean)
+                                .join('\n')}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={handleCopyQcAddress}
+                              className="mt-2 text-[11px] font-extrabold text-sky-700 underline"
+                            >
+                              Copy address
+                            </button>
+                          </div>
+                        ) : null}
+                        {inboundReceivedAtArviah && !qcFailedPendingRework ? (
+                          <p className="mt-2 text-[12px] text-mid">
+                            Status: <span className="font-extrabold text-ink">Received at Arviah QC</span>
+                            {activeInbound?.awbCode ? (
+                              <>
+                                {' '}
+                                · AWB <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                              </>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        {isSelfShipInbound && inboundInFlight ? (
+                          <p className="mt-2 text-[12px] text-mid">
+                            Status:{' '}
+                            <span className="font-extrabold text-ink">
+                              {String(activeInbound.status || '').replace(/_/g, ' ') || 'in transit'}
+                            </span>
+                            {' · Awaiting Arviah QC receive'}
+                          </p>
+                        ) : null}
+                        {!inboundReceivedAtArviah && activeInbound?.awbCode ? (
+                          <p className="mt-2 text-[12px] text-mid">
+                            AWB: <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                            {activeInbound.trackingUrl ? (
+                              <>
+                                {' '}
+                                ·{' '}
+                                <a href={activeInbound.trackingUrl} target="_blank" rel="noreferrer" className="font-bold text-sky-700 underline">
+                                  Track
+                                </a>
+                              </>
+                            ) : null}
+                          </p>
+                        ) : null}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {canMarkSelfShipped ? (
+                            <button
+                              type="button"
+                              onClick={handleMarkSelfShipped}
+                              disabled={shipmentWorking}
+                              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {shipmentWorking ? 'Saving…' : 'I’ve shipped'}
+                            </button>
+                          ) : null}
+                          {canGenerateShipment ? (
+                            <button
+                              type="button"
+                              onClick={openShipmentPackageModal}
+                              disabled={shipmentWorking}
+                              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" x2="12" y1="15" y2="3" />
+                              </svg>
+                              {shipmentWorking ? 'Generating…' : 'Generate & Download Shipping Tag'}
+                            </button>
+                          ) : null}
+                          {canDownloadShipment ? (
+                            <button
+                              type="button"
+                              onClick={handleDownloadShipmentLabel}
+                              disabled={shipmentWorking}
+                              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-[12px] font-extrabold text-sky-800 hover:bg-sky-50 disabled:opacity-50"
+                            >
+                              Download Shipping Tag
+                            </button>
+                          ) : null}
+                          {canDiscardShipment ? (
+                            <button
+                              type="button"
+                              onClick={() => setShipmentDiscardModalOpen(true)}
+                              disabled={shipmentWorking}
+                              className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {isSelfShipInbound ? 'Undo shipped' : 'Discard Shipment'}
+                            </button>
+                          ) : null}
+                        </div>
+                        {inboundInFlight && inboundDiscardBlocked ? (
+                          <p className="mt-2 text-[11px] text-muted">
+                            Courier has picked up this shipment — discard is no longer available.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="hidden min-w-[200px] items-center justify-center px-2 md:flex" aria-hidden>
+                      <div className="relative h-[120px] w-[160px]">
+                        <div className="absolute bottom-2 right-3 h-16 w-20 rounded-md border border-sky-200 bg-sky-100/80 shadow-sm" />
+                        <div className="absolute left-2 top-2 w-[118px] rotate-[-4deg] rounded-md border border-sky-100 bg-white p-2.5 shadow-md">
+                          <p className="text-[8px] font-black tracking-[0.12em] text-sky-600">SHIPPING</p>
+                          <div className="mt-2 space-y-1">
+                            <div className="h-1 w-16 rounded bg-zinc-200" />
+                            <div className="h-1 w-12 rounded bg-zinc-200" />
+                            <div className="h-1 w-14 rounded bg-zinc-200" />
+                          </div>
+                          <div className="mt-2.5 flex h-5 items-end gap-px">
+                            {Array.from({ length: 18 }).map((_, i) => (
+                              <span
+                                key={i}
+                                className="w-[3px] rounded-sm bg-ink"
+                                style={{ height: `${8 + ((i * 5) % 12)}px` }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-sky-500 text-white shadow">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                            <polyline points="7 10 12 15 17 10" />
+                            <line x1="12" x2="12" y1="15" y2="3" />
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                ) : null}
               </div>
             </div>
 
@@ -1401,57 +1905,59 @@ export default function VendorManageProject() {
                               className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
                             />
                           </label>
-                          <label className="block">
-                            <span className="text-[11px] font-bold text-mid">
-                              Length (cm)<span className="text-red-600"> *</span>
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="200"
-                              step="0.1"
-                              required
-                              value={shipmentPackageForm.lengthCm}
-                              onChange={(e) =>
-                                setShipmentPackageForm((prev) => ({ ...prev, lengthCm: e.target.value }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                            />
-                          </label>
-                          <label className="block">
-                            <span className="text-[11px] font-bold text-mid">
-                              Breadth (cm)<span className="text-red-600"> *</span>
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="200"
-                              step="0.1"
-                              required
-                              value={shipmentPackageForm.breadthCm}
-                              onChange={(e) =>
-                                setShipmentPackageForm((prev) => ({ ...prev, breadthCm: e.target.value }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                            />
-                          </label>
-                          <label className="block col-span-2">
-                            <span className="text-[11px] font-bold text-mid">
-                              Height (cm)<span className="text-red-600"> *</span>
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              max="200"
-                              step="0.1"
-                              required
-                              value={shipmentPackageForm.heightCm}
-                              onChange={(e) =>
-                                setShipmentPackageForm((prev) => ({ ...prev, heightCm: e.target.value }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                            />
-                          </label>
+                          <div className="col-span-2 grid grid-cols-3 gap-3">
+                            <label className="block">
+                              <span className="text-[11px] font-bold text-mid">
+                                Length (cm)<span className="text-red-600"> *</span>
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="200"
+                                step="0.1"
+                                required
+                                value={shipmentPackageForm.lengthCm}
+                                onChange={(e) =>
+                                  setShipmentPackageForm((prev) => ({ ...prev, lengthCm: e.target.value }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="text-[11px] font-bold text-mid">
+                                Breadth (cm)<span className="text-red-600"> *</span>
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="200"
+                                step="0.1"
+                                required
+                                value={shipmentPackageForm.breadthCm}
+                                onChange={(e) =>
+                                  setShipmentPackageForm((prev) => ({ ...prev, breadthCm: e.target.value }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="text-[11px] font-bold text-mid">
+                                Height (cm)<span className="text-red-600"> *</span>
+                              </span>
+                              <input
+                                type="number"
+                                min="1"
+                                max="200"
+                                step="0.1"
+                                required
+                                value={shipmentPackageForm.heightCm}
+                                onChange={(e) =>
+                                  setShipmentPackageForm((prev) => ({ ...prev, heightCm: e.target.value }))
+                                }
+                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                              />
+                            </label>
+                          </div>
                         </div>
                         {shipmentPackageError ? (
                           <p className="px-5 pb-2 text-[12px] text-red-600">{shipmentPackageError}</p>
@@ -1496,9 +2002,13 @@ export default function VendorManageProject() {
                       >
                         <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-[14px] font-extrabold text-ink">Discard shipment</p>
+                            <p className="text-[14px] font-extrabold text-ink">
+                              {isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
+                            </p>
                             <p className="mt-1 text-[12px] text-muted">
-                              This will cancel the current shipping tag. You can generate a new one later if needed.
+                              {isSelfShipInbound
+                                ? 'This will clear the “I’ve shipped” status so you can mark it again after sending.'
+                                : 'This will cancel the current shipping tag. You can generate a new one later if needed.'}
                             </p>
                           </div>
                           <button
@@ -1537,7 +2047,7 @@ export default function VendorManageProject() {
                             disabled={shipmentWorking}
                             className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-red-600 text-white text-[12px] font-bold hover:bg-red-700 disabled:opacity-50"
                           >
-                            {shipmentWorking ? 'Discarding…' : 'Discard shipment'}
+                            {shipmentWorking ? 'Discarding…' : isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
                           </button>
                         </div>
                       </div>
@@ -1640,7 +2150,7 @@ export default function VendorManageProject() {
                           const k = normalizeStatusKey(key);
                           if (k === 'invoice_advance') {
                             const arr = statusTimelineMulti.get('invoice') ?? [];
-                            return arr[0] ?? null;
+                            return arr[0] ?? (deferredProductionStarted ? deferredProductionStartedAt : null);
                           }
                           if (k === 'invoice_final') {
                             const arr = statusTimelineMulti.get('invoice') ?? [];
@@ -1651,7 +2161,9 @@ export default function VendorManageProject() {
                             const qcArr = statusTimelineMulti.get('qc') ?? [];
                             return finalPaidAt ?? (qcArr.length ? qcArr[qcArr.length - 1] : null);
                           }
-                          if (k === 'paid_advance') return advancePaidAt ?? null;
+                          if (k === 'paid_advance') {
+                            return advancePaidAt ?? (deferredProductionStarted ? deferredProductionStartedAt : null);
+                          }
                           if (k === 'paid_final') return finalPaidAt ?? null;
                           if (k === 'payment_settlement') return paymentDetails?.settlementMarkedAt ?? null;
                           if ((k === 'in_transit_to_arviah' || k === 'qc') && qcFailedPendingRework) return null;
@@ -1660,6 +2172,9 @@ export default function VendorManageProject() {
                             return (
                               activeInbound?.receivedAt ??
                               activeInbound?.received_at ??
+                              (shipmentModel?.flags?.inboundReceivedAtArviah
+                                ? activeInbound?.updatedAt ?? activeInbound?.updated_at ?? null
+                                : null) ??
                               (shipmentModel?.flags?.inboundAwaitingReceive ? activeInbound?.updatedAt ?? null : null) ??
                               (qcArr.length ? qcArr[0] : null)
                             );
@@ -1676,9 +2191,11 @@ export default function VendorManageProject() {
 
 
                         const advanceInvoiceReached =
+                          deferredProductionStarted ||
                           (advanceStatus === 'due' || advanceStatus === 'paid') ||
                           (currentIdx > 0 && advanceStatus !== 'not_applicable');
-                        const advancePaidReached = advanceStatus === 'paid' || Boolean(advancePaidAt);
+                        const advancePaidReached =
+                          deferredProductionStarted || advanceStatus === 'paid' || Boolean(advancePaidAt);
 
                         const qcIdx = statusSteps.findIndex(
                           (st) => normalizeStatusKey(st?.key) === 'qc',
@@ -1724,9 +2241,9 @@ export default function VendorManageProject() {
 
                         const labelRaw = (() => {
                           const k = normalizeStatusKey(key);
-                          if (k === 'invoice_advance') return fullUpfront ? 'Invoice (Full Payment)' : 'Invoice (Advance)';
+                          if (k === 'invoice_advance') return fullUpfront ? 'Invoice' : 'Invoice (Advance)';
                           if (k === 'invoice_final') return 'Invoice (Final)';
-                          if (k === 'paid_advance') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
+                          if (k === 'paid_advance') return fullUpfront ? 'Payment Received' : 'Advance Paid';
                           if (k === 'paid_final') return 'Final Paid';
                           if (k === 'payment_settlement') return 'Payment Settlement';
                           if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
@@ -1735,7 +2252,20 @@ export default function VendorManageProject() {
                           return s?.label ?? toTitleCase(key);
                         })();
                         const label = String(labelRaw ?? key).toUpperCase();
-                        const sub = ts ? formatDateOnly(ts) : 'Awaiting update';
+                        const settlementTxnId =
+                          kNorm === 'payment_settlement'
+                            ? String(
+                                paymentDetails?.settlementTransactionId ||
+                                  paymentDetails?.raw?.settlementTransactionId ||
+                                  '',
+                              ).trim() || null
+                            : null;
+                        const sub = (() => {
+                          if (!ts) return 'Awaiting update';
+                          const datePart = formatDateOnly(ts);
+                          if (settlementTxnId) return `${datePart} · Txn ${settlementTxnId}`;
+                          return datePart;
+                        })();
 
                         return (
                           <div key={key} className="flex items-start gap-3">
@@ -1751,7 +2281,7 @@ export default function VendorManageProject() {
                             </div>
                             <div className="flex-1 min-w-0 pt-0.5">
                               <p className="text-[11px] font-extrabold text-ink tracking-wide">{label}</p>
-                              <p className="mt-0.5 text-[11px] text-muted">{sub}</p>
+                              <p className="mt-0.5 text-[11px] text-muted break-all">{sub}</p>
                             </div>
                           </div>
                         );
@@ -1763,7 +2293,6 @@ export default function VendorManageProject() {
             </div>
           </div>
         </div>
-      </div>
       )}
     </div>
   );

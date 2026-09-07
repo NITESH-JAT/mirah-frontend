@@ -1,7 +1,17 @@
 import React from 'react';
+import { useAuth } from '../../context/AuthContext';
 import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 
 export default function VendorGuidelines() {
+  const { user } = useAuth();
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to view diamond guidelines." />;
+  }
+
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-8 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
       <div className="sticky top-0 z-30 isolate bg-cream -mx-4 lg:-mx-8 px-4 lg:px-8 py-4 border-b border-pale/60">

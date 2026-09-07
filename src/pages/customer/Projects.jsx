@@ -6,13 +6,24 @@ import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
 import { FinishPreviewPanel, SpecChoiceCard, SparkleTier } from '../../components/project/SpecChoiceCards';
 import FeasibilityCalculatingPanel from '../../components/project/FeasibilityCalculatingPanel';
-import { formatMoney } from '../../utils/formatMoney';
+import ProjectDeliveryAddressFields, {
+  emptyProjectDeliveryAddress,
+  normalizeDeliveryFromProject,
+  validateProjectDeliveryAddress,
+  deliveryAddressApiPayload,
+} from '../../components/project/ProjectDeliveryAddressFields';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { useRegion } from '../../context/RegionProvider';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { labPictogram, naturalPictogram, otherMetalCircle, purityLabelForDisplay } from '../../utils/projectFinishPreview';
 import {
   applySuggestionActionToSpecs,
+  filterFeasibilityAgainstHistory,
   resolveFeasibilitySuggestionActions,
   suggestionActionApplyLabel,
+  suggestionActionFieldChangeLabels,
+  buildFeasibilitySuggestionDisplayRows,
 } from '../../utils/feasibilitySuggestionApply';
 import logo from '../../assets/logo.png';
 
@@ -209,6 +220,11 @@ function buildProjectApiPayloadFromForm(createForm) {
   if (minAmount != null) payload.minAmount = minAmount;
   if (maxAmount != null) payload.maxAmount = maxAmount;
   if (timelineExpected != null) payload.timelineExpected = timelineExpected;
+  const delivery = deliveryAddressApiPayload(createForm?.delivery);
+  // Only attach when complete — early draft saves (steps 1–3) must not send empty delivery.
+  if (delivery && validateProjectDeliveryAddress(createForm?.delivery)) {
+    payload.deliveryAddress = delivery;
+  }
   return payload;
 }
 
@@ -352,12 +368,12 @@ function projectStatusCardLabel(p) {
   }
 
   // If any payment is marked paid, prefer showing payment milestones over bidding labels.
-  if (fin === 'paid') return fullUpfront ? 'Full Payment Received' : 'Final Paid';
-  if (adv === 'paid') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
+  if (fin === 'paid') return fullUpfront ? 'Payment Received' : 'Final Paid';
+  if (adv === 'paid') return fullUpfront ? 'Payment Received' : 'Advance Paid';
 
   if (projectStatus === 'paid') {
-    if (fin === 'paid') return fullUpfront ? 'Full Payment Received' : 'Final Paid';
-    if (adv === 'paid') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
+    if (fin === 'paid') return fullUpfront ? 'Payment Received' : 'Final Paid';
+    if (adv === 'paid') return fullUpfront ? 'Payment Received' : 'Advance Paid';
     return 'Paid';
   }
 
@@ -631,6 +647,7 @@ export default function Projects() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
   const location = useLocation();
+  const { currency: regionCurrency = 'INR', budgetExample = '25000' } = useRegion();
 
   const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
   const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
@@ -847,6 +864,7 @@ export default function Projects() {
       additionalNotes: '',
       confirmSpecs: false,
     },
+    delivery: emptyProjectDeliveryAddress(),
     attachments: [],
     metaFields: [],
   });
@@ -1015,6 +1033,9 @@ export default function Projects() {
         if (!Number.isFinite(deliveryDays) || deliveryDays < 20 || deliveryDays > 90) {
           return 'Preferred delivery timeline must be between 20 and 90 days';
         }
+        if (!validateProjectDeliveryAddress(createForm?.delivery)) {
+          return 'Please complete delivery details (name, phone, address, city, state, country, pin code)';
+        }
         return null;
       }
 
@@ -1044,9 +1065,24 @@ export default function Projects() {
   const [feasibilityLoading, setFeasibilityLoading] = useState(false);
   const [feasibilitySuggestions, setFeasibilitySuggestions] = useState([]);
   const [feasibilityReview, setFeasibilityReview] = useState(null);
+  const [feasibilityAppliedHistory, setFeasibilityAppliedHistory] = useState([]);
+  const [feasibilityRound, setFeasibilityRound] = useState(0);
   const [applyingSuggestionIndex, setApplyingSuggestionIndex] = useState(null);
   const feasibilityAbortRef = useRef(null);
 
+  const resetFeasibilitySession = () => {
+    setFeasibilityLoading(false);
+    setFeasibilitySuggestions([]);
+    setFeasibilityReview(null);
+    setFeasibilityAppliedHistory([]);
+    setFeasibilityRound(0);
+    setApplyingSuggestionIndex(null);
+  };
+
+  const withRegionCurrency = useCallback(
+    (payload) => ({ ...(payload || {}), currency: regionCurrency, presentmentCurrency: regionCurrency }),
+    [regionCurrency],
+  );
   const projectApiPayload = useMemo(() => buildProjectApiPayloadFromForm(createForm), [createForm]);
 
   const feasibilitySuggestionActions = useMemo(
@@ -1058,6 +1094,22 @@ export default function Projects() {
         specs: createForm?.specs,
       }),
     [createForm?.specs, feasibilityReview, feasibilitySuggestions],
+  );
+
+  const feasibilitySuggestionRows = useMemo(
+    () =>
+      buildFeasibilitySuggestionDisplayRows({
+        suggestions: feasibilitySuggestions,
+        actions: feasibilitySuggestionActions,
+        appliedHistory: feasibilityAppliedHistory,
+        specs: createForm?.specs,
+      }),
+    [
+      createForm?.specs,
+      feasibilityAppliedHistory,
+      feasibilitySuggestionActions,
+      feasibilitySuggestions,
+    ],
   );
 
   const [listMyProjectLoading, setListMyProjectLoading] = useState(false);
@@ -1083,7 +1135,8 @@ export default function Projects() {
     createLoading || feasibilityLoading || attachmentUploading || referenceUploading || listMyProjectLoading;
   /** Dim/disable the form chrome — exclude feasibility so the Review loader stays full-opacity. */
   const createFormLockUi =
-    createLoading || attachmentUploading || referenceUploading || listMyProjectLoading;
+    !feasibilityLoading &&
+    (createLoading || attachmentUploading || referenceUploading || listMyProjectLoading);
 
   const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
   const howToMeasureText = useMemo(() => {
@@ -1223,9 +1276,7 @@ export default function Projects() {
         // ignore
       }
     }
-    setFeasibilityLoading(false);
-    setFeasibilitySuggestions([]);
-    setFeasibilityReview(null);
+    resetFeasibilitySession();
     setEditingId(null);
     setCreateStep(1);
     setCreateForm({
@@ -1260,6 +1311,8 @@ export default function Projects() {
         additionalNotes: '',
         confirmSpecs: false,
       },
+      delivery: emptyProjectDeliveryAddress(),
+      deliveryLocked: false,
       attachments: [],
       metaFields: [],
     });
@@ -1275,8 +1328,7 @@ export default function Projects() {
       return;
     }
     setEditingId(id);
-    setFeasibilitySuggestions([]);
-    setFeasibilityReview(null);
+    resetFeasibilitySession();
     setCreateStep(1);
     const metaRowsAll = extraFieldsToArray(p?.meta);
     const metaIndex = new Map(metaRowsAll.map((r) => [String(r?.key || '').trim(), String(r?.value ?? '').trim()]));
@@ -1345,6 +1397,8 @@ export default function Projects() {
             .trim()
             .toLowerCase() === 'true',
       },
+      delivery: normalizeDeliveryFromProject(p),
+      deliveryLocked: String(p?.status || '').toLowerCase() !== 'draft',
       metaFields: [],
     });
     setActiveTab('create');
@@ -1362,8 +1416,7 @@ export default function Projects() {
       }
     }
     setFeasibilityLoading(false);
-    setFeasibilitySuggestions([]);
-    setFeasibilityReview(null);
+    resetFeasibilitySession();
     if (shouldRefresh) setNeedsListRefresh(true);
     setEditingId(null);
     setCreateStep(1);
@@ -1399,6 +1452,8 @@ export default function Projects() {
         additionalNotes: '',
         confirmSpecs: false,
       },
+      delivery: emptyProjectDeliveryAddress(),
+      deliveryLocked: false,
       attachments: [],
       metaFields: [],
     });
@@ -1508,7 +1563,7 @@ export default function Projects() {
       if (editingId) {
         saved = await projectService.update(editingId, payload);
       } else {
-        saved = await projectService.create(payload);
+        saved = await projectService.create(withRegionCurrency(payload));
         const newId = localProjectIdOf(saved);
         if (newId) setEditingId(newId);
       }
@@ -1529,7 +1584,10 @@ export default function Projects() {
     setCreateStep((s) => Math.min(5, Number(s || step) + 1));
   };
 
-  const rerunFeasibilityReview = async (payload, { silentError = false, initialReview = false } = {}) => {
+  const rerunFeasibilityReview = async (
+    payload,
+    { silentError = false, initialReview = false, historyOverride = null } = {},
+  ) => {
     if (feasibilityAbortRef.current) {
       try {
         feasibilityAbortRef.current.abort();
@@ -1540,16 +1598,63 @@ export default function Projects() {
     const controller = new AbortController();
     feasibilityAbortRef.current = controller;
 
+    const previousSuggestions = Array.isArray(historyOverride?.previousSuggestions)
+      ? historyOverride.previousSuggestions.map((x) => String(x || '').trim()).filter(Boolean)
+      : Array.isArray(feasibilitySuggestions)
+        ? feasibilitySuggestions.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+    const appliedSuggestions = Array.isArray(historyOverride?.appliedSuggestions)
+      ? historyOverride.appliedSuggestions
+          .map((row) => ({
+            text: String(row?.text || '').trim(),
+            specsPatch: row?.specsPatch && typeof row.specsPatch === 'object' ? row.specsPatch : {},
+          }))
+          .filter((row) => row.text || Object.keys(row.specsPatch).length)
+      : Array.isArray(feasibilityAppliedHistory)
+        ? feasibilityAppliedHistory
+            .map((row) => ({
+              text: String(row?.text || '').trim(),
+              specsPatch: row?.specsPatch && typeof row.specsPatch === 'object' ? row.specsPatch : {},
+            }))
+            .filter((row) => row.text || Object.keys(row.specsPatch).length)
+        : [];
+    const historyPayload = {
+      previousSuggestions,
+      appliedSuggestions,
+      round: initialReview
+        ? 0
+        : Number.isFinite(Number(historyOverride?.round))
+          ? Number(historyOverride.round)
+          : Number(feasibilityRound) || appliedSuggestions.length,
+    };
+
     setFeasibilityReview(null);
     setFeasibilitySuggestions([]);
     setFeasibilityLoading(true);
 
     try {
-      const data = await projectService.reviewFeasibility(payload, { signal: controller.signal });
-      setFeasibilityReview(data || null);
-      const suggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
-      setFeasibilitySuggestions(suggestions.filter((x) => String(x || '').trim()));
-      return data;
+      const requestPayload = {
+        ...(payload || {}),
+        feasibilityHistory: historyPayload,
+      };
+      const data = await projectService.reviewFeasibility(requestPayload, { signal: controller.signal });
+      const rawSuggestions = Array.isArray(data?.suggestions) ? data.suggestions : [];
+      const rawActions = Array.isArray(data?.suggestionActions) ? data.suggestionActions : [];
+      const filtered = filterFeasibilityAgainstHistory(rawSuggestions, rawActions, historyPayload);
+      const nextReview = data
+        ? {
+            ...data,
+            suggestions: filtered.suggestions,
+            suggestionActions: filtered.suggestionActions,
+          }
+        : null;
+      setFeasibilityReview(nextReview);
+      setFeasibilitySuggestions(filtered.suggestions.filter((x) => String(x || '').trim()));
+      if (initialReview) {
+        setFeasibilityAppliedHistory([]);
+        setFeasibilityRound(0);
+      }
+      return nextReview;
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') {
         return null;
@@ -1582,7 +1687,14 @@ export default function Projects() {
       const nextSpecs = applySuggestionActionToSpecs(createForm?.specs, action, {
         preferredDeliveryTimelineFromDays,
       });
-      const nextForm = { ...createForm, specs: nextSpecs };
+      let nextForm = { ...createForm, specs: nextSpecs };
+      const budgetPatch =
+        action?.patch?.budgetPerPiece ??
+        (action?.field === 'budgetPerPiece' ? action?.value : null);
+      if (budgetPatch != null && String(budgetPatch).trim() !== '') {
+        const b = String(budgetPatch).trim();
+        nextForm = { ...nextForm, minAmount: b, maxAmount: b };
+      }
       setCreateForm(nextForm);
 
       const payload = buildProjectApiPayloadFromForm(nextForm);
@@ -1591,7 +1703,7 @@ export default function Projects() {
         if (editingId) {
           await projectService.update(editingId, payload);
         } else {
-          const saved = await projectService.create(payload);
+          const saved = await projectService.create(withRegionCurrency(payload));
           const newId = localProjectIdOf(saved);
           if (newId) setEditingId(newId);
         }
@@ -1602,7 +1714,33 @@ export default function Projects() {
         setCreateLoading(false);
       }
 
-      const data = await rerunFeasibilityReview(payload, { silentError: false });
+      const previousSuggestions = Array.isArray(feasibilitySuggestions)
+        ? feasibilitySuggestions.map((x) => String(x || '').trim()).filter(Boolean)
+        : [];
+      const appliedEntry = {
+        text: String(feasibilitySuggestions[index] || '').trim(),
+        specsPatch:
+          action?.patch && typeof action.patch === 'object'
+            ? action.patch
+            : action?.field
+              ? { [action.field]: action.value }
+              : {},
+      };
+      const nextApplied = [...(Array.isArray(feasibilityAppliedHistory) ? feasibilityAppliedHistory : []), appliedEntry].slice(
+        -20,
+      );
+      const nextRound = (Number(feasibilityRound) || 0) + 1;
+      setFeasibilityAppliedHistory(nextApplied);
+      setFeasibilityRound(nextRound);
+
+      const data = await rerunFeasibilityReview(withRegionCurrency(payload), {
+        silentError: false,
+        historyOverride: {
+          previousSuggestions,
+          appliedSuggestions: nextApplied,
+          round: nextRound,
+        },
+      });
       if (data) {
         addToast('Suggestion applied and cost estimate updated.', 'success');
       }
@@ -1613,11 +1751,34 @@ export default function Projects() {
 
   const prepareReviewStep = async () => {
     if (feasibilityLoading || createLoading) return;
-    const saved = await persistProject({ validateUpToStep: 4, silent: true });
-    if (!saved) return;
 
+    // Sync validation first so we don't flash the loader on invalid forms.
+    const err1 = validateStep(1);
+    const err2 = err1 ? null : validateStep(2);
+    const err3 = err1 || err2 ? null : validateStep(3);
+    const err4 = err1 || err2 || err3 ? null : validateStep(4);
+    const err = err1 || err2 || err3 || err4;
+    if (err) {
+      addToast(err, 'error');
+      setCreateStep(err1 ? 1 : err2 ? 2 : err3 ? 3 : 4);
+      return;
+    }
+
+    // Show the calculating panel immediately, then save + call the review API.
     setCreateStep(5);
-    await rerunFeasibilityReview(buildProjectApiPayloadFromForm(createForm), { initialReview: true });
+    setFeasibilityReview(null);
+    setFeasibilitySuggestions([]);
+    setFeasibilityLoading(true);
+
+    const saved = await persistProject({ validateUpToStep: 4, silent: true });
+    if (!saved) {
+      setFeasibilityLoading(false);
+      return;
+    }
+
+    await rerunFeasibilityReview(withRegionCurrency(buildProjectApiPayloadFromForm(createForm)), {
+      initialReview: true,
+    });
   };
 
   const listMyProject = async () => {
@@ -1733,6 +1894,7 @@ export default function Projects() {
     if (activeTab !== 'create') {
       setEditingId(null);
       setCreateStep(1);
+      resetFeasibilitySession();
       setCreateForm({
         title: '',
         description: '',
@@ -1764,6 +1926,8 @@ export default function Projects() {
           additionalNotes: '',
           confirmSpecs: false,
         },
+        delivery: emptyProjectDeliveryAddress(),
+        deliveryLocked: false,
         attachments: [],
         metaFields: [],
       });
@@ -2288,7 +2452,7 @@ export default function Projects() {
                                   {biddingRunning ? (
                                     <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-amber-50 border-amber-100 text-amber-700">
                                       {biddingEndsAt
-                                        ? `Bidding ends: ${formatDateTime(biddingEndsAt)}`
+                                        ? `Bidding Ends: ${formatDateTime(biddingEndsAt)}`
                                         : 'Bidding running'}
                                     </span>
                                   ) : allWindowsFinished ? (
@@ -2311,7 +2475,7 @@ export default function Projects() {
                                   label="Budget"
                                   value={
                                     budgetPerPieceRaw && Number.isFinite(budgetPerPiece) && budgetPerPiece > 0
-                                      ? `₹ ${formatMoney(budgetPerPiece)}`
+                                      ? formatCurrency(budgetPerPiece, projectPresentmentCurrency(p))
                                       : '—'
                                   }
                                 />
@@ -2530,11 +2694,11 @@ export default function Projects() {
 
             {createModalOpen ? (
               <div
-                className="fixed inset-0 z-[120] bg-ink/25 flex items-end md:items-center justify-center px-2 md:px-3 pt-[calc(env(safe-area-inset-top)+8px)] pb-[calc(env(safe-area-inset-bottom)+8px)]"
+                className="fixed inset-0 z-[120] bg-ink/25 flex items-end md:items-center justify-center overflow-hidden px-2 pt-[calc(env(safe-area-inset-top,0px)+0.5rem)] pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] md:p-4"
                 onMouseDown={closeCreateModal}
               >
                 <div
-                  className="w-full max-w-3xl md:w-[calc(100vw-24px)] md:max-w-[1440px] lg:max-w-[1600px] bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden h-[calc(100dvh-16px)] md:h-[calc(100dvh-24px)] flex flex-col"
+                  className="w-full max-w-3xl md:max-w-[min(1600px,calc(100vw-2rem))] bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden flex flex-col h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] max-h-[calc(100dvh-1rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-2rem)] md:max-h-[calc(100dvh-2rem)]"
                   onMouseDown={(e) => e.stopPropagation()}
                 >
                   {/* Mobile header — cream banner (design) */}
@@ -2549,9 +2713,18 @@ export default function Projects() {
                       </p>
                       <a
                         href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
-                        className="inline-flex shrink-0 items-center justify-center px-2 py-1 rounded-full bg-walnut text-blush text-[9px] font-bold whitespace-nowrap hover:opacity-90 transition-opacity"
+                        onClick={(e) => {
+                          if (createFormBusy) e.preventDefault();
+                        }}
+                        aria-disabled={createFormBusy}
+                        tabIndex={createFormBusy ? -1 : undefined}
+                        className={`inline-flex shrink-0 items-center justify-center px-2 py-1 rounded-full bg-walnut text-blush text-[9px] font-bold whitespace-nowrap transition-opacity ${
+                          createFormBusy
+                            ? 'opacity-50 pointer-events-none cursor-not-allowed'
+                            : 'hover:opacity-90'
+                        }`}
                       >
-                        Book a consultation
+                        Book a Consultation
                       </a>
                       <button
                         type="button"
@@ -2569,7 +2742,7 @@ export default function Projects() {
                   </div>
 
                   {/* Desktop header */}
-                  <div className="relative hidden md:flex px-5 pt-4 pb-7 border-b border-pale items-start justify-between gap-3">
+                  <div className="relative hidden md:flex px-5 pt-4 pb-4 border-b border-pale items-start justify-between gap-3 min-h-[96px]">
                     <div className="min-w-0 flex items-start gap-3">
                       <img src={logo} alt="Arviah" className="h-10 w-10 shrink-0 object-contain" />
                       <div className="min-w-0">
@@ -2580,13 +2753,22 @@ export default function Projects() {
                       </div>
                     </div>
 
-                    <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center text-center gap-2 max-w-[52%] z-10 pb-1">
+                    <div className="absolute left-1/2 top-4 -translate-x-1/2 flex flex-col items-center text-center gap-2 max-w-[52%] z-10">
                       <p className="text-[14px] font-extrabold text-ink">
                         Need help bringing your idea together?
                       </p>
                       <a
                         href="mailto:krish@arviahstudio.com?subject=Book%20a%20Consultation"
-                        className="shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 transition-opacity"
+                        onClick={(e) => {
+                          if (createFormBusy) e.preventDefault();
+                        }}
+                        aria-disabled={createFormBusy}
+                        tabIndex={createFormBusy ? -1 : undefined}
+                        className={`shrink-0 inline-flex items-center justify-center px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold transition-opacity ${
+                          createFormBusy
+                            ? 'opacity-50 pointer-events-none cursor-not-allowed'
+                            : 'hover:opacity-90'
+                        }`}
                       >
                         Book a Consultation
                       </a>
@@ -2600,7 +2782,7 @@ export default function Projects() {
                           disabled={createFormBusy}
                           className="inline-flex px-3 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                          New project
+                          New Project
                         </button>
                       ) : null}
                       <button
@@ -2618,30 +2800,35 @@ export default function Projects() {
                     </div>
                   </div>
 
-                  <div className="px-4 pt-1 pb-3 md:px-5 md:py-3 border-b border-pale bg-white">
-                    <div className="sm:hidden mb-1.5 text-[12px] font-bold text-ink">
-                      {stepLabels.find((x) => x.id === createStep)?.label || 'Project'}
-                    </div>
-                    <div className="flex items-center gap-1.5 md:gap-2 w-full md:mt-4">
+                  <div className="px-4 pt-1 pb-3 md:px-5 md:pt-2 md:pb-2 border-b border-pale bg-white">
+                    <div className="flex items-start sm:items-center gap-1 md:gap-2 w-full md:mt-1">
                       {stepLabels.map((s, idx) => {
                         const active = createStep === s.id;
                         const done = createStep > s.id;
                         return (
                           <React.Fragment key={String(s.id)}>
-                            <div className="flex items-center gap-1.5 md:gap-2 min-w-0 shrink-0">
+                            <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 md:gap-2 min-w-0 shrink-0">
                               <div
-                                className={`w-6 h-6 md:w-7 md:h-7 rounded-lg md:rounded-xl flex items-center justify-center text-[11px] md:text-[12px] font-extrabold border ${
+                                className={`order-2 sm:order-1 w-6 h-6 md:w-7 md:h-7 rounded-lg md:rounded-xl flex items-center justify-center text-[11px] md:text-[12px] font-extrabold border ${
                                   active || done ? 'bg-walnut text-blush border-walnut' : 'bg-white text-muted border-pale'
                                 }`}
                               >
                                 {s.id}
                               </div>
-                              <div className={`hidden sm:block text-[12px] font-bold whitespace-nowrap ${active || done ? 'text-ink' : 'text-muted'}`}>
+                              <div
+                                className={`order-1 sm:order-2 text-[10px] sm:text-[12px] font-bold whitespace-nowrap leading-tight ${
+                                  active || done ? 'text-ink' : 'text-muted'
+                                }`}
+                              >
                                 {s.label}
                               </div>
                             </div>
                             {idx < stepLabels.length - 1 ? (
-                              <div className={`flex-1 h-[1.5px] md:h-[2px] rounded-full ${done ? 'bg-walnut' : 'bg-blush'}`} />
+                              <div
+                                className={`flex-1 self-center mt-4 sm:mt-0 h-[1.5px] md:h-[2px] rounded-full ${
+                                  done ? 'bg-walnut' : 'bg-blush'
+                                }`}
+                              />
                             ) : null}
                           </React.Fragment>
                         );
@@ -2657,7 +2844,11 @@ export default function Projects() {
                         createFormLockUi ? 'opacity-60 pointer-events-none' : ''
                       }`}
                     >
-                    <div className={`h-full grid grid-cols-1 ${createStep === 5 ? 'md:grid-cols-1' : 'md:grid-cols-[480px_1fr]'}`}>
+                    <div
+                      className={`h-full min-h-0 min-w-0 grid grid-cols-1 overflow-hidden ${
+                        createStep === 5 ? 'md:grid-cols-1' : 'md:grid-cols-[480px_1fr]'
+                      }`}
+                    >
                       {/* Left: finish preview + reference image (hidden on Review — shown in review content instead) */}
                       {createStep !== 5 ? (
                       <div className="hidden md:block h-full always-visible-scrollbar border-r border-pale bg-white px-5 py-5">
@@ -2755,12 +2946,14 @@ export default function Projects() {
                       </div>
                       ) : null}
 
-                      {/* Right: step content (scrollable) */}
+                      {/* Right: step content (scrollable; full-bleed when calculating) */}
                       <div
                         ref={createStepScrollRef}
-                        className={`h-full overflow-y-auto px-5 py-5 ${
-                          createStep === 5 && feasibilityLoading ? 'flex flex-col' : ''
-                        }`}
+                        className={
+                          createStep === 5 && feasibilityLoading
+                            ? 'h-full min-h-0 flex flex-col overflow-hidden bg-[#F7F1E8] p-0'
+                            : 'h-full overflow-y-auto overflow-x-hidden px-5 py-5'
+                        }
                       >
                         <input
                           ref={referenceImageInputRef}
@@ -3036,7 +3229,7 @@ export default function Projects() {
                         <div className="mt-5 space-y-5">
                           <div>
                             <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Metal type *</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                            <div className="grid grid-cols-4 gap-2.5">
                               {createMetalTypeOptions.map((opt) => (
                                 <SpecChoiceCard
                                   key={opt.value}
@@ -3366,7 +3559,7 @@ export default function Projects() {
                           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
                               <label className="text-[11px] font-medium text-ink uppercase tracking-wide">
-                                Budget per piece (INR){' '}
+                                Budget per piece ({regionCurrency}){' '}
                                 <span className="font-normal normal-case text-muted">(Recommended)</span>
                               </label>
                               <input
@@ -3381,7 +3574,7 @@ export default function Projects() {
                                   }))
                                 }
                                 className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
-                                placeholder="e.g. 25000"
+                                placeholder={`e.g. ${budgetExample}`}
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -3458,6 +3651,23 @@ export default function Projects() {
                               })()}
                             </div>
                           </div>
+                        </div>
+
+                        <div className="p-4">
+                          <ProjectDeliveryAddressFields
+                            form={createForm?.delivery}
+                            setForm={(updater) =>
+                              setCreateForm((p) => ({
+                                ...p,
+                                delivery:
+                                  typeof updater === 'function'
+                                    ? updater(p.delivery || emptyProjectDeliveryAddress())
+                                    : updater,
+                              }))
+                            }
+                            disabled={createFormBusy}
+                            locked={Boolean(createForm?.deliveryLocked)}
+                          />
                         </div>
 
                         <div className="p-4">
@@ -3568,7 +3778,13 @@ export default function Projects() {
                     ) : null}
 
                     {createStep === 5 ? (
-                      <div className={feasibilityLoading ? 'h-full min-h-[min(62vh,560px)]' : 'space-y-4'}>
+                      <div
+                        className={
+                          feasibilityLoading
+                            ? 'h-full min-h-0 flex-1 flex flex-col overflow-hidden'
+                            : 'space-y-4'
+                        }
+                      >
                         {feasibilityLoading ? (
                           <FeasibilityCalculatingPanel specs={createForm?.specs} />
                         ) : (
@@ -3585,7 +3801,7 @@ export default function Projects() {
                                 <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Feasibility</p>
                                 <p className="mt-1 text-[12px] text-muted">
                                   {feasibilityReview?.goodToGo === true
-                                    ? 'Good to go based on the feasibility check.'
+                                    ? 'Good To Go based on the feasibility check.'
                                     : 'Feasibility check suggests adjustments may be needed.'}
                                 </p>
                               </div>
@@ -3596,7 +3812,7 @@ export default function Projects() {
                                     : 'bg-amber-50 border-amber-100 text-amber-700'
                                 }`}
                               >
-                                {feasibilityReview?.goodToGo === true ? 'Good to go' : 'Needs review'}
+                                {feasibilityReview?.goodToGo === true ? 'Good To Go' : 'Needs Review'}
                               </span>
                             </div>
 
@@ -3619,22 +3835,101 @@ export default function Projects() {
                                     : '—'
                                 }
                               />
-                              <InfoBox
-                                label="Est. cost / piece"
-                                value={
-                                  Number.isFinite(Number(feasibilityReview?.breakdown?.estimatedCostPerPiece))
-                                    ? `₹ ${formatMoney(Number(feasibilityReview.breakdown.estimatedCostPerPiece))}`
-                                    : '—'
-                                }
-                              />
-                              <InfoBox
-                                label="Total order cost"
-                                value={
-                                  Number.isFinite(Number(feasibilityReview?.breakdown?.totalOrderCost))
-                                    ? `₹ ${formatMoney(Number(feasibilityReview.breakdown.totalOrderCost))}`
-                                    : '—'
-                                }
-                              />
+                              <div className="sm:col-span-2 rounded-xl border border-pale bg-cream px-3 py-2 text-mid">
+                                <p className="text-[10px] font-bold uppercase tracking-wide opacity-70">
+                                  {feasibilityReview?.landedCostEstimate?.label ||
+                                    (feasibilityReview?.landedCostEstimate?.assumesCrossBorder === false
+                                      ? 'Estimated cost per piece'
+                                      : 'Estimated Price Incl. Duties + Shipping')}
+                                </p>
+                                <p className="text-[12px] font-semibold mt-0.5">
+                                  {Number.isFinite(
+                                    Number(
+                                      feasibilityReview?.landedCostEstimate?.estimatedPriceInclDutiesAndShipping
+                                    )
+                                  )
+                                    ? formatCurrency(
+                                        Number(
+                                          feasibilityReview.landedCostEstimate.estimatedPriceInclDutiesAndShipping
+                                        ),
+                                        regionCurrency,
+                                      )
+                                    : Number.isFinite(Number(feasibilityReview?.breakdown?.estimatedCostPerPiece))
+                                      ? formatCurrency(Number(feasibilityReview.breakdown.estimatedCostPerPiece), regionCurrency)
+                                      : '—'}
+                                </p>
+                                {feasibilityReview?.landedCostEstimate?.assumesCrossBorder !== false ? (
+                                <div className="mt-2 space-y-1 border-t border-pale/80 pt-2 text-[11px] text-soft">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>Est. cost / piece</span>
+                                    <span className="tabular-nums text-mid">
+                                      {Number.isFinite(
+                                        Number(
+                                          feasibilityReview?.landedCostEstimate?.baseEstimatedCostPerPiece ??
+                                            feasibilityReview?.breakdown?.estimatedCostPerPiece
+                                        )
+                                      )
+                                        ? formatCurrency(
+                                            Number(
+                                              feasibilityReview?.landedCostEstimate?.baseEstimatedCostPerPiece ??
+                                                feasibilityReview.breakdown.estimatedCostPerPiece
+                                            ),
+                                            regionCurrency,
+                                          )
+                                        : '—'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>Est. import duty</span>
+                                    <span className="tabular-nums text-mid">
+                                      {formatCurrency(
+                                        Number(feasibilityReview?.landedCostEstimate?.estimatedImportDutyInr || 0),
+                                        regionCurrency,
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span>Est. intl. shipping</span>
+                                    <span className="tabular-nums text-mid">
+                                      {formatCurrency(
+                                        Number(feasibilityReview?.landedCostEstimate?.estimatedIntlShippingInr || 0),
+                                        regionCurrency,
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3 pt-1 border-t border-pale/60">
+                                    <span className="font-medium text-mid">Total order cost</span>
+                                    <span className="tabular-nums font-semibold text-mid">
+                                      {Number.isFinite(Number(feasibilityReview?.breakdown?.totalOrderCost))
+                                        ? formatCurrency(Number(feasibilityReview.breakdown.totalOrderCost), regionCurrency)
+                                        : '—'}
+                                    </span>
+                                  </div>
+                                </div>
+                                ) : Number.isFinite(Number(feasibilityReview?.breakdown?.totalOrderCost)) ? (
+                                <div className="mt-2 space-y-1 border-t border-pale/80 pt-2 text-[11px] text-soft">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium text-mid">Total order cost</span>
+                                    <span className="tabular-nums font-semibold text-mid">
+                                      {formatCurrency(Number(feasibilityReview.breakdown.totalOrderCost), regionCurrency)}
+                                    </span>
+                                  </div>
+                                </div>
+                                ) : null}
+                                <p className="mt-2 text-[10px] text-soft leading-relaxed">
+                                  {feasibilityReview?.landedCostEstimate?.note ||
+                                    (feasibilityReview?.landedCostEstimate?.assumesCrossBorder === false
+                                      ? 'Estimate for your profile country. Import duty and international shipping do not apply on this estimate.'
+                                      : 'Duty and international shipping shown assume manufacture outside your country. Same-country jewellers are not charged these. Final billed amounts use the accepted jeweller quote and country.')}
+                                </p>
+                                {Number(feasibilityReview?.landedCostEstimate?.localTaxRate || 0) > 0 ? (
+                                  <p className="mt-1 text-[10px] text-soft leading-relaxed">
+                                    If your jeweller is in your country, local tax of{' '}
+                                    {(Number(feasibilityReview.landedCostEstimate.localTaxRate) * 100).toFixed(1)}% may
+                                    apply instead of import duty/shipping.
+                                  </p>
+                                ) : null}
+                              </div>
                             </div>
 
                             {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
@@ -3657,14 +3952,21 @@ export default function Projects() {
                           </div>
                         ) : null}
 
-                        {Array.isArray(feasibilitySuggestions) && feasibilitySuggestions.length ? (
+                        {Array.isArray(feasibilitySuggestionRows) && feasibilitySuggestionRows.length ? (
                           <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
                                 <p className="text-[11px] font-medium text-amber-900 uppercase tracking-wide">Suggestions</p>
                                 <p className="mt-1 text-[12px] text-amber-800/80">
-                                  Based on your budget and timeline, here are some suggestions. Use Apply to
-                                  update your project details automatically.
+                                  {feasibilitySuggestionRows.some(
+                                    (row) =>
+                                      !row.applied &&
+                                      suggestionActionFieldChangeLabels(row.action, {
+                                        currency: regionCurrency,
+                                      }).length > 0,
+                                  )
+                                    ? 'Based on your budget and timeline, here are some suggestions. Use Apply to update your project details automatically.'
+                                    : 'Based on your budget and timeline, here is what needs to change. Update your budget or specs manually, then re-run Review.'}
                                 </p>
                               </div>
                               {feasibilityLoading ? (
@@ -3675,33 +3977,67 @@ export default function Projects() {
                               ) : null}
                             </div>
                             <ul className="mt-3 space-y-2">
-                              {feasibilitySuggestions.map((sug, idx) => {
-                                const action = feasibilitySuggestionActions[idx];
-                                const applyLabel = suggestionActionApplyLabel(action);
-                                const isApplying = applyingSuggestionIndex === idx;
+                              {feasibilitySuggestionRows.map((row, idx) => {
+                                const action = row.action;
+                                const applyLabel = suggestionActionApplyLabel(action, {
+                                  currency: regionCurrency,
+                                });
+                                const fieldChangeLabels = suggestionActionFieldChangeLabels(action, {
+                                  currency: regionCurrency,
+                                });
+                                const isApplied = Boolean(row.applied);
+                                const liveIndex = row.suggestionIndex;
+                                const isApplying =
+                                  liveIndex != null && applyingSuggestionIndex === liveIndex;
+                                const canApply =
+                                  !isApplied &&
+                                  liveIndex != null &&
+                                  fieldChangeLabels.length > 0;
                                 return (
-                                  <li key={`sug-${idx}`} className="flex items-start gap-2 text-[13px] text-amber-900">
+                                  <li key={row.key || `sug-${idx}`} className="flex items-start gap-2 text-[13px] text-amber-900">
                                     <span className="mt-[2px] w-5 h-5 shrink-0 rounded-full bg-amber-100 border border-amber-200 flex items-center justify-center text-[11px] font-extrabold text-amber-800">
                                       {idx + 1}
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                      <span className="text-amber-900">{String(sug)}</span>
-                                      {applyLabel ? (
-                                        <div className="mt-2 flex flex-wrap items-center gap-2">
-                                          <button
-                                            type="button"
-                                            onClick={() => applyFeasibilitySuggestion(idx)}
-                                            disabled={
-                                              createFormBusy ||
-                                              isApplying ||
-                                              applyingSuggestionIndex != null
-                                            }
-                                            className="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
-                                            title={applyLabel}
-                                          >
-                                            {isApplying ? 'Applying…' : 'Apply'}
-                                          </button>
-                                          <span className="text-[11px] text-amber-800/80">{applyLabel}</span>
+                                      <span className={`text-amber-900 ${isApplied ? 'opacity-80' : ''}`}>
+                                        {String(row.text)}
+                                      </span>
+                                      {fieldChangeLabels.length || isApplied ? (
+                                        <div className="mt-2 flex flex-col items-end gap-1.5">
+                                          {isApplied ? (
+                                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-800">
+                                              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden>
+                                                <path d="M20 6 9 17l-5-5" />
+                                              </svg>
+                                              Applied
+                                            </span>
+                                          ) : canApply ? (
+                                            <button
+                                              type="button"
+                                              onClick={() => applyFeasibilitySuggestion(liveIndex)}
+                                              disabled={
+                                                createFormBusy ||
+                                                isApplying ||
+                                                applyingSuggestionIndex != null
+                                              }
+                                              className="inline-flex items-center rounded-full border border-amber-300 bg-white px-3 py-1 text-[11px] font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                                              title={applyLabel || 'Apply suggestion'}
+                                            >
+                                              {isApplying ? 'Applying…' : 'Apply'}
+                                            </button>
+                                          ) : null}
+                                          {fieldChangeLabels.length ? (
+                                            <ul className="max-w-full space-y-0.5 text-right">
+                                              {fieldChangeLabels.map((line) => (
+                                                <li
+                                                  key={line}
+                                                  className="text-[11px] leading-snug text-amber-800/80"
+                                                >
+                                                  {line}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          ) : null}
                                         </div>
                                       ) : null}
                                     </div>
@@ -3787,18 +4123,70 @@ export default function Projects() {
                         </div>
 
                         <div className="rounded-2xl border border-pale p-4">
+                          <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Delivery details</p>
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[13px]">
+                            <div>
+                              <span className="text-muted">Full name:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.name || '').trim() || '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted">Phone:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.phone || '').trim() || '—'}
+                              </span>
+                            </div>
+                            <div className="sm:col-span-2">
+                              <span className="text-muted">Address:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.address || '').trim() || '—'}
+                              </span>
+                            </div>
+                            {String(createForm?.delivery?.addressLine2 || '').trim() ? (
+                              <div className="sm:col-span-2">
+                                <span className="text-muted">Address line 2:</span>{' '}
+                                <span className="font-semibold text-ink">
+                                  {String(createForm.delivery.addressLine2).trim()}
+                                </span>
+                              </div>
+                            ) : null}
+                            <div>
+                              <span className="text-muted">City:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.city || '').trim() || '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted">State:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.state || '').trim() || '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted">Pin code:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.pinCode || '').trim() || '—'}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted">Country:</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {String(createForm?.delivery?.country || '').trim() || '—'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-pale p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
-                            <div><span className="text-muted">Budget per piece (INR):</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
+                            <div><span className="text-muted">Budget per piece ({regionCurrency}):</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
                             <div><span className="text-muted">Quantity required:</span> <span className="font-semibold text-ink">{createForm?.specs?.quantityRequired || '—'}</span></div>
                             <div className="md:col-span-2"><span className="text-muted">Preferred delivery timeline:</span> <span className="font-semibold text-ink">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
                             {String(createForm?.specs?.additionalNotes || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-muted">Additional notes for the manufacturer:</span> <span className="font-semibold text-ink">{createForm?.specs?.additionalNotes}</span></div>
                             ) : null}
-                            <div className="md:col-span-2">
-                              <span className="text-muted">Confirmation:</span>{' '}
-                              <span className="font-semibold text-ink">{createForm?.specs?.confirmSpecs ? 'Confirmed' : 'Not confirmed'}</span>
-                            </div>
                           </div>
                         </div>
 
@@ -3913,10 +4301,21 @@ export default function Projects() {
                       <button
                         type="button"
                         onClick={listMyProject}
-                        disabled={createFormBusy || feasibilityLoading || !createForm?.specs?.confirmSpecs}
+                        disabled={
+                          createFormBusy ||
+                          feasibilityLoading ||
+                          applyingSuggestionIndex != null ||
+                          !createForm?.specs?.confirmSpecs
+                        }
                         className="px-4 py-1.5 rounded-lg bg-walnut text-blush text-[11px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {listMyProjectLoading || createLoading ? 'Listing…' : 'List my project'}
+                        {applyingSuggestionIndex != null
+                          ? 'Applying Suggestion…'
+                          : feasibilityLoading
+                            ? 'Reviewing…'
+                            : listMyProjectLoading
+                              ? 'Listing…'
+                              : 'List My Project'}
                       </button>
                     )}
                   </div>
@@ -4017,7 +4416,7 @@ export default function Projects() {
           >
             <div className="px-5 py-4 border-b border-pale">
               <p className="text-[14px] font-extrabold text-ink">Force End</p>
-              <p className="mt-1 text-[12px] text-muted">This will force-end the current bid window now (does not cancel the project).</p>
+              <p className="mt-1 text-[12px] text-muted">This will end the current bid window now (doesn't cancel the project).</p>
             </div>
 
             <div className="px-5 py-4">
@@ -4030,7 +4429,7 @@ export default function Projects() {
                 />
                 <div className="min-w-0">
                   <p className="text-[12px] font-bold text-ink">Auto-pick a winner</p>
-                  <p className="mt-0.5 text-[11px] text-muted">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
+                  <p className="mt-0.5 text-[11px] text-muted">If unchecked, we’ll only end bidding & you can choose the winner.</p>
                 </div>
               </label>
 
@@ -4040,7 +4439,7 @@ export default function Projects() {
                   onClick={() => setForceStopOpen(false)}
                   className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream"
                 >
-                  Keep running
+                  Keep Running
                 </button>
                 <button
                   type="button"

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import { useAuth } from '../../context/AuthContext';
 import { vendorService } from '../../services/vendorService';
 
 function isCanceledRequest(err) {
@@ -52,7 +54,11 @@ function StarRow({ rating }) {
 export default function VendorReviews() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
+  const { user } = useAuth();
   const abortRef = useRef(null);
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
 
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
@@ -66,6 +72,7 @@ export default function VendorReviews() {
 
   const load = useCallback(
     async ({ nextPage = 1 } = {}) => {
+      if (!kycAccepted) return;
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -89,13 +96,18 @@ export default function VendorReviews() {
         setLoading(false);
       }
     },
-    [addToast],
+    [addToast, kycAccepted],
   );
 
   useEffect(() => {
+    if (!kycAccepted) return;
     load({ nextPage: page });
     return () => abortRef.current?.abort();
-  }, [load, page]);
+  }, [load, page, kycAccepted]);
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to access reviews." />;
+  }
 
   const empty = !loading && items.length === 0;
 
@@ -107,14 +119,14 @@ export default function VendorReviews() {
             Reviews From Customers
           </p>
           <div
-            className="shrink-0 inline-flex items-center gap-2 rounded-full border border-pale bg-white px-4 py-2.5 md:px-5 md:py-3 font-sans text-[12px] font-semibold text-mid tabular-nums hover:bg-cream"
+            className="shrink-0 inline-flex items-center gap-2 rounded-full border border-pale bg-white px-4 py-2.5 md:px-5 md:py-3 font-sans text-[12px] font-semibold text-mid tabular-nums"
             role="status"
             aria-live="polite"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" className="text-walnut shrink-0" fill="currentColor" aria-hidden>
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
             </svg>
-            <span>Total</span>
+            <span>Total Received</span>
             <span className="font-extrabold text-ink">
               {meta?.total != null ? Number(meta.total).toLocaleString('en-IN') : '—'}
             </span>

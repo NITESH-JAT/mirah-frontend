@@ -4,7 +4,7 @@ import { productService } from '../../services/productService';
 import { cartService } from '../../services/cartService';
 import ProductGridCard from '../../components/customer/ProductGridCard';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 import { readShopCatalogSession } from '../../utils/shopCatalogSession';
 import { writeSimilarProductsSession } from '../../utils/similarProductsSession';
 import { productListingGridBorderClasses } from '../../utils/productListingGrid';
@@ -395,7 +395,7 @@ export default function SimilarProducts() {
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
+                                <p className="text-[12px] font-extrabold text-ink">{formatCurrency(price, cartTarget?.currency)}</p>
                               ) : null}
                             </div>
                             <p className="mt-0.5 text-[11px] text-muted">Select this option to add this variant.</p>
@@ -464,4 +464,3 @@ export default function SimilarProducts() {
     </div>
   );
 }
-

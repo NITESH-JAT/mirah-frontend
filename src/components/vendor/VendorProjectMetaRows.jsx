@@ -102,13 +102,13 @@ export function VendorProjectMetaRows({ rows = [] }) {
 }
 
 /** Stable Details card — keep outside page render so modal state survives parent re-renders (e.g. countdown). */
-export default function VendorProjectMetaCard({ rows = [], className = '' }) {
+export default function VendorProjectMetaCard({ rows = [], title = 'Details', className = '' }) {
   if (!Array.isArray(rows) || rows.length === 0) return null;
 
   return (
     <div className={`rounded-2xl border border-pale bg-white overflow-hidden shadow-sm ${className}`}>
       <div className="px-5 py-4 border-b border-pale">
-        <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Details</p>
+        <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">{title}</p>
       </div>
       <div className="px-5 py-4 space-y-3">
         <VendorProjectMetaRows rows={rows} />

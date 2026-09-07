@@ -43,7 +43,7 @@ export function buildFeasibilityStatusMessages(specs = {}) {
 }
 
 /**
- * Full-bleed Review-step calculating screen — logo + status only.
+ * Full-bleed Review-step calculating screen — fills parent, centered, no scroll.
  */
 export default function FeasibilityCalculatingPanel({
   specs = null,
@@ -71,14 +71,14 @@ export default function FeasibilityCalculatingPanel({
 
   return (
     <div
-      className="flex min-h-[min(62vh,560px)] h-full w-full flex-col items-center justify-center rounded-2xl bg-[#F7F1E8] px-6 py-10 text-center"
+      className="flex h-full min-h-0 w-full max-w-full flex-1 flex-col items-center justify-center overflow-hidden bg-[#F7F1E8] px-6 py-8 text-center"
       aria-busy="true"
       aria-live="polite"
     >
       <ArviahLogoReveal size={200} loop />
       <p
         key={`${msgIndex}-${messages[msgIndex] || ''}`}
-        className="mt-7 max-w-lg text-[15px] sm:text-[16px] font-extrabold text-ink leading-snug animate-fade-in px-2"
+        className="mt-7 max-w-lg w-full text-[15px] sm:text-[16px] font-extrabold text-ink leading-snug animate-fade-in px-2"
       >
         {messages[msgIndex] || messages[0]}
       </p>

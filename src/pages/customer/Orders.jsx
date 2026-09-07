@@ -3,7 +3,7 @@ import { useNavigate, useOutletContext } from 'react-router-dom';
 import { orderService } from '../../services/orderService';
 import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 import { formatCartVariantLabel } from '../../utils/cartVariant';
 
 function normalizeOrder(o) {
@@ -90,20 +90,6 @@ function statusText(o) {
     .split(/\s+/g)
     .map((w) => (w ? `${w[0].toUpperCase()}${w.slice(1).toLowerCase()}` : w))
     .join(' ');
-}
-
-function normalizeVariants(variants) {
-  if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return undefined;
-  const out = {
-    type: variants?.type ?? undefined,
-    size: variants?.size ?? undefined,
-    sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
-    sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
-  };
-  for (const k of Object.keys(out)) {
-    if (out[k] == null || out[k] === '') delete out[k];
-  }
-  return Object.keys(out).length ? out : undefined;
 }
 
 function variantTextOf(variants) {
@@ -737,7 +723,7 @@ export default function Orders() {
                       </div>
                       {whenText ? <p className="mt-1 text-[12px] text-muted">{whenText}</p> : null}
                       {total != null ? (
-                        <p className="mt-2 text-[14px] font-extrabold text-ink">₹{formatMoney(total)}</p>
+                        <p className="mt-2 text-[14px] font-extrabold text-ink">{formatCurrency(total, o?.currency)}</p>
                       ) : null}
                       </div>
                     </div>
@@ -889,11 +875,11 @@ export default function Orders() {
                                     <p className="mt-1 text-[11px] text-muted font-semibold truncate">{variantsText}</p>
                                   ) : null}
                                   <p className="mt-1 text-[11px] text-muted">
-                                    Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                    Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: {formatCurrency(price, detailsOrder?.currency)}
                                   </p>
                                 </div>
                               </div>
-                              <div className="shrink-0 text-[12px] font-extrabold text-ink">₹{formatMoney(lineTotal)}</div>
+                              <div className="shrink-0 text-[12px] font-extrabold text-ink">{formatCurrency(lineTotal, detailsOrder?.currency)}</div>
                             </div>
                           </div>
                         );
@@ -1037,14 +1023,14 @@ export default function Orders() {
                       <div className="flex items-center justify-between text-mid">
                         <span>Total</span>
                         <span className="font-extrabold text-ink">
-                          ₹{formatMoney(detailsOrder?.totalAmount ?? detailsOrder?.total ?? detailsOrder?.amount ?? detailsOrder?.grandTotal ?? 0)}
+                          {formatCurrency(detailsOrder?.totalAmount ?? detailsOrder?.total ?? detailsOrder?.amount ?? detailsOrder?.grandTotal ?? 0, detailsOrder?.currency)}
                         </span>
                       </div>
                       {detailsOrder?.amountDue != null || detailsOrder?.amount_due != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Amount due</span>
                           <span className="font-extrabold text-ink">
-                            ₹{formatMoney(detailsOrder?.amountDue ?? detailsOrder?.amount_due ?? 0)}
+                            {formatCurrency(detailsOrder?.amountDue ?? detailsOrder?.amount_due ?? 0, detailsOrder?.currency)}
                           </span>
                         </div>
                       ) : null}
@@ -1099,4 +1085,3 @@ export default function Orders() {
     </div>
   );
 }
-

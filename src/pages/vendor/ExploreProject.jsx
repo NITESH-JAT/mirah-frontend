@@ -4,8 +4,12 @@ import { useAuth } from '../../context/AuthContext';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
+import { useRegion } from '../../context/RegionProvider';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -91,6 +95,40 @@ function isLikelyImageUrl(url) {
   if (!raw) return false;
   const base = (raw.split('?')[0] || raw).toLowerCase();
   return ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.svg'].some((ext) => base.endsWith(ext));
+}
+
+/** Notice that other jewellers have bid — no names, amounts, or counts. */
+function SealedCompetitorBidRow({ asCard = false }) {
+  const content = (
+    <div className="inline-flex items-center justify-center gap-2.5 text-muted">
+      <span className="w-8 h-8 rounded-full border border-pale bg-white/80 flex items-center justify-center shrink-0 text-mid">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" aria-hidden>
+          <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+          <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+          <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+          <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+          <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+          <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+          <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+        </svg>
+      </span>
+      <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+    </div>
+  );
+  if (asCard) {
+    return (
+      <div className="rounded-2xl border border-pale bg-cream/40 px-5 py-5 flex items-center justify-center">
+        {content}
+      </div>
+    );
+  }
+  return (
+    <tr className="border-b border-pale last:border-b-0 bg-cream/40">
+      <td colSpan={3} className="px-4 py-5 text-center align-middle">
+        {content}
+      </td>
+    </tr>
+  );
 }
 
 function pickThumbnailUrl(attachments) {
@@ -246,6 +284,10 @@ export default function VendorExploreProject() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
   const { user } = useAuth();
+  const { currency: regionCurrency, ready: regionReady } = useRegion();
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
 
   const abortRef = useRef(null);
 
@@ -253,13 +295,25 @@ export default function VendorExploreProject() {
   const [details, setDetails] = useState(null);
   const [bidsLoading, setBidsLoading] = useState(true);
   const [bids, setBids] = useState([]);
+  const [hasOtherSealedBids, setHasOtherSealedBids] = useState(false);
   const [bidModalOpen, setBidModalOpen] = useState(false);
   const [bidForm, setBidForm] = useState({ price: '', daysToComplete: '' });
   const [bidSubmitting, setBidSubmitting] = useState(false);
-  const [bidPreview, setBidPreview] = useState({ loading: false, commission: null, net: null, forPrice: null });
+  const [bidPreview, setBidPreview] = useState({
+    loading: false,
+    commission: null,
+    pgFee: null,
+    inboundShipping: null,
+    jewelleryTax: null,
+    jewelleryTaxKind: null,
+    jewelleryTaxWaived: false,
+    net: null,
+    forPrice: null,
+  });
   const [nowTs, setNowTs] = useState(Date.now());
 
   const project = details?.project ?? details?.data?.project ?? details?.item ?? details?.data ?? details ?? null;
+  const moneyCurrency = projectPresentmentCurrency(project, regionCurrency || 'INR');
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? details?.bidWindow ?? details?.bid_window ?? null;
   const finishingAt =
     activeBidWindow?.finishingTimestamp ??
@@ -321,12 +375,15 @@ export default function VendorExploreProject() {
     }
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
+  const deliveryDetailRows = useMemo(() => buildVendorDeliveryDetailRows(project), [project]);
 
   const myVendorId = user?.id ?? user?._id ?? user?.vendorId ?? user?.vendor_id ?? null;
   const hasMyBid = useMemo(() => {
-    if (!myVendorId) return Array.isArray(bids) && bids.length > 0;
-    return (Array.isArray(bids) ? bids : []).some(
-      (b) => String(bidVendorIdOf(b) ?? '') === String(myVendorId),
+    const list = Array.isArray(bids) ? bids : [];
+    const isActiveBid = (b) => !(b?.isWithdrawn ?? b?.is_withdrawn);
+    if (!myVendorId) return list.some(isActiveBid);
+    return list.some(
+      (b) => isActiveBid(b) && String(bidVendorIdOf(b) ?? '') === String(myVendorId),
     );
   }, [bids, myVendorId]);
   // Sealed bidding: do not show winning status from a self-only bid list.
@@ -357,22 +414,33 @@ export default function VendorExploreProject() {
     if (!projectId) return;
     setBidsLoading(true);
     try {
-      const list = await projectService.listBids(projectId);
-      setBids(Array.isArray(list) ? list : []);
+      const result = await projectService.listBids(projectId);
+      const list = Array.isArray(result?.bids) ? result.bids : Array.isArray(result) ? result : [];
+      setBids(list);
+      setHasOtherSealedBids(Boolean(result?.hasOtherSealedBids));
     } catch (e) {
       if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load bids', 'error');
       setBids([]);
+      setHasOtherSealedBids(false);
     } finally {
       setBidsLoading(false);
     }
   }, [addToast, projectId]);
 
   useEffect(() => {
+    if (!kycAccepted) return;
     load();
     loadBids();
     return () => abortRef.current?.abort();
-  }, [load, loadBids]);
+  }, [load, loadBids, kycAccepted]);
+
+  // After a jeweller has bid, Explore detail always hands off to Manage Bidding.
+  useEffect(() => {
+    if (!projectId || !hasLoaded || bidsLoading) return;
+    if (!hasMyBid) return;
+    navigate(`/vendor/bids/${encodeURIComponent(String(projectId))}?tab=active`, { replace: true });
+  }, [bidsLoading, hasLoaded, hasMyBid, navigate, projectId]);
 
   useEffect(() => {
     const t = setInterval(() => setNowTs(Date.now()), 1000);
@@ -384,35 +452,67 @@ export default function VendorExploreProject() {
     if (!bidModalOpen) return undefined;
     const price = Number(bidForm.price);
     if (!Number.isFinite(price) || price <= 0) {
-      setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
+      setBidPreview({
+        loading: false,
+        commission: null,
+        pgFee: null,
+        inboundShipping: null,
+        jewelleryTax: null,
+        jewelleryTaxKind: null,
+        jewelleryTaxWaived: false,
+        net: null,
+        forPrice: null,
+      });
       return undefined;
     }
     setBidPreview((prev) => ({ ...prev, loading: true }));
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const data = await projectService.previewBid(projectId, price, { signal: controller.signal });
+        const data = await projectService.previewBid(projectId, price, { signal: controller.signal, currency: moneyCurrency });
         const commission = Number(data?.commissionC);
+        const pgFee = Number(data?.paymentGatewayDeductionOnP);
+        const inboundShipping = Number(data?.inboundShippingInr);
+        const jewelleryTax = Number(data?.jewelleryGstGj);
         const net = Number(data?.jewellerEstimatedNetAfterFees);
         setBidPreview({
           loading: false,
           commission: Number.isFinite(commission) ? commission : null,
+          pgFee: Number.isFinite(pgFee) ? pgFee : null,
+          inboundShipping: Number.isFinite(inboundShipping) ? inboundShipping : null,
+          jewelleryTax: Number.isFinite(jewelleryTax) ? jewelleryTax : null,
+          jewelleryTaxKind: data?.jewelleryTaxKind ?? data?.jewellery_tax_kind ?? null,
+          jewelleryTaxWaived: Boolean(data?.jewelleryGstWaived ?? data?.jewellery_gst_waived),
           net: Number.isFinite(net) ? net : null,
           forPrice: price,
         });
       } catch (e) {
         if (isCanceledRequest(e)) return;
-        setBidPreview({ loading: false, commission: null, net: null, forPrice: null });
+        setBidPreview({
+          loading: false,
+          commission: null,
+          pgFee: null,
+          inboundShipping: null,
+          jewelleryTax: null,
+          jewelleryTaxKind: null,
+          jewelleryTaxWaived: false,
+          net: null,
+          forPrice: null,
+        });
       }
     }, 400);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [bidModalOpen, bidForm.price, projectId]);
+  }, [bidModalOpen, bidForm.price, projectId, moneyCurrency]);
 
   const submitBid = async () => {
     if (bidSubmitting || !projectId || hasMyBid) return;
+    if (!regionReady) {
+      addToast('Currency is still loading. Try again in a moment.', 'error');
+      return;
+    }
     const price = Number(bidForm.price);
     const daysToComplete = Number(bidForm.daysToComplete);
     if (!Number.isFinite(price) || price <= 0) {
@@ -425,12 +525,11 @@ export default function VendorExploreProject() {
     }
     setBidSubmitting(true);
     try {
-      await projectService.placeBid(projectId, { price, daysToComplete });
+      await projectService.placeBid(projectId, { price, daysToComplete, currency: moneyCurrency });
       addToast('Bid submitted.', 'success');
       setBidModalOpen(false);
       setBidForm({ price: '', daysToComplete: '' });
-      await loadBids();
-      await load();
+      navigate(`/vendor/bids/${encodeURIComponent(String(projectId))}?tab=active`, { replace: true });
     } catch (e) {
       addToast(e?.message || 'Failed to submit bid', 'error');
     } finally {
@@ -447,7 +546,7 @@ export default function VendorExploreProject() {
             <p>
               Budget per piece:{' '}
               <span className="font-extrabold text-ink">
-                {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+                {budgetPerPieceRaw ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency) : '—'}
               </span>
             </p>
             <p>
@@ -468,7 +567,15 @@ export default function VendorExploreProject() {
           </div>
         </div>
 
-        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
+        <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center gap-1.5 tabular-nums">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+            <circle cx="12" cy="13" r="8" />
+            <path d="M12 9v4l2 2" />
+            <path d="M5 3 2 6" />
+            <path d="m22 6-3-3" />
+            <path d="M6.38 18.7 4 21" />
+            <path d="M17.64 18.67 20 21" />
+          </svg>
           {timeLeftMs == null ? '—' : bidEnded ? 'Bid Ended' : formatCountdown(timeLeftMs)}
         </span>
       </div>
@@ -507,6 +614,10 @@ export default function VendorExploreProject() {
         </div>
       </div>
     ) : null;
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to explore this commission." />;
+  }
 
   return (
     <div className="w-full pt-4 sm:pt-5 pb-10 animate-fade-in">
@@ -553,21 +664,21 @@ export default function VendorExploreProject() {
                 )}
               </div>
               <div className="p-4 border-t border-pale">
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-row items-stretch gap-2">
                   {customerId ? (
                     <button
                       type="button"
                       onClick={() => navigate('/vendor/messages', { state: { openRecipientId: customerId } })}
-                      className="w-full px-5 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
+                      className="flex-1 min-w-0 px-3 sm:px-5 py-3 rounded-2xl bg-white border border-pale text-[13px] font-extrabold text-mid hover:bg-cream inline-flex items-center justify-center gap-2"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Send message
+                      <span className="truncate">Send Message</span>
                     </button>
                   ) : null}
                   {hasMyBid ? (
-                    <div className="w-full px-5 py-3 rounded-2xl border border-pale bg-cream text-center text-[13px] font-extrabold text-ink">
+                    <div className="flex-1 min-w-0 px-3 sm:px-5 py-3 rounded-2xl border border-pale bg-cream text-center text-[13px] font-extrabold text-ink">
                       Bid placed
                       <p className="mt-1 text-[11px] font-semibold text-muted">Sealed — cannot be changed or replaced</p>
                     </div>
@@ -576,9 +687,18 @@ export default function VendorExploreProject() {
                       type="button"
                       onClick={() => setBidModalOpen(true)}
                       disabled={bidEnded || bidSubmitting}
-                      className="w-full px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 min-w-0 px-3 sm:px-5 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
                     >
-                      Bid Now
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="16" height="16" className="shrink-0" aria-hidden>
+                        <rect x="22" y="120" width="110" height="22" rx="11" transform="rotate(-45 22 120)" fill="currentColor" />
+                        <rect x="52" y="28" width="70" height="24" rx="12" transform="rotate(-45 52 28)" fill="currentColor" />
+                        <rect x="108" y="74" width="70" height="24" rx="12" transform="rotate(-45 108 74)" fill="currentColor" />
+                        <rect x="85" y="48" width="42" height="42" transform="rotate(-45 85 48)" fill="currentColor" />
+                        <rect x="70" y="130" width="70" height="26" rx="8" fill="currentColor" />
+                        <rect x="60" y="140" width="90" height="22" rx="10" fill="currentColor" />
+                        <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
+                      </svg>
+                      <span className="truncate">Bid Now</span>
                     </button>
                   )}
                 </div>
@@ -589,6 +709,7 @@ export default function VendorExploreProject() {
             {/* Desktop-only: meta + attachments below image/buttons */}
             <div className="hidden lg:block mt-4 space-y-4">
               <VendorProjectMetaCard rows={remainingMetaRows} />
+              <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               <AttachmentsCard />
             </div>
           </div>
@@ -599,6 +720,9 @@ export default function VendorExploreProject() {
               <DetailsCard />
               <div className="mt-4">
                 <VendorProjectMetaCard rows={remainingMetaRows} />
+              </div>
+              <div className="mt-4">
+                <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               </div>
               <div className="mt-4">
                 <AttachmentsCard />
@@ -614,7 +738,7 @@ export default function VendorExploreProject() {
 
             {bidsLoading ? (
               <BidsTableSkeleton />
-            ) : bids.length === 0 ? (
+            ) : bids.length === 0 && !hasOtherSealedBids ? (
                 <>
                   <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
                     <div className="flex flex-col items-center text-center">
@@ -625,7 +749,7 @@ export default function VendorExploreProject() {
                         </svg>
                       </div>
                       <p className="mt-3 text-[14px] font-bold text-ink">No bid placed yet</p>
-                      <p className="mt-1 text-[12px] text-muted">Place your sealed bid. Competitor bids stay hidden.</p>
+                      <p className="mt-1 text-[12px] text-muted">Place your sealed bid.</p>
                     </div>
                   </div>
                   <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
@@ -649,7 +773,7 @@ export default function VendorExploreProject() {
                                   </svg>
                                 </div>
                                 <p className="mt-3 text-[14px] font-bold text-ink">No bid placed yet</p>
-                                <p className="mt-1 text-[12px] text-muted">Place your sealed bid. Competitor bids stay hidden.</p>
+                                <p className="mt-1 text-[12px] text-muted">Place your sealed bid.</p>
                               </div>
                             </td>
                           </tr>
@@ -662,6 +786,7 @@ export default function VendorExploreProject() {
                 <>
                   {/* Mobile: cards (aligned with customer View Bids) */}
                   <div className="md:hidden space-y-3">
+                    {hasOtherSealedBids ? <SealedCompetitorBidRow asCard /> : null}
                     {bids.map((b, idx) => {
                       const bidId = bidStableId(b);
                       const vendorId = bidVendorIdOf(b);
@@ -706,9 +831,8 @@ export default function VendorExploreProject() {
                             </div>
                             <div className="shrink-0 text-right pl-1">
                               <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
-                                {price != null ? `₹${formatMoney(price)}` : '—'}
+                                {price != null ? formatCurrency(price, moneyCurrency) : '—'}
                               </p>
-                              <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
                             </div>
                           </div>
                           {isWinning ? (
@@ -736,6 +860,7 @@ export default function VendorExploreProject() {
                             </tr>
                           </thead>
                           <tbody>
+                            {hasOtherSealedBids ? <SealedCompetitorBidRow /> : null}
                             {bids.map((b, idx) => {
                               const bidId = bidStableId(b);
                               const vendorId = bidVendorIdOf(b);
@@ -789,9 +914,8 @@ export default function VendorExploreProject() {
                                   </td>
                                   <td className="px-4 py-3 align-middle text-right">
                                     <p className="text-[14px] font-extrabold text-ink tabular-nums">
-                                      {price != null ? `₹${formatMoney(price)}` : '—'}
+                                      {price != null ? formatCurrency(price, moneyCurrency) : '—'}
                                     </p>
-                                    <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
                                   </td>
                                 </tr>
                               );
@@ -838,12 +962,14 @@ export default function VendorExploreProject() {
             <div className="px-5 py-4">
               <div className="grid grid-cols-1 gap-3">
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Bid amount (₹)</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">
+                    Bid amount ({moneyCurrency}) <span className="text-walnut" aria-hidden>*</span>
+                  </p>
                   <input
                     type="number"
                     value={bidForm.price}
                     onChange={(e) => setBidForm((p) => ({ ...(p || {}), price: e.target.value }))}
-                    placeholder={`Budget is ₹ ${formatMoney(bidPlaceholderBudgetAmount(budgetPerPieceRaw))}`}
+                    placeholder={`Budget is ${formatCurrency(bidPlaceholderBudgetAmount(budgetPerPieceRaw), moneyCurrency)}`}
                     inputMode="numeric"
                     min="0"
                     step="1"
@@ -855,16 +981,63 @@ export default function VendorExploreProject() {
                         <p className="text-[12px] text-muted">Calculating commission…</p>
                       ) : bidPreview.commission != null && bidPreview.net != null ? (
                         <>
-                          <div className="flex items-center justify-between gap-3">
-                            <span className="text-[12px] font-semibold text-mid">Arviah commission</span>
-                            <span className="text-[12px] font-extrabold text-ink tabular-nums">− ₹ {formatMoney(bidPreview.commission)}</span>
+                          {bidPreview.jewelleryTax != null && bidPreview.jewelleryTax > 0 ? (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[12px] font-semibold text-mid">
+                                {bidPreview.jewelleryTaxKind === 'local_tax'
+                                  ? 'Local tax on jewellery (pass-through)'
+                                  : 'GST on jewellery (pass-through)'}
+                              </span>
+                              <span className="text-[12px] font-extrabold text-ink tabular-nums">
+                                + {formatCurrency(bidPreview.jewelleryTax, moneyCurrency)}
+                              </span>
+                            </div>
+                          ) : bidPreview.jewelleryTaxWaived ? (
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="text-[12px] font-semibold text-mid">GST on jewellery</span>
+                              <span className="text-[12px] font-extrabold text-ink tabular-nums">Waived</span>
+                            </div>
+                          ) : null}
+                          <div className={`${bidPreview.jewelleryTax > 0 || bidPreview.jewelleryTaxWaived ? 'mt-1.5 ' : ''}flex items-center justify-between gap-3`}>
+                            <span className="text-[12px] font-semibold text-mid">Arviah Commission</span>
+                            <span className="text-[12px] font-extrabold text-ink tabular-nums">
+                              − {formatCurrency(bidPreview.commission, moneyCurrency)}
+                            </span>
                           </div>
-                          <div className="mt-1.5 flex items-center justify-between gap-3">
-                            <span className="text-[12px] font-extrabold text-ink">Your net payable</span>
-                            <span className="text-[13px] font-extrabold text-walnut tabular-nums">₹ {formatMoney(bidPreview.net)}</span>
+                          {(bidPreview.pgFee != null && bidPreview.pgFee > 0) ||
+                          (bidPreview.inboundShipping != null && bidPreview.inboundShipping > 0) ? (
+                            <>
+                              {bidPreview.pgFee != null && bidPreview.pgFee > 0 ? (
+                                <div className="mt-1.5 flex items-center justify-between gap-3">
+                                  <span className="text-[12px] font-semibold text-mid">Est. Payment Gateway Fee</span>
+                                  <span className="text-[12px] font-extrabold text-ink tabular-nums">
+                                    − {formatCurrency(bidPreview.pgFee, moneyCurrency)}
+                                  </span>
+                                </div>
+                              ) : null}
+                              {bidPreview.inboundShipping != null && bidPreview.inboundShipping > 0 ? (
+                                <div className="mt-1.5 flex items-center justify-between gap-3">
+                                  <span className="text-[12px] font-semibold text-mid">Est. Inbound Shipping</span>
+                                  <span className="text-[12px] font-extrabold text-ink tabular-nums">
+                                    − {formatCurrency(bidPreview.inboundShipping, moneyCurrency)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </>
+                          ) : null}
+                          <div className="mt-1.5 flex items-center justify-between gap-3 border-t border-pale/70 pt-1.5">
+                            <span className="text-[12px] font-extrabold text-ink">Your Net Payable</span>
+                            <span className="text-[13px] font-extrabold text-walnut tabular-nums">
+                              {formatCurrency(bidPreview.net, moneyCurrency)}
+                            </span>
                           </div>
                           <p className="mt-2 text-[10px] text-muted leading-snug">
-                            Commission is deducted from your bid. Adjust your bid to reach your target net amount.
+                            Net ≈ bid
+                            {bidPreview.jewelleryTax > 0 ? ' + jewellery tax' : ''}
+                            {' − commission'}
+                            {bidPreview.pgFee > 0 ? ' − estimated payment gateway fee' : ''}
+                            {bidPreview.inboundShipping > 0 ? ' − estimated inbound shipping' : ''}
+                            . Jewellery tax is passed through for remittance.
                           </p>
                         </>
                       ) : (
@@ -874,7 +1047,9 @@ export default function VendorExploreProject() {
                   ) : null}
                 </div>
                 <div>
-                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">Delivery duration (days)</p>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">
+                    Delivery duration (days) <span className="text-walnut" aria-hidden>*</span>
+                  </p>
                   <input
                     type="number"
                     value={bidForm.daysToComplete}

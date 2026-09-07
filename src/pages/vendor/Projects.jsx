@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
-import { formatMoney } from '../../utils/formatMoney';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
@@ -128,6 +131,17 @@ function projectStatusLabelLikeManage(project, rootRow) {
   if (projectStatusKey === 'qc') {
     return 'QC';
   }
+  const settlementDone = Boolean(
+    project?.vendorSettlementDone ??
+      project?.vendor_settlement_done ??
+      rootRow?.vendorSettlementDone ??
+      rootRow?.vendor_settlement_done ??
+      rootRow?.project?.vendorSettlementDone ??
+      rootRow?.project?.vendor_settlement_done,
+  );
+  if (settlementDone && (finishedLike || projectStatusKey === 'completed' || projectStatusKey === 'finished')) {
+    return 'Payment Settled';
+  }
   return toTitleCase(project?.projectStatus ?? project?.project_status ?? '—');
 }
 
@@ -156,6 +170,7 @@ export default function VendorProjects() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
   const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
 
   const isVendor = user?.userType === 'vendor' || user?.userType === 'jeweller';
   const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
@@ -371,23 +386,7 @@ export default function VendorProjects() {
   }
 
   if (!kycAccepted) {
-    return (
-      <div className="w-full pb-10 animate-fade-in">
-        <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
-          <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
-          <div>Please complete your KYC to access projects.</div>
-          <div className="mt-4">
-            <button
-              type="button"
-              onClick={() => navigate('/vendor/kyc')}
-              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-            >
-              Go to KYC
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <VendorKycRequiredCard message="Please complete your KYC to access projects." />;
   }
 
   return (
@@ -477,6 +476,7 @@ export default function VendorProjects() {
             const project = row.project || {};
             const assignment = row.assignment || {};
             const projectId = row.id;
+            const moneyCurrency = projectPresentmentCurrency(project, regionCurrency);
             const badge = badgeForRow({ assignment, project, raw: row.raw });
             const agreedAmount =
               assignment?.agreedAmount ??
@@ -521,7 +521,7 @@ export default function VendorProjects() {
                         <p className="truncate">
                           Agreed Amount:{' '}
                           <span className="font-semibold text-ink">
-                            {agreedAmount != null ? `₹ ${formatMoney(agreedAmount)}` : '—'}
+                            {agreedAmount != null ? formatCurrency(agreedAmount, moneyCurrency) : '—'}
                           </span>
                         </p>
                       </div>

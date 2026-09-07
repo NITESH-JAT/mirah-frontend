@@ -5,6 +5,11 @@ import {
   extractCountryCodesList,
   getStateRegionLabelForCountry,
 } from '../../utils/stateRegionLabel';
+import {
+  formatDialCodeOptionLabel,
+  formatDialCodeTriggerLabel,
+  isoCountryCodeToFlagEmoji,
+} from '../../utils/countryFlag';
 
 // --- HELPER COMPONENTS ---
 
@@ -184,8 +189,18 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
   }, [options, searchTerm]);
 
   const selectedOption = options.find(o => (o.value || o) === value);
-  const selectedLabel = selectedOption ? (selectedOption.label || selectedOption.value) : (value || placeholder);
+  const isDialSelect = Boolean(selectedOption?.code || options.some((o) => o?.code || o?.searchData?.code));
+  const selectedLabel = selectedOption
+    ? isDialSelect
+      ? formatDialCodeTriggerLabel({
+          iso: selectedOption.code || selectedOption.searchData?.code,
+          phoneCode: selectedOption.value,
+          fallback: selectedOption.label,
+        }) || selectedOption.label
+      : selectedOption.label || selectedOption.value
+    : value || placeholder;
   const isPlaceholder = !value;
+  const selectedFlagIso = selectedOption?.code || selectedOption?.searchData?.code;
 
   return (
     <div className={`relative w-full ${className}`} ref={wrapperRef}>
@@ -196,7 +211,16 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
           ${isPlaceholder ? 'text-muted' : 'text-mid'}
         `}
       >
-        <span className="truncate">{selectedLabel}</span>
+        <span className="truncate flex items-center gap-1.5">
+          {isDialSelect && selectedFlagIso ? (
+            <span className="text-[16px] leading-none" aria-hidden>
+              {isoCountryCodeToFlagEmoji(selectedFlagIso)}
+            </span>
+          ) : null}
+          <span>
+            {isDialSelect && selectedOption?.value ? selectedOption.value : selectedLabel}
+          </span>
+        </span>
       </div>
       <div className="absolute right-4 lg:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 lg:w-3.5 lg:h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
@@ -220,7 +244,10 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
             {filteredOptions.length > 0 ? (
               filteredOptions.map((opt, idx) => {
                 const val = opt.value || opt;
-                const lab = opt.label || opt;
+                const iso = opt.code || opt.searchData?.code;
+                const lab = isDialSelect
+                  ? formatDialCodeOptionLabel({ phoneCode: val }) || val
+                  : opt.label || opt;
                 return (
                   <li 
                     key={idx}
@@ -229,7 +256,14 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
                       ${val === value ? 'bg-walnut/5 text-ink font-semibold' : ''}
                     `}
                   >
-                    {lab}
+                    <span className="inline-flex items-center gap-1.5">
+                      {isDialSelect && iso ? (
+                        <span className="text-[15px] leading-none" aria-hidden>
+                          {isoCountryCodeToFlagEmoji(iso)}
+                        </span>
+                      ) : null}
+                      <span>{lab}</span>
+                    </span>
                   </li>
                 );
               })
@@ -412,7 +446,7 @@ export const RegisterForm = () => {
         userType: formData.userType,
         city: null,
         address: null,
-        ...(formData.userType === 'vendor'
+        ...(formData.userType === 'vendor' && /^india$/i.test(String(formData.country || '').trim())
           ? { isSeepzPrimaryProductionUnit: Boolean(formData.isSeepzPrimaryProductionUnit) }
           : {}),
     };
@@ -430,7 +464,13 @@ export const RegisterForm = () => {
   const codeOptions = useMemo(() => {
     return countryData.map(c => ({
       value: c.dial_code,
-      label: `${c.code} ${c.dial_code}`,
+      code: c.code,
+      countryName: c.name,
+      label: formatDialCodeTriggerLabel({
+        iso: c.code,
+        phoneCode: c.dial_code,
+        fallback: `${c.code} ${c.dial_code}`,
+      }),
       searchData: { code: c.code, dial: c.dial_code, name: c.name } 
     }));
   }, [countryData]);
@@ -501,7 +541,16 @@ export const RegisterForm = () => {
         <CustomSelect
             placeholder="Select Country"
             value={formData.country}
-            onChange={(e) => setFormData(p => ({...p, country: e.target.value}))}
+            onChange={(e) => {
+              const country = e.target.value;
+              const isIndia = /^india$/i.test(String(country || '').trim());
+              setFormData((p) => ({
+                ...p,
+                country,
+                // SEEPZ only applies to India jewellers
+                ...(isIndia ? {} : { isSeepzPrimaryProductionUnit: false }),
+              }));
+            }}
             options={countryNameOptions}
         />
 
@@ -520,7 +569,7 @@ export const RegisterForm = () => {
             <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
         </div>
 
-        {formData.userType === 'vendor' ? (
+        {formData.userType === 'vendor' && /^india$/i.test(String(formData.country || '').trim()) ? (
           <label className="mt-1 flex items-start gap-2.5 px-1 cursor-pointer">
             <input
               type="checkbox"

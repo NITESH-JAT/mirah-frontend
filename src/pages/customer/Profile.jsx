@@ -91,6 +91,7 @@ export default function Profile() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [pictureUploading, setPictureUploading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
   
   // Data State for Editing
   const [editForm, setEditForm] = useState({});
@@ -231,6 +232,8 @@ export default function Profile() {
   };
 
   const handleUpdate = async () => {
+    if (profileSaving) return;
+    setProfileSaving(true);
     try {
       const updated = await authService.updateProfile(editForm);
       setProfile(updated);
@@ -239,6 +242,8 @@ export default function Profile() {
       addToast("Profile updated successfully!", "success");
     } catch (err) {
       addToast(err.message || "Update failed", "error");
+    } finally {
+      setProfileSaving(false);
     }
   };
 
@@ -341,13 +346,6 @@ export default function Profile() {
   const isCustomer = !isJeweller;
   const isSeepz = Boolean(profile?.isSeepzPrimaryProductionUnit);
   const seepzReq = profile?.seepzChangeRequest || null;
-  const seepzLifecycle = seepzReq?.lifecycle || {
-    raised: Boolean(seepzReq?.hasRequest || seepzReq?.id),
-    pending:
-      String(seepzReq?.status || '').toLowerCase() === 'pending' ||
-      String(seepzReq?.status || '').toLowerCase() === 'raised',
-    updated: String(seepzReq?.status || '').toLowerCase() === 'updated',
-  };
   const canRaiseSeepz =
     typeof profile?.canRaiseSeepzChangeRequest === 'boolean'
       ? profile.canRaiseSeepzChangeRequest
@@ -356,12 +354,6 @@ export default function Profile() {
           (String(seepzReq?.status || '').toLowerCase() === 'pending' ||
             String(seepzReq?.status || '').toLowerCase() === 'raised')
         );
-  const requestedSeepzLabel =
-    typeof seepzReq?.requestedIsSeepz === 'boolean'
-      ? seepzReq.requestedIsSeepz
-        ? 'Yes (SEEPZ)'
-        : 'No (non-SEEPZ)'
-      : null;
 
   const openCreateAddress = (type) => {
     const t = type || addressTab;
@@ -517,11 +509,21 @@ export default function Profile() {
             </button>
           ) : (
             <div className="flex gap-2">
-                <button onClick={() => setIsEditing(false)} className="px-3 py-1.5 rounded-full border border-red-100 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(false)}
+                  disabled={profileSaving}
+                  className="px-3 py-1.5 rounded-full border border-red-100 text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                 Cancel
                 </button>
-                <button onClick={handleUpdate} className="px-4 py-1.5 rounded-full bg-walnut text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer">
-                Save Changes
+                <button
+                  type="button"
+                  onClick={handleUpdate}
+                  disabled={profileSaving}
+                  className="px-4 py-1.5 rounded-full bg-walnut text-xs font-semibold text-white hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                {profileSaving ? 'Saving...' : 'Save Changes'}
                 </button>
             </div>
           )}
@@ -623,39 +625,6 @@ export default function Profile() {
               {isSeepz ? 'Yes — primary unit in SEEPZ' : 'No — not SEEPZ'}
             </span>
           </div>
-
-          {seepzReq?.id || seepzReq?.hasRequest ? (
-            <div className="mt-4">
-              <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-2">Request lifecycle</p>
-              <div className="flex flex-wrap items-center gap-2">
-                {[
-                  { key: 'raised', label: 'Raised', done: Boolean(seepzLifecycle.raised) },
-                  { key: 'pending', label: 'Pending', done: Boolean(seepzLifecycle.pending || seepzLifecycle.updated) },
-                  { key: 'updated', label: 'Updated', done: Boolean(seepzLifecycle.updated) },
-                ].map((step, idx, arr) => (
-                  <React.Fragment key={step.key}>
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-extrabold ${
-                        step.done
-                          ? step.key === 'pending' && !seepzLifecycle.updated
-                            ? 'bg-amber-50 text-amber-800 border border-amber-200'
-                            : 'bg-green-50 text-green-700 border border-green-200'
-                          : 'bg-white text-muted border border-pale'
-                      }`}
-                    >
-                      {step.label}
-                    </span>
-                    {idx < arr.length - 1 ? <span className="text-muted text-[12px]">→</span> : null}
-                  </React.Fragment>
-                ))}
-              </div>
-              {requestedSeepzLabel ? (
-                <p className="mt-2 text-[12px] text-muted">
-                  Requested change to: <span className="font-semibold text-ink">{requestedSeepzLabel}</span>
-                </p>
-              ) : null}
-            </div>
-          ) : null}
 
           <div className="mt-4">
             <button
@@ -911,20 +880,26 @@ export default function Profile() {
                     placeholder="Name"
                   />
                   <InputField
-                    label="Phone"
+                    label={
+                      <>
+                        Phone *{' '}
+                        <span className="font-normal normal-case text-muted">(include country code)</span>
+                      </>
+                    }
                     name="phone"
                     value={addressForm.phone}
                     onChange={(e) =>
                       setAddressForm((p) => {
                         const raw = e.target.value || '';
-                        const digits = raw.replace(/\D/g, '');
-                        return { ...p, phone: digits };
+                        // Allow + for country code; keep digits and spaces.
+                        const cleaned = raw.replace(/[^\d+\s]/g, '').replace(/(?!^)\+/g, '');
+                        return { ...p, phone: cleaned };
                       })
                     }
                     readOnly={false}
-                    placeholder="Phone"
+                    placeholder="+9191234XXX"
                     type="tel"
-                    inputMode="numeric"
+                    inputMode="tel"
                   />
                   <div className="md:col-span-2">
                     <InputField

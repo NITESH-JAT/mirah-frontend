@@ -1,5 +1,5 @@
 /**
- * When operational status is `invoice`, show payment-due labels.
+ * When operational status is `invoice`, show a simple Invoice label.
  * Supports full-upfront (single payment) and legacy advance/final split.
  */
 export function invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfront = false } = {}) {
@@ -7,19 +7,16 @@ export function invoiceProjectStatusLabel(advanceStatus, finalStatus, { fullUpfr
   const fin = String(finalStatus ?? '').trim().toLowerCase();
 
   if (fullUpfront || fin === 'not_applicable' || fin === 'not_applicble') {
-    if (adv === 'due') return 'Invoice (Full Payment)';
-    if (adv === 'paid') return 'Full Payment Received';
-    return 'Invoice (Full Payment)';
+    if (adv === 'paid') return 'Payment Received';
+    return 'Invoice';
   }
 
   const advDone = adv === 'paid' || adv === 'not_applicable' || adv === 'not_applicble';
   const finDone = fin === 'paid' || fin === 'not_applicable' || fin === 'not_applicble';
 
-  if (adv === 'due') return 'Invoice (Advance)';
-  if (fin === 'due') return 'Invoice (Final)';
-  if (!advDone && adv !== '—') return 'Invoice (Advance)';
-  if (advDone && !finDone && fin !== '—') return 'Invoice (Final)';
-  if (!advDone) return 'Invoice (Advance)';
-  if (!finDone) return 'Invoice (Final)';
-  return 'Invoice (Final)';
+  if (adv === 'due' || fin === 'due') return 'Invoice';
+  if (!advDone && adv !== '—') return 'Invoice';
+  if (advDone && !finDone && fin !== '—') return 'Invoice';
+  if (!advDone || !finDone) return 'Invoice';
+  return 'Invoice';
 }

@@ -4,7 +4,7 @@ import { cartService } from '../../services/cartService';
 import { vendorSourceText } from '../../utils/productSource';
 import SafeImage from '../../components/SafeImage';
 import { priceForCartLine, formatCartVariantLabel } from '../../utils/cartVariant';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 
 function firstImageUrl(p) {
   const images = p?.images ?? p?.imageUrls ?? p?.imageURLS ?? p?.imageUrl ?? null;
@@ -32,11 +32,13 @@ function pickProductFromItem(item) {
 
 function normalizeVariants(variants) {
   if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return undefined;
+  const diamondRaw = String(variants?.diamondType ?? variants?.diamond_type ?? '').trim().toLowerCase();
   const out = {
     type: variants?.type ?? undefined,
     size: variants?.size ?? undefined,
     sizeDimensions: variants?.sizeDimensions ?? variants?.size_dimensions ?? undefined,
     sizeDimensionsUnit: variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? undefined,
+    diamondType: diamondRaw === 'natural' || diamondRaw === 'lab' ? diamondRaw : undefined,
   };
   for (const k of Object.keys(out)) {
     if (out[k] == null || out[k] === '') delete out[k];
@@ -47,7 +49,7 @@ function normalizeVariants(variants) {
 function stableVariantsKey(variants) {
   const v = normalizeVariants(variants);
   if (!v) return '';
-  const order = ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit'];
+  const order = ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit', 'diamondType'];
   return order.map((k) => `${k}=${String(v?.[k] ?? '')}`).join('&');
 }
 
@@ -477,9 +479,9 @@ export default function Cart() {
 
                       <div className="text-right">
                         {hasCompare ? (
-                          <div className="text-[12px] text-muted line-through">₹{formatMoney(lineCompare)}</div>
+                          <div className="text-[12px] text-muted line-through">{formatCurrency(lineCompare, p?.currency)}</div>
                         ) : null}
-                        <div className="text-[14px] font-bold text-ink">₹{formatMoney(linePrice)}</div>
+                        <div className="text-[14px] font-bold text-ink">{formatCurrency(linePrice, p?.currency)}</div>
                       </div>
 
                       <button
@@ -535,4 +537,3 @@ export default function Cart() {
     </div>
   );
 }
-

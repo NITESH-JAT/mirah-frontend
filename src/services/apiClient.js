@@ -3,6 +3,7 @@ import { API_BASE_URL } from '../config/api';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -94,4 +95,3 @@ apiClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-

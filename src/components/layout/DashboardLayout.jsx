@@ -8,13 +8,14 @@ import { authService } from '../../services/authService';
 import logo from '../../assets/logo.png';
 import { cartService } from '../../services/cartService';
 import SafeImage from '../SafeImage';
-import { priceForCartLine } from '../../utils/cartVariant';
-import { formatMoney } from '../../utils/formatMoney';
+import { priceForCartLine, formatCartVariantLabel } from '../../utils/cartVariant';
+import { formatCurrency } from '../../utils/formatMoney';
 import { resolveNotificationHref } from '../../utils/notificationNavigation';
 import { CustomerStorefrontProvider, useCustomerStorefront } from '../../context/CustomerStorefrontContext';
+import { useRegion } from '../../context/RegionProvider';
 
 // --- TOAST NOTIFICATION COMPONENT ---
-const ToastNotification = ({ id, message, type, onClose }) => {
+const ToastNotification = ({ id, message, type, title, onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
 
   const handleClose = () => {
@@ -35,6 +36,7 @@ const ToastNotification = ({ id, message, type, onClose }) => {
   }, [id, onClose]);
 
   const isError = type === 'error';
+  const heading = String(title || '').trim() || (isError ? 'Error' : 'Success');
 
   return (
     <div className={`
@@ -46,12 +48,12 @@ const ToastNotification = ({ id, message, type, onClose }) => {
         {isError ? (
            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
         ) : (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
+           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
         )}
       </div>
       <div className="flex-1 pt-0.5">
         <h4 className={`font-serif text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-700' : 'text-ink'}`}>
-          {isError ? 'Error' : 'Success'}
+          {heading}
         </h4>
         <p className="text-muted font-sans text-[13px] leading-snug whitespace-pre-wrap break-words">{message}</p>
       </div>
@@ -149,6 +151,12 @@ function DashboardLayoutShell() {
   const navigate = useNavigate();
   const { user: currentUser, setUser: setCurrentUser, logout } = useAuth();
   const { purchasingEnabled: storePurchasingEnabled } = useCustomerStorefront();
+  const {
+    region: presentmentRegion,
+    options: currencyOptions,
+    updating: currencyUpdating,
+    setCountry: setPresentmentCountry,
+  } = useRegion();
   const path = location.pathname;
   const isProfilePage = path.includes('profile');
   const isFaqPage = path.includes('faq');
@@ -217,6 +225,8 @@ function DashboardLayoutShell() {
   
   const [toasts, setToasts] = useState([]);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showCurrencyMenu, setShowCurrencyMenu] = useState(false);
+  const [currencySearch, setCurrencySearch] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [projectTutorialOpen, setProjectTutorialOpen] = useState(false);
@@ -235,9 +245,39 @@ function DashboardLayoutShell() {
   const cartMutatingRef = useRef(false);
   const userMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
+  const currencyMenuRef = useRef(null);
+
+  const currencyTrigger = useMemo(() => {
+    const fromRegion = presentmentRegion;
+    const fromUser = currentUser?.region;
+    // Logged-in: prefer `/me` region (same middleware as product pricing).
+    // Guest / before auth: presentment RegionProvider bootstrap.
+    const currency = fromUser?.currency || fromRegion?.currency || 'INR';
+    const flag = fromUser?.flag || fromRegion?.flag || '🇮🇳';
+    const countryCode = fromUser?.countryCode || fromRegion?.countryCode || 'IN';
+    const countryName = fromUser?.countryName || fromRegion?.countryName || 'India';
+    return { currency, flag, countryCode, countryName };
+  }, [presentmentRegion, currentUser?.region]);
+
+  const filteredCurrencyOptions = useMemo(() => {
+    const base = currencyOptions?.length
+      ? currencyOptions
+      : [{
+          countryCode: currencyTrigger.countryCode,
+          countryName: currencyTrigger.countryName,
+          currency: currencyTrigger.currency,
+          flag: currencyTrigger.flag,
+        }];
+    const q = currencySearch.trim().toLowerCase();
+    if (!q) return base;
+    return base.filter((opt) => {
+      const hay = `${opt.currency || ''} ${opt.countryName || ''} ${opt.countryCode || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [currencyOptions, currencySearch, currencyTrigger]);
 
   // --- NOTIFICATION HANDLER ---
-  const addToast = useCallback((message, type = 'success') => {
+  const addToast = useCallback((message, type = 'success', title) => {
     const raw = typeof message === 'string' ? message : (message?.message || String(message || ''));
     const cleaned = raw.replace(/\s+/g, ' ').trim();
 
@@ -255,12 +295,19 @@ function DashboardLayoutShell() {
           : cleaned;
 
     const id = Date.now();
-    setToasts(prev => [...prev, { id, message: finalMessage, type }]);
+    const heading = typeof title === 'string' ? title.trim() : '';
+    setToasts((prev) => [...prev, { id, message: finalMessage, type, title: heading || null }]);
   }, []);
 
   const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  const clearToasts = useCallback(() => {
+    setToasts([]);
+  }, []);
+
+  const headerMenuOpen = showUserMenu || showNotifications || showCurrencyMenu;
 
   const outletContext = useMemo(
     () => ({ addToast, currentUser, setCurrentUser }),
@@ -293,6 +340,9 @@ function DashboardLayoutShell() {
     const handleClickOutside = (event) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setShowUserMenu(false);
+      }
+      if (currencyMenuRef.current && !currencyMenuRef.current.contains(event.target)) {
+        setShowCurrencyMenu(false);
       }
       if (notifMenuRef.current && !notifMenuRef.current.contains(event.target)) {
         setShowNotifications(false);
@@ -386,17 +436,26 @@ function DashboardLayoutShell() {
           product?._id ??
           null;
         const variantsRaw = it?.variants;
+        const diamondRaw = String(variantsRaw?.diamondType ?? variantsRaw?.diamond_type ?? '').trim().toLowerCase();
         const variants =
           variantsRaw && typeof variantsRaw === 'object' && !Array.isArray(variantsRaw)
-            ? {
-                type: variantsRaw?.type ?? undefined,
-                size: variantsRaw?.size ?? undefined,
-                sizeDimensions: variantsRaw?.sizeDimensions ?? variantsRaw?.size_dimensions ?? undefined,
-                sizeDimensionsUnit: variantsRaw?.sizeDimensionsUnit ?? variantsRaw?.size_dimensions_unit ?? undefined,
-              }
+            ? (() => {
+                const out = {
+                  type: variantsRaw?.type ?? undefined,
+                  size: variantsRaw?.size ?? undefined,
+                  sizeDimensions: variantsRaw?.sizeDimensions ?? variantsRaw?.size_dimensions ?? undefined,
+                  sizeDimensionsUnit:
+                    variantsRaw?.sizeDimensionsUnit ?? variantsRaw?.size_dimensions_unit ?? undefined,
+                  diamondType: diamondRaw === 'natural' || diamondRaw === 'lab' ? diamondRaw : undefined,
+                };
+                for (const k of Object.keys(out)) {
+                  if (out[k] == null || out[k] === '') delete out[k];
+                }
+                return Object.keys(out).length ? out : undefined;
+              })()
             : undefined;
         const stableVariantsKey = variants
-          ? ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit']
+          ? ['type', 'size', 'sizeDimensions', 'sizeDimensionsUnit', 'diamondType']
               .map((k) => `${k}=${String(variants?.[k] ?? '')}`)
               .join('&')
           : '';
@@ -410,23 +469,7 @@ function DashboardLayoutShell() {
   }, []);
 
   const variantTextOf = useCallback((variants) => {
-    if (!variants || typeof variants !== 'object' || Array.isArray(variants)) return '';
-    const parts = [];
-    const type = String(variants?.type ?? '').trim();
-    const size = String(variants?.size ?? '').trim();
-    const dimRaw = variants?.sizeDimensions ?? variants?.size_dimensions ?? null;
-    const dim = dimRaw == null || dimRaw === '' ? '' : String(dimRaw).trim();
-    const unit = String(variants?.sizeDimensionsUnit ?? variants?.size_dimensions_unit ?? '').trim();
-    const dimPart =
-      dim && unit
-        ? unit === '"' || unit === "'" || unit === '”' || unit === '’'
-          ? `${dim}${unit}`
-          : `${dim} ${unit}`
-        : dim || '';
-    if (type) parts.push(type);
-    if (size) parts.push(size);
-    if (dimPart) parts.push(dimPart);
-    return parts.join(' · ');
+    return formatCartVariantLabel(variants) || '';
   }, []);
 
   const providerKeyForCartItem = useCallback((item, product) => {
@@ -533,13 +576,30 @@ function DashboardLayoutShell() {
       refreshCartCount();
       if (cartDrawerOpen) loadCartDrawer();
     };
+    const onRegion = (ev) => {
+      if (ev?.detail?.bootstrap) return;
+      refreshCartCount();
+      if (cartDrawerOpen) loadCartDrawer();
+    };
+    const onGeoFallback = (ev) => {
+      const currency = ev?.detail?.currency || 'INR';
+      addToast(
+        `We couldn't detect your location. Showing prices in ${currency}. You can change currency anytime from the header.`,
+        'success',
+        'Location'
+      );
+    };
     window.addEventListener('mirah_cart_updated', onUpdated);
     window.addEventListener('storage', onUpdated);
+    window.addEventListener('mirah_region_updated', onRegion);
+    window.addEventListener('mirah_region_geo_fallback', onGeoFallback);
     return () => {
       window.removeEventListener('mirah_cart_updated', onUpdated);
       window.removeEventListener('storage', onUpdated);
+      window.removeEventListener('mirah_region_updated', onRegion);
+      window.removeEventListener('mirah_region_geo_fallback', onGeoFallback);
     };
-  }, [cartDrawerOpen, loadCartDrawer, refreshCartCount]);
+  }, [addToast, cartDrawerOpen, loadCartDrawer, refreshCartCount]);
 
   const handleLogout = async () => {
     await logout();
@@ -572,14 +632,15 @@ function DashboardLayoutShell() {
     <div className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full flex-row overflow-hidden bg-cream font-sans relative">
       <style>{globalStyles}</style>
 
-      {/* TOAST CONTAINER — below sticky header (h-16) */}
-      <div className="fixed top-[calc(4rem+0.75rem)] right-4 sm:right-6 lg:right-8 z-[260] flex flex-col items-end pointer-events-none">
+      {/* TOAST CONTAINER — below sticky header; under open profile/notification menus */}
+      <div className="fixed top-[calc(4rem+0.75rem)] right-4 sm:right-6 lg:right-8 z-[200] flex flex-col items-end pointer-events-none">
          {toasts.map(toast => (
             <ToastNotification 
                 key={toast.id} 
                 id={toast.id} 
                 message={toast.message} 
-                type={toast.type} 
+                type={toast.type}
+                title={toast.title} 
                 onClose={removeToast} 
             />
          ))}
@@ -607,7 +668,7 @@ function DashboardLayoutShell() {
       <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:ml-[260px] lg:pb-0">
 
         {/* HEADER */}
-      <div className="relative z-40 flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0">
+      <div className={`relative flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0 ${headerMenuOpen ? 'z-[270]' : 'z-40'}`}>
           <div className="flex items-center gap-3">
             {headerTitle ? (
               <h1 className="hidden sm:block lg:hidden font-serif text-xl font-bold text-ink truncate max-w-[60vw]">
@@ -619,7 +680,7 @@ function DashboardLayoutShell() {
           {/* Desktop-only center branding moved to outer layout */}
           
           <div className="flex items-center gap-2 sm:gap-3 relative">
-            {/* Cart icon (customer) — circular, subtle border */}
+            {/* Cart */}
             {!isVendor && storePurchasingEnabled ? (
               <button
                 type="button"
@@ -627,13 +688,14 @@ function DashboardLayoutShell() {
                   if (isSidebarOpen) return;
                   setShowUserMenu(false);
                   setShowNotifications(false);
+                  setShowCurrencyMenu(false);
                   setCartDrawerOpen(true);
                   loadCartDrawer();
                 }}
-                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pale bg-white text-ink transition-colors hover:bg-blush/60 cursor-pointer"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center text-ink transition-colors hover:text-walnut cursor-pointer"
                 aria-label="Cart"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="9" cy="21" r="1" />
                   <circle cx="20" cy="21" r="1" />
                   <path d="M1 1h4l2.4 12.4a2 2 0 0 0 2 1.6h9.7a2 2 0 0 0 2-1.6L23 6H6" />
@@ -644,29 +706,37 @@ function DashboardLayoutShell() {
               </button>
             ) : null}
 
-            {/* NOTIFICATIONS — circular, matches cart */}
+            {/* Notifications */}
             <div className="relative" ref={notifMenuRef}>
               <button
                 type="button"
                 onClick={() => {
-                  if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
-                  setShowNotifications((v) => !v);
+                  if (isSidebarOpen) return;
+                  setShowNotifications((v) => {
+                    const next = !v;
+                    if (next) {
+                      clearToasts();
+                      setShowUserMenu(false);
+                      setShowCurrencyMenu(false);
+                    }
+                    return next;
+                  });
                 }}
-                className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-pale bg-white text-ink transition-colors hover:bg-blush/60 cursor-pointer"
+                className="relative flex h-10 w-10 shrink-0 items-center justify-center text-ink transition-colors hover:text-walnut cursor-pointer"
                 aria-label="Notifications"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M6 8a6 6 0 0 1 12 0c0 7 3 7 3 7H3s3 0 3-7" />
                   <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
                 </svg>
                 {unreadCount > 0 && (
-                  <span className="absolute top-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-walnut" title="Unread" />
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-walnut" title="Unread" />
                 )}
               </button>
 
               {showNotifications && (
                 <div
-                  className="fixed left-4 right-4 top-[72px] w-auto bg-white rounded-2xl shadow-sm border border-pale overflow-hidden z-[60]
+                  className="fixed left-4 right-4 top-[72px] w-auto bg-white rounded-2xl shadow-sm border border-pale overflow-hidden z-[280]
                              sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[360px] sm:max-w-[90vw]"
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={(e) => e.stopPropagation()}
@@ -750,14 +820,128 @@ function DashboardLayoutShell() {
               )}
             </div>
 
-            {/* USER MENU — pill: initials + role label */}
+            {/* Currency presentment (customers + vendors) */}
+            {(
+              <div className="relative" ref={currencyMenuRef}>
+                <button
+                  type="button"
+                  disabled={currencyUpdating}
+                  onClick={() => {
+                    if (isSidebarOpen) return;
+                    setShowCurrencyMenu((v) => {
+                      const next = !v;
+                      if (next) {
+                        clearToasts();
+                        setShowUserMenu(false);
+                        setShowNotifications(false);
+                        setCurrencySearch('');
+                      }
+                      return next;
+                    });
+                  }}
+                  className="flex h-9 items-center gap-1.5 rounded-full border border-pale bg-white px-3 text-ink transition-colors hover:bg-blush/40 cursor-pointer disabled:opacity-60"
+                  aria-expanded={showCurrencyMenu}
+                  aria-haspopup="listbox"
+                  aria-label="Currency"
+                >
+                  <span className="text-[15px] leading-none" aria-hidden>
+                    {currencyTrigger.flag}
+                  </span>
+                  <span className="font-sans text-[13px] font-semibold tracking-wide">
+                    {currencyTrigger.currency}
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted" aria-hidden>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+
+                {showCurrencyMenu ? (
+                  <div
+                    className="absolute right-0 top-full z-[280] mt-2 flex max-h-[min(420px,75vh)] w-64 flex-col overflow-hidden rounded-xl border border-pale bg-white shadow-sm"
+                    role="listbox"
+                    aria-label="Select currency"
+                    onMouseDown={(e) => e.stopPropagation()}
+                  >
+                    <div className="shrink-0 border-b border-pale p-2">
+                      <input
+                        type="search"
+                        value={currencySearch}
+                        onChange={(e) => setCurrencySearch(e.target.value)}
+                        placeholder="Search country or currency…"
+                        className="w-full rounded-lg border border-pale bg-cream/40 px-2.5 py-1.5 font-sans text-[12px] text-ink outline-none placeholder:text-muted focus:border-walnut/40"
+                        aria-label="Search countries or currencies"
+                        autoFocus
+                      />
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto">
+                    {filteredCurrencyOptions.length === 0 ? (
+                      <div className="px-3 py-4 text-[12px] text-muted">No countries match</div>
+                    ) : (
+                    filteredCurrencyOptions.map((opt) => {
+                      const selected = String(opt.countryCode) === String(currencyTrigger.countryCode);
+                      return (
+                        <button
+                          key={`${opt.countryCode}-${opt.currency}`}
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          disabled={currencyUpdating}
+                          onClick={async () => {
+                            try {
+                              if (String(opt.countryCode) === String(currencyTrigger.countryCode)) {
+                                setShowCurrencyMenu(false);
+                                return;
+                              }
+                              await setPresentmentCountry(opt.countryCode);
+                              setShowCurrencyMenu(false);
+                              // Reload so product/cart APIs re-localize with the new session cookie.
+                              window.location.reload();
+                            } catch (err) {
+                              addToast(err?.message || 'Failed to update currency', 'error');
+                            }
+                          }}
+                          className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-cream cursor-pointer ${
+                            selected ? 'bg-cream/80 font-semibold text-ink' : 'font-medium text-mid'
+                          }`}
+                        >
+                          <span className="text-[16px] leading-none" aria-hidden>{opt.flag}</span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-ink">{opt.countryName}</span>
+                            <span className="block truncate text-[11px] text-muted">{opt.currency}</span>
+                          </span>
+                          {selected ? (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="shrink-0 text-walnut" aria-hidden>
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          ) : null}
+                        </button>
+                      );
+                    })
+                    )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            <div className="mx-0.5 hidden h-6 w-px bg-pale sm:block" aria-hidden />
+
+            {/* Account menu */}
             <div className="relative" ref={userMenuRef}>
               <button
                 type="button"
-                className="flex max-w-[200px] items-center gap-2.5 rounded-full border border-pale bg-white py-1 pl-1 pr-3 sm:pr-4 text-left transition-colors hover:bg-blush/50 cursor-pointer"
+                className="flex max-w-[200px] items-center gap-2 text-left transition-opacity hover:opacity-80 cursor-pointer"
                 onClick={() => {
-                  if (isSidebarOpen) return; // sidenav open: disable top nav dropdowns
-                  setShowUserMenu(!showUserMenu);
+                  if (isSidebarOpen) return;
+                  setShowUserMenu((v) => {
+                    const next = !v;
+                    if (next) {
+                      clearToasts();
+                      setShowNotifications(false);
+                      setShowCurrencyMenu(false);
+                    }
+                    return next;
+                  });
                 }}
                 aria-expanded={showUserMenu}
                 aria-haspopup="menu"
@@ -766,33 +950,35 @@ function DashboardLayoutShell() {
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush font-sans text-[12px] font-bold tracking-tight text-ink">
                   {initialsForUser(currentUser)}
                 </span>
-                <span className="min-w-0 truncate font-sans text-[13px] font-medium text-ink">
+                <span className="hidden min-w-0 truncate font-sans text-[13px] font-medium text-ink sm:inline">
                   {roleLabelForUser(currentUser)}
                 </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden text-muted sm:block" aria-hidden>
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
               </button>
 
-             {/* PROFILE DROPDOWN */}
              {showUserMenu && (
-                <div className="absolute top-full right-0 mt-2 min-w-[11rem] w-44 bg-white rounded-xl shadow-sm border border-pale overflow-hidden animate-slide-in">
+                <div className="absolute top-full right-0 mt-2 min-w-[11.5rem] w-48 z-[280] bg-white rounded-xl shadow-sm border border-pale overflow-hidden animate-slide-in">
                     <button 
                         onClick={() => {
                           const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
                           navigate(profilePath);
                           setShowUserMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2 cursor-pointer"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                         Profile
                     </button>
-                    {isVendor ? (
+                    {isVendor && kycAccepted ? (
                       <button
                         type="button"
                         onClick={() => {
                           navigate('/vendor/reviews');
                           setShowUserMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2 cursor-pointer"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -806,7 +992,7 @@ function DashboardLayoutShell() {
                           navigate('/customer/orders');
                           setShowUserMenu(false);
                         }}
-                        className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
+                        className="w-full text-left px-4 py-2.5 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2 cursor-pointer"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
@@ -823,7 +1009,7 @@ function DashboardLayoutShell() {
                         navigate(faqPath);
                         setShowUserMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2"
+                      className="w-full text-left px-4 py-2.5 text-[13px] text-mid hover:bg-cream font-medium flex items-center gap-2 cursor-pointer"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />
@@ -833,13 +1019,16 @@ function DashboardLayoutShell() {
                       </svg>
                       FAQ
                     </button>
-                    <button 
+
+                    <div className="border-t border-pale">
+                      <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 text-[13px] text-red-500 hover:bg-red-50 font-medium flex items-center gap-2"
-                    >
+                        className="w-full text-left px-4 py-2.5 text-[13px] text-red-500 hover:bg-red-50 font-medium flex items-center gap-2 cursor-pointer"
+                      >
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         Logout
-                    </button>
+                      </button>
+                    </div>
                 </div>
              )}
             </div>
@@ -853,6 +1042,11 @@ function DashboardLayoutShell() {
           }${
             isMessagesPage
               ? 'flex min-h-0 flex-col overflow-hidden p-0'
+              : isShoppingPage || isSimilarProductsPage
+                ? 'flex min-h-0 flex-col overflow-y-auto ' +
+                  (isShoppingListPage || isSimilarProductsPage
+                    ? 'px-4 pb-4 pt-0 lg:px-8 lg:pb-8 lg:pt-0'
+                    : 'p-4 lg:p-8')
               : 'overflow-y-auto ' +
                 (                isShoppingListPage ||
                 isSimilarProductsPage ||
@@ -887,7 +1081,13 @@ function DashboardLayoutShell() {
               isVendorProfileViewPage
                 ? 'max-w-none'
                 : 'max-w-5xl'
-            } ${isMessagesPage ? 'flex w-full min-h-0 flex-1 flex-col' : 'mx-auto'}`}
+            } ${
+              isMessagesPage
+                ? 'flex w-full min-h-0 flex-1 flex-col'
+                : isShoppingPage || isSimilarProductsPage
+                  ? 'flex w-full min-h-full flex-1 flex-col'
+                  : 'mx-auto w-full'
+            }`}
           >
             {/* PASS CONTEXT TO CHILDREN */}
             <Outlet context={outletContext} /> 
@@ -921,16 +1121,17 @@ function DashboardLayoutShell() {
                 </button>
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4">
+              <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col">
                 {cartDrawerLoading ? (
-                  <div className="min-h-[240px] flex items-center justify-center">
-                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <div className="flex-1 flex items-center justify-center min-h-[240px]">
+                    <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
+                    <span className="sr-only">Loading cart</span>
                   </div>
                 ) : cartDrawerItems.length === 0 ? (
-                  <div className="min-h-[240px] flex items-center justify-center">
+                  <div className="flex-1 flex items-center justify-center min-h-[240px]">
                     <div className="text-center">
                       <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                         <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1078,9 +1279,9 @@ function DashboardLayoutShell() {
 
                                   <div className="text-right">
                                     {compareAt > price && price > 0 ? (
-                                      <p className="text-[12px] text-muted line-through">₹{formatMoney(compareAt)}</p>
+                                      <p className="text-[12px] text-muted line-through">{formatCurrency(compareAt, p?.currency)}</p>
                                     ) : null}
-                                    <p className="text-[14px] font-bold text-ink">₹{formatMoney(price)}</p>
+                                    <p className="text-[14px] font-bold text-ink">{formatCurrency(price, p?.currency)}</p>
                                   </div>
                                 </div>
                               </div>

@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useRegion } from '../../context/RegionProvider';
 import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
-import { formatMoney } from '../../utils/formatMoney';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -143,13 +147,19 @@ function normalizeExploreItem(raw) {
     finishesMs,
     bidCount: Number.isFinite(bidCount) ? bidCount : null,
     bestBid: Number.isFinite(bestBid) ? bestBid : null,
+    hasMyBid: Boolean(root?.hasMyBid ?? root?.has_my_bid ?? false),
   };
 }
 
 export default function VendorExplore() {
   const navigate = useNavigate();
   const { addToast } = useOutletContext();
+  const { user } = useAuth();
+  const { currency: regionCurrency = 'INR' } = useRegion();
   const abortRef = useRef(null);
+
+  const vendorKycStatus = String(user?.kyc?.status ?? user?.kycStatus ?? user?.kyc_status ?? '').toLowerCase();
+  const kycAccepted = vendorKycStatus === 'accepted';
 
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
@@ -176,6 +186,7 @@ export default function VendorExplore() {
 
   const load = useCallback(
     async ({ nextPage = 1 } = {}) => {
+      if (!kycAccepted) return;
       if (abortRef.current) abortRef.current.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
@@ -199,13 +210,14 @@ export default function VendorExplore() {
         setLoading(false);
       }
     },
-    [addToast],
+    [addToast, kycAccepted],
   );
 
   useEffect(() => {
+    if (!kycAccepted) return;
     load({ nextPage: page });
     return () => abortRef.current?.abort();
-  }, [load, page]);
+  }, [load, page, kycAccepted]);
 
   const filtered = useMemo(() => {
     const q = String(query || '').trim().toLowerCase();
@@ -230,6 +242,10 @@ export default function VendorExplore() {
     else base.sort((a, b) => byBudget(a) - byBudget(b));
     return base;
   }, [filtered, sortKey]);
+
+  if (!kycAccepted) {
+    return <VendorKycRequiredCard message="Please complete your KYC to explore open commissions." />;
+  }
 
   return (
     <div className="flex min-h-[calc(100dvh-5rem)] w-full flex-col pb-0 animate-fade-in lg:min-h-[calc(100dvh-6rem)]">
@@ -260,13 +276,32 @@ export default function VendorExplore() {
               <button
                 type="button"
                 onClick={() => setOpenSort((v) => !v)}
-                className={`min-w-0 truncate rounded-full border px-5 py-3 text-[12px] font-semibold transition-colors inline-flex items-center gap-2 ${
+                className={`inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
                   openSort
-                    ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                    ? 'border-walnut bg-[#F2E6D4] text-ink'
                     : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
                 }`}
+                aria-label="Sort"
+                aria-expanded={openSort}
+                title="Sort"
               >
-                Sort
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
+                >
+                  <path d="m3 8 4-4 4 4" />
+                  <path d="M7 4v16" />
+                  <path d="m21 16-4 4-4-4" />
+                  <path d="M17 20V4" />
+                </svg>
               </button>
               {openSort ? (
                 <div className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">
@@ -312,13 +347,32 @@ export default function VendorExplore() {
             <button
               type="button"
               onClick={() => setOpenSort((v) => !v)}
-              className={`min-w-0 shrink-0 truncate rounded-full border px-4 py-2.5 text-[12px] font-semibold transition-colors ${
+              className={`inline-flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-full border px-2.5 transition-colors ${
                 openSort
-                  ? 'border-walnut bg-[#F2E6D4] font-bold text-ink'
+                  ? 'border-walnut bg-[#F2E6D4] text-ink'
                   : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
               }`}
+              aria-label="Sort"
+              aria-expanded={openSort}
+              title="Sort"
             >
-              Sort
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="m3 8 4-4 4 4" />
+                <path d="M7 4v16" />
+                <path d="m21 16-4 4-4-4" />
+                <path d="M17 20V4" />
+              </svg>
             </button>
             {openSort ? (
               <div className="absolute right-0 mt-2 w-64 bg-white border border-pale rounded-2xl shadow-sm overflow-hidden z-40">
@@ -387,15 +441,20 @@ export default function VendorExplore() {
                 const preferredDelivery = String(
                   pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
                 ).trim();
+                const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
                 return (
                   <div key={String(x.id)} className="bg-white rounded-2xl border border-pale overflow-hidden">
                     <div className="relative">
                       <Thumbnail src={x.thumbnailUrl} alt={x.title} />
 
-                      <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-white/90 border border-white text-[11px] font-extrabold text-ink inline-flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 6v6l4 2" />
+                      <span className="absolute right-3 top-3 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center gap-2 tabular-nums">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+                          <circle cx="12" cy="13" r="8" />
+                          <path d="M12 9v4l2 2" />
+                          <path d="M5 3 2 6" />
+                          <path d="m22 6-3-3" />
+                          <path d="M6.38 18.7 4 21" />
+                          <path d="M17.64 18.67 20 21" />
                         </svg>
                         {timeLeftMs == null ? '—' : ended ? 'Bid Ended' : formatCountdown(timeLeftMs)}
                       </span>
@@ -414,7 +473,7 @@ export default function VendorExplore() {
                         <p>
                           Budget:{' '}
                           <span className="font-extrabold text-ink">
-                            {Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? `₹ ${formatMoney(budgetPerPiece)}` : '—'}
+                            {Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? formatCurrency(budgetPerPiece, moneyCurrency) : '—'}
                           </span>
                         </p>
                         <p>
@@ -430,10 +489,14 @@ export default function VendorExplore() {
                       <div className="mt-4">
                         <button
                           type="button"
-                          onClick={() => navigate(`/vendor/explore/${encodeURIComponent(String(x.id))}`)}
+                          onClick={() => {
+                            const id = encodeURIComponent(String(x.id));
+                            // If this jeweller already bid, go straight to Manage Bidding (no Explore detail flash).
+                            navigate(x.hasMyBid ? `/vendor/bids/${id}?tab=active` : `/vendor/explore/${id}`);
+                          }}
                           className="w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
                         >
-                          View Details
+                          {x.hasMyBid ? 'Manage Bidding' : 'View Details'}
                         </button>
                       </div>
                     </div>

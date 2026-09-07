@@ -2,28 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
   return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
-}
-
-function formatDateTime(ts) {
-  if (!ts) return '—';
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return '—';
-  const datePart = new Intl.DateTimeFormat('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(d);
-  const timePart = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  }).format(d);
-  return `${datePart}, ${timePart}`;
 }
 
 function formatCountdown(ms) {
@@ -70,41 +55,6 @@ function vendorNameFromBid(b) {
   return String(raw).trim();
 }
 
-/** Display name for assignment log: assignment fields first, then match bids by vendor id. */
-function assignmentVendorDisplayName(a, bidsList) {
-  const vendor = a?.vendor ?? null;
-  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
-  const snapshotOrJoined =
-    vendorJoined ||
-    (a?.vendorSnapshot?.fullName ??
-      a?.vendor_snapshot?.fullName ??
-      a?.vendorSnapshot?.name ??
-      a?.vendor_snapshot?.name ??
-      '');
-  const fromAssignment = String(
-    a?.vendorName ??
-      a?.vendor_name ??
-      a?.jewellerName ??
-      a?.jeweller_name ??
-      a?.assignedVendorName ??
-      a?.assigned_vendor_name ??
-      vendor?.fullName ??
-      vendor?.name ??
-      vendor?.businessName ??
-      vendor?.shopName ??
-      snapshotOrJoined,
-  ).trim();
-  if (fromAssignment) return fromAssignment;
-
-  const vid = assignmentVendorIdOf(a);
-  if (vid == null || !Array.isArray(bidsList)) return '';
-  const bid = bidsList.find((b) => {
-    const bvid = b?.vendorId ?? b?.vendor_id ?? b?.vendor?.id ?? b?.vendor?._id ?? null;
-    return bvid != null && String(bvid) === String(vid);
-  });
-  return vendorNameFromBid(bid);
-}
-
 function isAssignmentActive(a) {
   const active = a?.isActive ?? a?.is_active ?? false;
   if (typeof active === 'boolean') return active;
@@ -149,20 +99,31 @@ function StarRating({ value, sizeClass = 'h-5 w-5 md:h-6 md:w-6' }) {
     <div
       className="inline-flex items-center gap-0.5 align-middle"
       role="img"
-      aria-label={safe != null ? `Rated ${safe.toFixed(1)} out of 5 stars` : 'No rating'}
+      aria-label={safe != null ? `Rated ${safe.toFixed(1)} out of 5 stars` : 'No rating yet'}
     >
       {[0, 1, 2, 3, 4].map((i) => {
         const fill = safe == null ? 0 : Math.min(1, Math.max(0, safe - i));
         return (
           <span key={i} className={`relative inline-block shrink-0 ${sizeClass}`}>
-            <svg viewBox="0 0 24 24" className="absolute inset-0 block h-full w-full text-amber-100" fill="currentColor" aria-hidden>
+            {/* Empty star: outlined so it stays visible on cream / white rows */}
+            <svg
+              viewBox="0 0 24 24"
+              className="absolute inset-0 block h-full w-full text-muted/55"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinejoin="round"
+              aria-hidden
+            >
               <path d={STAR_PATH} />
             </svg>
-            <div className="absolute left-0 top-0 h-full overflow-hidden" style={{ width: `${fill * 100}%` }}>
-              <svg viewBox="0 0 24 24" className={`block shrink-0 ${sizeClass} text-amber-400`} fill="currentColor" aria-hidden>
-                <path d={STAR_PATH} />
-              </svg>
-            </div>
+            {fill > 0 ? (
+              <div className="absolute left-0 top-0 h-full overflow-hidden" style={{ width: `${fill * 100}%` }}>
+                <svg viewBox="0 0 24 24" className={`block shrink-0 ${sizeClass} text-amber-400`} fill="currentColor" aria-hidden>
+                  <path d={STAR_PATH} />
+                </svg>
+              </div>
+            ) : null}
           </span>
         );
       })}
@@ -289,10 +250,10 @@ function SkeletonBar({ className = '' }) {
   return <div className={`animate-pulse rounded-md bg-pale ${className}`} aria-hidden />;
 }
 
-function BidsTableSkeleton() {
+function BidsTableSkeleton({ embedded = false } = {}) {
   return (
     <>
-      <div className="md:hidden space-y-3">
+      <div className={`md:hidden space-y-3 ${embedded ? 'p-3' : ''}`}>
         {[0, 1, 2].map((i) => (
           <div key={i} className="rounded-2xl border border-pale bg-white px-5 py-4">
             <div className="flex items-start gap-3">
@@ -306,7 +267,7 @@ function BidsTableSkeleton() {
           </div>
         ))}
       </div>
-      <div className="hidden md:block overflow-hidden rounded-xl border border-pale bg-white shadow-sm">
+      <div className={`hidden md:block overflow-hidden ${embedded ? '' : 'rounded-xl border border-pale bg-white shadow-sm'}`}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left">
             <thead>
@@ -369,11 +330,13 @@ function ProjectBidsPageSkeleton() {
             <SkeletonBar className="h-7 w-24 shrink-0 rounded-full" />
           </div>
         </div>
-        <div className="flex w-full items-center gap-2 sm:gap-3">
-          <SkeletonBar className="h-10 min-w-0 flex-1 rounded-xl" />
-          <SkeletonBar className="h-10 w-16 shrink-0 rounded-xl" />
+        <div className="overflow-hidden rounded-xl border border-pale bg-white shadow-sm">
+          <div className="flex items-center gap-2 border-b border-pale px-3 py-3">
+            <SkeletonBar className="h-10 min-w-0 flex-1 rounded-xl" />
+            <SkeletonBar className="h-10 w-10 shrink-0 rounded-xl" />
+          </div>
+          <BidsTableSkeleton embedded />
         </div>
-        <BidsTableSkeleton />
       </div>
     </div>
   );
@@ -394,11 +357,9 @@ export default function ProjectBids() {
   const [bids, setBids] = useState([]);
 
   const [search, setSearch] = useState('');
-  const [selectedBidId, setSelectedBidId] = useState(null);
   const [sortOpen, setSortOpen] = useState(false);
   const [sortBy, setSortBy] = useState('amount_asc'); // amount_asc | amount_desc | delivery_asc | delivery_desc
   const cardsWrapRef = useRef(null);
-  const actionBarRef = useRef(null);
 
   const [endOpen, setEndOpen] = useState(false);
   const [endWithAutoWinner, setEndWithAutoWinner] = useState(true);
@@ -410,6 +371,7 @@ export default function ProjectBids() {
   const abortRef = useRef(null);
 
   const project = details?.project ?? details?.data?.project ?? details?.item ?? details?.data ?? details ?? null;
+  const moneyCurrency = projectPresentmentCurrency(project);
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const finishingAt =
     activeBidWindow?.finishingTimestamp ??
@@ -432,86 +394,56 @@ export default function ProjectBids() {
     const k = String(primaryAssignmentForNav?.status ?? '').trim().toLowerCase();
     return k === 'accepted' && Boolean(projectId);
   }, [primaryAssignmentForNav, projectId]);
-  const activeAssignment = useMemo(() => assignments.find((a) => isAssignmentActive(a)) || null, [assignments]);
+  const activeAssignment = useMemo(() => {
+    const list = Array.isArray(assignments) ? assignments : [];
+    const active = list.find((a) => isAssignmentActive(a)) || null;
+    if (active) return active;
+    // Fallback: latest accepted (covers edge cases where isActive flag is missing).
+    return (
+      list.find((a) => String(a?.status ?? '').trim().toLowerCase() === 'accepted') ||
+      null
+    );
+  }, [assignments]);
   const assignedVendorId = useMemo(() => assignmentVendorIdOf(activeAssignment), [activeAssignment]);
   const assignedStatus = useMemo(() => assignmentStatusText(activeAssignment), [activeAssignment]);
   const assignmentPending = useMemo(() => assignedStatus === 'pending', [assignedStatus]);
   const assignmentAccepted = useMemo(() => assignedStatus === 'accepted', [assignedStatus]);
   const finishedProject = useMemo(() => isProjectFinishedLike(project), [project]);
-  const showAssignmentLogs = useMemo(() => {
-    if (!project) return false;
-    // Hide only while bidding is actively running / early running stage.
-    if (hasActiveWindow) return false;
-    const status = String(project?.status ?? '').trim().toLowerCase();
-    const projectStatus = String(project?.projectStatus ?? project?.project_status ?? '').trim().toLowerCase();
-    if (status === 'running' && projectStatus === 'started') return false;
-    if (status === 'draft' && projectStatus === 'started') return false;
-    return true;
-  }, [hasActiveWindow, project]);
-  const advancePayment = project?.advancePayment ?? project?.advance_payment ?? project?.payments?.advance ?? null;
+  const advancePayment =
+    details?.advancePayment ??
+    details?.advance_payment ??
+    project?.advancePayment ??
+    project?.advance_payment ??
+    project?.payments?.advance ??
+    null;
+  const finalPayment =
+    details?.finalPayment ?? details?.final_payment ?? project?.finalPayment ?? project?.final_payment ?? project?.payments?.final ?? null;
   const advancePaid = useMemo(() => isPaymentPaid(advancePayment), [advancePayment]);
+  const finalPaid = useMemo(() => isPaymentPaid(finalPayment), [finalPayment]);
+  const paymentReceived = Boolean(advancePaid || finalPaid);
+  const deferredProductionStarted = Boolean(
+    details?.deferredProductionStarted ??
+      details?.deferred_production_started ??
+      project?.deferredProductionStarted ??
+      project?.deferred_production_started ??
+      project?.deferredProductionStartedAt ??
+      project?.deferred_production_started_at,
+  );
   const attachments = useMemo(() => coerceUrlArray(project?.attachments), [project]);
   const metaRows = useMemo(() => metaRowsOf(project), [project]);
-  const assignmentLogs = useMemo(() => {
-    const list = Array.isArray(assignments) ? assignments : [];
-    const whenOf = (a) =>
-      a?.createdAt ??
-      a?.created_at ??
-      a?.assignedAt ??
-      a?.assigned_at ??
-      a?.updatedAt ??
-      a?.updated_at ??
-      null;
-    return [...list]
-      .map((a) => ({ assignment: a, when: whenOf(a) }))
-      .sort((x, y) => {
-        const ax = x?.when ? new Date(x.when).getTime() : 0;
-        const ay = y?.when ? new Date(y.when).getTime() : 0;
-        return ay - ax;
-      });
-  }, [assignments]);
-
   const metaIndex = useMemo(() => new Map(metaRows.map((r) => [String(r?.key || '').trim(), r])), [metaRows]);
   const budgetPerPieceRaw = String(metaIndex.get('budgetPerPiece')?.value ?? metaIndex.get('budget_per_piece')?.value ?? '').trim();
   const quantityRequiredRaw = String(metaIndex.get('quantityRequired')?.value ?? metaIndex.get('quantity_required')?.value ?? '').trim();
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
-  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
-  const customSizeValueRaw = String(
-    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
-  ).trim();
-  const customSizeUnitRaw = String(
-    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
-  ).trim();
-  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const remainingMetaRows = useMemo(() => {
-    const skip = new Set([
-      'budgetPerPiece',
-      'budget_per_piece',
-      'quantityRequired',
-      'quantity_required',
-      'preferredDeliveryTimeline',
-      'preferred_delivery_timeline',
-      'sizeCustomValue',
-      'size_custom_value',
-      'sizeCustomUnit',
-      'size_custom_unit',
-      'confirmSpecs',
-      'confirm_specs',
-    ]);
-    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-    if (sizeModeRaw === 'custom') {
-      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
-      const sizeModeIndex = rows.findIndex((r) => {
-        const key = String(r?.key || '').trim();
-        return key === 'sizeMode' || key === 'size_mode';
-      });
-      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
-      else rows.unshift(customRow);
-    }
-    return rows;
-  }, [customSizeDisplay, metaRows, sizeModeRaw]);
+    return buildCustomerProjectDetailRows(project, {
+      formatMoney: (n) => formatCurrency(Number(n) || 0, moneyCurrency),
+      formatDate: formatDateOnlyFromInput,
+    });
+  }, [moneyCurrency, project]);
+  const deliveryDetailRows = useMemo(() => buildCustomerDeliveryDetailRows(project), [project]);
 
   const referenceImage = useMemo(() => {
     const raw = String(project?.referenceImage ?? project?.reference_image ?? '').trim();
@@ -548,9 +480,14 @@ export default function ProjectBids() {
     if (!projectId) return;
     setBidsLoading(true);
     try {
-      const items = activeOnly ? await projectService.listActiveBids(projectId) : await projectService.listBids(projectId);
-      const list = Array.isArray(items) ? items : [];
-      setBids(list);
+      if (activeOnly) {
+        const items = await projectService.listActiveBids(projectId);
+        setBids(Array.isArray(items) ? items : []);
+      } else {
+        const result = await projectService.listBids(projectId);
+        const list = Array.isArray(result?.bids) ? result.bids : Array.isArray(result) ? result : [];
+        setBids(list);
+      }
     } catch (e) {
       if (isCanceledRequest(e)) return;
       addToast(e?.message || 'Failed to load bids', 'error');
@@ -627,8 +564,8 @@ export default function ProjectBids() {
 
   const canEndBid = hasActiveWindow && !finishedProject;
   const ended = !hasActiveWindow;
-  // Allow overriding to another bid even after acceptance, but lock once payment has started.
-  const overrideLocked = Boolean(assignmentAccepted && advancePaid);
+  // Keep Change Jeweller available until payment is received or admin defers production.
+  const overrideLocked = Boolean(paymentReceived || deferredProductionStarted);
   const canSelectBids = ended && !finishedProject && !overrideLocked;
 
   const assignmentForVendor = useCallback(
@@ -654,8 +591,9 @@ export default function ProjectBids() {
       const status = assignmentStatusText(a);
       const replacedById = a?.replacedById ?? a?.replaced_by_id ?? null;
       if (!isAssignmentActive(a) && replacedById != null) return { text: 'Overridden', tone: 'muted' };
+      // "Assigned" chip is shown separately for the active/accepted jeweller.
+      if (status === 'accepted') return null;
       if (status === 'pending') return { text: 'Pending', tone: 'warn' };
-      if (status === 'accepted') return { text: 'Accepted', tone: 'success' };
       if (status === 'rejected') return { text: 'Rejected', tone: 'danger' };
       if (status === 'reassigned' || status === 'replaced' || status === 'overridden') return { text: 'Overridden', tone: 'muted' };
       if (!status) return null;
@@ -671,27 +609,6 @@ export default function ProjectBids() {
     window.addEventListener('mousedown', onDown);
     return () => window.removeEventListener('mousedown', onDown);
   }, [sortOpen]);
-
-  useEffect(() => {
-    if (!canSelectBids && selectedBidId != null) setSelectedBidId(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canSelectBids]);
-
-  // Clear selection when clicking outside bid cards (ended only)
-  useEffect(() => {
-    if (!canSelectBids) return;
-    if (!selectedBidId) return;
-    if (endOpen || overrideOpen) return;
-    const onDown = (e) => {
-      const actionBar = actionBarRef.current;
-      if (actionBar && actionBar.contains(e.target)) return;
-      const card = e?.target?.closest?.('[data-bid-card="1"]');
-      if (card) return;
-      setSelectedBidId(null);
-    };
-    window.addEventListener('mousedown', onDown);
-    return () => window.removeEventListener('mousedown', onDown);
-  }, [canSelectBids, endOpen, overrideOpen, selectedBidId]);
 
   const openVendorProfile = (bid) => {
     const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
@@ -712,6 +629,21 @@ export default function ProjectBids() {
     }
     setOverrideFor({ vendorName, bidEntryId, amount, noOfDays });
     setOverrideOpen(true);
+  };
+
+  const startAssignOrChange = (bid) => {
+    if (!bid || Boolean(actionLoading?.override)) return;
+    if (overrideLocked) {
+      addToast('Jeweller can no longer be changed after payment or deferred production.', 'error');
+      return;
+    }
+    const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
+    const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
+    if (isAssigned) {
+      addToast('This jeweller is already assigned.', 'error');
+      return;
+    }
+    openOverride(bid);
   };
 
   const confirmOverride = async () => {
@@ -783,6 +715,11 @@ export default function ProjectBids() {
     [location.state, project?.title],
   );
 
+  const goTrackProject = () => {
+    if (!projectId) return;
+    navigate(`/customer/projects/${projectId}`, { state: navStateForProject() });
+  };
+
   const showSkeleton = !project && !loadFailed;
 
   return (
@@ -798,15 +735,6 @@ export default function ProjectBids() {
           </svg>
           Back
         </button>
-        {trackNavVisible ? (
-          <button
-            type="button"
-            onClick={() => navigate(`/customer/projects/${projectId}`, { state: navStateForProject() })}
-            className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 shrink-0"
-          >
-            Track
-          </button>
-        ) : null}
       </div>
 
       {showSkeleton ? (
@@ -866,6 +794,22 @@ export default function ProjectBids() {
             </div>
           ) : null}
 
+          {deliveryDetailRows.length > 0 ? (
+            <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+              <div className="px-5 py-4 border-b border-pale">
+                <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Delivery Details</p>
+              </div>
+              <div className="px-5 py-4 space-y-3">
+                {deliveryDetailRows.map((r) => (
+                  <div key={r.key} className="space-y-1">
+                    <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                    <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {attachments.length > 0 ? (
             <div className="rounded-2xl border border-pale bg-white p-5 shadow-sm">
               <p className="text-[12px] font-extrabold text-ink">Attachments</p>
@@ -913,7 +857,7 @@ export default function ProjectBids() {
                   <p>
                     Budget per piece:{' '}
                     <span className="font-extrabold text-ink">
-                      {budgetPerPieceRaw ? `₹ ${formatMoney(Number(budgetPerPieceRaw) || 0)}` : '—'}
+                      {budgetPerPieceRaw ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency) : '—'}
                     </span>
                   </p>
                   <p>
@@ -927,7 +871,15 @@ export default function ProjectBids() {
                   </p>
                 </div>
               </div>
-              <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center tabular-nums">
+              <span className="shrink-0 px-3 py-1.5 rounded-full bg-walnut text-blush text-[11px] font-extrabold inline-flex items-center gap-1.5 tabular-nums">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2" />
+                  <path d="M5 3 2 6" />
+                  <path d="m22 6-3-3" />
+                  <path d="M6.38 18.7 4 21" />
+                  <path d="M17.64 18.67 20 21" />
+                </svg>
                 {loading && !project
                   ? '—'
                   : hasActiveWindow && finishesMs != null
@@ -937,89 +889,126 @@ export default function ProjectBids() {
             </div>
           </div>
 
-          <div className="flex flex-row items-center gap-2 sm:gap-3 w-full min-w-0 sm:justify-between">
-              <div className="flex-1 min-w-0 sm:max-w-md">
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder='Search "Jewellers"'
-                  className="input-search-quiet-focus w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid bg-white"
-                />
-              </div>
-              <div className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSortOpen((v) => !v)}
-                  className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-mid hover:bg-cream"
-                >
-                  Sort
-                </button>
-
-                {sortOpen ? (
-                  <div
-                    className="absolute right-0 mt-2 w-56 rounded-2xl border border-pale bg-white shadow-sm overflow-hidden z-20"
-                    onMouseDown={(e) => e.stopPropagation()}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('amount_asc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                        sortBy === 'amount_asc' ? 'bg-cream text-ink' : 'text-mid'
-                      }`}
-                    >
-                      Low amount
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('amount_desc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                        sortBy === 'amount_desc' ? 'bg-cream text-ink' : 'text-mid'
-                      }`}
-                    >
-                      High amount
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('delivery_asc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                        sortBy === 'delivery_asc' ? 'bg-cream text-ink' : 'text-mid'
-                      }`}
-                    >
-                      Low delivery duration
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSortBy('delivery_desc');
-                        setSortOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-3 text-[12px] font-bold hover:bg-cream ${
-                        sortBy === 'delivery_desc' ? 'bg-cream text-ink' : 'text-mid'
-                      }`}
-                    >
-                      High delivery duration
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-          </div>
-
           <div className="flex flex-col flex-1 min-w-0">
-            <div className="w-full">
+            <div className="w-full overflow-hidden rounded-xl border border-pale bg-white shadow-sm">
+              {/* Search + sort live inside the table card */}
+              <div className="flex items-center gap-2 border-b border-pale px-3 py-3">
+                <div className="relative min-w-0 flex-1">
+                  <div className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                  </div>
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder='Search "Jewellers"'
+                    className="input-search-quiet-focus w-full rounded-xl border border-pale bg-cream/40 py-2.5 pl-10 pr-3 text-[13px] font-semibold text-mid"
+                  />
+                </div>
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setSortOpen((v) => !v)}
+                    aria-label="Sort"
+                    aria-expanded={sortOpen}
+                    title="Sort"
+                    className={`inline-flex min-h-[2.25rem] min-w-[2.25rem] items-center justify-center rounded-full border px-2.5 transition-colors sm:min-w-[2.5rem] ${
+                      sortOpen
+                        ? 'border-walnut bg-[#F2E6D4] text-ink'
+                        : 'border-pale bg-white text-mid hover:bg-[#F2E6D4] hover:text-ink'
+                    }`}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden
+                    >
+                      <path d="m3 8 4-4 4 4" />
+                      <path d="M7 4v16" />
+                      <path d="m21 16-4 4-4-4" />
+                      <path d="M17 20V4" />
+                    </svg>
+                  </button>
+
+                  {sortOpen ? (
+                    <div
+                      className="absolute right-0 z-20 mt-2 w-56 overflow-hidden rounded-2xl border border-pale bg-white shadow-sm"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('amount_asc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-[12px] font-bold hover:bg-cream ${
+                          sortBy === 'amount_asc' ? 'bg-cream text-ink' : 'text-mid'
+                        }`}
+                      >
+                        Low amount
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('amount_desc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-[12px] font-bold hover:bg-cream ${
+                          sortBy === 'amount_desc' ? 'bg-cream text-ink' : 'text-mid'
+                        }`}
+                      >
+                        High amount
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('delivery_asc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-[12px] font-bold hover:bg-cream ${
+                          sortBy === 'delivery_asc' ? 'bg-cream text-ink' : 'text-mid'
+                        }`}
+                      >
+                        Low delivery duration
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSortBy('delivery_desc');
+                          setSortOpen(false);
+                        }}
+                        className={`w-full px-4 py-3 text-left text-[12px] font-bold hover:bg-cream ${
+                          sortBy === 'delivery_desc' ? 'bg-cream text-ink' : 'text-mid'
+                        }`}
+                      >
+                        High delivery duration
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
             {loading || bidsLoading ? (
-              <BidsTableSkeleton />
+              <BidsTableSkeleton embedded />
             ) : visibleBids.length === 0 ? (
+              (() => {
+                const noBidsYet = !Array.isArray(bids) || bids.length === 0;
+                const emptyTitle = noBidsYet ? 'No bids yet' : 'No bids found';
+                const emptyHint = noBidsYet
+                  ? 'Jewellers haven’t placed a bid on this project yet.'
+                  : 'Try adjusting search or sorting.';
+                return (
               <>
-                <div className="md:hidden rounded-2xl border border-pale bg-white p-8">
+                <div className="p-8 md:hidden">
                   <div className="flex flex-col items-center text-center">
                     <div className="w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1028,11 +1017,11 @@ export default function ProjectBids() {
                         <path d="M8 14h6" />
                       </svg>
                     </div>
-                    <p className="mt-3 text-[13px] font-bold text-mid">No bids found</p>
-                    <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
+                    <p className="mt-3 text-[13px] font-bold text-mid">{emptyTitle}</p>
+                    <p className="mt-1 text-[12px] text-muted">{emptyHint}</p>
                   </div>
                 </div>
-                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                <div className="hidden md:block">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[520px] text-left border-collapse">
                       <thead>
@@ -1040,11 +1029,12 @@ export default function ProjectBids() {
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
                         </tr>
                       </thead>
                       <tbody>
                         <tr>
-                          <td colSpan={3} className="px-4 py-10 text-center align-middle bg-cream/20">
+                          <td colSpan={4} className="px-4 py-10 text-center align-middle bg-cream/20">
                             <div className="inline-flex flex-col items-center">
                               <div className="w-12 h-12 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1053,8 +1043,8 @@ export default function ProjectBids() {
                                   <path d="M8 14h6" />
                                 </svg>
                               </div>
-                              <p className="mt-3 text-[13px] font-bold text-mid">No bids found</p>
-                              <p className="mt-1 text-[12px] text-muted">Try adjusting search or sorting.</p>
+                              <p className="mt-3 text-[13px] font-bold text-mid">{emptyTitle}</p>
+                              <p className="mt-1 text-[12px] text-muted">{emptyHint}</p>
                             </div>
                           </td>
                         </tr>
@@ -1063,10 +1053,12 @@ export default function ProjectBids() {
                   </div>
                 </div>
               </>
+                );
+              })()
             ) : (
               <div ref={cardsWrapRef}>
                 {/* Mobile: rating-focused cards (no table) */}
-                <div className="md:hidden space-y-3">
+                <div className="md:hidden space-y-3 p-3">
                   {visibleBids.map((b) => {
                     const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                     const vendor = b?.vendor ?? null;
@@ -1083,136 +1075,136 @@ export default function ProjectBids() {
                     const badge = assignmentBadge(vendorAsg);
                     const isAssigned =
                       vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                    const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
-                    const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
+                    const showTrack = Boolean(isAssigned && trackNavVisible);
+                    const showSelectOnRow = Boolean(!isAssigned && canSelectBids);
 
                     return (
                       <div
                         key={bidId || vendorId || Math.random()}
                         data-bid-card="1"
-                        role={canSelectBids && !disableSelect ? 'button' : undefined}
-                        tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
-                        onClick={
-                          canSelectBids && !disableSelect
-                            ? () =>
-                                setSelectedBidId((prev) => {
-                                  const next = bidId || null;
-                                  if (!next) return null;
-                                  return String(prev ?? '') === String(next) ? null : next;
-                                })
-                            : undefined
-                        }
-                        onKeyDown={
-                          canSelectBids && !disableSelect
-                            ? (e) => {
-                                if (e.key !== 'Enter') return;
-                                setSelectedBidId((prev) => {
-                                  const next = bidId || null;
-                                  if (!next) return null;
-                                  return String(prev ?? '') === String(next) ? null : next;
-                                });
-                              }
-                            : undefined
-                        }
-                        className={`rounded-2xl border px-5 py-4 bg-white transition-colors ${
-                          canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
-                        } ${
-                          selected
-                            ? 'border-2 border-walnut ring-2 ring-walnut/20'
-                            : isHighlighted
-                              ? 'border-green-300 bg-green-50/40'
-                              : canSelectBids && !disableSelect
-                                ? 'border-pale hover:bg-cream'
-                                : 'border-pale'
+                        className={`rounded-2xl border px-5 py-4 bg-white transition-colors cursor-default ${
+                          isHighlighted ? 'border-green-300 bg-green-50/40' : 'border-pale'
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0 flex flex-1 items-start gap-3 pr-1">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex flex-1 items-start gap-3">
                             <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
                               <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
                             </div>
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-extrabold text-ink truncate">{vendorName}</p>
                               <div className="mt-1.5">
                                 <StarRating value={rating} sizeClass="h-6 w-6" />
                               </div>
-                              <p className="mt-2 text-[11px] text-muted">
-                                <span className="inline-flex items-center gap-1.5">
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="10" />
-                                    <path d="M12 6v6l4 2" />
-                                  </svg>
-                                  Delivery: {daysLabel(days)}
-                                </span>
-                              </p>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openVendorProfile(b);
+                                }}
+                                className="mt-2 text-[12px] font-extrabold text-ink hover:underline"
+                              >
+                                View Profile →
+                              </button>
                             </div>
                           </div>
-                          <div className="shrink-0 text-right pl-1">
-                            <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
-                              {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
-                            </p>
-                            <p className="mt-0.5 text-[10px] text-muted font-semibold leading-snug">Bidding Price</p>
-                          </div>
+                          <p className="shrink-0 text-[15px] font-extrabold text-ink tabular-nums leading-tight pl-1">
+                            {Number.isFinite(amount) ? formatCurrency(amount, moneyCurrency) : '—'}
+                          </p>
                         </div>
 
-                        <div className="mt-3">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openVendorProfile(b);
-                            }}
-                            className="text-[12px] font-extrabold text-ink hover:underline"
-                          >
-                            View Profile →
-                          </button>
-                          <div className="mt-2 flex flex-wrap items-center gap-2 min-h-[22px]">
-                            {isLowest ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-sky-50 border-sky-200 text-sky-700">
-                                Lowest Bid
-                              </span>
-                            ) : null}
-                            {isWinning ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
-                                Winning
-                              </span>
-                            ) : null}
-                            {isAssigned ? (
-                              <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
-                                Assigned
-                              </span>
-                            ) : null}
-                            {badge ? (
-                              <span
-                                className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
-                                  badge.tone === 'success'
-                                    ? 'bg-green-50 border-green-100 text-green-700'
-                                    : badge.tone === 'danger'
-                                      ? 'bg-red-50 border-red-100 text-red-700'
-                                      : badge.tone === 'warn'
-                                        ? 'bg-amber-50 border-amber-100 text-amber-700'
-                                        : 'bg-cream border-pale text-mid'
-                                }`}
-                              >
-                                {badge.text}
-                              </span>
-                            ) : null}
-                          </div>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {isLowest ? (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-sky-50 border-sky-200 text-sky-700">
+                              Lowest Bid
+                            </span>
+                          ) : null}
+                          {isWinning ? (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-green-50 border-green-200 text-green-700">
+                              Winning
+                            </span>
+                          ) : null}
+                          {isAssigned ? (
+                            <span className="px-2 py-1 rounded-lg text-[10px] font-bold border bg-indigo-50 border-indigo-100 text-indigo-700">
+                              Assigned
+                            </span>
+                          ) : null}
+                          {badge ? (
+                            <span
+                              className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${
+                                badge.tone === 'success'
+                                  ? 'bg-green-50 border-green-100 text-green-700'
+                                  : badge.tone === 'danger'
+                                    ? 'bg-red-50 border-red-100 text-red-700'
+                                    : badge.tone === 'warn'
+                                      ? 'bg-amber-50 border-amber-100 text-amber-700'
+                                      : 'bg-cream border-pale text-mid'
+                              }`}
+                            >
+                              {badge.text}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        <div className="mt-2 flex items-center justify-between gap-3">
+                          <p className="text-[11px] text-muted">
+                            <span className="inline-flex items-center gap-1.5">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 6v6l4 2" />
+                              </svg>
+                              Delivery: {daysLabel(days)}
+                            </span>
+                          </p>
+                          {showTrack || showSelectOnRow ? (
+                            <div className="shrink-0 flex items-center gap-2">
+                              {showTrack ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    goTrackProject();
+                                  }}
+                                  className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
+                                >
+                                  Track
+                                </button>
+                              ) : null}
+                              {showSelectOnRow ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startAssignOrChange(b);
+                                  }}
+                                  disabled={Boolean(actionLoading?.override)}
+                                  className="px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {actionLoading?.override
+                                    ? 'Updating…'
+                                    : activeAssignment
+                                      ? 'Change Jeweller'
+                                      : 'Select Jeweller & Pay'}
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Desktop: table rows — outer clips rounded corners; inner scrolls horizontally */}
-                <div className="hidden md:block rounded-xl border border-pale bg-white shadow-sm overflow-hidden">
+                {/* Desktop: table rows — parent card clips rounded corners; inner scrolls horizontally */}
+                <div className="hidden md:block">
                   <div className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left border-collapse">
+                  <table className="w-full min-w-[640px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-pale bg-walnut/[0.07]">
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1232,50 +1224,18 @@ export default function ProjectBids() {
                         const badge = assignmentBadge(vendorAsg);
                         const isAssigned =
                           vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                        const disableSelect = Boolean(canSelectBids && isAssigned && (assignmentPending || assignmentAccepted));
-                        const selected = Boolean(!disableSelect && canSelectBids && bidId && String(selectedBidId) === bidId);
+                        const showTrack = Boolean(isAssigned && trackNavVisible);
+                        const showSelectOnRow = Boolean(!isAssigned && canSelectBids);
 
                         return (
                           <tr
                             key={bidId || vendorId || Math.random()}
                             data-bid-card="1"
-                            role={canSelectBids && !disableSelect ? 'button' : undefined}
-                            tabIndex={canSelectBids && !disableSelect ? 0 : undefined}
-                            onClick={
-                              canSelectBids && !disableSelect
-                                ? () =>
-                                    setSelectedBidId((prev) => {
-                                      const next = bidId || null;
-                                      if (!next) return null;
-                                      return String(prev ?? '') === String(next) ? null : next;
-                                    })
-                                : undefined
-                            }
-                            onKeyDown={
-                              canSelectBids && !disableSelect
-                                ? (e) => {
-                                    if (e.key !== 'Enter') return;
-                                    setSelectedBidId((prev) => {
-                                      const next = bidId || null;
-                                      if (!next) return null;
-                                      return String(prev ?? '') === String(next) ? null : next;
-                                    });
-                                  }
-                                : undefined
-                            }
-                            className={`border-b border-pale last:border-b-0 transition-colors ${
-                              canSelectBids ? (disableSelect ? 'cursor-not-allowed opacity-70' : 'cursor-pointer') : 'cursor-default'
-                            } ${
-                              selected
-                                ? 'bg-walnut/[0.07] shadow-[inset_0_0_0_2px_#6b5545]'
-                                : isHighlighted
-                                  ? 'bg-green-50/50'
-                                  : canSelectBids && !disableSelect
-                                    ? 'odd:bg-white even:bg-cream/50 hover:bg-cream/80'
-                                    : 'odd:bg-white even:bg-cream/50'
+                            className={`border-b border-pale last:border-b-0 transition-colors cursor-default ${
+                              isHighlighted ? 'bg-green-50/50' : 'odd:bg-white even:bg-cream/50'
                             }`}
                           >
-                            <td className="px-4 py-3 align-top">
+                            <td className="px-4 py-3 align-middle">
                               <div className="flex items-start gap-3 min-w-0">
                                 <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
                                   <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
@@ -1349,9 +1309,39 @@ export default function ProjectBids() {
                             </td>
                             <td className="px-4 py-3 align-middle text-right">
                               <p className="text-[14px] font-extrabold text-ink tabular-nums">
-                                {Number.isFinite(amount) ? `₹${formatMoney(amount)}` : '—'}
+                                {Number.isFinite(amount) ? formatCurrency(amount, moneyCurrency) : '—'}
                               </p>
-                              <p className="text-[10px] text-muted font-semibold mt-0.5">Bidding Price</p>
+                            </td>
+                            <td className="px-4 py-3 align-middle text-right">
+                              {showTrack ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    goTrackProject();
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[11px] font-extrabold hover:opacity-90"
+                                >
+                                  Track
+                                </button>
+                              ) : null}
+                              {showSelectOnRow ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startAssignOrChange(b);
+                                  }}
+                                  disabled={Boolean(actionLoading?.override)}
+                                  className="px-3 py-1.5 rounded-xl bg-walnut text-blush text-[11px] font-extrabold hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {actionLoading?.override
+                                    ? 'Updating…'
+                                    : activeAssignment
+                                      ? 'Change Jeweller'
+                                      : 'Select Jeweller & Pay'}
+                                </button>
+                              ) : null}
                             </td>
                           </tr>
                         );
@@ -1362,106 +1352,8 @@ export default function ProjectBids() {
               </div>
               </div>
             )}
-          </div>
-
-            {/* Override/Assign */}
-            {ended && !finishedProject && !overrideLocked ? (
-              <div
-                ref={actionBarRef}
-                onMouseDown={(e) => e.stopPropagation()}
-                className="border-t border-pale p-3 md:p-4 shrink-0 flex items-center justify-end"
-              >
-                {(() => {
-                  const canProceed = Boolean(selectedBidId) && !actionLoading?.override;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!selectedBidId || Boolean(actionLoading?.override)) return;
-                        const bid = bids.find((x) => String(x?.bidEntryId ?? x?.id ?? x?._id ?? '') === String(selectedBidId));
-                        if (!bid) return;
-                        const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
-                        const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
-                        if (assignmentAccepted && isAssigned && advancePaid) {
-                          addToast('This bid is already assigned and paid.', 'error');
-                          return;
-                        }
-                        openOverride(bid);
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      disabled={!canProceed}
-                      title={!selectedBidId ? 'Select a bid to continue' : undefined}
-                      className={`px-4 py-2 rounded-xl text-[12px] font-extrabold ${
-                        canProceed ? 'bg-walnut text-blush hover:opacity-90' : 'bg-pale text-muted cursor-not-allowed'
-                      }`}
-                    >
-                      {actionLoading?.override ? 'Updating…' : activeAssignment ? 'Change Jeweller' : 'Select Jeweller & Pay'}
-                    </button>
-                  );
-                })()}
-              </div>
-            ) : null}
-          </div>
-
-          {/* Assignment request logs (hide once project is running) */}
-          {showAssignmentLogs ? (
-            <div className="bg-white rounded-2xl border border-pale p-4 md:p-6 shrink-0">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-extrabold text-ink">Assignment Requests</p>
-                </div>
-                <div className="shrink-0 text-[12px] font-semibold text-muted">
-                  {assignmentLogs.length} {assignmentLogs.length === 1 ? 'record' : 'records'}
-                </div>
-              </div>
-
-              {assignmentLogs.length === 0 ? (
-                <div className="mt-4 rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
-                  No assignment requests yet.
-                </div>
-              ) : (
-                <div className="mt-4 space-y-2">
-                  {assignmentLogs.map((row, idx) => {
-                    const a = row?.assignment || {};
-                    const status = assignmentStatusText(a) || 'pending';
-                    const statusText = status === 'reassigned' ? 'Overridden' : toTitleCase(status);
-                    const vendorLabel = assignmentVendorDisplayName(a, bids) || 'Jeweller';
-                    const when = row?.when || null;
-                    const statusClass =
-                      status === 'accepted'
-                        ? 'bg-green-50 border-green-100 text-green-700'
-                        : status === 'rejected'
-                          ? 'bg-red-50 border-red-100 text-red-700'
-                          : status === 'reassigned'
-                            ? 'bg-cream border-pale text-mid'
-                            : 'bg-amber-50 border-amber-100 text-amber-700';
-                    return (
-                      <div key={String(a?.id ?? a?._id ?? idx)} className="rounded-2xl border border-pale p-4 bg-white">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-[13px] font-bold text-ink truncate">{vendorLabel}</p>
-                              <span className={`px-2 py-1 rounded-lg text-[10px] font-bold border ${statusClass}`}>
-                                {statusText}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-[12px] text-muted">
-                              {status === 'pending' ? 'Pending with' : status === 'accepted' ? 'Accepted by' : 'Rejected by'}{' '}
-                              <span className="font-semibold text-mid">{vendorLabel}</span>
-                            </p>
-                            {when ? <p className="mt-1 text-[12px] text-muted sm:hidden">{formatDateTime(when)}</p> : null}
-                          </div>
-                          <div className="hidden sm:block shrink-0 text-[12px] text-muted text-right whitespace-nowrap">
-                            {when ? formatDateTime(when) : '—'}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
-          ) : null}
+          </div>
         </div>
       </div>
       )}
@@ -1472,7 +1364,7 @@ export default function ProjectBids() {
           <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-pale">
               <p className="text-[14px] font-extrabold text-ink">Force End</p>
-              <p className="mt-1 text-[12px] text-muted">This will force-end the current bid window now (does not cancel the project).</p>
+              <p className="mt-1 text-[12px] text-muted">This will end the current bid window now (doesn't cancel the project).</p>
             </div>
             <div className="px-5 py-4">
               <label className="flex items-start gap-3 select-none cursor-pointer">
@@ -1484,13 +1376,13 @@ export default function ProjectBids() {
                 />
                 <div className="min-w-0">
                   <p className="text-[12px] font-bold text-ink">Auto-pick a winner</p>
-                  <p className="mt-0.5 text-[11px] text-muted">If unchecked, we’ll only end bidding and you can choose the winner later.</p>
+                  <p className="mt-0.5 text-[11px] text-muted">If unchecked, we’ll only end bidding & you can choose the winner.</p>
                 </div>
               </label>
 
               <div className="mt-4 flex justify-end gap-2">
                 <button type="button" onClick={() => setEndOpen(false)} className="px-4 py-2 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream">
-                  Keep running
+                  Keep Running
                 </button>
                 <button
                   type="button"
@@ -1520,7 +1412,7 @@ export default function ProjectBids() {
                   </>
                 ) : (
                   <>
-                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> and pay 100% upfront to start production.
+                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> to start production.
                   </>
                 )}
               </p>
@@ -1528,7 +1420,7 @@ export default function ProjectBids() {
             <div className="px-5 py-4">
               <div className="rounded-2xl border border-pale bg-cream p-3 text-[12px] text-mid space-y-1">
                 <p>
-                  Amount: <span className="font-semibold">₹ {formatMoney(overrideFor?.amount)}</span>
+                  Amount: <span className="font-semibold">{formatCurrency(overrideFor?.amount, moneyCurrency)}</span>
                 </p>
                 <p>
                   Timeline: <span className="font-semibold">{overrideFor?.noOfDays ? daysLabel(overrideFor.noOfDays) : '—'}</span>

@@ -5,7 +5,8 @@ import { authService } from '../../services/authService';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import SafeImage from '../../components/SafeImage';
-import { formatMoney } from '../../utils/formatMoney';
+import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import { formatCurrency, formatMoney } from '../../utils/formatMoney';
 
 const INITIAL_PRODUCT_FORM = {
   name: '',
@@ -1094,10 +1095,10 @@ export default function VendorShop() {
                               <div className="min-w-0">
                                 <p className="text-[14px] font-bold text-ink truncate">{itemName(it)}</p>
                                 <p className="mt-1 text-[11px] text-muted">
-                                  Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: ₹{formatMoney(price)}
+                                  Qty: <span className="font-semibold text-mid">{qty}</span> • Unit: {formatCurrency(price, orderDetails.currency)}
                                 </p>
                               </div>
-                              <div className="shrink-0 text-[12px] font-extrabold text-ink">₹{formatMoney(lineTotal)}</div>
+                              <div className="shrink-0 text-[12px] font-extrabold text-ink">{formatCurrency(lineTotal, orderDetails.currency)}</div>
                             </div>
                           </div>
                         );
@@ -1111,43 +1112,43 @@ export default function VendorShop() {
                       {payableToVendorOf(orderDetails) != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Payable to you (after commission)</span>
-                          <span className="font-extrabold text-ink">₹{formatMoney(payableToVendorOf(orderDetails))}</span>
+                          <span className="font-extrabold text-ink">{formatCurrency(payableToVendorOf(orderDetails), orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {adminCommissionOf(orderDetails) != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Platform commission</span>
-                          <span className="font-bold text-ink">₹{formatMoney(adminCommissionOf(orderDetails))}</span>
+                          <span className="font-bold text-ink">{formatCurrency(adminCommissionOf(orderDetails), orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.totalAmount != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Total</span>
-                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.totalAmount)}</span>
+                          <span className="font-bold text-ink">{formatCurrency(orderDetails.totalAmount, orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.onlineAmount != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Online amount</span>
-                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.onlineAmount)}</span>
+                          <span className="font-bold text-ink">{formatCurrency(orderDetails.onlineAmount, orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.offlineAmount != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Offline amount</span>
-                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.offlineAmount)}</span>
+                          <span className="font-bold text-ink">{formatCurrency(orderDetails.offlineAmount, orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.amountPaid != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Amount paid</span>
-                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.amountPaid)}</span>
+                          <span className="font-bold text-ink">{formatCurrency(orderDetails.amountPaid, orderDetails.currency)}</span>
                         </div>
                       ) : null}
                       {orderDetails?.amountDue != null ? (
                         <div className="flex items-center justify-between text-mid">
                           <span>Amount due</span>
-                          <span className="font-bold text-ink">₹{formatMoney(orderDetails.amountDue)}</span>
+                          <span className="font-bold text-ink">{formatCurrency(orderDetails.amountDue, orderDetails.currency)}</span>
                         </div>
                       ) : null}
                     </div>
@@ -1160,21 +1161,7 @@ export default function VendorShop() {
       ) : null}
 
       {!kycAccepted ? (
-          <div className="rounded-xl border border-pale bg-cream p-4 text-[13px] text-mid">
-            <div className="font-semibold text-ink mb-1">KYC not accepted yet</div>
-            <div className="text-mid">
-              Please complete your KYC. Once it’s accepted, you’ll be able to access the Store module.
-            </div>
-            <div className="mt-4">
-              <button
-                type="button"
-                onClick={() => navigate('/vendor/kyc')}
-                className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Go to KYC
-              </button>
-            </div>
-          </div>
+          <VendorKycRequiredCard message="Please complete your KYC. Once it’s accepted, you’ll be able to access the Store module." />
         ) : canSell ? (
           <div className="w-full h-[calc(100dvh-140px)] lg:h-[calc(100vh-150px)] bg-white rounded-2xl border border-pale overflow-hidden flex flex-col">
 
@@ -1358,7 +1345,7 @@ export default function VendorShop() {
                                   </div>
                                   {whenText ? <p className="mt-1 text-[12px] text-muted">{whenText}</p> : null}
                                   {total != null ? (
-                                    <p className="mt-2 text-[14px] font-extrabold text-ink">₹{formatMoney(total)}</p>
+                                    <p className="mt-2 text-[14px] font-extrabold text-ink">{formatCurrency(total, o?.currency)}</p>
                                   ) : null}
                                 </div>
                                 <div className="w-full sm:w-auto shrink-0 flex flex-wrap justify-end gap-2">
@@ -2167,69 +2154,71 @@ export default function VendorShop() {
             </p>
           </div>
         ) : (
-          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-[13px] text-red-700">
-            <div className="font-semibold text-red-800 mb-1">Selling is disabled for your account</div>
-            <div className="text-red-700">
-              For safety, selling is enabled only after admin approval. You can submit a request to enable selling.
-            </div>
+          <div className="flex min-h-[calc(100dvh-5rem)] w-full items-center justify-center lg:min-h-[calc(100dvh-6rem)]">
+            <div className="w-[min(100%,28rem)] rounded-2xl border border-red-100 bg-red-50 p-6 text-[13px] text-red-700 shadow-sm">
+              <div className="font-semibold text-red-800 mb-1 text-center">Selling is disabled for your account</div>
+              <div className="text-red-700 text-center">
+                For safety, selling is enabled only after admin approval. You can submit a request to enable selling.
+              </div>
 
-            <div className="mt-4 rounded-xl border border-red-100 bg-white/60 p-4 text-[13px] text-mid">
-              <div className="font-semibold text-ink">Request selling enablement</div>
+              <div className="mt-4 rounded-xl border border-red-100 bg-white/60 p-4 text-[13px] text-mid">
+                <div className="font-semibold text-ink">Request selling enablement</div>
 
-              {sellingRequest?.id ? (
-                <div className="mt-2">
-                  <div className="text-[12px] text-muted">
-                    Request status:{' '}
-                    <span className="font-semibold text-mid">{toTitleCase(requestStatus || 'pending')}</span>
+                {sellingRequest?.id ? (
+                  <div className="mt-2">
+                    <div className="text-[12px] text-muted">
+                      Request status:{' '}
+                      <span className="font-semibold text-mid">{toTitleCase(requestStatus || 'pending')}</span>
+                    </div>
+                    {sellingRequest?.createdAt ? (
+                      <div className="mt-1 text-[12px] text-muted">
+                        Requested on: <span className="font-medium text-mid">{formatDate(sellingRequest.createdAt)}</span>
+                      </div>
+                    ) : null}
+                    {sellingRequest?.reviewedAt ? (
+                      <div className="mt-1 text-[12px] text-muted">
+                        Reviewed on: <span className="font-medium text-mid">{formatDate(sellingRequest.reviewedAt)}</span>
+                      </div>
+                    ) : null}
+                    <div className="mt-3 text-[12px] text-muted">
+                      {requestStatus === 'pending'
+                        ? 'Your request has been submitted and is pending admin review.'
+                        : requestStatus === 'rejected'
+                          ? 'Your request was rejected by admin. Selling remains disabled.'
+                          : requestStatus === 'accepted'
+                            ? 'Your request was accepted. Please refresh if selling is not enabled yet.'
+                            : 'Your request has been submitted.'}
+                    </div>
                   </div>
-                  {sellingRequest?.createdAt ? (
-                    <div className="mt-1 text-[12px] text-muted">
-                      Requested on: <span className="font-medium text-mid">{formatDate(sellingRequest.createdAt)}</span>
+                ) : (
+                  <div className="mt-2 text-[12px] text-muted">
+                    Submit your request to the admin panel for review.
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <button
+                    type="button"
+                    onClick={handleRaise}
+                    disabled={submitting || !canRaise}
+                    className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {submitting
+                      ? 'Submitting…'
+                      : isPending
+                        ? 'Submitted'
+                        : requestStatus === 'rejected'
+                          ? 'Re-submit Request'
+                          : 'Submit Request'}
+                  </button>
+                  {!canRaise ? (
+                    <div className="mt-2 text-[11px] text-muted">
+                      {isPending
+                        ? 'Your request is pending admin review.'
+                        : cooldown?.message || 'You can’t raise a new request right now.'}
                     </div>
                   ) : null}
-                  {sellingRequest?.reviewedAt ? (
-                    <div className="mt-1 text-[12px] text-muted">
-                      Reviewed on: <span className="font-medium text-mid">{formatDate(sellingRequest.reviewedAt)}</span>
-                    </div>
-                  ) : null}
-                  <div className="mt-3 text-[12px] text-muted">
-                    {requestStatus === 'pending'
-                      ? 'Your request has been submitted and is pending admin review.'
-                      : requestStatus === 'rejected'
-                        ? 'Your request was rejected by admin. Selling remains disabled.'
-                        : requestStatus === 'accepted'
-                          ? 'Your request was accepted. Please refresh if selling is not enabled yet.'
-                          : 'Your request has been submitted.'}
-                  </div>
                 </div>
-              ) : (
-                <div className="mt-2 text-[12px] text-muted">
-                  Submit your request to the admin panel for review.
-                </div>
-              )}
-
-              <div className="mt-4">
-                <button
-                  type="button"
-                  onClick={handleRaise}
-                  disabled={submitting || !canRaise}
-                  className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-xs font-bold shadow-sm hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {submitting
-                    ? 'Submitting…'
-                    : isPending
-                      ? 'Submitted'
-                      : requestStatus === 'rejected'
-                        ? 'Re-submit Request'
-                        : 'Submit Request'}
-                </button>
-                {!canRaise ? (
-                  <div className="mt-2 text-[11px] text-muted">
-                    {isPending
-                      ? 'Your request is pending admin review.'
-                      : cooldown?.message || 'You can’t raise a new request right now.'}
-                  </div>
-                ) : null}
               </div>
             </div>
           </div>
@@ -2237,4 +2226,3 @@ export default function VendorShop() {
     </div>
   );
 }
-

@@ -116,33 +116,34 @@ export default function Kyc() {
     let cancelled = false;
 
     const resolve = async () => {
-      // backend expects ISO like "IN"
-      const explicitIso = user?.country || user?.kyc?.country;
-      if (explicitIso && String(explicitIso).length === 2) {
-        const iso = String(explicitIso).toUpperCase();
-        if (!cancelled) setCountry((prev) => (prev === iso ? prev : iso));
-        return;
+      // KYC fields are keyed by geographic ISO (IN, BE, …) — never by phone dial.
+      const rawGeo = String(user?.country || user?.kyc?.country || '').trim();
+      if (rawGeo) {
+        if (/^[A-Za-z]{2}$/.test(rawGeo)) {
+          const iso = rawGeo.toUpperCase();
+          if (!cancelled) setCountry((prev) => (prev === iso ? prev : iso));
+          return;
+        }
+        try {
+          const response = await authService.getCountryCodes();
+          const data = Array.isArray(response) ? response : (response?.data || []);
+          const lower = rawGeo.toLowerCase();
+          const match = data.find(
+            (c) => String(c?.countryName || '').trim().toLowerCase() === lower
+              || String(c?.name || '').trim().toLowerCase() === lower
+              || String(c?.countryCode || '').trim().toUpperCase() === rawGeo.toUpperCase(),
+          );
+          const iso = match?.countryCode ? String(match.countryCode).toUpperCase() : null;
+          if (iso) {
+            if (!cancelled) setCountry((prev) => (prev === iso ? prev : iso));
+            return;
+          }
+        } catch {
+          // fall through to default
+        }
       }
 
-      const rawDial = user?.countryCode;
-      if (!rawDial) {
-        if (!cancelled) setCountry((prev) => (prev === 'IN' ? prev : 'IN'));
-        return;
-      }
-
-      const normalizedDial = String(rawDial).trim().startsWith('+')
-        ? String(rawDial).trim()
-        : `+${String(rawDial).trim()}`;
-
-      try {
-        const response = await authService.getCountryCodes();
-        const data = Array.isArray(response) ? response : (response?.data || []);
-        const match = data.find((c) => String(c?.phoneCode || '').trim() === normalizedDial);
-        const iso = match?.countryCode ? String(match.countryCode).toUpperCase() : 'IN';
-        if (!cancelled) setCountry((prev) => (prev === iso ? prev : iso));
-      } catch {
-        if (!cancelled) setCountry((prev) => (prev === 'IN' ? prev : 'IN'));
-      }
+      if (!cancelled) setCountry((prev) => (prev === 'IN' ? prev : 'IN'));
     };
 
     resolve();

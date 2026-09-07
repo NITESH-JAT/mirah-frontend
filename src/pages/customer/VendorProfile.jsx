@@ -303,9 +303,12 @@ export default function VendorProfile() {
           <button
             type="button"
             onClick={chatNow}
-            className="mt-5 w-full px-4 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-95"
+            className="mt-5 w-full px-4 py-3 rounded-2xl bg-walnut text-blush text-[13px] font-extrabold hover:opacity-95 inline-flex items-center justify-center gap-2"
           >
-            Chat Now
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0" aria-hidden="true">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Message Jeweller
           </button>
         </div>
 

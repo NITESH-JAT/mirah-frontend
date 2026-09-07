@@ -5,13 +5,14 @@ import { cartService } from '../../services/cartService';
 import { getVendorId, vendorSourceText } from '../../utils/productSource';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import ProductGridCard from '../../components/customer/ProductGridCard';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
 import { readShopCatalogSession } from '../../utils/shopCatalogSession';
 import {
   writeSimilarProductsSession,
 } from '../../utils/similarProductsSession';
 import { similarProductsStripBorderClasses } from '../../utils/productListingGrid';
 import { getProductDiamondTypes, resolveDiamondUnitPricing } from '../../utils/productDiamondPricing';
+import { useRegion } from '../../context/RegionProvider';
 
 function discountPercent({ price, compareAtPrice }) {
   const p = Number(price);
@@ -170,6 +171,7 @@ export default function ProductDetails() {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { ready: regionReady } = useRegion();
 
   const goToShop = () => {
     const saved = readShopCatalogSession();
@@ -266,7 +268,7 @@ export default function ProductDetails() {
     return {
       diamondType: dt,
       price: resolved.price,
-      compareAtPrice: resolved.compareAtPrice,
+      compareAtPrice: resolved.compareAt,
     };
   }, [product, selectedDiamondType]);
 
@@ -281,7 +283,7 @@ export default function ProductDetails() {
     const types = getProductDiamondTypes(product);
     if (types.length === 1) setSelectedDiamondType(types[0]);
     else if (!types.includes(selectedDiamondType)) setSelectedDiamondType(types[0] || '');
-  }, [product?.id, product?._id]);
+  }, [product, selectedDiamondType]);
 
   const detailsPairs = useMemo(() => {
     const pairs = [];
@@ -434,6 +436,7 @@ export default function ProductDetails() {
   };
 
   useEffect(() => {
+    if (!regionReady) return;
     loadProduct();
     setReviews([]);
     setReviewsMeta({ page: 1, totalPages: 1, total: 0 });
@@ -446,7 +449,18 @@ export default function ProductDetails() {
       if (abortOtherRef.current) abortOtherRef.current.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, regionReady]);
+
+  useEffect(() => {
+    const onRegion = (ev) => {
+      if (ev?.detail?.bootstrap) return;
+      if (!regionReady || !id) return;
+      loadProduct();
+    };
+    window.addEventListener('mirah_region_updated', onRegion);
+    return () => window.removeEventListener('mirah_region_updated', onRegion);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, regionReady]);
 
   useEffect(() => {
     if (!product) return;
@@ -948,17 +962,24 @@ export default function ProductDetails() {
                 </div>
               ) : null}
 
-              <div className="mt-2 flex items-center flex-wrap gap-2">
-                <div className="text-[20px] md:text-[22px] font-extrabold text-ink">₹{formatMoney(displayPricing.price)}</div>
-                {Number(displayPricing.compareAtPrice || 0) > Number(displayPricing.price || 0) ? (
-                  <div className="text-[13px] text-muted line-through">M.R.P. ₹{formatMoney(displayPricing.compareAtPrice)}</div>
-                ) : null}
+              <div className="mt-2 flex items-end flex-wrap gap-x-3 gap-y-2">
+                <div className="flex flex-col items-start gap-0.5">
+                  <div className="text-[20px] md:text-[22px] font-extrabold text-ink">
+                    {formatCurrency(displayPricing.price, product?.currency)}
+                  </div>
+                  {Number(displayPricing.compareAtPrice || 0) > Number(displayPricing.price || 0) ? (
+                    <div className="text-[13px] text-muted line-through">
+                      {formatCurrency(displayPricing.compareAtPrice, product?.currency)}
+                    </div>
+                  ) : null}
+                </div>
                 {off != null ? (
                   <span className="px-2 py-1 rounded-lg bg-green-50 border border-green-100 text-[10px] font-bold text-green-700">
                     {off}% off
                   </span>
                 ) : null}
               </div>
+              <div className="mt-1 text-[13px] text-muted">(Incl. of all taxes)</div>
               {productDiamondTypes.length > 1 ? (
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-[12px] font-semibold text-muted">Diamonds:</span>
@@ -979,7 +1000,6 @@ export default function ProductDetails() {
                   })}
                 </div>
               ) : null}
-              <div className="mt-1 text-[13px] text-muted">(Incl. of all taxes)</div>
 
               <div className="mt-4 border-t border-pale pt-4">
                 <button
@@ -1134,8 +1154,16 @@ export default function ProductDetails() {
                   <div className="mt-3 space-y-2">
                     {cartVariants.map((v, idx) => {
                       const checked = Number(cartVariantIdx) === idx;
-                      const price = Number(v?.price);
+                      const resolved = resolveDiamondUnitPricing(
+                        cartTarget || product,
+                        v,
+                        displayPricing.diamondType,
+                      );
+                      const price = Number(resolved?.price);
+                      const compareAt = Number(resolved?.compareAt);
                       const showPrice = Number.isFinite(price) && price > 0;
+                      const showCompare =
+                        Number.isFinite(compareAt) && compareAt > 0 && compareAt > price;
                       return (
                         <label
                           key={String(idx)}
@@ -1153,7 +1181,16 @@ export default function ProductDetails() {
                             <div className="flex items-center justify-between gap-3">
                               <p className="text-[12px] font-bold text-ink truncate">{variantLabel(v)}</p>
                               {showPrice ? (
-                                <p className="text-[12px] font-extrabold text-ink">₹{formatMoney(price)}</p>
+                                <div className="flex flex-col items-end gap-0.5 shrink-0">
+                                  <p className="text-[12px] font-extrabold text-ink">
+                                    {formatCurrency(price, product?.currency)}
+                                  </p>
+                                  {showCompare ? (
+                                    <p className="text-[11px] text-muted line-through">
+                                      {formatCurrency(compareAt, product?.currency)}
+                                    </p>
+                                  ) : null}
+                                </div>
                               ) : null}
                             </div>
                             <p className="mt-0.5 text-[11px] text-muted">
@@ -1224,4 +1261,3 @@ export default function ProductDetails() {
     </div>
   );
 }
-

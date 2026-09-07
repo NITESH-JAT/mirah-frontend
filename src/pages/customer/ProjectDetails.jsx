@@ -8,8 +8,10 @@ import {
   CustomerPriceBreakdownModal,
   CustomerPriceInfoButton,
 } from '../../components/customer/CustomerPriceBreakdownModal';
-import { formatMoney } from '../../utils/formatMoney';
+import { formatCurrency } from '../../utils/formatMoney';
+import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
+import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -526,18 +528,22 @@ export default function ProjectDetails() {
   const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
 
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
+  const moneyCurrency = projectPresentmentCurrency(project);
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;
   const statusModel = details?.statusModel ?? details?.status_model ?? details?.data?.statusModel ?? details?.data?.status_model ?? null;
   const shipmentModel = details?.shipmentModel ?? details?.shipment_model ?? details?.data?.shipmentModel ?? null;
   const qcModel = details?.qcModel ?? details?.qc_model ?? details?.data?.qcModel ?? details?.data?.qc_model ?? null;
+  const ledgerRaw = details?.ledger ?? details?.data?.ledger ?? null;
   const fullUpfront = Boolean(
     details?.fullUpfront ?? details?.full_upfront ?? Number(advancePayment?.percent) === 100,
   );
   const deferredProductionStarted = Boolean(
     details?.deferredProductionStarted ?? details?.deferred_production_started,
   );
+  const deferredProductionStartedAt =
+    details?.deferredProductionStartedAt ?? details?.deferred_production_started_at ?? null;
   const ledger = useMemo(() => coerceArray(ledgerRaw).filter(Boolean), [ledgerRaw]);
 
   const projectId = project?.id ?? project?._id ?? id ?? null;
@@ -596,7 +602,7 @@ export default function ProjectDetails() {
     };
 
     const advanceMilestones = fullUpfront
-      ? [{ key: 'invoice_advance', label: 'Invoice (Full Payment)' }, { key: 'paid_advance', label: 'Full Payment Received' }]
+      ? [{ key: 'invoice_advance', label: 'Invoice' }, { key: 'paid_advance', label: 'Payment Received' }]
       : [{ key: 'invoice_advance', label: 'Invoice (Advance)' }, { key: 'paid_advance', label: 'Advance Paid' }];
     const finalMilestones = fullUpfront
       ? []
@@ -716,6 +722,7 @@ export default function ProjectDetails() {
 
   const inTransitToArviahReached = useMemo(() => {
     if (qcFailedPendingRework) return false;
+    if (shipmentModel?.flags?.inboundReceivedAtArviah) return true;
     if (!activeInbound) return false;
     if (inboundPastTransitPhase) return true;
     if (shipmentModel?.flags?.inboundAwaitingReceive) return true;
@@ -736,9 +743,36 @@ export default function ProjectDetails() {
       if (advanceStatus === 'paid') return 'paid_advance';
       return fullUpfront ? 'paid_advance' : 'paid_final';
     }
+    // Deferred production: production is underway; keep payment milestones separate until paid.
+    if (deferredProductionStarted && (currentOperationalStatusKey === 'started' || currentOperationalStatusKey === 'in_progress')) {
+      if (qcFailedPendingRework) return 'in_progress';
+      if (inTransitToArviahReached && !qcEverReached && currentOperationalStatusKey === 'in_progress') {
+        return 'in_progress';
+      }
+      if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
+      if (
+        activeInbound &&
+        currentOperationalStatusKey === 'in_progress' &&
+        !inTransitToArviahReached &&
+        shipmentModel?.flags?.hasActiveInbound
+      ) {
+        return 'in_transit_to_arviah';
+      }
+      if (currentOperationalStatusKey === 'in_progress' || currentOperationalStatusKey === 'started') {
+        return 'in_progress';
+      }
+    }
     if (qcFailedPendingRework) return 'in_progress';
+    if (inTransitToArviahReached && !qcEverReached && currentOperationalStatusKey === 'in_progress') {
+      return 'in_progress';
+    }
     if (shipmentModel?.flags?.inboundInTransit) return 'in_transit_to_arviah';
-    if (activeInbound && currentOperationalStatusKey === 'in_progress' && !inTransitToArviahReached) {
+    if (
+      activeInbound &&
+      currentOperationalStatusKey === 'in_progress' &&
+      !inTransitToArviahReached &&
+      shipmentModel?.flags?.hasActiveInbound
+    ) {
       return 'in_transit_to_arviah';
     }
     return currentOperationalStatusKey;
@@ -746,9 +780,11 @@ export default function ProjectDetails() {
     advanceStatus,
     activeInbound,
     currentOperationalStatusKey,
+    deferredProductionStarted,
     finalStatus,
     fullUpfront,
     inTransitToArviahReached,
+    qcEverReached,
     qcFailedPendingRework,
     shipmentModel,
   ]);
@@ -845,14 +881,6 @@ export default function ProjectDetails() {
   const preferredDeliveryRaw = String(
     metaIndex.get('preferredDeliveryTimeline')?.value ?? metaIndex.get('preferred_delivery_timeline')?.value ?? '',
   ).trim();
-  const sizeModeRaw = String(metaIndex.get('sizeMode')?.value ?? metaIndex.get('size_mode')?.value ?? '').trim().toLowerCase();
-  const customSizeValueRaw = String(
-    metaIndex.get('sizeCustomValue')?.value ?? metaIndex.get('size_custom_value')?.value ?? '',
-  ).trim();
-  const customSizeUnitRaw = String(
-    metaIndex.get('sizeCustomUnit')?.value ?? metaIndex.get('size_custom_unit')?.value ?? '',
-  ).trim();
-  const customSizeDisplay = `${customSizeValueRaw}${customSizeUnitRaw ? ` ${customSizeUnitRaw}` : ''}`.trim();
   const customerPricingTariff = useMemo(() => {
     const a = advancePayment?.pricingTariff ?? advancePayment?.pricing_tariff ?? null;
     const f = finalPayment?.pricingTariff ?? finalPayment?.pricing_tariff ?? null;
@@ -878,37 +906,17 @@ export default function ProjectDetails() {
   const listingBudgetDisplay = useMemo(() => {
     if (!budgetPerPieceRaw) return null;
     const n = Number(budgetPerPieceRaw);
-    if (Number.isFinite(n)) return `₹ ${formatMoney(n)}`;
+    if (Number.isFinite(n)) return formatCurrency(n, moneyCurrency);
     return budgetPerPieceRaw;
-  }, [budgetPerPieceRaw]);
+  }, [budgetPerPieceRaw, moneyCurrency]);
 
   const remainingMetaRows = useMemo(() => {
-    const skip = new Set([
-      'budgetPerPiece',
-      'budget_per_piece',
-      'quantityRequired',
-      'quantity_required',
-      'preferredDeliveryTimeline',
-      'preferred_delivery_timeline',
-      'sizeCustomValue',
-      'size_custom_value',
-      'sizeCustomUnit',
-      'size_custom_unit',
-      'confirmSpecs',
-      'confirm_specs',
-    ]);
-    const rows = (metaRows || []).filter((r) => !skip.has(String(r?.key || '').trim()));
-    if (sizeModeRaw === 'custom') {
-      const customRow = { key: 'customSizeDisplay', label: 'Custom Size', value: customSizeDisplay || '—' };
-      const sizeModeIndex = rows.findIndex((r) => {
-        const key = String(r?.key || '').trim();
-        return key === 'sizeMode' || key === 'size_mode';
-      });
-      if (sizeModeIndex >= 0) rows.splice(sizeModeIndex + 1, 0, customRow);
-      else rows.unshift(customRow);
-    }
-    return rows;
-  }, [customSizeDisplay, metaRows, sizeModeRaw]);
+    return buildCustomerProjectDetailRows(project, {
+      formatMoney: (n) => formatCurrency(Number(n) || 0, moneyCurrency),
+      formatDate: formatDateOnlyFromInput,
+    });
+  }, [moneyCurrency, project]);
+  const deliveryDetailRows = useMemo(() => buildCustomerDeliveryDetailRows(project), [project]);
 
   const load = useCallback(async () => {
     if (!projectId) return;
@@ -1051,7 +1059,7 @@ export default function ProjectDetails() {
         order_id: parsed.orderId,
         currency: parsed.currency || 'INR',
         name: 'Arviah',
-        description: fullUpfront || type === 'advance' ? 'Full payment' : 'Final payment',
+        description: fullUpfront || type === 'advance' ? 'Payment' : 'Final payment',
         modal: {
           ondismiss: () => {
             if (handlerInvoked) return;
@@ -1165,6 +1173,7 @@ export default function ProjectDetails() {
         tariff={customerPricingTariff}
         listingBudgetLabel={listingBudgetDisplay}
         agreedQuoteAmount={assignedAmount}
+        currency={moneyCurrency}
       />
 
       {verifyingPayment ? (
@@ -1256,7 +1265,7 @@ export default function ProjectDetails() {
                         ? (() => {
                             const n = Number(budgetPerPieceRaw);
                             if (Number.isNaN(n)) return budgetPerPieceRaw;
-                            return `₹ ${formatMoney(n)}`;
+                            return formatCurrency(n, moneyCurrency);
                           })()
                         : '—'}
                     </span>
@@ -1288,24 +1297,24 @@ export default function ProjectDetails() {
                 </div>
 
                 {vendorId ? (
-                  <div className="mt-4 flex flex-col gap-2 w-full">
+                  <div className="mt-4 flex flex-row items-stretch gap-2 w-full">
                     <button
                       type="button"
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
-                      className="w-full px-4 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-ink hover:bg-cream inline-flex items-center justify-center gap-2"
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-extrabold text-ink hover:bg-cream inline-flex items-center justify-center gap-2"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                      View Jeweller Profile
+                      Jeweller Profile
                     </button>
                     <button
                       type="button"
                       onClick={() => navigate('/customer/messages', { state: { openRecipientId: vendorId } })}
-                      className="w-full px-4 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 inline-flex items-center justify-center gap-2"
+                      className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90 inline-flex items-center justify-center gap-2"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
                       Message Jeweller
@@ -1330,6 +1339,22 @@ export default function ProjectDetails() {
                   </div>
                   <div className="px-5 py-4 space-y-3">
                     {remainingMetaRows.map((r) => (
+                      <div key={r.key} className="space-y-1">
+                        <p className="text-[12px] text-muted font-semibold">{r.label}</p>
+                        <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {deliveryDetailRows.length > 0 ? (
+                <div className="rounded-2xl border border-pale bg-white overflow-hidden shadow-sm">
+                  <div className="px-5 py-4 border-b border-pale">
+                    <p className="text-[12px] font-extrabold uppercase tracking-wide text-muted">Delivery Details</p>
+                  </div>
+                  <div className="px-5 py-4 space-y-3">
+                    {deliveryDetailRows.map((r) => (
                       <div key={r.key} className="space-y-1">
                         <p className="text-[12px] text-muted font-semibold">{r.label}</p>
                         <p className="text-[12px] text-ink font-extrabold break-words whitespace-pre-wrap">{r.value}</p>
@@ -1399,75 +1424,78 @@ export default function ProjectDetails() {
                       disabled={invoiceLoading || !projectId}
                       className="px-3 py-2 rounded-xl bg-white border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {invoiceLoading ? 'Downloading…' : 'Download invoice'}
+                      {invoiceLoading ? 'Downloading…' : 'Download Invoice'}
                     </button>
                   </div>
                   <div
                     className={`mt-3 grid gap-3 ${
-                      assignedAmount != null || assignedDays != null
-                        ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                        : 'grid-cols-1 md:grid-cols-2'
+                      !fullUpfront && finalStatus !== 'not_applicable' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'
                     }`}
                   >
-                    {assignedAmount != null || assignedDays != null ? (
-                      <div className="rounded-2xl border border-pale bg-cream/50 p-4">
-                        <p className="text-[12px] font-bold text-ink">Agreed</p>
-                        <div className="mt-3 space-y-2 text-[12px]">
-                          <div className="flex items-start justify-between gap-3">
-                            <span className="text-muted font-semibold">Agreed amount</span>
-                            <span className="text-ink font-extrabold text-right">
-                              {assignedAmount != null && Number.isFinite(Number(assignedAmount))
-                                ? `₹ ${formatMoney(assignedAmount)}`
-                                : '—'}
-                            </span>
-                          </div>
-                          <div className="flex items-start justify-between gap-3">
-                            <span className="text-muted font-semibold">Agreed duration</span>
-                            <span className="text-ink font-extrabold text-right">
-                              {assignedDays != null && Number.isFinite(Number(assignedDays)) ? `${Number(assignedDays)} days` : '—'}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ) : null}
                     <div className="rounded-2xl border border-pale p-4">
-                      <p className="text-[12px] font-bold text-ink">{fullUpfront ? 'Full payment' : 'Advance'}</p>
-                      <p className="mt-1 text-[12px] text-muted">
-                        Status:{' '}
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(advanceStatus)}`}>
-                        {paymentStatusLabel(advanceStatus)}
-                      </span>
-                      </p>
+                      <p className="text-[12px] font-bold text-ink">{fullUpfront ? 'Payment' : 'Advance'}</p>
+                      <div className="mt-3 space-y-2 text-[12px]">
+                        {assignedAmount != null || assignedDays != null ? (
+                          <>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-muted font-semibold">Agreed amount</span>
+                              <span className="text-ink font-extrabold text-right">
+                                {assignedAmount != null && Number.isFinite(Number(assignedAmount))
+                                  ? formatCurrency(assignedAmount, moneyCurrency)
+                                  : '—'}
+                              </span>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="text-muted font-semibold">Agreed duration</span>
+                              <span className="text-ink font-extrabold text-right">
+                                {assignedDays != null && Number.isFinite(Number(assignedDays))
+                                  ? `${Number(assignedDays)} days`
+                                  : '—'}
+                              </span>
+                            </div>
+                          </>
+                        ) : null}
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-muted font-semibold">Status</span>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-extrabold ${paymentStatusPillClass(advanceStatus)}`}
+                          >
+                            {paymentStatusLabel(advanceStatus)}
+                          </span>
+                        </div>
+                        {advancePayment?.suggestedAmount != null ? (
+                          <div className="flex items-start justify-between gap-3">
+                            <span className="text-muted font-semibold">{fullUpfront ? 'Total due' : 'Suggested'}</span>
+                            <span className="text-ink font-extrabold text-right">
+                              {formatCurrency(advancePayment.suggestedAmount, moneyCurrency)}
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
                       {deferredProductionStarted && advanceStatus === 'due' ? (
                         <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2 leading-relaxed">
                           Production has started. Payment is still due before dispatch.
                         </p>
                       ) : null}
-                      {advancePayment?.suggestedAmount != null ? (
-                        <p className="mt-1 text-[12px] text-muted">
-                          {fullUpfront ? 'Total due' : 'Suggested'}:{' '}
-                          <span className="font-semibold text-mid">₹ {formatMoney(advancePayment.suggestedAmount)}</span>
-                        </p>
-                      ) : null}
                       {advanceIsHalfOfPreTaxQuote && !fullUpfront ? (
-                        <p className="mt-1 text-[11px] text-muted leading-relaxed">
+                        <p className="mt-2 text-[11px] text-muted leading-relaxed">
                           50% of the agreed quote (before tax). GST and delivery are included in the final payment.
                         </p>
                       ) : null}
-                      {fullUpfront ? (
-                        <p className="mt-1 text-[11px] text-muted leading-relaxed">
-                          Pay 100% upfront to start production on your bespoke piece.
-                        </p>
-                      ) : null}
                       {advanceStatus === 'due' ? (
-                        <button
-                          type="button"
-                          onClick={() => pay('advance')}
-                          disabled={payLoading}
-                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {payLoading ? 'Processing…' : fullUpfront ? 'Pay in Full' : 'Pay Advance'}
-                        </button>
+                        <>
+                          <div className="mt-3 border-t border-dotted border-pale" aria-hidden />
+                          <div className="mt-3 flex justify-end">
+                            <button
+                              type="button"
+                              onClick={() => pay('advance')}
+                              disabled={payLoading}
+                              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {payLoading ? 'Processing…' : fullUpfront ? 'Pay' : 'Pay Advance'}
+                            </button>
+                          </div>
+                        </>
                       ) : null}
                     </div>
 
@@ -1482,61 +1510,38 @@ export default function ProjectDetails() {
                       </p>
                       {finalPayment?.suggestedAmount != null ? (
                         <p className="mt-1 text-[12px] text-muted">
-                          Suggested: <span className="font-semibold text-mid">₹ {formatMoney(finalPayment.suggestedAmount)}</span>
+                          Suggested: <span className="font-semibold text-mid">{formatCurrency(finalPayment.suggestedAmount, moneyCurrency)}</span>
                         </p>
                       ) : null}
                       {finalStatus === 'due' ? (
-                        <button
-                          type="button"
-                          onClick={() => pay('final')}
-                          disabled={payLoading}
-                          className="mt-3 w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          {payLoading ? 'Processing…' : 'Pay Final'}
-                        </button>
+                        <div className="mt-3 flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => pay('final')}
+                            disabled={payLoading}
+                            className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {payLoading ? 'Processing…' : 'Pay Final'}
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                     ) : null}
                   </div>
                   <p className="mt-3 text-[11px] text-muted">
                     {fullUpfront
-                      ? 'Note: Full payment is required to start production. Trusted customers may have production started before payment by Arviah admin.'
-                      : 'Note: Advance payment is required to start the project. Final payment can be paid after project completion.'}
+                      ? deferredProductionStarted && advanceStatus !== 'paid'
+                        ? 'Note: Production has started. Payment is due before dispatch.'
+                        : advanceStatus === 'paid'
+                          ? 'Note: Payment received.'
+                          : 'Note: Payment is required to start production.'
+                      : deferredProductionStarted && advanceStatus !== 'paid'
+                        ? 'Note: Production has started. Advance payment is due before dispatch. Final payment can be paid after project completion.'
+                        : 'Note: Advance payment is required to start the project. Final payment can be paid after project completion.'}
                   </p>
                 </div>
               )}
             </div>
-
-            {!loading && project && currentOperationalStatusKey === 'delivered' ? (
-              <div className="bg-white rounded-2xl border border-emerald-100 bg-emerald-50/40 overflow-hidden">
-                <div className="p-4 md:p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-extrabold text-ink">Project Delivered</p>
-                      <p className="mt-1 text-[12px] text-mid">
-                        Your project is delivered. Please mark it as completed to finish the project.
-                      </p>
-                    </div>
-                    <div className="shrink-0 w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={openCompleteConfirm}
-                      disabled={completeLoading}
-                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Mark as Completed
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ) : null}
 
             <div className="bg-white rounded-2xl border border-pale overflow-hidden">
               {!project ? (
@@ -1590,21 +1595,36 @@ export default function ProjectDetails() {
                                 return (
                                   activeInbound?.receivedAt ??
                                   activeInbound?.received_at ??
+                                  (shipmentModel?.flags?.inboundReceivedAtArviah
+                                    ? activeInbound?.updatedAt ?? activeInbound?.updated_at ?? null
+                                    : null) ??
                                   (shipmentModel?.flags?.inboundAwaitingReceive ? activeInbound?.updatedAt ?? null : null) ??
                                   (qcArr.length ? qcArr[0] : null)
                                 );
                               }
                               const arr = statusTimelineMulti.get(k) ?? [];
-                              return arr.length ? arr[arr.length - 1] : null;
+                              if (arr.length) return arr[arr.length - 1];
+                              if (k === 'in_progress' && deferredProductionStarted) {
+                                return deferredProductionStartedAt;
+                              }
+                              return null;
                             })();
 
                             const kNorm = normalizeStatusKey(key);
                             const isPayment = isPaymentKey(kNorm);
-                            const completedByIdx = currentIdx >= 0 ? idx < currentIdx : false;
+                            // When deferred production is ahead of payment, don't auto-complete
+                            // Invoice / Payment Received just because In Progress is current.
+                            const completedByIdx =
+                              currentIdx >= 0 &&
+                              idx < currentIdx &&
+                              !(deferredProductionStarted && isPayment && advanceStatus !== 'paid' && !advancePaidAt);
 
-                            const advanceInvoiceReached =
-                              (advanceStatus === 'due' || advanceStatus === 'paid') || (currentOperationalIdx > 0 && advanceStatus !== 'not_applicable');
-                            const advancePaidReached = advanceStatus === 'paid' || Boolean(advancePaidAt);
+                            const paymentCaptured = advanceStatus === 'paid' || Boolean(advancePaidAt);
+                            const advanceInvoiceReached = deferredProductionStarted
+                              ? paymentCaptured
+                              : (advanceStatus === 'due' || advanceStatus === 'paid') ||
+                                (currentOperationalIdx > 0 && advanceStatus !== 'not_applicable');
+                            const advancePaidReached = paymentCaptured;
 
                             const finalPaidReached = finalStatus === 'paid' || Boolean(finalPaidAt);
                             // Final invoice should be considered reached once QC is reached and final is due/paid.
@@ -1625,7 +1645,9 @@ export default function ProjectDetails() {
 
                             const ts = reachedByRule || !isPayment ? tsCandidate : null;
                             const isCurrent = normalizeStatusKey(key) === normalizeStatusKey(currentStepKey);
-                            const isCompleted = isPayment ? Boolean(ts) : reachedByRule || Boolean(ts) || completedByIdx;
+                            const isCompleted = isPayment
+                              ? Boolean(ts) || reachedByRule
+                              : reachedByRule || Boolean(ts) || completedByIdx;
                             const state = isCurrent ? 'current' : isCompleted ? 'completed' : 'upcoming';
 
                             const circleClass =
@@ -1639,9 +1661,9 @@ export default function ProjectDetails() {
 
                             const labelRaw = (() => {
                               const k = normalizeStatusKey(key);
-                              if (k === 'invoice_advance') return fullUpfront ? 'Invoice (Full Payment)' : 'Invoice (Advance)';
+                              if (k === 'invoice_advance') return fullUpfront ? 'Invoice' : 'Invoice (Advance)';
                               if (k === 'invoice_final') return 'Invoice (Final)';
-                              if (k === 'paid_advance') return fullUpfront ? 'Full Payment Received' : 'Advance Paid';
+                              if (k === 'paid_advance') return fullUpfront ? 'Payment Received' : 'Advance Paid';
                               if (k === 'paid_final') return 'Final Paid';
                               if (k === 'in_transit_to_arviah') return 'In Transit to Arviah';
                               if (k === 'qc') return 'Arviah QC Checks';
@@ -1649,13 +1671,21 @@ export default function ProjectDetails() {
                               return s?.label ?? toTitleCase(key);
                             })();
                             const label = String(labelRaw ?? key).toUpperCase();
+                            const isCompletedStep = kNorm === 'completed';
+                            const canMarkCompleted =
+                              isCompletedStep &&
+                              currentOperationalStatusKey === 'delivered' &&
+                              !isFinishedLike(project);
 
-                            const sub =
-                              ts
+                            const sub = canMarkCompleted
+                              ? 'Your project is delivered. Please mark it as completed to finish the project.'
+                              : ts
                                 ? formatDateOnly(ts)
                                 : state === 'upcoming'
                                   ? 'Upcoming'
-                                  : '—';
+                                  : state === 'current'
+                                    ? 'In progress'
+                                    : '—';
 
                             return (
                               <div key={`${key}-${idx}`} className="relative pl-10">
@@ -1668,11 +1698,25 @@ export default function ProjectDetails() {
                                   {idx + 1}
                                 </span>
 
-                                <div className="space-y-0.5">
-                                  <p className={`text-[12px] font-extrabold tracking-wide ${state === 'upcoming' ? 'text-muted' : 'text-ink'}`}>
-                                    {label}
-                                  </p>
-                                  <p className={`text-[11px] ${state === 'upcoming' ? 'text-muted' : 'text-muted'}`}>{sub}</p>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="min-w-0 space-y-0.5">
+                                    <p className={`text-[12px] font-extrabold tracking-wide ${state === 'upcoming' ? 'text-muted' : 'text-ink'}`}>
+                                      {label}
+                                    </p>
+                                    <p className={`text-[11px] leading-relaxed ${state === 'upcoming' ? 'text-muted' : 'text-muted'}`}>
+                                      {sub}
+                                    </p>
+                                  </div>
+                                  {canMarkCompleted ? (
+                                    <button
+                                      type="button"
+                                      onClick={openCompleteConfirm}
+                                      disabled={completeLoading}
+                                      className="shrink-0 px-3.5 py-2 rounded-xl bg-walnut text-blush text-[12px] font-bold hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                      {completeLoading ? 'Submitting…' : 'Mark as Completed'}
+                                    </button>
+                                  ) : null}
                                 </div>
                               </div>
                             );
