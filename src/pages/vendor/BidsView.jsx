@@ -8,7 +8,7 @@ import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
@@ -293,7 +293,7 @@ export default function VendorBidsView() {
   const [assignmentActing, setAssignmentActing] = useState(false);
 
   const project = details?.project ?? details?.data?.project ?? details ?? null;
-  const moneyCurrency = projectPresentmentCurrency(project, regionCurrency);
+  const moneyCurrency = vendorPresentmentCurrency(project, regionCurrency);
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const finishingAt =
     activeBidWindow?.finishingTimestamp ??

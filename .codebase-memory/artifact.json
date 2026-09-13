@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
     "commit": "a0565b43024c473e6bb50e4ab74eaa2658656616",
-    "indexed_at": "2026-09-07T20:13:09Z",
+    "indexed_at": "2026-09-13T18:46:49Z",
     "project": "arviah-frontend",
-    "nodes": 1387,
-    "edges": 3039,
+    "nodes": 1390,
+    "edges": 3057,
     "original_size": 5701632,
-    "compressed_size": 1128069,
+    "compressed_size": 1135389,
     "compression_level": 3
 }

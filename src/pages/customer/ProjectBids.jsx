@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
+import { CustomerPriceBreakdownModal } from '../../components/customer/CustomerPriceBreakdownModal';
 import { formatCurrency } from '../../utils/formatMoney';
 import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
@@ -366,6 +367,8 @@ export default function ProjectBids() {
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideFor, setOverrideFor] = useState(null); // { vendorName, bidEntryId, amount, noOfDays }
   const [actionLoading, setActionLoading] = useState({});
+  const [priceDnaOpen, setPriceDnaOpen] = useState(false);
+  const [priceDnaFor, setPriceDnaFor] = useState(null); // bid row
 
   const [nowTs, setNowTs] = useState(Date.now());
   const abortRef = useRef(null);
@@ -617,6 +620,16 @@ export default function ProjectBids() {
       state: { fromProjectId: projectId, fromProjectTitle: project?.title ?? location?.state?.projectTitle ?? null },
     });
   };
+
+  const openPriceDna = (bid) => {
+    if (!bid) return;
+    setPriceDnaFor(bid);
+    setPriceDnaOpen(true);
+  };
+
+  const listingBudgetLabel = budgetPerPieceRaw
+    ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency)
+    : null;
 
   const openOverride = (bid) => {
     const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Jeweller';
@@ -1108,9 +1121,23 @@ export default function ProjectBids() {
                               </button>
                             </div>
                           </div>
-                          <p className="shrink-0 text-[15px] font-extrabold text-ink tabular-nums leading-tight pl-1">
-                            {Number.isFinite(amount) ? formatCurrency(amount, moneyCurrency) : '—'}
-                          </p>
+                          <div className="shrink-0 text-right pl-1">
+                            <p className="text-[15px] font-extrabold text-ink tabular-nums leading-tight">
+                              {Number.isFinite(amount) ? formatCurrency(amount, moneyCurrency) : '—'}
+                            </p>
+                            {Number.isFinite(amount) ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openPriceDna(b);
+                                }}
+                                className="mt-1 text-[11px] font-semibold text-mid underline underline-offset-2 decoration-walnut/50 hover:text-ink hover:decoration-walnut"
+                              >
+                                Click to View Est. Total
+                              </button>
+                            ) : null}
+                          </div>
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
@@ -1311,6 +1338,18 @@ export default function ProjectBids() {
                               <p className="text-[14px] font-extrabold text-ink tabular-nums">
                                 {Number.isFinite(amount) ? formatCurrency(amount, moneyCurrency) : '—'}
                               </p>
+                              {Number.isFinite(amount) ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPriceDna(b);
+                                  }}
+                                  className="mt-1 text-[11px] font-semibold text-mid underline underline-offset-2 decoration-walnut/50 hover:text-ink hover:decoration-walnut"
+                                >
+                                  Click to View Est. Total
+                                </button>
+                              ) : null}
                             </td>
                             <td className="px-4 py-3 align-middle text-right">
                               {showTrack ? (
@@ -1443,6 +1482,32 @@ export default function ProjectBids() {
           </div>
         </div>
       ) : null}
+
+      <CustomerPriceBreakdownModal
+        open={priceDnaOpen}
+        onClose={() => {
+          setPriceDnaOpen(false);
+          setPriceDnaFor(null);
+        }}
+        tariff={priceDnaFor?.customerPricingTariff ?? priceDnaFor?.customer_pricing_tariff ?? null}
+        locations={priceDnaFor?.pricingLocations ?? priceDnaFor?.pricing_locations ?? null}
+        listingBudgetLabel={listingBudgetLabel}
+        agreedQuoteAmount={(() => {
+          const n = Number(priceDnaFor?.amount ?? priceDnaFor?.price ?? priceDnaFor?.bidAmount ?? NaN);
+          return Number.isFinite(n) ? n : null;
+        })()}
+        currency={moneyCurrency}
+        vendorName={(() => {
+          const joined = `${priceDnaFor?.vendor?.firstName ?? ''} ${priceDnaFor?.vendor?.lastName ?? ''}`.trim();
+          return (
+            String(priceDnaFor?.vendorName ?? priceDnaFor?.vendor_name ?? priceDnaFor?.vendor?.fullName ?? '').trim() ||
+            joined ||
+            'Jeweller'
+          );
+        })()}
+        title="Estimated Total"
+        subtitle="Everything you would pay for this jeweller’s bid: quote, Arviah services, taxes, duties, and shipping — based on your delivery address and their location."
+      />
     </div>
   );
 }

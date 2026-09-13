@@ -6,7 +6,7 @@ import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
@@ -476,7 +476,7 @@ export default function VendorProjects() {
             const project = row.project || {};
             const assignment = row.assignment || {};
             const projectId = row.id;
-            const moneyCurrency = projectPresentmentCurrency(project, regionCurrency);
+            const moneyCurrency = vendorPresentmentCurrency(project, regionCurrency);
             const badge = badgeForRow({ assignment, project, raw: row.raw });
             const agreedAmount =
               assignment?.agreedAmount ??

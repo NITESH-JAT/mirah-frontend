@@ -7,7 +7,7 @@ import SafeImage from '../../components/SafeImage';
 import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -441,7 +441,7 @@ export default function VendorExplore() {
                 const preferredDelivery = String(
                   pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
                 ).trim();
-                const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
+                const moneyCurrency = vendorPresentmentCurrency(x.project, regionCurrency);
                 return (
                   <div key={String(x.id)} className="bg-white rounded-2xl border border-pale overflow-hidden">
                     <div className="relative">

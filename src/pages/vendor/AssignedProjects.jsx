@@ -7,7 +7,7 @@ import SafeImage from '../../components/SafeImage';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -316,7 +316,7 @@ export default function VendorAssignedProjects() {
             {sorted.map((x) => {
               const agreedAmountNum = Number(x?.agreedAmount ?? NaN);
               const agreedDaysNum = Number(x?.agreedDaysToComplete ?? NaN);
-              const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
+              const moneyCurrency = vendorPresentmentCurrency(x.project, regionCurrency);
               return (
                 <div key={String(x.id)} className="bg-white rounded-2xl border border-pale overflow-hidden">
                   <div className="relative">

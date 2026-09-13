@@ -9,7 +9,7 @@ import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { SkeletonBar, VendorManageProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
@@ -378,7 +378,7 @@ export default function VendorManageProject() {
   const moneyCurrency =
     paymentDetails?.presentmentCurrency ||
     paymentDetails?.presentment_currency ||
-    projectPresentmentCurrency(project, regionCurrency);
+    vendorPresentmentCurrency(project, regionCurrency);
   const ProjectMoneyRow = (props) => <MoneyRow {...props} currency={moneyCurrency} />;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;

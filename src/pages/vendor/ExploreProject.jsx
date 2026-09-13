@@ -8,7 +8,7 @@ import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatCurrency } from '../../utils/formatMoney';
 import { useRegion } from '../../context/RegionProvider';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 
 function isCanceledRequest(err) {
@@ -313,7 +313,7 @@ export default function VendorExploreProject() {
   const [nowTs, setNowTs] = useState(Date.now());
 
   const project = details?.project ?? details?.data?.project ?? details?.item ?? details?.data ?? details ?? null;
-  const moneyCurrency = projectPresentmentCurrency(project, regionCurrency || 'INR');
+  const moneyCurrency = vendorPresentmentCurrency(project, regionCurrency || 'INR');
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? details?.bidWindow ?? details?.bid_window ?? null;
   const finishingAt =
     activeBidWindow?.finishingTimestamp ??

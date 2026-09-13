@@ -6,7 +6,7 @@ import { projectService } from '../../services/projectService';
 import SafeImage from '../../components/SafeImage';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { formatCurrency } from '../../utils/formatMoney';
-import { projectPresentmentCurrency } from '../../utils/projectMoney';
+import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 
 function isCanceledRequest(err) {
@@ -113,7 +113,22 @@ function normalizeParticipationItem(raw) {
       ? vendorContext?.latestBidEntry ?? vendorContext?.latest_bid_entry ?? vendorContext?.latestBid ?? vendorContext?.latest_bid ?? null
       : undefined;
   const status = String(root?.bidParticipationStatus ?? root?.bid_participation_status ?? (hasActive ? 'active' : 'ended')).toLowerCase();
-  const isActive = status === 'active';
+  const isWinnerSelected = Boolean(
+    (root?.winner ?? root?.winnerState ?? root?.winner_state)?.isWinnerSelected ??
+      (root?.winner ?? root?.winnerState ?? root?.winner_state)?.is_winner_selected,
+  );
+  const isWinnerVendor = Boolean(
+    (root?.winner ?? root?.winnerState ?? root?.winner_state)?.isWinnerVendor ??
+      (root?.winner ?? root?.winnerState ?? root?.winner_state)?.is_winner_vendor,
+  );
+  const projectFinished =
+    Boolean(project?.isFinished ?? project?.is_finished) ||
+    String(project?.status ?? '').toLowerCase() === 'finished' ||
+    String(project?.projectStatus ?? project?.project_status ?? '').toLowerCase() === 'completed';
+  const settlementDone = Boolean(project?.vendorSettlementDone ?? project?.vendor_settlement_done);
+  // Winners stay Active until customer completed + admin settlement (matches API).
+  const isActive =
+    status === 'active' || (isWinnerVendor && !(projectFinished && settlementDone));
   const id = project?.id ?? project?._id ?? root?.projectId ?? root?.id ?? null;
   const title = project?.title ?? project?.name ?? 'Project';
   const description = project?.description ?? '—';
@@ -133,9 +148,6 @@ function normalizeParticipationItem(raw) {
   );
   const bestBid = Number(stats?.lowestPrice ?? stats?.lowest_price ?? stats?.lowestBid ?? stats?.lowest_bid ?? NaN);
   const isCurrentlyWinning = Boolean(root?.isCurrentlyWinning ?? root?.is_currently_winning);
-  const winner = root?.winner ?? root?.winnerState ?? root?.winner_state ?? null;
-  const isWinnerSelected = Boolean(winner?.isWinnerSelected ?? winner?.is_winner_selected);
-  const isWinnerVendor = Boolean(winner?.isWinnerVendor ?? winner?.is_winner_vendor);
   return {
     id,
     title,
@@ -399,19 +411,23 @@ export default function VendorBids() {
                 const preferredDelivery = String(
                   pickMetaValue(x.project, 'preferredDeliveryTimeline', 'preferred_delivery_timeline') || '',
                 ).trim();
-                const moneyCurrency = projectPresentmentCurrency(x.project, regionCurrency);
+                const moneyCurrency = vendorPresentmentCurrency(x.project, regionCurrency);
+                const openHref =
+                  x.isActive && x.isWinnerVendor
+                    ? `/vendor/projects/${encodeURIComponent(String(x.id))}`
+                    : `/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`;
                 return (
                   <div
                     key={String(x.id)}
                     role="button"
                     tabIndex={0}
-                    onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`); }}
+                    onClick={() => navigate(openHref)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(openHref); }}
                     className="bg-white rounded-2xl border border-pale overflow-hidden cursor-pointer hover:border-pale transition-colors"
                   >
                     <div className="relative">
                       <Thumbnail src={x.thumbnailUrl} alt={x.title} />
-                      {tab === 'completed' && x.isWinnerSelected && x.isWinnerVendor ? (
+                      {x.isWinnerSelected && x.isWinnerVendor ? (
                         <span className="absolute left-3 top-3 px-3 py-1.5 rounded-full bg-green-50 border border-green-200 text-[11px] font-extrabold text-green-700">
                           Winner
                         </span>
@@ -454,10 +470,14 @@ export default function VendorBids() {
                       <div className="mt-4" onClick={(e) => e.stopPropagation()}>
                         <button
                           type="button"
-                          onClick={() => navigate(`/vendor/bids/${encodeURIComponent(String(x.id))}?tab=${encodeURIComponent(tab)}`)}
+                          onClick={() => navigate(openHref)}
                           className="w-full px-4 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-extrabold hover:opacity-90"
                         >
-                          {x.isActive ? 'Manage Bidding' : 'View Bids'}
+                          {x.isActive && x.isWinnerVendor
+                            ? 'Manage Project'
+                            : x.isActive
+                              ? 'Manage Bidding'
+                              : 'View Bids'}
                         </button>
                       </div>
                     </div>

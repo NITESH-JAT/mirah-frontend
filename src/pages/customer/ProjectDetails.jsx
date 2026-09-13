@@ -528,7 +528,7 @@ export default function ProjectDetails() {
   const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
 
   const project = details?.project ?? details?.data?.project ?? details?.projectDetails ?? details?.item ?? details?.data ?? details ?? null;
-  const moneyCurrency = projectPresentmentCurrency(project);
+  const moneyCurrency = projectPresentmentCurrency(details ?? project);
   const activeBidWindow = details?.activeBidWindow ?? details?.active_bid_window ?? null;
   const advancePayment = details?.advancePayment ?? details?.advance_payment ?? null;
   const finalPayment = details?.finalPayment ?? details?.final_payment ?? null;

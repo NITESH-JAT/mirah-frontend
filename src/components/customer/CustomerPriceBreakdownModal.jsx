@@ -14,7 +14,7 @@ function pickNum(obj, keys) {
 }
 
 function ModalRow({ label, value, muted, currency = 'INR' }) {
-  if (value == null || !Number.isFinite(Number(value))) return null;
+  if (value == null || value === '' || !Number.isFinite(Number(value))) return null;
   return (
     <div className={`flex items-start justify-between gap-3 py-2.5 ${muted ? 'text-muted' : ''}`}>
       <span className="text-[12px] font-semibold text-mid pr-2">{label}</span>
@@ -26,13 +26,25 @@ function ModalRow({ label, value, muted, currency = 'INR' }) {
 }
 
 /**
- * Explains payable amount build-up from agreed quote → platform services → GST → delivery.
+ * Explains payable amount build-up from jeweller quote → platform services → GST → delivery → duties.
  * Intentionally does not mirror vendor-facing settlement lines (nett to vendor/admin).
  */
-export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudgetLabel, agreedQuoteAmount, currency = 'INR' }) {
+export function CustomerPriceBreakdownModal({
+  open,
+  onClose,
+  tariff,
+  listingBudgetLabel,
+  agreedQuoteAmount,
+  currency = 'INR',
+  title = 'How your price is calculated',
+  subtitle = 'This is what you are asked to pay on Arviah: agreed quote, Arviah services, taxes, and delivery.',
+  locations = null,
+  vendorName = null,
+}) {
   if (!open || typeof document === 'undefined') return null;
 
   const J = pickNum(tariff, ['jewellerBidJ', 'jeweller_bid_j']);
+  const C = pickNum(tariff, ['commissionC', 'commission_c']);
   const Gj = pickNum(tariff, ['jewelleryGstGj', 'jewellery_gst_gj']);
   const Gc = pickNum(tariff, ['commissionGstGc', 'commission_gst_gc']);
   const D = pickNum(tariff, ['deliveryFeeD', 'delivery_fee_d']);
@@ -73,9 +85,23 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
     Math.abs(adv - quoteBasis / 2) < 1 &&
     Math.abs(adv - bundled / 2) >= 1;
 
+  const loc = locations && typeof locations === 'object' ? locations : null;
+  const deliveryLoc = loc?.customerDelivery || loc?.customer_delivery || null;
+  const jewellerLoc = loc?.jeweller || null;
+  const dutyLoc = loc?.dutyCountry || loc?.duty_country || null;
+
+  const formatPlace = (place) => {
+    if (!place || typeof place !== 'object') return null;
+    const parts = [place.city, place.state, place.country || place.countryCode || place.country_code]
+      .map((x) => String(x || '').trim())
+      .filter(Boolean);
+    return parts.length ? parts.join(', ') : null;
+  };
+
   const hasAny =
     [
       J,
+      C,
       Gj,
       Gc,
       D,
@@ -86,6 +112,9 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
       adv,
       fin,
       agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount)),
+      formatPlace(deliveryLoc),
+      formatPlace(jewellerLoc),
+      formatPlace(dutyLoc),
     ].some(Boolean);
   return createPortal(
     <div
@@ -103,11 +132,14 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
         <div className="px-5 py-4 border-b border-pale flex items-start justify-between gap-3 shrink-0">
           <div className="min-w-0">
             <p id="customer-price-breakdown-title" className="text-[14px] font-extrabold text-ink">
-              How your price is calculated
+              {title}
             </p>
-            <p className="mt-1 text-[12px] text-muted leading-relaxed">
-              This is what you are asked to pay on Arviah: agreed quote, Arviah services, taxes, and delivery.
-            </p>
+            <p className="mt-1 text-[12px] text-muted leading-relaxed">{subtitle}</p>
+            {vendorName ? (
+              <p className="mt-2 text-[12px] text-mid">
+                Jeweller:&nbsp;<span className="font-extrabold text-ink">{vendorName}</span>
+              </p>
+            ) : null}
           </div>
           <button
             type="button"
@@ -135,20 +167,48 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
                   </p>
                   {(agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount))) || J != null ? (
                     <p className="mt-2 text-[12px] text-mid leading-relaxed">
-                      After bids close, Arviah settles on an <strong className="text-ink">accepted quote</strong> for the scope of
-                      work. Totals below use that quote and Arviah&apos;s tariff.
+                      Totals below use this jeweller&apos;s quote and Arviah&apos;s tariff for your delivery country.
                     </p>
                   ) : null}
                 </div>
               ) : null}
 
-              <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">What goes into what you pay</p>
+              {(formatPlace(deliveryLoc) || formatPlace(jewellerLoc) || formatPlace(dutyLoc)) ? (
+                <div className="mb-4">
+                  <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">Locations used for this quote</p>
+                  <div className="rounded-xl border border-pale divide-y divide-pale px-3 py-1">
+                    {formatPlace(deliveryLoc) ? (
+                      <div className="flex items-start justify-between gap-3 py-2.5">
+                        <span className="text-[12px] font-semibold text-mid pr-2">Your delivery address</span>
+                        <span className="text-[12px] font-extrabold text-ink text-right">{formatPlace(deliveryLoc)}</span>
+                      </div>
+                    ) : null}
+                    {formatPlace(jewellerLoc) ? (
+                      <div className="flex items-start justify-between gap-3 py-2.5">
+                        <span className="text-[12px] font-semibold text-mid pr-2">
+                          Jeweller location{jewellerLoc?.isSeepz ? ' (SEEPZ)' : ''}
+                        </span>
+                        <span className="text-[12px] font-extrabold text-ink text-right">{formatPlace(jewellerLoc)}</span>
+                      </div>
+                    ) : null}
+                    {formatPlace(dutyLoc) ? (
+                      <div className="flex items-start justify-between gap-3 py-2.5">
+                        <span className="text-[12px] font-semibold text-mid pr-2">Duty / landed-cost country</span>
+                        <span className="text-[12px] font-extrabold text-ink text-right">{formatPlace(dutyLoc)}</span>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+
+              <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">Complete price DNA</p>
               <div className="rounded-xl border border-pale divide-y divide-pale px-3">
                 {(agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount))) ? (
-                  <ModalRow label="Accepted quote for this project (pre-tax)" value={Number(agreedQuoteAmount)} currency={currency} />
+                  <ModalRow label="Jeweller quote for this project (pre-tax)" value={Number(agreedQuoteAmount)} currency={currency} />
                 ) : (
-                  <ModalRow label="Accepted quote — jewellery portion (pre-tax)" value={J} currency={currency} />
+                  <ModalRow label="Jeweller quote — jewellery portion (pre-tax)" value={J} currency={currency} />
                 )}
+                <ModalRow label="Arviah marketplace & QC services (pre-tax)" value={C} muted currency={currency} />
                 <ModalRow
                   label={jewelleryTaxLabelText}
                   value={Gj}
@@ -166,7 +226,7 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
                   </p>
                 ) : null}
                 <ModalRow label="GST on Arviah services" value={Gc} muted currency={currency} />
-                <ModalRow label="Delivery" value={D} currency={currency} />
+                <ModalRow label="Domestic delivery" value={D} currency={currency} />
                 <ModalRow label="GST on delivery" value={deliveryGst} muted currency={currency} />
                 {importDuty != null && importDuty > 0 ? (
                   <ModalRow label="Import duty" value={importDuty} currency={currency} />
@@ -174,10 +234,15 @@ export function CustomerPriceBreakdownModal({ open, onClose, tariff, listingBudg
                 {intlShipping != null && intlShipping > 0 ? (
                   <ModalRow label="International shipping" value={intlShipping} currency={currency} />
                 ) : null}
+                {importDuty != null && importDuty <= 0 && intlShipping != null && intlShipping <= 0 ? (
+                  <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
+                    No cross-border import duty or international shipping is applied for this jeweller + delivery country pair.
+                  </p>
+                ) : null}
               </div>
 
               <div className="mt-4 rounded-xl border border-walnut/20 bg-blush/30 px-3 py-1">
-                <ModalRow label="Estimated total payable (including delivery & taxes)" value={bundled} currency={currency} />
+                <ModalRow label="Estimated total you pay (including delivery & taxes)" value={bundled} currency={currency} />
               </div>
 
               {(adv != null || fin != null) ? (
