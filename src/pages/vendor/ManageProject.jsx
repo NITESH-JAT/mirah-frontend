@@ -363,6 +363,8 @@ export default function VendorManageProject() {
   const [shipmentWorking, setShipmentWorking] = useState(false);
   const [shipmentPackageModalOpen, setShipmentPackageModalOpen] = useState(false);
   const [shipmentDiscardModalOpen, setShipmentDiscardModalOpen] = useState(false);
+  /** India dual-option: 'shiprocket' | 'self_ship' | null until user picks */
+  const [shippingMethod, setShippingMethod] = useState(null);
   const [shipmentPackageForm, setShipmentPackageForm] = useState({
     weightGrams: '',
     lengthCm: '',
@@ -732,6 +734,7 @@ export default function VendorManageProject() {
 
   const activeInbound = shipmentModel?.inbound ?? null;
   const inboundMode = String(shipmentModel?.inboundMode || shipmentModel?.inbound_mode || 'shiprocket').toLowerCase();
+  const isChoiceMode = inboundMode === 'choice';
   const isSelfShipMode = inboundMode === 'self_ship';
   const qcHubAddress = shipmentModel?.qcHubAddress ?? shipmentModel?.qc_hub_address ?? null;
   const isSelfShipInbound =
@@ -765,15 +768,15 @@ export default function VendorManageProject() {
   }, [currentOperationalStatusKey, qcEntries]);
 
   // After receive, hide Generate unless QC failed and a reship is needed.
+  // Flags come from the API (India + Shiprocket enabled → both; foreign / Shiprocket off → self-ship only).
   const canGenerateShipment = Boolean(
-    !isSelfShipMode &&
-      shipmentModel?.flags?.canGenerateInbound &&
-      (!inboundReceivedAtArviah || qcFailedPendingRework),
+    shipmentModel?.flags?.canGenerateInbound && (!inboundReceivedAtArviah || qcFailedPendingRework),
   );
   const canMarkSelfShipped = Boolean(
-    isSelfShipMode &&
-      shipmentModel?.flags?.canMarkSelfShipped &&
-      (!inboundReceivedAtArviah || qcFailedPendingRework),
+    shipmentModel?.flags?.canMarkSelfShipped && (!inboundReceivedAtArviah || qcFailedPendingRework),
+  );
+  const showQcHubBlock = Boolean(
+    qcHubAddress && canMarkSelfShipped && (!activeInbound || qcFailedPendingRework) && !inboundInFlight,
   );
   const canDownloadShipment = Boolean(activeInbound?.labelAvailable && inboundInFlight);
   const canDiscardShipment = Boolean(
@@ -786,6 +789,37 @@ export default function VendorManageProject() {
     canGenerateShipment ||
     canMarkSelfShipped ||
     canDownloadShipment;
+
+  const showMethodChooser = Boolean(
+    isChoiceMode && (canGenerateShipment || canMarkSelfShipped) && !inboundInFlight && !(inboundReceivedAtArviah && !qcFailedPendingRework),
+  );
+  const effectiveShippingMethod = showMethodChooser
+    ? shippingMethod
+    : canMarkSelfShipped && !canGenerateShipment
+      ? 'self_ship'
+      : canGenerateShipment && !canMarkSelfShipped
+        ? 'shiprocket'
+        : null;
+
+  useEffect(() => {
+    if (!showMethodChooser) return;
+    if (shippingMethod === 'shiprocket' && !canGenerateShipment) {
+      setShippingMethod(canMarkSelfShipped ? 'self_ship' : null);
+    } else if (shippingMethod === 'self_ship' && !canMarkSelfShipped) {
+      setShippingMethod(canGenerateShipment ? 'shiprocket' : null);
+    }
+  }, [showMethodChooser, shippingMethod, canGenerateShipment, canMarkSelfShipped]);
+
+  const qcAddressLines = useMemo(() => {
+    if (!qcHubAddress) return [];
+    return [
+      [qcHubAddress.addressLine1 || qcHubAddress.address_line1, qcHubAddress.addressLine2 || qcHubAddress.address_line2]
+        .filter(Boolean)
+        .join(', '),
+      [qcHubAddress.city, qcHubAddress.state, qcHubAddress.pincode].filter(Boolean).join(', '),
+      [qcHubAddress.country, qcHubAddress.phone ? `· ${qcHubAddress.phone}` : null].filter(Boolean).join(' '),
+    ].filter(Boolean);
+  }, [qcHubAddress]);
 
   const inboundPastTransitPhase = useMemo(() => {
     if (inboundReceivedAtArviah) return true;
@@ -1596,136 +1630,225 @@ export default function VendorManageProject() {
                 </div>
                 ) : null}
 
-                {/* Shipping & Status — blue promo card (only once in progress / shipping active) */}
+                {/* Shipping — method selector then one contextual action */}
                 {showShippingCard ? (
-                <div className="relative overflow-hidden rounded-2xl border border-sky-100 bg-gradient-to-br from-sky-50 via-sky-50/80 to-white">
-                  <div
-                    className="pointer-events-none absolute inset-y-0 right-0 w-[46%] opacity-50"
-                    aria-hidden
-                    style={{
-                      background:
-                        'radial-gradient(circle at 75% 35%, rgba(14,165,233,0.16), transparent 55%), radial-gradient(circle at 85% 75%, rgba(56,189,248,0.12), transparent 50%)',
-                    }}
-                  />
-                  <div className="relative grid grid-cols-1 gap-4 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-6 md:p-5">
-                    <div className="flex min-w-0 items-start gap-3.5">
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-sky-100 text-sky-700">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
-                          <path d="M15 18H9" />
-                          <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
-                          <circle cx="17" cy="18" r="2" />
-                          <circle cx="7" cy="18" r="2" />
-                        </svg>
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[15px] font-extrabold text-ink tracking-tight">Shipping &amp; Status</p>
-                        <p className="mt-1 text-[12px] leading-relaxed text-mid">
-                          {inboundReceivedAtArviah && !qcFailedPendingRework
-                            ? 'Jewellery has been received at Arviah QC. Quality checks will begin next.'
-                            : qcFailedPendingRework
-                              ? isSelfShipMode
-                                ? 'QC needs a reship. Send again to the Arviah QC address below, then tap I’ve shipped.'
-                                : 'QC needs a reship. Generate a new shipping tag to send jewellery back to Arviah QC.'
+                <div className="rounded-2xl border border-pale bg-white p-4 md:p-5">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-walnut/10 text-walnut">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2" />
+                        <path d="M15 18H9" />
+                        <path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14" />
+                        <circle cx="17" cy="18" r="2" />
+                        <circle cx="7" cy="18" r="2" />
+                      </svg>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-extrabold text-ink tracking-tight">Shipping</p>
+                      <p className="mt-1 text-[12px] leading-relaxed text-mid">
+                        {inboundReceivedAtArviah && !qcFailedPendingRework
+                          ? 'Jewellery has been received at Arviah QC. Quality checks will begin next.'
+                          : qcFailedPendingRework
+                            ? showMethodChooser
+                              ? 'QC needs a reship. Choose how you want to send jewellery back to Arviah QC.'
+                              : isSelfShipMode
+                                ? 'QC needs a reship. Send again to the Arviah QC address below, then confirm you’ve shipped.'
+                                : 'QC needs a reship. Generate a new shipping label to send jewellery back to Arviah QC.'
+                            : showMethodChooser
+                              ? 'Choose how you want to send your jewellery to Arviah QC.'
                               : isSelfShipMode
                                 ? 'Ship the jewellery to Arviah QC yourself using the address below. Inbound shipping is not charged on your payout.'
-                                : 'Generate a shipping tag to send jewellery to Arviah QC. The pickup address will be the same as configured in your Profile section.'}
-                        </p>
-                        {isSelfShipMode && qcHubAddress && (!activeInbound || qcFailedPendingRework) && !inboundInFlight ? (
-                          <div className="mt-3 rounded-xl border border-sky-100 bg-white/80 px-3 py-2.5 text-[12px] text-ink">
-                            <p className="text-[11px] font-extrabold uppercase tracking-wide text-sky-800">Ship to Arviah QC</p>
-                            <p className="mt-1 font-bold">
-                              {qcHubAddress.contactName || qcHubAddress.contact_name || qcHubAddress.hubName || 'Arviah QC'}
-                            </p>
-                            <p className="mt-0.5 text-mid whitespace-pre-line">
-                              {[
-                                [qcHubAddress.addressLine1 || qcHubAddress.address_line1, qcHubAddress.addressLine2 || qcHubAddress.address_line2]
-                                  .filter(Boolean)
-                                  .join(', '),
-                                [qcHubAddress.city, qcHubAddress.state, qcHubAddress.pincode].filter(Boolean).join(', '),
-                                qcHubAddress.country,
-                                qcHubAddress.phone ? `Phone: ${qcHubAddress.phone}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join('\n')}
-                            </p>
+                                : 'Generate a shipping label to send jewellery to Arviah QC. Pickup uses your registered profile address.'}
+                      </p>
+
+                      {showMethodChooser ? (
+                        <div
+                          className="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2"
+                          role="radiogroup"
+                          aria-label="Shipping method"
+                        >
+                          {canGenerateShipment ? (
                             <button
                               type="button"
-                              onClick={handleCopyQcAddress}
-                              className="mt-2 text-[11px] font-extrabold text-sky-700 underline"
+                              role="radio"
+                              aria-checked={shippingMethod === 'shiprocket'}
+                              onClick={() => setShippingMethod('shiprocket')}
+                              className={`relative flex h-full min-h-[7.5rem] flex-col rounded-xl border p-3.5 text-left transition-colors ${
+                                shippingMethod === 'shiprocket'
+                                  ? 'border-walnut bg-[#f7f1ea] shadow-sm'
+                                  : 'border-pale bg-cream/40 hover:border-soft'
+                              }`}
                             >
-                              Copy address
+                              <span className="flex items-start gap-2.5">
+                                <span
+                                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                    shippingMethod === 'shiprocket' ? 'border-walnut bg-walnut' : 'border-muted bg-white'
+                                  }`}
+                                  aria-hidden
+                                >
+                                  {shippingMethod === 'shiprocket' ? (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blush" />
+                                  ) : null}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block text-[13px] font-extrabold text-ink">Shiprocket Pickup</span>
+                                  <span className="mt-1 block text-[11px] leading-relaxed text-mid">
+                                    We’ll generate your shipping label and arrange pickup from your registered address.
+                                  </span>
+                                </span>
+                              </span>
                             </button>
-                          </div>
-                        ) : null}
-                        {inboundReceivedAtArviah && !qcFailedPendingRework ? (
-                          <p className="mt-2 text-[12px] text-mid">
-                            Status: <span className="font-extrabold text-ink">Received at Arviah QC</span>
-                            {activeInbound?.awbCode ? (
-                              <>
-                                {' '}
-                                · AWB <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
-                              </>
-                            ) : null}
-                          </p>
-                        ) : null}
-                        {isSelfShipInbound && inboundInFlight ? (
-                          <p className="mt-2 text-[12px] text-mid">
-                            Status:{' '}
-                            <span className="font-extrabold text-ink">
-                              {String(activeInbound.status || '').replace(/_/g, ' ') || 'in transit'}
-                            </span>
-                            {' · Awaiting Arviah QC receive'}
-                          </p>
-                        ) : null}
-                        {!inboundReceivedAtArviah && activeInbound?.awbCode ? (
-                          <p className="mt-2 text-[12px] text-mid">
-                            AWB: <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
-                            {activeInbound.trackingUrl ? (
-                              <>
-                                {' '}
-                                ·{' '}
-                                <a href={activeInbound.trackingUrl} target="_blank" rel="noreferrer" className="font-bold text-sky-700 underline">
-                                  Track
-                                </a>
-                              </>
-                            ) : null}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2">
+                          ) : null}
                           {canMarkSelfShipped ? (
+                            <button
+                              type="button"
+                              role="radio"
+                              aria-checked={shippingMethod === 'self_ship'}
+                              onClick={() => setShippingMethod('self_ship')}
+                              className={`relative flex h-full min-h-[7.5rem] flex-col rounded-xl border p-3.5 text-left transition-colors ${
+                                shippingMethod === 'self_ship'
+                                  ? 'border-walnut bg-[#f7f1ea] shadow-sm'
+                                  : 'border-pale bg-cream/40 hover:border-soft'
+                              }`}
+                            >
+                              <span className="flex items-start gap-2.5">
+                                <span
+                                  className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                                    shippingMethod === 'self_ship' ? 'border-walnut bg-walnut' : 'border-muted bg-white'
+                                  }`}
+                                  aria-hidden
+                                >
+                                  {shippingMethod === 'self_ship' ? (
+                                    <span className="h-1.5 w-1.5 rounded-full bg-blush" />
+                                  ) : null}
+                                </span>
+                                <span className="min-w-0">
+                                  <span className="block text-[13px] font-extrabold text-ink">I’ll arrange shipping</span>
+                                  <span className="mt-1 block text-[11px] leading-relaxed text-mid">
+                                    Use your preferred courier and send directly to Arviah QC.
+                                  </span>
+                                </span>
+                              </span>
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      {effectiveShippingMethod === 'shiprocket' && canGenerateShipment ? (
+                        <div className="mt-4 border-t border-pale pt-4">
+                          <div className="rounded-xl border border-pale bg-cream/50 px-3.5 py-3">
+                            <p className="text-[12px] font-extrabold text-ink">Shiprocket pickup</p>
+                            <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-muted">Pickup from</p>
+                            <p className="mt-0.5 text-[12px] text-ink">Your registered address</p>
+                            <p className="mt-3 text-[11px] leading-relaxed text-mid">
+                              Courier charges, if applicable, may be deducted from your payout.
+                            </p>
+                            <div className="mt-3 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={openShipmentPackageModal}
+                                disabled={shipmentWorking}
+                                className="inline-flex items-center gap-2 rounded-xl bg-walnut px-4 py-2.5 text-[12px] font-extrabold text-blush shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                  <polyline points="7 10 12 15 17 10" />
+                                  <line x1="12" x2="12" y1="15" y2="3" />
+                                </svg>
+                                {shipmentWorking ? 'Generating…' : 'Generate shipping label'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {effectiveShippingMethod === 'self_ship' && canMarkSelfShipped ? (
+                        <div className="mt-4 border-t border-pale pt-4">
+                          {showQcHubBlock ? (
+                            <div>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Ship to</p>
+                                <button
+                                  type="button"
+                                  onClick={handleCopyQcAddress}
+                                  className="text-[11px] font-extrabold text-walnut underline underline-offset-2"
+                                >
+                                  Copy address
+                                </button>
+                              </div>
+                              <div className="mt-2 rounded-xl border border-pale bg-cream/50 px-3.5 py-3 text-[12px] text-ink">
+                                <p className="font-extrabold">
+                                  {qcHubAddress.contactName ||
+                                    qcHubAddress.contact_name ||
+                                    qcHubAddress.hubName ||
+                                    'Arviah QC'}
+                                </p>
+                                <div className="mt-1 space-y-0.5 text-mid">
+                                  {qcAddressLines.map((line) => (
+                                    <p key={line}>{line}</p>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          ) : null}
+                          <div className="mt-3 flex justify-end">
                             <button
                               type="button"
                               onClick={handleMarkSelfShipped}
                               disabled={shipmentWorking}
-                              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl bg-walnut px-4 py-2.5 text-[12px] font-extrabold text-blush shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                              {shipmentWorking ? 'Saving…' : 'I’ve shipped'}
+                              {shipmentWorking ? 'Saving…' : 'I’ve shipped the item'}
                             </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {inboundReceivedAtArviah && !qcFailedPendingRework ? (
+                        <p className="mt-3 text-[12px] text-mid">
+                          Status: <span className="font-extrabold text-ink">Received at Arviah QC</span>
+                          {activeInbound?.awbCode ? (
+                            <>
+                              {' '}
+                              · AWB <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                            </>
                           ) : null}
-                          {canGenerateShipment ? (
-                            <button
-                              type="button"
-                              onClick={openShipmentPackageModal}
-                              disabled={shipmentWorking}
-                              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-[12px] font-extrabold text-white shadow-sm hover:bg-sky-600 disabled:cursor-not-allowed disabled:opacity-50"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" x2="12" y1="15" y2="3" />
-                              </svg>
-                              {shipmentWorking ? 'Generating…' : 'Generate & Download Shipping Tag'}
-                            </button>
+                        </p>
+                      ) : null}
+                      {isSelfShipInbound && inboundInFlight ? (
+                        <p className="mt-3 text-[12px] text-mid">
+                          Status:{' '}
+                          <span className="font-extrabold text-ink">
+                            {String(activeInbound.status || '').replace(/_/g, ' ') || 'in transit'}
+                          </span>
+                          {' · Awaiting Arviah QC receive'}
+                        </p>
+                      ) : null}
+                      {!inboundReceivedAtArviah && activeInbound?.awbCode ? (
+                        <p className="mt-3 text-[12px] text-mid">
+                          AWB: <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                          {activeInbound.trackingUrl ? (
+                            <>
+                              {' '}
+                              ·{' '}
+                              <a href={activeInbound.trackingUrl} target="_blank" rel="noreferrer" className="font-bold text-walnut underline">
+                                Track
+                              </a>
+                            </>
                           ) : null}
+                        </p>
+                      ) : null}
+
+                      {(canDownloadShipment || canDiscardShipment) ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
                           {canDownloadShipment ? (
                             <button
                               type="button"
                               onClick={handleDownloadShipmentLabel}
                               disabled={shipmentWorking}
-                              className="inline-flex items-center gap-2 rounded-xl border border-sky-200 bg-white px-4 py-2.5 text-[12px] font-extrabold text-sky-800 hover:bg-sky-50 disabled:opacity-50"
+                              className="inline-flex items-center gap-2 rounded-xl border border-pale bg-white px-4 py-2.5 text-[12px] font-extrabold text-ink hover:bg-cream disabled:opacity-50"
                             >
-                              Download Shipping Tag
+                              Download shipping label
                             </button>
                           ) : null}
                           {canDiscardShipment ? (
@@ -1735,46 +1858,16 @@ export default function VendorManageProject() {
                               disabled={shipmentWorking}
                               className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
-                              {isSelfShipInbound ? 'Undo shipped' : 'Discard Shipment'}
+                              {isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
                             </button>
                           ) : null}
                         </div>
-                        {inboundInFlight && inboundDiscardBlocked ? (
-                          <p className="mt-2 text-[11px] text-muted">
-                            Courier has picked up this shipment — discard is no longer available.
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="hidden min-w-[200px] items-center justify-center px-2 md:flex" aria-hidden>
-                      <div className="relative h-[120px] w-[160px]">
-                        <div className="absolute bottom-2 right-3 h-16 w-20 rounded-md border border-sky-200 bg-sky-100/80 shadow-sm" />
-                        <div className="absolute left-2 top-2 w-[118px] rotate-[-4deg] rounded-md border border-sky-100 bg-white p-2.5 shadow-md">
-                          <p className="text-[8px] font-black tracking-[0.12em] text-sky-600">SHIPPING</p>
-                          <div className="mt-2 space-y-1">
-                            <div className="h-1 w-16 rounded bg-zinc-200" />
-                            <div className="h-1 w-12 rounded bg-zinc-200" />
-                            <div className="h-1 w-14 rounded bg-zinc-200" />
-                          </div>
-                          <div className="mt-2.5 flex h-5 items-end gap-px">
-                            {Array.from({ length: 18 }).map((_, i) => (
-                              <span
-                                key={i}
-                                className="w-[3px] rounded-sm bg-ink"
-                                style={{ height: `${8 + ((i * 5) % 12)}px` }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                        <div className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-sky-500 text-white shadow">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                            <polyline points="7 10 12 15 17 10" />
-                            <line x1="12" x2="12" y1="15" y2="3" />
-                          </svg>
-                        </div>
-                      </div>
+                      ) : null}
+                      {inboundInFlight && inboundDiscardBlocked ? (
+                        <p className="mt-2 text-[11px] text-muted">
+                          Courier has picked up this shipment — discard is no longer available.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1977,7 +2070,7 @@ export default function VendorManageProject() {
                             disabled={shipmentWorking}
                             className="flex-1 px-4 py-2.5 rounded-xl text-[12px] font-extrabold bg-walnut text-blush hover:opacity-90 disabled:opacity-50"
                           >
-                            {shipmentWorking ? 'Generating…' : 'Generate Tag'}
+                            {shipmentWorking ? 'Generating…' : 'Generate shipping label'}
                           </button>
                         </div>
                       </div>
