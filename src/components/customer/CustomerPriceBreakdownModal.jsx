@@ -37,14 +37,13 @@ export function CustomerPriceBreakdownModal({
   agreedQuoteAmount,
   currency = 'INR',
   title = 'How your price is calculated',
-  subtitle = 'This is what you are asked to pay on Arviah: agreed quote, Arviah services, taxes, and delivery.',
+  subtitle = 'This is what you are asked to pay on Arviah: agreed quote, taxes, and delivery.',
   locations = null,
   vendorName = null,
 }) {
   if (!open || typeof document === 'undefined') return null;
 
   const J = pickNum(tariff, ['jewellerBidJ', 'jeweller_bid_j']);
-  const C = pickNum(tariff, ['commissionC', 'commission_c']);
   const Gj = pickNum(tariff, ['jewelleryGstGj', 'jewellery_gst_gj']);
   const Gc = pickNum(tariff, ['commissionGstGc', 'commission_gst_gc']);
   const D = pickNum(tariff, ['deliveryFeeD', 'delivery_fee_d']);
@@ -101,7 +100,6 @@ export function CustomerPriceBreakdownModal({
   const hasAny =
     [
       J,
-      C,
       Gj,
       Gc,
       D,
@@ -206,9 +204,8 @@ export function CustomerPriceBreakdownModal({
                 {(agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount))) ? (
                   <ModalRow label="Jeweller quote for this project (pre-tax)" value={Number(agreedQuoteAmount)} currency={currency} />
                 ) : (
-                  <ModalRow label="Jeweller quote — jewellery portion (pre-tax)" value={J} currency={currency} />
+                  <ModalRow label="Jeweller quote for this project (pre-tax)" value={J} currency={currency} />
                 )}
-                <ModalRow label="Arviah marketplace & QC services (pre-tax)" value={C} muted currency={currency} />
                 <ModalRow
                   label={jewelleryTaxLabelText}
                   value={Gj}
@@ -218,7 +215,7 @@ export function CustomerPriceBreakdownModal({
                 {jewelleryGstWaived ? (
                   <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
                     Jewellery GST is not charged when a foreign customer’s order is filled by an Indian SEEPZ
-                    manufacturer. Commission and delivery GST still apply.
+                    manufacturer. GST on Arviah services and delivery still apply.
                   </p>
                 ) : jewelleryTaxKind === 'local_tax' ? (
                   <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">

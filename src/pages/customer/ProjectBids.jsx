@@ -1506,7 +1506,7 @@ export default function ProjectBids() {
           );
         })()}
         title="Estimated Total"
-        subtitle="Everything you would pay for this jeweller’s bid: quote, Arviah services, taxes, duties, and shipping — based on your delivery address and their location."
+        subtitle="Everything you would pay for this jeweller’s bid: quote, taxes, duties, and shipping — based on your delivery address and their location."
       />
     </div>
   );
