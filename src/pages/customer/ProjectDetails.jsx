@@ -12,6 +12,7 @@ import { formatCurrency } from '../../utils/formatMoney';
 import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
+import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -377,62 +378,6 @@ function assignmentDaysOf(a) {
   );
 }
 
-function loadRazorpay() {
-  return new Promise((resolve) => {
-    try {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement('script');
-      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-      script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    } catch {
-      resolve(false);
-    }
-  });
-}
-
-function parseProjectPaymentOrder(raw, envKeyId) {
-  // Backend may return { keyId, order: { id, amount, currency, ... }, ledgerId }
-  // or older/alternate shapes (direct order object, nested data, etc.)
-  const root = raw ?? {};
-  const data = root?.data ?? root?.result ?? root ?? {};
-
-  const orderLike =
-    data?.order ??
-    data?.razorpayOrder ??
-    data?.razorpay_order ??
-    (data?.entity === 'order' ? data : null) ??
-    null;
-
-  const orderId =
-    orderLike?.id ??
-    orderLike?.orderId ??
-    orderLike?.razorpayOrderId ??
-    orderLike?.razorpay_order_id ??
-    null;
-
-  const amount =
-    orderLike?.amount ??
-    data?.amount ??
-    data?.amountInPaise ??
-    data?.amount_in_paise ??
-    data?.amountInRupees ??
-    null;
-
-  const currency = orderLike?.currency ?? data?.currency ?? 'INR';
-
-  const keyId =
-    data?.keyId ??
-    data?.key_id ??
-    data?.key ??
-    envKeyId ??
-    null;
-
-  return { orderId, amount, currency, keyId, raw: data };
-}
-
 function SkeletonBar({ className = '' }) {
   return <div className={`animate-pulse rounded-md bg-pale ${className}`} aria-hidden />;
 }
@@ -514,8 +459,6 @@ export default function ProjectDetails() {
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [details, setDetails] = useState(null);
-  const [payLoading, setPayLoading] = useState(false);
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
   const [completeLoading, setCompleteLoading] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
@@ -903,12 +846,17 @@ export default function ProjectDetails() {
     return Math.abs(adv - halfQuote) < 1 && Math.abs(adv - halfBundled) >= 1;
   }, [advancePayment?.suggestedAmount, assignedAmount, customerPricingTariff]);
 
-  const listingBudgetDisplay = useMemo(() => {
+  const listingBudgetPerPieceDisplay = useMemo(() => {
     if (!budgetPerPieceRaw) return null;
     const n = Number(budgetPerPieceRaw);
     if (Number.isFinite(n)) return formatCurrency(n, moneyCurrency);
     return budgetPerPieceRaw;
   }, [budgetPerPieceRaw, moneyCurrency]);
+
+  const listingOrderBudgetDisplay = useMemo(() => {
+    const order = estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw);
+    return order != null ? formatCurrency(order, moneyCurrency) : null;
+  }, [budgetPerPieceRaw, moneyCurrency, quantityRequiredRaw]);
 
   const remainingMetaRows = useMemo(() => {
     return buildCustomerProjectDetailRows(project, {
@@ -1035,65 +983,11 @@ export default function ProjectDetails() {
     [location.state, project?.title],
   );
 
-  const pay = async (type) => {
+  const pay = (type) => {
     if (!projectId) return;
-    if (payLoading) return;
-    setPayLoading(true);
-    try {
-      const ok = await loadRazorpay();
-      if (!ok) throw new Error('Razorpay failed to load');
-
-      const raw = await projectService.createPaymentOrder(projectId, { type });
-      const envKeyId =
-        import.meta.env?.VITE_RAZORPAY_KEY_ID ??
-        import.meta.env?.VITE_RAZORPAY_KEY ??
-        null;
-      const parsed = parseProjectPaymentOrder(raw, envKeyId);
-
-      if (!parsed.orderId) throw new Error('Payment init failed (missing Razorpay orderId)');
-      if (!parsed.keyId) throw new Error('Payment init failed (missing Razorpay keyId)');
-
-      let handlerInvoked = false;
-      const options = {
-        key: parsed.keyId,
-        order_id: parsed.orderId,
-        currency: parsed.currency || 'INR',
-        name: 'Arviah',
-        description: fullUpfront || type === 'advance' ? 'Payment' : 'Final payment',
-        modal: {
-          ondismiss: () => {
-            if (handlerInvoked) return;
-            addToast('Payment not completed.', 'error');
-          },
-        },
-        handler: async (response) => {
-          handlerInvoked = true;
-          try {
-            setVerifyingPayment(true);
-            await projectService.verifyPayment(projectId, {
-              type,
-              razorpay_order_id: response?.razorpay_order_id,
-              razorpay_payment_id: response?.razorpay_payment_id,
-              razorpay_signature: response?.razorpay_signature,
-            });
-            addToast('Payment successful', 'success');
-            await load();
-          } catch (e) {
-            addToast(e?.message || 'Payment verification failed', 'error');
-          } finally {
-            setVerifyingPayment(false);
-          }
-        },
-        theme: { color: '#6B5545' },
-      };
-
-      const rz = new window.Razorpay(options);
-      rz.open();
-    } catch (e) {
-      addToast(e?.message || 'Payment failed', 'error');
-    } finally {
-      setPayLoading(false);
-    }
+    navigate(`/customer/projects/${projectId}/checkout?type=${encodeURIComponent(type)}`, {
+      state: navStateForProject(),
+    });
   };
 
   const amountRange = project?.amountRange ?? project?.amount_range ?? null;
@@ -1171,34 +1065,11 @@ export default function ProjectDetails() {
         open={priceBreakdownOpen}
         onClose={() => setPriceBreakdownOpen(false)}
         tariff={customerPricingTariff}
-        listingBudgetLabel={listingBudgetDisplay}
+        listingBudgetLabel={listingBudgetPerPieceDisplay}
+        listingOrderBudgetLabel={listingOrderBudgetDisplay}
         agreedQuoteAmount={assignedAmount}
         currency={moneyCurrency}
       />
-
-      {verifyingPayment ? (
-        <div className="fixed inset-0 z-[200] bg-ink/25 backdrop-blur-[1px] flex items-center justify-center px-6">
-          <div className="w-full max-w-sm rounded-3xl border border-pale bg-white p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-walnut/10 border border-walnut/15 flex items-center justify-center text-ink shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-[13px] font-extrabold text-ink">Verifying payment…</p>
-                  <svg className="animate-spin text-ink" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                    <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
-                    <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-                  </svg>
-                </div>
-                <p className="mt-1 text-[12px] text-muted">Please wait, do not close the app.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <button
@@ -1261,19 +1132,19 @@ export default function ProjectDetails() {
                   <div className="flex items-start justify-between gap-3 text-[12px]">
                     <span className="text-muted font-semibold">Budget per piece</span>
                     <span className="text-ink font-extrabold text-right">
-                      {budgetPerPieceRaw
-                        ? (() => {
-                            const n = Number(budgetPerPieceRaw);
-                            if (Number.isNaN(n)) return budgetPerPieceRaw;
-                            return formatCurrency(n, moneyCurrency);
-                          })()
-                        : '—'}
+                      {listingBudgetPerPieceDisplay || '—'}
                     </span>
                   </div>
                   <div className="flex items-start justify-between gap-3 text-[12px]">
                     <span className="text-muted font-semibold">Quantity required</span>
                     <span className="text-ink font-extrabold text-right">{quantityRequiredRaw || '—'}</span>
                   </div>
+                  {listingOrderBudgetDisplay ? (
+                    <div className="flex items-start justify-between gap-3 text-[12px]">
+                      <span className="text-muted font-semibold">Order budget</span>
+                      <span className="text-ink font-extrabold text-right">{listingOrderBudgetDisplay}</span>
+                    </div>
+                  ) : null}
                   <div className="flex items-start justify-between gap-3 text-[12px]">
                     <span className="text-muted font-semibold">Expected delivery</span>
                     <span className="text-ink font-extrabold text-right">
@@ -1438,7 +1309,12 @@ export default function ProjectDetails() {
                         {assignedAmount != null || assignedDays != null ? (
                           <>
                             <div className="flex items-start justify-between gap-3">
-                              <span className="text-muted font-semibold">Agreed amount</span>
+                              <span className="text-muted font-semibold">
+                                Agreed amount
+                                {quantityPiecesLabel(quantityRequiredRaw)
+                                  ? ` (entire order — ${quantityPiecesLabel(quantityRequiredRaw)})`
+                                  : ' (entire order)'}
+                              </span>
                               <span className="text-ink font-extrabold text-right">
                                 {assignedAmount != null && Number.isFinite(Number(assignedAmount))
                                   ? formatCurrency(assignedAmount, moneyCurrency)
@@ -1489,10 +1365,9 @@ export default function ProjectDetails() {
                             <button
                               type="button"
                               onClick={() => pay('advance')}
-                              disabled={payLoading}
-                              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold"
                             >
-                              {payLoading ? 'Processing…' : fullUpfront ? 'Pay' : 'Pay Advance'}
+                              {fullUpfront ? 'Pay' : 'Pay Advance'}
                             </button>
                           </div>
                         </>
@@ -1518,10 +1393,9 @@ export default function ProjectDetails() {
                           <button
                             type="button"
                             onClick={() => pay('final')}
-                            disabled={payLoading}
-                            className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-5 py-2.5 rounded-xl bg-walnut text-blush text-[12px] font-bold"
                           >
-                            {payLoading ? 'Processing…' : 'Pay Final'}
+                            Pay Final
                           </button>
                         </div>
                       ) : null}

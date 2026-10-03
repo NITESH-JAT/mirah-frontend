@@ -375,6 +375,35 @@ export const projectService = {
     return unwrap(res);
   },
 
+  getCheckout: async (projectId, { type } = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.get(`/api/user/projects/${projectId}/payments/checkout`, {
+      params: { type },
+      signal,
+    });
+    return unwrap(res);
+  },
+
+  initiateBankTransfer: async (projectId, { type, transferKind } = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(
+      `/api/user/projects/${projectId}/payments/bank-transfer/initiate`,
+      { type, transferKind },
+      { signal },
+    );
+    return unwrap(res);
+  },
+
+  reportBankTransfer: async (projectId, payload = {}, { signal } = {}) => {
+    if (!projectId) return null;
+    const res = await api.post(
+      `/api/user/projects/${projectId}/payments/bank-transfer/report`,
+      payload,
+      { signal },
+    );
+    return unwrap(res);
+  },
+
   downloadInvoice: async (projectId, { title } = {}) => {
     if (!projectId) return;
     const res = await api.get(`/api/user/projects/${projectId}/invoice`, { responseType: 'blob' });

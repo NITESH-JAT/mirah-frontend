@@ -10,6 +10,7 @@ import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../component
 import { formatCurrency } from '../../utils/formatMoney';
 import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
+import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -576,6 +577,19 @@ export default function VendorBidsView() {
               Quantity required:{' '}
               <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
             </p>
+            {estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw) != null ? (
+              <p>
+                Order budget:{' '}
+                <span className="font-extrabold text-ink">
+                  {formatCurrency(estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw), moneyCurrency)}
+                </span>
+              </p>
+            ) : null}
+            <p className="text-[11px] text-muted leading-relaxed">
+              Your bid is for the entire order
+              {quantityPiecesLabel(quantityRequiredRaw) ? ` (${quantityPiecesLabel(quantityRequiredRaw)})` : ''}
+              , not per piece.
+            </p>
             <p>
               Expected delivery:{' '}
               <span className="font-extrabold text-ink">
@@ -777,7 +791,7 @@ export default function VendorBidsView() {
                         <tr className="border-b border-pale bg-walnut/[0.07]">
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
                         </tr>
                       </thead>
@@ -830,7 +844,7 @@ export default function VendorBidsView() {
                         <tr className="border-b border-pale bg-walnut/[0.07]">
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
                         </tr>
                       </thead>
@@ -986,7 +1000,7 @@ export default function VendorBidsView() {
                           <tr className="border-b border-pale bg-walnut/[0.07]">
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
                           </tr>
                         </thead>

@@ -29,7 +29,7 @@ export function BidsTableSkeleton({ columns = 3 }) {
               <tr className="border-b border-pale bg-walnut/[0.07]">
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Bid amount</th>
+                <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Order bid</th>
                 {colCount === 4 ? (
                   <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Actions</th>
                 ) : null}

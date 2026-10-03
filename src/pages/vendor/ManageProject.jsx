@@ -13,6 +13,7 @@ import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
+import { quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 
 function pickBreakdownNum(breakdown, ...keys) {
   if (!breakdown || typeof breakdown !== 'object') return null;
@@ -1173,7 +1174,9 @@ export default function VendorManageProject() {
               </span>
             </p>
             <p>
-              Agreed amount:{' '}
+              Agreed amount (entire order
+              {quantityPiecesLabel(quantityRequiredRaw) ? ` — ${quantityPiecesLabel(quantityRequiredRaw)}` : ''}
+              ):{' '}
               <span className="font-extrabold text-ink">
                 {agreedPriceRaw
                   ? (() => {
@@ -1460,7 +1463,6 @@ export default function VendorManageProject() {
                       })();
                       const inboundLegCount = shippingTimeline.filter((r) => r.kind === 'inbound').length;
                       const returnLegCount = shippingTimeline.filter((r) => r.kind === 'return').length;
-                      const commissionGst = pickBreakdownNum(b, 'commissionGstGc', 'commission_gst_gc') ?? 0;
                       const delivery = pickBreakdownNum(b, 'deliveryFeeD', 'delivery_fee_d') ?? 0;
                       const deliveryGst = pickBreakdownNum(b, 'logisticsGstOnDelivery', 'logistics_gst_on_delivery') ?? 0;
                       const importDuty = pickBreakdownNum(b, 'importDutyInr', 'import_duty_inr') ?? 0;
@@ -1485,7 +1487,7 @@ export default function VendorManageProject() {
                         <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                           <div className="rounded-2xl border border-pale bg-cream/40 px-3.5 py-3 space-y-2.5">
                             <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted">Your settlement</p>
-                            <ProjectMoneyRow label="Your bid" value={bid} />
+                            <ProjectMoneyRow label="Your order bid" value={bid} />
                             {taxWaived ? (
                               <div className="flex items-start justify-between gap-3">
                                 <p className="text-[12px] font-semibold text-mid">{taxLabel}</p>
@@ -1554,7 +1556,6 @@ export default function VendorManageProject() {
                             <p className="text-[11px] text-muted leading-relaxed">
                               These lines are billed to the customer. Only jewellery tax above is passed through to you.
                             </p>
-                            {commissionGst > 0 ? <ProjectMoneyRow label="GST on Arviah commission" value={commissionGst} /> : null}
                             {delivery > 0 ? <ProjectMoneyRow label="Delivery" value={delivery} /> : null}
                             {deliveryGst > 0 ? <ProjectMoneyRow label="GST on delivery" value={deliveryGst} /> : null}
                             {importDuty > 0 ? <ProjectMoneyRow label="Import duty" value={importDuty} /> : null}

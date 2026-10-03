@@ -10,6 +10,11 @@ import { formatCurrency } from '../../utils/formatMoney';
 import { useRegion } from '../../context/RegionProvider';
 import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
+import {
+  bidAmountFieldLabel,
+  estimateOrderBudget,
+  quantityPiecesLabel,
+} from '../../utils/vendorBidOrderCopy';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -516,7 +521,7 @@ export default function VendorExploreProject() {
     const price = Number(bidForm.price);
     const daysToComplete = Number(bidForm.daysToComplete);
     if (!Number.isFinite(price) || price <= 0) {
-      addToast('Enter a valid bid amount.', 'error');
+      addToast('Enter a valid order bid amount.', 'error');
       return;
     }
     if (!Number.isFinite(daysToComplete) || daysToComplete <= 0) {
@@ -552,6 +557,19 @@ export default function VendorExploreProject() {
             <p>
               Quantity required:{' '}
               <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
+            </p>
+            {estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw) != null ? (
+              <p>
+                Order budget:{' '}
+                <span className="font-extrabold text-ink">
+                  {formatCurrency(estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw), moneyCurrency)}
+                </span>
+              </p>
+            ) : null}
+            <p className="text-[11px] text-muted leading-relaxed">
+              Your bid is for the entire order
+              {quantityPiecesLabel(quantityRequiredRaw) ? ` (${quantityPiecesLabel(quantityRequiredRaw)})` : ''}
+              , not per piece.
             </p>
             <p>
               Expected delivery:{' '}
@@ -759,7 +777,7 @@ export default function VendorExploreProject() {
                           <tr className="border-b border-pale bg-walnut/[0.07]">
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -856,7 +874,7 @@ export default function VendorExploreProject() {
                             <tr className="border-b border-pale bg-walnut/[0.07]">
                               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                               <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                              <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -944,6 +962,13 @@ export default function VendorExploreProject() {
               <div className="min-w-0">
                 <p className="text-[14px] font-extrabold text-ink">Place Your Bid</p>
                 <p className="mt-1 text-[12px] text-muted truncate">{project?.title ?? 'Project'}</p>
+                <p className="mt-1 text-[11px] text-mid leading-relaxed">
+                  Enter your total for the entire order
+                  {quantityPiecesLabel(quantityRequiredRaw)
+                    ? ` (${quantityPiecesLabel(quantityRequiredRaw)})`
+                    : ''}
+                  — not a per-piece price.
+                </p>
               </div>
               <button
                 type="button"
@@ -963,18 +988,47 @@ export default function VendorExploreProject() {
               <div className="grid grid-cols-1 gap-3">
                 <div>
                   <p className="text-[11px] font-extrabold uppercase tracking-wide text-muted mb-1">
-                    Bid amount ({moneyCurrency}) <span className="text-walnut" aria-hidden>*</span>
+                    {bidAmountFieldLabel(quantityRequiredRaw, moneyCurrency)}{' '}
+                    <span className="text-walnut" aria-hidden>*</span>
                   </p>
                   <input
                     type="number"
                     value={bidForm.price}
                     onChange={(e) => setBidForm((p) => ({ ...(p || {}), price: e.target.value }))}
-                    placeholder={`Budget is ${formatCurrency(bidPlaceholderBudgetAmount(budgetPerPieceRaw), moneyCurrency)}`}
+                    placeholder={
+                      estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw) != null
+                        ? `Order budget ${formatCurrency(
+                            estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw),
+                            moneyCurrency,
+                          )}`
+                        : budgetPerPieceRaw
+                          ? `Budget per piece ${formatCurrency(
+                              bidPlaceholderBudgetAmount(budgetPerPieceRaw),
+                              moneyCurrency,
+                            )}`
+                          : 'Enter total order amount'
+                    }
                     inputMode="numeric"
                     min="0"
                     step="1"
                     className="w-full px-4 py-3 rounded-2xl border border-pale bg-white text-[13px] font-semibold text-ink placeholder:text-muted focus:outline-none focus:border-walnut"
                   />
+                  <p className="mt-1.5 text-[11px] text-muted leading-relaxed">
+                    Customer listed{' '}
+                    {budgetPerPieceRaw
+                      ? `${formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency)} per piece`
+                      : 'a per-piece budget'}
+                    {quantityPiecesLabel(quantityRequiredRaw)
+                      ? ` × ${quantityPiecesLabel(quantityRequiredRaw)}`
+                      : ''}
+                    {estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw) != null
+                      ? ` (about ${formatCurrency(
+                          estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw),
+                          moneyCurrency,
+                        )} for the order)`
+                      : ''}
+                    . Your bid amount must cover all pieces.
+                  </p>
                   {Number(bidForm.price) > 0 ? (
                     <div className="mt-2 rounded-2xl border border-pale bg-cream/40 px-4 py-3">
                       {bidPreview.loading && bidPreview.commission == null ? (

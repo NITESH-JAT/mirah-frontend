@@ -27,6 +27,7 @@ const Orders = lazy(() => import('../pages/customer/Orders'));
 const OrderSuccess = lazy(() => import('../pages/customer/OrderSuccess'));
 const Projects = lazy(() => import('../pages/customer/Projects'));
 const ProjectDetails = lazy(() => import('../pages/customer/ProjectDetails'));
+const ProjectCheckout = lazy(() => import('../pages/customer/ProjectCheckout'));
 const ProjectBids = lazy(() => import('../pages/customer/ProjectBids'));
 const VendorProfile = lazy(() => import('../pages/customer/VendorProfile'));
 const ProductDetails = lazy(() => import('../pages/customer/ProductDetails'));
@@ -147,6 +148,10 @@ export const routes = [
       {
         path: 'projects/:id',
         element: <ProjectDetails />,
+      },
+      {
+        path: 'projects/:id/checkout',
+        element: <ProjectCheckout />,
       },
       {
         path: 'projects/:id/bids',

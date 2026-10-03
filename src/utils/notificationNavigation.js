@@ -15,6 +15,7 @@ export const NOTIFICATION_CUSTOMER_TEMPLATES = [
   '/customer/faq',
   '/customer/projects',
   '/customer/projects/:id',
+  '/customer/projects/:id/checkout',
   '/customer/projects/:id/bids',
   '/customer/vendors/:vendorId',
   '/customer/messages',
@@ -36,7 +37,7 @@ export const NOTIFICATION_VENDOR_TEMPLATES = [
   '/vendor/messages',
 ];
 
-const EXTRA_QUERY_KEYS = new Set(['tab', 'filter', 'view']);
+const EXTRA_QUERY_KEYS = new Set(['tab', 'filter', 'view', 'type']);
 
 function normalizePathname(p) {
   let x = String(p || '').trim();

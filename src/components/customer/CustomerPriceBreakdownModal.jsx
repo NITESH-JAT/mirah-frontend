@@ -13,6 +13,20 @@ function pickNum(obj, keys) {
   return null;
 }
 
+function roundMoney(n) {
+  return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
+}
+
+function countryCodeFromPlace(place) {
+  if (!place || typeof place !== 'object') return null;
+  const raw = String(place.countryCode || place.country_code || place.country || '').trim();
+  if (!raw) return null;
+  if (/^[A-Za-z]{2}$/.test(raw)) return raw.toUpperCase();
+  const lower = raw.toLowerCase();
+  if (lower === 'india') return 'IN';
+  return null;
+}
+
 function ModalRow({ label, value, muted, currency = 'INR' }) {
   if (value == null || value === '' || !Number.isFinite(Number(value))) return null;
   return (
@@ -26,26 +40,30 @@ function ModalRow({ label, value, muted, currency = 'INR' }) {
 }
 
 /**
- * Explains payable amount build-up from jeweller quote → platform services → GST → delivery → duties.
- * Intentionally does not mirror vendor-facing settlement lines (nett to vendor/admin).
+ * Consumer price DNA:
+ * - Jeweller quote portion (J − C) + Marketplace & QC (C)
+ * - Single GST line = 3% of (quote + markup) for India; ₹0 international
+ * - No GST on commission
+ * - Domestic delivery lines for India; import/intl for international
  */
 export function CustomerPriceBreakdownModal({
   open,
   onClose,
   tariff,
   listingBudgetLabel,
+  listingOrderBudgetLabel = null,
   agreedQuoteAmount,
   currency = 'INR',
   title = 'How your price is calculated',
-  subtitle = 'This is what you are asked to pay on Arviah: agreed quote, taxes, and delivery.',
+  subtitle = 'Full project pricing — what you pay on Arviah for the entire order: agreed quote, taxes, and delivery.',
   locations = null,
   vendorName = null,
 }) {
   if (!open || typeof document === 'undefined') return null;
 
   const J = pickNum(tariff, ['jewellerBidJ', 'jeweller_bid_j']);
+  const C = pickNum(tariff, ['commissionC', 'commission_c']);
   const Gj = pickNum(tariff, ['jewelleryGstGj', 'jewellery_gst_gj']);
-  const Gc = pickNum(tariff, ['commissionGstGc', 'commission_gst_gc']);
   const D = pickNum(tariff, ['deliveryFeeD', 'delivery_fee_d']);
   const deliveryGst = pickNum(tariff, ['logisticsGstOnDelivery', 'logistics_gst_on_delivery']);
   const importDuty = pickNum(tariff, ['importDutyInr', 'import_duty_inr']);
@@ -56,25 +74,22 @@ export function CustomerPriceBreakdownModal({
   const jewelleryTaxKind =
     tariff?.jewelleryTaxKind ||
     tariff?.jewellery_tax_kind ||
-    (tariff?.jewelleryGstWaived === true ||
-    tariff?.jewellery_gst_waived === true ||
-    (Gj === 0 &&
-      (tariff?.jewelleryGstWaiverReason === 'seepz_export' ||
-        tariff?.jewellery_gst_waiver_reason === 'seepz_export'))
-      ? 'waived_seepz'
-      : null);
-  const jewelleryGstWaived = jewelleryTaxKind === 'waived_seepz';
-  const jewelleryTaxLabelText =
-    jewelleryTaxKind === 'local_tax'
-      ? 'Local tax on jewellery'
-      : jewelleryGstWaived
-        ? 'GST on jewellery (waived — SEEPZ export)'
-        : 'GST on jewellery';
-  const fullUpfront =
-    bundled != null && adv != null && (fin == null || fin <= 0) && Math.abs(Number(adv) - Number(bundled)) < 1.05;
+    (tariff?.jewelleryGstWaived === true || tariff?.jewellery_gst_waived === true ? 'waived_seepz' : null);
+  const jewelleryGstWaived =
+    jewelleryTaxKind === 'waived_seepz' ||
+    tariff?.jewelleryGstWaived === true ||
+    tariff?.jewellery_gst_waived === true;
 
   const quoteBasis =
     agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount)) ? Number(agreedQuoteAmount) : J;
+  const commission = C != null && Number.isFinite(Number(C)) ? Number(C) : null;
+  const jewellerPortion =
+    quoteBasis != null && commission != null
+      ? roundMoney(Math.max(0, Number(quoteBasis) - commission))
+      : quoteBasis;
+
+  const fullUpfront =
+    bundled != null && adv != null && (fin == null || fin <= 0) && Math.abs(Number(adv) - Number(bundled)) < 1.05;
   const advanceIsPreTaxHalf =
     quoteBasis != null &&
     bundled != null &&
@@ -97,23 +112,32 @@ export function CustomerPriceBreakdownModal({
     return parts.length ? parts.join(', ') : null;
   };
 
-  const hasAny =
-    [
-      J,
-      Gj,
-      Gc,
-      D,
-      deliveryGst,
-      importDuty,
-      intlShipping,
-      bundled,
-      adv,
-      fin,
-      agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount)),
-      formatPlace(deliveryLoc),
-      formatPlace(jewellerLoc),
-      formatPlace(dutyLoc),
-    ].some(Boolean);
+  const deliveryCountry =
+    countryCodeFromPlace(deliveryLoc) ||
+    countryCodeFromPlace(dutyLoc) ||
+    String(tariff?.deliveryCountryCode || tariff?.delivery_country_code || '').trim().toUpperCase() ||
+    null;
+  const hasCrossBorderCharges =
+    (importDuty != null && importDuty > 0) || (intlShipping != null && intlShipping > 0);
+  const isInternationalCustomer =
+    (deliveryCountry && deliveryCountry !== 'IN') || (!deliveryCountry && hasCrossBorderCharges);
+
+  const hasAny = [
+    jewellerPortion,
+    commission,
+    Gj,
+    D,
+    deliveryGst,
+    importDuty,
+    intlShipping,
+    bundled,
+    adv,
+    fin,
+    formatPlace(deliveryLoc),
+    formatPlace(jewellerLoc),
+    formatPlace(dutyLoc),
+  ].some(Boolean);
+
   return createPortal(
     <div
       className="fixed inset-0 z-[220] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4 pt-[calc(env(safe-area-inset-top)+12px)] pb-[calc(env(safe-area-inset-bottom)+12px)]"
@@ -157,15 +181,23 @@ export function CustomerPriceBreakdownModal({
             <p className="text-[12px] text-muted py-6 text-center">Price breakdown isn’t available for this stage yet.</p>
           ) : (
             <>
-              {listingBudgetLabel ? (
+              {listingBudgetLabel || listingOrderBudgetLabel ? (
                 <div className="mb-4 rounded-xl border border-pale bg-cream/40 px-3 py-2">
                   <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide">When you listed</p>
-                  <p className="mt-1 text-[12px] text-mid">
-                    Listed budget:&nbsp;<span className="font-extrabold text-ink">{listingBudgetLabel}</span>
-                  </p>
-                  {(agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount))) || J != null ? (
+                  {listingBudgetLabel ? (
+                    <p className="mt-1 text-[12px] text-mid">
+                      Budget per piece:&nbsp;<span className="font-extrabold text-ink">{listingBudgetLabel}</span>
+                    </p>
+                  ) : null}
+                  {listingOrderBudgetLabel ? (
+                    <p className="mt-1 text-[12px] text-mid">
+                      Order budget:&nbsp;<span className="font-extrabold text-ink">{listingOrderBudgetLabel}</span>
+                    </p>
+                  ) : null}
+                  {jewellerPortion != null ? (
                     <p className="mt-2 text-[12px] text-mid leading-relaxed">
-                      Totals below use this jeweller&apos;s quote and Arviah&apos;s tariff for your delivery country.
+                      Totals below are for the full project (entire order) using this jeweller&apos;s quote and Arviah&apos;s
+                      tariff for your delivery country.
                     </p>
                   ) : null}
                 </div>
@@ -201,45 +233,40 @@ export function CustomerPriceBreakdownModal({
 
               <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">Complete price DNA</p>
               <div className="rounded-xl border border-pale divide-y divide-pale px-3">
-                {(agreedQuoteAmount != null && Number.isFinite(Number(agreedQuoteAmount))) ? (
-                  <ModalRow label="Jeweller quote for this project (pre-tax)" value={Number(agreedQuoteAmount)} currency={currency} />
+                <ModalRow label="Jeweller quote for this project" value={jewellerPortion} currency={currency} />
+                <ModalRow label="Arviah Marketplace & QC Services" value={commission} currency={currency} />
+                {Gj != null && Gj > 0 ? (
+                  <ModalRow label="GST (3% of quote + markup)" value={Gj} muted currency={currency} />
+                ) : isInternationalCustomer || jewelleryGstWaived ? (
+                  <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
+                    No GST is charged on international orders. Applicable taxes to the manufacturer are handled by Arviah.
+                  </p>
+                ) : null}
+
+                {!isInternationalCustomer ? (
+                  <>
+                    <ModalRow label="Domestic delivery" value={D} currency={currency} />
+                    <ModalRow label="GST on delivery" value={deliveryGst} muted currency={currency} />
+                  </>
                 ) : (
-                  <ModalRow label="Jeweller quote for this project (pre-tax)" value={J} currency={currency} />
+                  <>
+                    {importDuty != null && importDuty > 0 ? (
+                      <ModalRow label="Import duty" value={importDuty} currency={currency} />
+                    ) : null}
+                    {intlShipping != null && intlShipping > 0 ? (
+                      <ModalRow label="International shipping" value={intlShipping} currency={currency} />
+                    ) : null}
+                    {(importDuty == null || importDuty <= 0) && (intlShipping == null || intlShipping <= 0) ? (
+                      <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
+                        No cross-border import duty or international shipping is applied for this jeweller + delivery country pair.
+                      </p>
+                    ) : null}
+                  </>
                 )}
-                <ModalRow
-                  label={jewelleryTaxLabelText}
-                  value={Gj}
-                  muted
-                  currency={currency}
-                />
-                {jewelleryGstWaived ? (
-                  <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
-                    Jewellery GST is not charged when a foreign customer’s order is filled by an Indian SEEPZ
-                    manufacturer. GST on Arviah services and delivery still apply.
-                  </p>
-                ) : jewelleryTaxKind === 'local_tax' ? (
-                  <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
-                    Local tax applies when you and the jeweller are in the same country outside India.
-                  </p>
-                ) : null}
-                <ModalRow label="GST on Arviah services" value={Gc} muted currency={currency} />
-                <ModalRow label="Domestic delivery" value={D} currency={currency} />
-                <ModalRow label="GST on delivery" value={deliveryGst} muted currency={currency} />
-                {importDuty != null && importDuty > 0 ? (
-                  <ModalRow label="Import duty" value={importDuty} currency={currency} />
-                ) : null}
-                {intlShipping != null && intlShipping > 0 ? (
-                  <ModalRow label="International shipping" value={intlShipping} currency={currency} />
-                ) : null}
-                {importDuty != null && importDuty <= 0 && intlShipping != null && intlShipping <= 0 ? (
-                  <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
-                    No cross-border import duty or international shipping is applied for this jeweller + delivery country pair.
-                  </p>
-                ) : null}
               </div>
 
               <div className="mt-4 rounded-xl border border-walnut/20 bg-blush/30 px-3 py-1">
-                <ModalRow label="Estimated total you pay (including delivery & taxes)" value={bundled} currency={currency} />
+                <ModalRow label="Estimated total you pay for the full project (incl. delivery & taxes)" value={bundled} currency={currency} />
               </div>
 
               {(adv != null || fin != null) ? (
@@ -258,7 +285,7 @@ export function CustomerPriceBreakdownModal({
                     <>
                       <p className="text-[11px] text-muted mb-2 leading-relaxed">
                         {advanceIsPreTaxHalf
-                          ? 'Advance is 50% of the agreed quote before tax. GST and delivery are collected with the final payment.'
+                          ? 'Advance is 50% of the agreed quote before tax. Remaining taxes and delivery are collected with the final payment.'
                           : 'Your payments are usually split across milestones approved at checkout — amounts are rounded per instalment rules.'}
                       </p>
                       <div className="rounded-xl border border-pale divide-y divide-pale px-3">
@@ -274,7 +301,7 @@ export function CustomerPriceBreakdownModal({
                         <ModalRow
                           label={
                             advanceIsPreTaxHalf
-                              ? 'Suggested final (remaining quote + GST + delivery)'
+                              ? 'Suggested final (remaining quote + taxes + delivery)'
                               : 'Suggested final instalment (incl. delivery & delivery tax when applicable)'
                           }
                           value={fin}

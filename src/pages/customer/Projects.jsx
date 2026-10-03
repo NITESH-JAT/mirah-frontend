@@ -25,6 +25,7 @@ import {
   suggestionActionFieldChangeLabels,
   buildFeasibilitySuggestionDisplayRows,
 } from '../../utils/feasibilitySuggestionApply';
+import { estimateOrderBudget } from '../../utils/vendorBidOrderCopy';
 import logo from '../../assets/logo.png';
 
 const METAL_SWATCH_BY_LABEL = {
@@ -4181,8 +4182,34 @@ export default function Projects() {
                         <div className="rounded-2xl border border-pale p-4">
                           <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Order details</p>
                           <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-[13px]">
-                            <div><span className="text-muted">Budget per piece ({regionCurrency}):</span> <span className="font-semibold text-ink">{String(createForm?.specs?.budgetPerPiece || '').trim() || '—'}</span></div>
-                            <div><span className="text-muted">Quantity required:</span> <span className="font-semibold text-ink">{createForm?.specs?.quantityRequired || '—'}</span></div>
+                            <div>
+                              <span className="text-muted">Budget per piece ({regionCurrency}):</span>{' '}
+                              <span className="font-semibold text-ink">
+                                {(() => {
+                                  const raw = String(createForm?.specs?.budgetPerPiece || '').trim();
+                                  if (!raw) return '—';
+                                  const n = Number(raw);
+                                  return Number.isFinite(n) && n > 0 ? formatCurrency(n, regionCurrency) : raw;
+                                })()}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted">Quantity required:</span>{' '}
+                              <span className="font-semibold text-ink">{createForm?.specs?.quantityRequired || '—'}</span>
+                            </div>
+                            {(() => {
+                              const order = estimateOrderBudget(
+                                createForm?.specs?.budgetPerPiece,
+                                createForm?.specs?.quantityRequired,
+                              );
+                              if (order == null) return null;
+                              return (
+                                <div className="md:col-span-2">
+                                  <span className="text-muted">Order budget ({regionCurrency}):</span>{' '}
+                                  <span className="font-semibold text-ink">{formatCurrency(order, regionCurrency)}</span>
+                                </div>
+                              );
+                            })()}
                             <div className="md:col-span-2"><span className="text-muted">Preferred delivery timeline:</span> <span className="font-semibold text-ink">{formatDateWithOrdinalFromInput(createForm?.specs?.preferredDeliveryTimeline) || '—'}</span></div>
                             {String(createForm?.specs?.additionalNotes || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-muted">Additional notes for the manufacturer:</span> <span className="font-semibold text-ink">{createForm?.specs?.additionalNotes}</span></div>

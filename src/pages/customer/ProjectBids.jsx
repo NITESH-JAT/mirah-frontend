@@ -6,6 +6,7 @@ import { CustomerPriceBreakdownModal } from '../../components/customer/CustomerP
 import { formatCurrency } from '../../utils/formatMoney';
 import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
+import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -275,7 +276,7 @@ function BidsTableSkeleton({ embedded = false } = {}) {
               <tr className="border-b border-pale bg-walnut/[0.07]">
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Bid amount</th>
+                <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Order bid</th>
               </tr>
             </thead>
             <tbody>
@@ -627,9 +628,13 @@ export default function ProjectBids() {
     setPriceDnaOpen(true);
   };
 
-  const listingBudgetLabel = budgetPerPieceRaw
+  const listingBudgetPerPieceLabel = budgetPerPieceRaw
     ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency)
     : null;
+  const listingOrderBudgetLabel = (() => {
+    const order = estimateOrderBudget(budgetPerPieceRaw, quantityRequiredRaw);
+    return order != null ? formatCurrency(order, moneyCurrency) : null;
+  })();
 
   const openOverride = (bid) => {
     const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Jeweller';
@@ -870,11 +875,22 @@ export default function ProjectBids() {
                   <p>
                     Budget per piece:{' '}
                     <span className="font-extrabold text-ink">
-                      {budgetPerPieceRaw ? formatCurrency(Number(budgetPerPieceRaw) || 0, moneyCurrency) : '—'}
+                      {listingBudgetPerPieceLabel || '—'}
                     </span>
                   </p>
                   <p>
                     Quantity required: <span className="font-extrabold text-ink">{quantityRequiredRaw || '—'}</span>
+                  </p>
+                  {listingOrderBudgetLabel ? (
+                    <p>
+                      Order budget:{' '}
+                      <span className="font-extrabold text-ink">{listingOrderBudgetLabel}</span>
+                    </p>
+                  ) : null}
+                  <p className="text-[11px] text-muted leading-relaxed">
+                    Jeweller bids and Estimated Total are for the entire order
+                    {quantityPiecesLabel(quantityRequiredRaw) ? ` (${quantityPiecesLabel(quantityRequiredRaw)})` : ''}
+                    , not per piece.
                   </p>
                   <p>
                     Expected delivery:{' '}
@@ -1041,7 +1057,7 @@ export default function ProjectBids() {
                         <tr className="border-b border-pale bg-walnut/[0.07]">
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
                         </tr>
                       </thead>
@@ -1230,7 +1246,7 @@ export default function ProjectBids() {
                       <tr className="border-b border-pale bg-walnut/[0.07]">
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
-                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Bid amount</th>
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
                       </tr>
                     </thead>
@@ -1459,7 +1475,7 @@ export default function ProjectBids() {
             <div className="px-5 py-4">
               <div className="rounded-2xl border border-pale bg-cream p-3 text-[12px] text-mid space-y-1">
                 <p>
-                  Amount: <span className="font-semibold">{formatCurrency(overrideFor?.amount, moneyCurrency)}</span>
+                  Order bid: <span className="font-semibold">{formatCurrency(overrideFor?.amount, moneyCurrency)}</span>
                 </p>
                 <p>
                   Timeline: <span className="font-semibold">{overrideFor?.noOfDays ? daysLabel(overrideFor.noOfDays) : '—'}</span>
@@ -1491,7 +1507,8 @@ export default function ProjectBids() {
         }}
         tariff={priceDnaFor?.customerPricingTariff ?? priceDnaFor?.customer_pricing_tariff ?? null}
         locations={priceDnaFor?.pricingLocations ?? priceDnaFor?.pricing_locations ?? null}
-        listingBudgetLabel={listingBudgetLabel}
+        listingBudgetLabel={listingBudgetPerPieceLabel}
+        listingOrderBudgetLabel={listingOrderBudgetLabel}
         agreedQuoteAmount={(() => {
           const n = Number(priceDnaFor?.amount ?? priceDnaFor?.price ?? priceDnaFor?.bidAmount ?? NaN);
           return Number.isFinite(n) ? n : null;
@@ -1506,7 +1523,7 @@ export default function ProjectBids() {
           );
         })()}
         title="Estimated Total"
-        subtitle="Everything you would pay for this jeweller’s bid: quote, taxes, duties, and shipping — based on your delivery address and their location."
+        subtitle="Full project pricing for this jeweller’s entire-order bid: quote, taxes, duties, and shipping — based on your delivery address and their location."
       />
     </div>
   );

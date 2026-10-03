@@ -8,6 +8,7 @@ import ListPaginationBar from '../../components/customer/ListPaginationBar';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 import { formatCurrency } from '../../utils/formatMoney';
 import { vendorPresentmentCurrency } from '../../utils/projectMoney';
+import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -471,7 +472,7 @@ export default function VendorExplore() {
                           </p>
                         ) : null}
                         <p>
-                          Budget:{' '}
+                          Budget per piece:{' '}
                           <span className="font-extrabold text-ink">
                             {Number.isFinite(budgetPerPiece) && budgetPerPiece > 0 ? formatCurrency(budgetPerPiece, moneyCurrency) : '—'}
                           </span>
@@ -479,6 +480,19 @@ export default function VendorExplore() {
                         <p>
                           Quantity:{' '}
                           <span className="font-extrabold text-ink">{quantityRequired || '—'}</span>
+                        </p>
+                        {estimateOrderBudget(budgetPerPiece, quantityRequired) != null ? (
+                          <p>
+                            Order budget:{' '}
+                            <span className="font-extrabold text-ink">
+                              {formatCurrency(estimateOrderBudget(budgetPerPiece, quantityRequired), moneyCurrency)}
+                            </span>
+                          </p>
+                        ) : null}
+                        <p className="text-[11px] text-muted leading-relaxed">
+                          Bids are for the entire order
+                          {quantityPiecesLabel(quantityRequired) ? ` (${quantityPiecesLabel(quantityRequired)})` : ''}
+                          , not per piece.
                         </p>
                         <p>
                           Expected delivery:{' '}
