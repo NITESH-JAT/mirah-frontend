@@ -2,6 +2,10 @@ import {
   DEFAULT_STATE_REGION_LABEL,
   STATE_REGION_LABEL_BY_COUNTRY_CODE,
 } from '../constants/stateRegionLabels';
+import {
+  DEFAULT_POSTAL_CODE_LABEL,
+  POSTAL_CODE_LABEL_BY_COUNTRY_CODE,
+} from '../constants/postalCodeLabels';
 
 export function extractCountryCodesList(payload) {
   if (Array.isArray(payload)) return payload;
@@ -43,4 +47,14 @@ export function resolveCountryIsoCode(countryRef, countries = []) {
 
 export function getStateRegionLabelForCountry(countryRef, countries = []) {
   return getStateRegionLabel(resolveCountryIsoCode(countryRef, countries));
+}
+
+export function getPostalCodeLabel(countryCode) {
+  const code = String(countryCode ?? '').trim().toUpperCase();
+  if (!code) return DEFAULT_POSTAL_CODE_LABEL;
+  return POSTAL_CODE_LABEL_BY_COUNTRY_CODE[code] ?? DEFAULT_POSTAL_CODE_LABEL;
+}
+
+export function getPostalCodeLabelForCountry(countryRef, countries = []) {
+  return getPostalCodeLabel(resolveCountryIsoCode(countryRef, countries));
 }

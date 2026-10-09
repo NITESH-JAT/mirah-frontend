@@ -12,6 +12,7 @@ import ProjectDeliveryAddressFields, {
   validateProjectDeliveryAddress,
   deliveryAddressApiPayload,
 } from '../../components/project/ProjectDeliveryAddressFields';
+import DiamondQualityGuideLink from '../../components/diamond/DiamondQualityGuideLink';
 import { formatCurrency } from '../../utils/formatMoney';
 import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { useRegion } from '../../context/RegionProvider';
@@ -26,6 +27,12 @@ import {
   buildFeasibilitySuggestionDisplayRows,
 } from '../../utils/feasibilitySuggestionApply';
 import { estimateOrderBudget } from '../../utils/vendorBidOrderCopy';
+import {
+  getPostalCodeLabelForCountry,
+  getStateRegionLabelForCountry,
+  normalizeCountryLookupRows,
+} from '../../utils/stateRegionLabel';
+import { authService } from '../../services/authService';
 import logo from '../../assets/logo.png';
 
 const METAL_SWATCH_BY_LABEL = {
@@ -467,15 +474,16 @@ function assignmentVendorIdOf(a) {
 }
 
 function assignmentVendorNameOf(a) {
-  const joined = `${a?.vendor?.firstName ?? ''} ${a?.vendor?.lastName ?? ''}`.trim();
-  return (
+  const first = String(a?.vendor?.firstName ?? '').trim();
+  const raw =
     a?.vendorName ??
     a?.vendor_name ??
     a?.vendor?.fullName ??
     a?.vendor?.name ??
     a?.vendor?.businessName ??
-    (joined || null)
-  );
+    (first || null);
+  if (!raw) return null;
+  return String(raw).trim().split(/\s+/)[0] || null;
 }
 
 function primaryAssignmentOf(p) {
@@ -872,6 +880,7 @@ export default function Projects() {
 
   const [createStep, setCreateStep] = useState(1); // 1..5 Design → Metal → Diamonds → Details → Review
   const [mobileRefCollapsed, setMobileRefCollapsed] = useState(false);
+  const [countryLookup, setCountryLookup] = useState([]);
   const [jewelleryTypes, setJewelleryTypes] = useState([]);
   const prevRefImageRef = useRef('');
 
@@ -889,6 +898,30 @@ export default function Projects() {
     })();
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await authService.getCountryCodes();
+        if (!cancelled) setCountryLookup(normalizeCountryLookupRows(data));
+      } catch {
+        if (!cancelled) setCountryLookup([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const deliveryRegionLabel = useMemo(
+    () => getStateRegionLabelForCountry(createForm?.delivery?.country, countryLookup),
+    [createForm?.delivery?.country, countryLookup],
+  );
+  const deliveryPostalLabel = useMemo(
+    () => getPostalCodeLabelForCountry(createForm?.delivery?.country, countryLookup),
+    [createForm?.delivery?.country, countryLookup],
+  );
 
   const selectedJewelleryType = String(createForm?.specs?.jewelleryType || '').trim();
   const getSizeOptionsForType = useCallback(
@@ -3515,9 +3548,12 @@ export default function Projects() {
                                 .toLowerCase()
                                 .includes('natural') ? (
                                 <div>
-                                  <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">
-                                    Preferred stone quality bracket *
-                                  </p>
+                                  <div className="mb-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+                                    <p className="text-[11px] font-medium text-ink uppercase tracking-wide">
+                                      Preferred stone quality bracket *
+                                    </p>
+                                    <DiamondQualityGuideLink />
+                                  </div>
                                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                                     {[
                                       { value: 'Standard', sparks: 1 },
@@ -3917,20 +3953,28 @@ export default function Projects() {
                                   </div>
                                 </div>
                                 ) : null}
-                                <p className="mt-2 text-[10px] text-soft leading-relaxed">
-                                  {feasibilityReview?.landedCostEstimate?.note ||
-                                    (feasibilityReview?.landedCostEstimate?.assumesCrossBorder === false
-                                      ? 'Estimate for your profile country. Import duty and international shipping do not apply on this estimate.'
-                                      : 'Duty and international shipping shown assume manufacture outside your country. Same-country jewellers are not charged these. Final billed amounts use the accepted jeweller quote and country.')}
-                                </p>
-                                {Number(feasibilityReview?.landedCostEstimate?.localTaxRate || 0) > 0 ? (
-                                  <p className="mt-1 text-[10px] text-soft leading-relaxed">
-                                    If your jeweller is in your country, local tax of{' '}
-                                    {(Number(feasibilityReview.landedCostEstimate.localTaxRate) * 100).toFixed(1)}% may
-                                    apply instead of import duty/shipping.
-                                  </p>
-                                ) : null}
                               </div>
+                              {(() => {
+                                const rate = Number(feasibilityReview?.landedCostEstimate?.localTaxRate || 0);
+                                if (!(rate > 0) || rate > 2) return null;
+                                const qty = Math.max(1, Number(createForm?.specs?.quantityRequired || 1) || 1);
+                                const perPieceDuty = Number(
+                                  feasibilityReview?.landedCostEstimate?.estimatedLocalDutyInr,
+                                );
+                                const dutyAmount = Number.isFinite(perPieceDuty) && perPieceDuty > 0
+                                  ? Math.round(perPieceDuty * qty * 100) / 100
+                                  : null;
+                                if (dutyAmount == null || !(dutyAmount > 0)) return null;
+                                return (
+                                  <p className="sm:col-span-2 text-[11px] text-muted leading-relaxed">
+                                    Not included above: customs/local VAT of about{' '}
+                                    <span className="font-extrabold text-ink tabular-nums">
+                                      {formatCurrency(dutyAmount, regionCurrency)}
+                                    </span>
+                                    {` (${(rate * 100).toFixed(1)}%)`} may be charged when you collect your order.
+                                  </p>
+                                );
+                              })()}
                             </div>
 
                             {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
@@ -4159,13 +4203,13 @@ export default function Projects() {
                               </span>
                             </div>
                             <div>
-                              <span className="text-muted">State:</span>{' '}
+                              <span className="text-muted">{deliveryRegionLabel}:</span>{' '}
                               <span className="font-semibold text-ink">
                                 {String(createForm?.delivery?.state || '').trim() || '—'}
                               </span>
                             </div>
                             <div>
-                              <span className="text-muted">Pin code:</span>{' '}
+                              <span className="text-muted">{deliveryPostalLabel}:</span>{' '}
                               <span className="font-semibold text-ink">
                                 {String(createForm?.delivery?.pinCode || '').trim() || '—'}
                               </span>

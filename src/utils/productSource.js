@@ -27,17 +27,14 @@ export function getVendorDisplayName(p) {
     v?.company_name ??
     null;
 
-  const fromParts = [
-    v?.firstName ?? v?.first_name ?? p?.vendorFirstName ?? p?.vendor_first_name ?? null,
-    v?.lastName ?? v?.last_name ?? p?.vendorLastName ?? p?.vendor_last_name ?? null,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .trim();
+  const firstOnly = String(
+    v?.firstName ?? v?.first_name ?? p?.vendorFirstName ?? p?.vendor_first_name ?? '',
+  ).trim();
 
-  const name = String(direct || fromParts || '').trim();
-  if (!name || name.toLowerCase() === 'null' || name.toLowerCase() === 'undefined') return null;
-  return name || null;
+  const raw = String(direct || firstOnly || '').trim();
+  if (!raw || raw.toLowerCase() === 'null' || raw.toLowerCase() === 'undefined') return null;
+  // Never surface a full name if a multi-word string slipped through.
+  return raw.split(/\s+/)[0] || null;
 }
 
 export function isVendorProduct(p) {

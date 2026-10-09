@@ -7,6 +7,7 @@ import { formatCurrency } from '../../utils/formatMoney';
 import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
+import { counterpartDisplayName } from '../../utils/counterpartDisplayName';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -47,14 +48,11 @@ function assignmentVendorIdOf(a) {
 function vendorNameFromBid(b) {
   if (!b) return '';
   const vendor = b?.vendor ?? null;
-  const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
-  const raw =
-    b?.vendorName ??
-    b?.vendor_name ??
-    vendor?.fullName ??
-    vendor?.name ??
-    (vendorJoined || '');
-  return String(raw).trim();
+  return (
+    counterpartDisplayName(vendor) ||
+    counterpartDisplayName({ name: b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? vendor?.name }) ||
+    'Jeweller'
+  );
 }
 
 function isAssignmentActive(a) {
@@ -534,7 +532,7 @@ export default function ProjectBids() {
     return bids.filter((b) => {
       const vendorName = String(b?.vendorName ?? b?.vendor_name ?? '').toLowerCase();
       const vendor = b?.vendor ?? null;
-      const joined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim().toLowerCase();
+      const joined = String(vendor?.firstName ?? '').trim().toLowerCase();
       return vendorName.includes(q) || joined.includes(q);
     });
   }, [bids, search]);
@@ -1091,7 +1089,7 @@ export default function ProjectBids() {
                   {visibleBids.map((b) => {
                     const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                     const vendor = b?.vendor ?? null;
-                    const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                    const vendorJoined = String(vendor?.firstName ?? '').trim();
                     const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
                     const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                     const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
@@ -1254,7 +1252,7 @@ export default function ProjectBids() {
                       {visibleBids.map((b) => {
                         const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                         const vendor = b?.vendor ?? null;
-                        const vendorJoined = `${vendor?.firstName ?? ''} ${vendor?.lastName ?? ''}`.trim();
+                        const vendorJoined = String(vendor?.firstName ?? '').trim();
                         const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
                         const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                         const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
@@ -1515,7 +1513,7 @@ export default function ProjectBids() {
         })()}
         currency={moneyCurrency}
         vendorName={(() => {
-          const joined = `${priceDnaFor?.vendor?.firstName ?? ''} ${priceDnaFor?.vendor?.lastName ?? ''}`.trim();
+          const joined = String(priceDnaFor?.vendor?.firstName ?? '').trim();
           return (
             String(priceDnaFor?.vendorName ?? priceDnaFor?.vendor_name ?? priceDnaFor?.vendor?.fullName ?? '').trim() ||
             joined ||

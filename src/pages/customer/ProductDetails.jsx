@@ -590,12 +590,9 @@ export default function ProductDetails() {
     const reviewerName = (rev) => {
       const c = rev?.customer ?? rev?.user ?? rev?.customerDetails ?? null;
       const direct = rev?.customerName ?? c?.name ?? c?.fullName ?? null;
-      const fromParts = [c?.firstName ?? c?.first_name ?? null, c?.lastName ?? c?.last_name ?? null]
-        .filter(Boolean)
-        .join(' ')
-        .trim();
-      const name = String(direct || fromParts || 'Customer').trim();
-      return name || 'Customer';
+      const first = String(c?.firstName ?? c?.first_name ?? '').trim();
+      const name = String(direct || first || 'Customer').trim();
+      return (name.split(/\s+/)[0] || 'Customer');
     };
 
     const initialsFor = (name) => {

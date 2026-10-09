@@ -9,7 +9,10 @@ const PERSONAL_INFO_BLOCK_TOAST =
 
 function fullName(u) {
   if (!u) return '';
-  return [u.firstName, u.lastName].filter(Boolean).join(' ').trim();
+  // Marketplace counterpart privacy: first name only (admin may still have lastName).
+  const first = String(u.firstName || '').trim();
+  if (first) return first;
+  return String(u.lastName || '').trim();
 }
 
 function normalizeText(s) {

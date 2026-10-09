@@ -22,8 +22,10 @@ function avatarUrlFor(name) {
 }
 
 function vendorNameOf(v) {
-  const joined = `${v?.firstName ?? ''} ${v?.lastName ?? ''}`.trim();
-  return String(v?.fullName ?? v?.vendorName ?? v?.name ?? (joined || 'Jeweller'));
+  const first = String(v?.firstName ?? '').trim();
+  const raw = String(v?.fullName ?? v?.vendorName ?? v?.name ?? first).trim();
+  const label = raw || 'Jeweller';
+  return label.split(/\s+/)[0] || 'Jeweller';
 }
 
 function starRow(rating) {

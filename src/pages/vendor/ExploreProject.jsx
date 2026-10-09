@@ -262,7 +262,7 @@ function customerNameOf(project, details) {
     d?.customerSummary ??
     d?.data?.customer ??
     null;
-  const joined = `${c?.firstName ?? ''} ${c?.lastName ?? ''}`.trim();
+  const joined = String(c?.firstName ?? '').trim();
   const name = c?.fullName ?? c?.name ?? joined ?? null;
   const trimmed = typeof name === 'string' ? name.trim() : name;
   return trimmed ? trimmed : null;

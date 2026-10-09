@@ -68,6 +68,8 @@ export function CustomerPriceBreakdownModal({
   const deliveryGst = pickNum(tariff, ['logisticsGstOnDelivery', 'logistics_gst_on_delivery']);
   const importDuty = pickNum(tariff, ['importDutyInr', 'import_duty_inr']);
   const intlShipping = pickNum(tariff, ['intlShippingInr', 'intl_shipping_inr']);
+  const estimatedLocalDuty = pickNum(tariff, ['estimatedLocalDutyInr', 'estimated_local_duty_inr']);
+  const localTaxRate = pickNum(tariff, ['localTaxRate', 'local_tax_rate']);
   const bundled = pickNum(tariff, ['bundledCustomerDue', 'bundled_customer_due']);
   const adv = pickNum(tariff, ['advanceCustomerDue', 'advance_customer_due']);
   const fin = pickNum(tariff, ['finalCustomerDue', 'final_customer_due']);
@@ -268,6 +270,19 @@ export function CustomerPriceBreakdownModal({
               <div className="mt-4 rounded-xl border border-walnut/20 bg-blush/30 px-3 py-1">
                 <ModalRow label="Estimated total you pay for the full project (incl. delivery & taxes)" value={bundled} currency={currency} />
               </div>
+
+              {estimatedLocalDuty != null && estimatedLocalDuty > 0 ? (
+                <p className="mt-2 text-[11px] text-muted leading-relaxed">
+                  Not included above: customs/local VAT of about{' '}
+                  <span className="font-extrabold text-ink tabular-nums">
+                    {formatCurrency(estimatedLocalDuty, currency)}
+                  </span>
+                  {localTaxRate != null && localTaxRate > 0
+                    ? ` (${(localTaxRate * 100).toFixed(1)}%)`
+                    : ''}{' '}
+                  may be charged when you collect your order.
+                </p>
+              ) : null}
 
               {(adv != null || fin != null) ? (
                 <div className="mt-4">

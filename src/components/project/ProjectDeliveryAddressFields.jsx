@@ -1,6 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import CountrySelect from '../CountrySelect';
-import { normalizeCountryLookupRows } from '../../utils/stateRegionLabel';
+import {
+  getPostalCodeLabelForCountry,
+  getStateRegionLabelForCountry,
+  normalizeCountryLookupRows,
+} from '../../utils/stateRegionLabel';
 import { authService } from '../../services/authService';
 
 export const emptyProjectDeliveryAddress = () => ({
@@ -62,6 +66,7 @@ export function deliveryAddressApiPayload(form) {
 
 /**
  * Checkout-style delivery fields for project Details (step 4).
+ * Country first (like signup) so region label can update (State / Province / …).
  */
 export default function ProjectDeliveryAddressFields({
   form,
@@ -84,6 +89,15 @@ export default function ProjectDeliveryAddressFields({
       cancelled = true;
     };
   }, []);
+
+  const regionLabel = useMemo(
+    () => getStateRegionLabelForCountry(form?.country, countryLookup),
+    [form?.country, countryLookup],
+  );
+  const postalLabel = useMemo(
+    () => getPostalCodeLabelForCountry(form?.country, countryLookup),
+    [form?.country, countryLookup],
+  );
 
   const set = (patch) => setForm((prev) => ({ ...(prev || emptyProjectDeliveryAddress()), ...patch }));
 
@@ -132,6 +146,19 @@ export default function ProjectDeliveryAddressFields({
             autoComplete="tel"
           />
         </div>
+
+        <div className="space-y-1.5 md:col-span-2">
+          <CountrySelect
+            label="Country"
+            value={form?.country || ''}
+            disabled={disabled || locked}
+            onChange={(e) => set({ country: e?.target?.value || '' })}
+            countries={countryLookup}
+            variant="checkout"
+            required
+          />
+        </div>
+
         <div className="space-y-1.5 md:col-span-2">
           <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Address *</label>
           <input
@@ -169,37 +196,27 @@ export default function ProjectDeliveryAddressFields({
           />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">State *</label>
+          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{regionLabel} *</label>
           <input
             type="text"
             value={form?.state || ''}
             disabled={disabled || locked}
             onChange={(e) => set({ state: e.target.value })}
             className={fieldClass}
-            placeholder="State"
+            placeholder={regionLabel}
             autoComplete="address-level1"
           />
         </div>
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Pin code *</label>
+        <div className="space-y-1.5 md:col-span-2">
+          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{postalLabel} *</label>
           <input
             type="text"
             value={form?.pinCode || ''}
             disabled={disabled || locked}
             onChange={(e) => set({ pinCode: e.target.value })}
             className={fieldClass}
-            placeholder="Pin code"
+            placeholder={postalLabel}
             autoComplete="postal-code"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Country *</label>
-          <CountrySelect
-            value={form?.country || ''}
-            disabled={disabled || locked}
-            onChange={(e) => set({ country: e?.target?.value || '' })}
-            countries={countryLookup}
-            variant="checkout"
           />
         </div>
       </div>

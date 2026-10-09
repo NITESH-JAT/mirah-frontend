@@ -338,17 +338,17 @@ function assignmentVendorIdOf(a) {
 }
 
 function assignmentVendorNameOf(a) {
-  const joined = `${a?.vendor?.firstName ?? ''} ${a?.vendor?.lastName ?? ''}`.trim();
-  const name = (
+  const first = String(a?.vendor?.firstName ?? '').trim();
+  const raw =
     a?.vendorName ??
     a?.vendor_name ??
     a?.vendor?.fullName ??
     a?.vendor?.name ??
     a?.vendor?.businessName ??
-    (joined || null)
-  );
-  const trimmed = typeof name === 'string' ? name.trim() : name;
-  return trimmed ? trimmed : null;
+    (first || null);
+  const trimmed = typeof raw === 'string' ? raw.trim() : raw;
+  if (!trimmed) return null;
+  return String(trimmed).split(/\s+/)[0] || null;
 }
 
 function assignmentAmountOf(a) {

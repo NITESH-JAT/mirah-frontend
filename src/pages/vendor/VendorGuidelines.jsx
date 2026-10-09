@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../../context/AuthContext';
-import DiamondClassificationPanel from '../../components/vendor/DiamondClassificationPanel';
+import DiamondClassificationPanel from '../../components/diamond/DiamondClassificationPanel';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
 
 export default function VendorGuidelines() {
