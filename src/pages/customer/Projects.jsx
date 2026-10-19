@@ -2371,6 +2371,9 @@ export default function Projects() {
                   <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4 py-8">
                     <div className="w-full max-w-xl text-center">
                       <p className="text-[16px] font-bold text-ink">Get your first piece made</p>
+                      <p className="mt-2 text-[13px] leading-relaxed text-muted">
+                        Upload any design you love, see an instant AI price check, and let verified makers bid to make it. Watch the 90-second video to see how it works.
+                      </p>
                       {firstProjectVideoUrl ? (
                         <div className="mt-5 overflow-hidden rounded-xl border border-pale bg-ink text-left">
                           {isYouTubeUrl(firstProjectVideoUrl) ? (
@@ -2398,9 +2401,6 @@ export default function Projects() {
                           )}
                         </div>
                       ) : null}
-                      <p className={`${firstProjectVideoUrl ? 'mt-5' : 'mt-2'} text-[13px] leading-relaxed text-muted`}>
-                        Upload any design you love, see an instant AI price check, and let verified makers bid to make it. Watch the 90-second video to see how it works.
-                      </p>
                     </div>
                   </div>
                 ) : empty || filterEmpty ? (
