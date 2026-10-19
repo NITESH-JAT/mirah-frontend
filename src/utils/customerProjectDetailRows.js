@@ -32,6 +32,8 @@ const META_DISPLAY_ORDER = [
   'stone_type',
   'stoneQualityBracket',
   'stone_quality_bracket',
+  'diamondDetails',
+  'diamond_details',
   'engravingDetails',
   'engraving_details',
   'changesComparedToReference',

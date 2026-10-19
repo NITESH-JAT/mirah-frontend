@@ -3,6 +3,7 @@ import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 import { vendorService } from '../../services/vendorService';
 import { SkeletonBar } from '../../components/project/VendorProjectPageSkeleton';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
+import PresetAvatar from '../../components/profile/PresetAvatar';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -14,11 +15,6 @@ function formatDate(ts) {
   const d = new Date(ts);
   if (Number.isNaN(d.getTime())) return '';
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function avatarUrlFor(name) {
-  const safe = name || 'Jeweller';
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
 function vendorNameOf(v) {
@@ -286,7 +282,11 @@ export default function VendorProfile() {
         <div className="bg-white rounded-2xl border border-pale p-5">
           <div className="flex items-start gap-4">
             <div className="w-16 h-16 rounded-2xl overflow-hidden border border-pale bg-white shrink-0">
-              <img src={avatarUrlFor(name)} alt="" className="w-full h-full object-cover" />
+              <PresetAvatar
+                profileImageUrl={vendor?.profileImageUrl}
+                seed={vendorId || name}
+                className="w-full h-full"
+              />
             </div>
             <div className="min-w-0">
               <p className="text-[16px] font-extrabold text-ink truncate">{name}</p>
@@ -414,7 +414,11 @@ export default function VendorProfile() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex items-start gap-3">
                         <div className="w-9 h-9 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                          <img src={avatarUrlFor(reviewer)} alt="" className="w-full h-full object-cover" />
+                          <PresetAvatar
+                            profileImageUrl={customer?.profileImageUrl}
+                            seed={customer?.id || reviewer}
+                            className="w-full h-full"
+                          />
                         </div>
                         <div className="min-w-0">
                           <p className="text-[13px] font-extrabold text-ink truncate">{reviewer}</p>

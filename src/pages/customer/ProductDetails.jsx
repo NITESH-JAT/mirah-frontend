@@ -13,6 +13,7 @@ import {
 import { similarProductsStripBorderClasses } from '../../utils/productListingGrid';
 import { getProductDiamondTypes, resolveDiamondUnitPricing } from '../../utils/productDiamondPricing';
 import { useRegion } from '../../context/RegionProvider';
+import PresetAvatar from '../../components/profile/PresetAvatar';
 
 function discountPercent({ price, compareAtPrice }) {
   const p = Number(price);
@@ -595,16 +596,6 @@ export default function ProductDetails() {
       return (name.split(/\s+/)[0] || 'Customer');
     };
 
-    const initialsFor = (name) => {
-      const s = String(name || '').trim();
-      if (!s) return 'C';
-      const parts = s.split(/\s+/g).filter(Boolean);
-      const a = parts[0]?.[0] || '';
-      const b = (parts.length > 1 ? parts[parts.length - 1]?.[0] : parts[0]?.[1]) || '';
-      const out = `${a}${b}`.toUpperCase();
-      return out || 'C';
-    };
-
     const fmtDate = (d) => {
       const dt = d ? new Date(d) : null;
       if (!dt || Number.isNaN(dt.getTime())) return null;
@@ -628,7 +619,7 @@ export default function ProductDetails() {
             const comment = String(rev?.comment ?? '').trim();
             const when = fmtDate(rev?.createdAt ?? rev?.updatedAt ?? null);
             const name = reviewerName(rev);
-            const initials = initialsFor(name);
+            const customer = rev?.customer ?? rev?.user ?? rev?.customerDetails ?? null;
             return (
               <div
                 key={String(rev?.id ?? rev?._id ?? `${rev?.customerId ?? 'c'}-${rev?.createdAt ?? Math.random()}`)}
@@ -636,8 +627,12 @@ export default function ProductDetails() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex items-start gap-2">
-                    <div className="shrink-0 w-8 h-8 rounded-full bg-walnut text-blush flex items-center justify-center text-[11px] font-extrabold overflow-hidden border border-white shadow-sm">
-                      <span>{initials}</span>
+                    <div className="shrink-0 w-8 h-8 rounded-full overflow-hidden border border-white shadow-sm">
+                      <PresetAvatar
+                        profileImageUrl={customer?.profileImageUrl}
+                        seed={customer?.id || rev?.customerId || name}
+                        className="w-full h-full"
+                      />
                     </div>
                     <div className="min-w-0">
                       <p className="text-[12px] font-bold text-ink truncate">{name}</p>

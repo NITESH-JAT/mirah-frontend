@@ -64,6 +64,12 @@ export const projectService = {
     return { items, meta: { page: currentPage, totalPages, total } };
   },
 
+  getFirstProjectVideo: async () => {
+    const res = await api.get('/api/user/system/first-project-video');
+    const data = unwrap(res) || {};
+    return String(data.videoUrl || '').trim();
+  },
+
   create: async (payload, { signal } = {}) => {
     const res = await api.post('/api/user/projects', payload, { signal });
     const data = unwrap(res);
@@ -90,10 +96,11 @@ export const projectService = {
     return unwrap(res);
   },
 
-  uploadAttachments: async (files, { signal } = {}) => {
+  uploadAttachments: async (files, { signal, purpose } = {}) => {
     const formData = new FormData();
     const list = Array.isArray(files) ? files : files ? [files] : [];
     for (const f of list) formData.append('files', f);
+    if (purpose) formData.append('purpose', purpose);
     const res = await api.post('/api/user/projects/attachments/upload', formData, { signal });
     const data = unwrap(res) || {};
     const urls = data?.urls ?? data?.data?.urls ?? [];

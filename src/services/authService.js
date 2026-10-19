@@ -179,13 +179,9 @@ export const authService = {
     }
   },
 
-  uploadProfilePicture: async (file) => {
+  setProfileAvatar: async (avatarId) => {
     try {
-      const form = new FormData();
-      form.append('file', file);
-      const response = await api.post('/api/user/profile/profile-picture', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
+      const response = await api.post('/api/user/profile/profile-picture', { avatarId });
       const data = response.data?.data || response.data || {};
       const profileImageUrl = data?.profileImageUrl;
       if (!profileImageUrl) return authService.getCurrentUser();
@@ -195,7 +191,7 @@ export const authService = {
       saveSession('mirah_session_user', merged);
       return merged;
     } catch (error) {
-      throw error.response?.data || { message: "Failed to upload profile picture" };
+      throw error.response?.data || { message: "Failed to update profile character" };
     }
   },
 

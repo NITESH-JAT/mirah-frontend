@@ -33,6 +33,7 @@ import {
   normalizeCountryLookupRows,
 } from '../../utils/stateRegionLabel';
 import { authService } from '../../services/authService';
+import { isYouTubeUrl, normalizeYouTubeForIframe } from '../../utils/videoEmbed';
 import logo from '../../assets/logo.png';
 
 const METAL_SWATCH_BY_LABEL = {
@@ -171,6 +172,7 @@ function buildStructuredSpecsPayload(specs) {
   push('stonesIncluded', 'Does your design include stones?', s.stonesIncluded);
   push('stoneType', 'Stone type', s.stoneType);
   push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
+  push('diamondDetails', 'Diamond details', s.stonesIncluded === 'yes' || String(s.stonesIncluded || '').toLowerCase() === 'yes' ? s.diamondDetails : '');
   push('engravingDetails', 'Stamping or engraving details', s.engravingDetails);
   push(
     'changesComparedToReference',
@@ -694,6 +696,8 @@ export default function Projects() {
         'stone_type',
         'stoneQualityBracket',
         'stone_quality_bracket',
+        'diamondDetails',
+        'diamond_details',
         'engravingDetails',
         'engraving_details',
         'changesComparedToReference',
@@ -752,6 +756,7 @@ export default function Projects() {
   const [listHydrated, setListHydrated] = useState(false);
   const [listMoreLoading, setListMoreLoading] = useState(false);
   const [projects, setProjects] = useState([]);
+  const [firstProjectVideoUrl, setFirstProjectVideoUrl] = useState('');
   const [listMeta, setListMeta] = useState({ page: 1, totalPages: 1, total: null });
   const [listPage, setListPage] = useState(1);
   const [listSearchDraft, setListSearchDraft] = useState('');
@@ -864,6 +869,7 @@ export default function Projects() {
       stonesIncluded: 'no', // 'yes' | 'no'
       stoneType: '',
       stoneQualityBracket: '',
+      diamondDetails: '',
       engravingDetails: '',
       changesComparedToReference: '',
       budgetPerPiece: '',
@@ -1336,6 +1342,7 @@ export default function Projects() {
         stonesIncluded: 'no',
         stoneType: '',
         stoneQualityBracket: '',
+        diamondDetails: '',
         engravingDetails: '',
         changesComparedToReference: '',
         budgetPerPiece: '',
@@ -1408,6 +1415,7 @@ export default function Projects() {
         stonesIncluded: pickMeta('stonesIncluded', 'stones_included') || 'no',
         stoneType: pickMeta('stoneType', 'stone_type'),
         stoneQualityBracket: pickMeta('stoneQualityBracket', 'stone_quality_bracket'),
+        diamondDetails: pickMeta('diamondDetails', 'diamond_details'),
         engravingDetails: pickMeta('engravingDetails', 'engraving_details'),
         changesComparedToReference: pickMeta('changesComparedToReference', 'changes_compared_to_reference'),
         budgetPerPiece: sanitizeDecimalInput(pickMeta('budgetPerPiece', 'budget_per_piece'), { maxLen: 16 }),
@@ -1477,6 +1485,7 @@ export default function Projects() {
         stonesIncluded: 'no',
         stoneType: '',
         stoneQualityBracket: '',
+        diamondDetails: '',
         engravingDetails: '',
         changesComparedToReference: '',
         budgetPerPiece: '',
@@ -1534,7 +1543,7 @@ export default function Projects() {
     }
     setReferenceUploading(true);
     try {
-      const res = await projectService.uploadAttachments([f]);
+      const res = await projectService.uploadAttachments([f], { purpose: 'reference' });
       const url = Array.isArray(res?.urls) ? res.urls[0] : null;
       if (!url) {
         addToast('Upload succeeded but no URL returned.', 'error');
@@ -1952,6 +1961,7 @@ export default function Projects() {
           stonesIncluded: 'no',
           stoneType: '',
           stoneQualityBracket: '',
+          diamondDetails: '',
           engravingDetails: '',
           changesComparedToReference: '',
           budgetPerPiece: '',
@@ -2081,6 +2091,23 @@ export default function Projects() {
 
   const canLoadMore = listPage < Number(listMeta?.totalPages || 1);
   const empty = !listLoading && (projects || []).length === 0;
+  const showFirstProjectWelcome = empty && !String(listSearch || '').trim();
+
+  useEffect(() => {
+    if (!showFirstProjectWelcome) return undefined;
+    let cancelled = false;
+    projectService
+      .getFirstProjectVideo()
+      .then((url) => {
+        if (!cancelled) setFirstProjectVideoUrl(String(url || '').trim());
+      })
+      .catch(() => {
+        if (!cancelled) setFirstProjectVideoUrl('');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showFirstProjectWelcome]);
 
   const projectCategories = useMemo(() => {
     const list = Array.isArray(projects) ? projects : [];
@@ -2340,26 +2367,55 @@ export default function Projects() {
                       <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
                     </svg>
                   </div>
-                ) : empty ? (
-                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4">
-                    <div className="text-center">
-                      <div className="mx-auto w-14 h-14 rounded-2xl bg-cream border border-pale flex items-center justify-center text-muted">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-                          <path d="M14 2v6h6" />
-                          <path d="M8 13h8" />
-                          <path d="M8 17h8" />
-                        </svg>
-                      </div>
-                      <p className="mt-3 text-[14px] font-bold text-ink">No projects yet</p>
-                      <p className="mt-1 text-[12px] text-muted">Create your first project to start bidding.</p>
+                ) : showFirstProjectWelcome ? (
+                  <div className="min-h-[calc(100vh-260px)] flex items-center justify-center px-4 py-8">
+                    <div className="w-full max-w-xl text-center">
+                      <p className="text-[16px] font-bold text-ink">Get your first piece made</p>
+                      {firstProjectVideoUrl ? (
+                        <div className="mt-5 overflow-hidden rounded-xl border border-pale bg-ink text-left">
+                          {isYouTubeUrl(firstProjectVideoUrl) ? (
+                            <iframe
+                              title="How Arviah projects work"
+                              src={(() => {
+                                const base = normalizeYouTubeForIframe(firstProjectVideoUrl);
+                                return base.includes('?')
+                                  ? `${base}&controls=1&modestbranding=1&rel=0`
+                                  : `${base}?controls=1&modestbranding=1&rel=0`;
+                              })()}
+                              className="aspect-video w-full bg-ink"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          ) : (
+                            <video
+                              src={firstProjectVideoUrl}
+                              className="aspect-video w-full bg-ink"
+                              controls
+                              playsInline
+                              preload="metadata"
+                              controlsList="nodownload"
+                            />
+                          )}
+                        </div>
+                      ) : null}
+                      <p className={`${firstProjectVideoUrl ? 'mt-5' : 'mt-2'} text-[13px] leading-relaxed text-muted`}>
+                        Upload any design you love, see an instant AI price check, and let verified makers bid to make it. Watch the 90-second video to see how it works.
+                      </p>
                     </div>
                   </div>
-                ) : filterEmpty ? (
-                  <div className="space-y-3">
-                    <p className="text-[13px] text-mid">No projects found for this filter.</p>
+                ) : empty || filterEmpty ? (
+                  <div className="flex min-h-[min(420px,calc(100vh-260px))] flex-1 flex-col items-center justify-center px-4 py-12 text-center">
+                    <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-pale bg-cream text-muted">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <path d="M8 13h8" />
+                        <path d="M8 17h8" />
+                      </svg>
+                    </div>
+                    <p className="mt-4 text-[14px] font-bold text-ink">No projects found for this filter.</p>
                     {canLoadMore ? (
-                      <div className="flex justify-center">
+                      <div className="mt-4 flex justify-center">
                         <button
                           type="button"
                           onClick={() => loadProjects({ nextPage: listPage + 1, append: true })}
@@ -2967,7 +3023,7 @@ export default function Projects() {
                                     </span>
                                   )}
                                   <span className="mt-1 text-[13px] font-bold text-ink">
-                                    {referenceUploading ? 'Uploading…' : 'Add reference image'}
+                                    {referenceUploading ? 'Checking image…' : 'Add reference image'}
                                   </span>
                                   <span className="text-[12px] text-muted leading-snug">
                                     {referenceUploading ? 'Please wait' : 'Click to browse, or drag and drop an image here'}
@@ -3108,7 +3164,7 @@ export default function Projects() {
                                         </span>
                                       )}
                                       <span className="mt-1 text-[13px] font-bold text-ink">
-                                        {referenceUploading ? 'Uploading…' : 'Add reference image'}
+                                        {referenceUploading ? 'Checking image…' : 'Add reference image'}
                                       </span>
                                       <span className="text-[12px] text-muted leading-snug">
                                         {referenceUploading ? 'Please wait' : 'Tap to browse. On desktop you can drag a file here.'}
@@ -3498,7 +3554,7 @@ export default function Projects() {
                                         ...(p.specs || {}),
                                         stonesIncluded: opt.value,
                                         ...(opt.value === 'no'
-                                          ? { stoneType: '', stoneQualityBracket: '' }
+                                          ? { stoneType: '', stoneQualityBracket: '', diamondDetails: '' }
                                           : {}),
                                       },
                                     }))
@@ -3579,6 +3635,22 @@ export default function Projects() {
                                   </p>
                                 </div>
                               ) : null}
+
+                              <div>
+                                <label className="text-[11px] font-medium text-ink uppercase tracking-wide">Diamond details</label>
+                                <textarea
+                                  rows={3}
+                                  value={createForm?.specs?.diamondDetails || ''}
+                                  onChange={(e) =>
+                                    setCreateForm((p) => ({
+                                      ...p,
+                                      specs: { ...(p.specs || {}), diamondDetails: e.target.value },
+                                    }))
+                                  }
+                                  className="mt-2 w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
+                                  placeholder="Specify stone count, size, shape, or setting"
+                                />
+                              </div>
                             </>
                           ) : null}
                         </div>
@@ -4163,6 +4235,9 @@ export default function Projects() {
                             ) : null}
                             {String(createForm?.specs?.stoneQualityBracket || '').trim() ? (
                               <div><span className="text-muted">Preferred stone quality bracket:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneQualityBracket}</span></div>
+                            ) : null}
+                            {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' && String(createForm?.specs?.diamondDetails || '').trim() ? (
+                              <div className="md:col-span-2"><span className="text-muted">Diamond details:</span> <span className="font-semibold text-ink whitespace-pre-wrap">{String(createForm?.specs?.diamondDetails || '').trim()}</span></div>
                             ) : null}
                           </div>
                         </div>

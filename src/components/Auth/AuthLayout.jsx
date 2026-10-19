@@ -5,7 +5,7 @@ import logo from '../../assets/logo.png';
 
 export default function AuthLayout() {
   return (
-    <div className="flex h-screen w-full bg-white overflow-hidden font-sans">
+    <div className="flex h-[100dvh] max-h-[100dvh] w-full bg-white overflow-hidden font-sans">
       
       {/* Left Panel */}
       <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">

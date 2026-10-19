@@ -14,6 +14,7 @@ import {
 } from '../../utils/stateRegionLabel';
 import CountrySelect from '../../components/CountrySelect';
 import ShowroomPickupModal from '../../components/customer/ShowroomPickupModal';
+import { PIN_CODE_MAX_LENGTH, pinCodeError } from '../../utils/pinCode';
 
 export default function Checkout() {
   const { addToast, currentUser } = useOutletContext();
@@ -254,6 +255,7 @@ export default function Checkout() {
   const validateAddress = (a) => {
     const v = (x) => String(x ?? '').trim();
     const phoneOk = v(a?.phone).length >= 6;
+    const pinErr = pinCodeError(a?.pinCode);
     return {
       ok:
         Boolean(v(a?.name)) &&
@@ -262,7 +264,8 @@ export default function Checkout() {
         Boolean(v(a?.city)) &&
         Boolean(v(a?.state)) &&
         Boolean(v(a?.country)) &&
-        Boolean(v(a?.pinCode)),
+        Boolean(v(a?.pinCode)) &&
+        !pinErr,
       missing: {
         name: !v(a?.name),
         phone: !phoneOk,
@@ -270,8 +273,9 @@ export default function Checkout() {
         city: !v(a?.city),
         state: !v(a?.state),
         country: !v(a?.country),
-        pinCode: !v(a?.pinCode),
+        pinCode: !v(a?.pinCode) || Boolean(pinErr),
       },
+      pinError: pinErr,
     };
   };
 
@@ -1151,14 +1155,21 @@ export default function Checkout() {
                               Pin code *
                             </label>
                             <input
+                              name="postal-code"
+                              autoComplete="postal-code"
+                              autoCapitalize="characters"
+                              spellCheck={false}
+                              maxLength={PIN_CODE_MAX_LENGTH}
                               value={x.form.pinCode}
                               onChange={(e) => x.setForm((p) => ({ ...p, pinCode: e.target.value }))}
-                              inputMode="numeric"
                               className={`mt-1 w-full px-4 py-3 rounded-xl border bg-white text-[12px] font-semibold focus:outline-none ${
                                 x.valid.missing.pinCode ? 'border-amber-300' : 'border-pale'
                               }`}
                               placeholder="Pin code"
                             />
+                            {x.valid.pinError ? (
+                              <p className="mt-1 text-[11px] text-red-500">{x.valid.pinError}</p>
+                            ) : null}
                           </div>
                           <CountrySelect
                             label="Country"

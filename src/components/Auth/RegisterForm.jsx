@@ -10,6 +10,7 @@ import {
   formatDialCodeTriggerLabel,
   isoCountryCodeToFlagEmoji,
 } from '../../utils/countryFlag';
+import { pinCodeError } from '../../utils/pinCode';
 
 // --- HELPER COMPONENTS ---
 
@@ -114,6 +115,7 @@ const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, e
         <input
           type={show ? "text" : "password"}
           name={name}
+          autoComplete="new-password"
           maxLength={15}
           placeholder={required ? `${placeholder} *` : placeholder}
           value={value}
@@ -233,6 +235,7 @@ const CustomSelect = ({ options, placeholder, value, onChange, disabled, classNa
             <input
               ref={searchInputRef}
               type="text"
+              autoComplete="off"
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -373,7 +376,15 @@ export const RegisterForm = () => {
   // --- HANDLERS ---
 
   const handleChange = (e) => {
-    const { name, value, checked, type } = e.target;
+    const { value, checked, type } = e.target;
+    const fieldNames = {
+      'given-name': 'firstName',
+      'family-name': 'lastName',
+      'tel-national': 'phone',
+      'address-level1': 'state',
+      'postal-code': 'pinCode',
+    };
+    const name = fieldNames[e.target.name] || e.target.name;
     let val = type === 'checkbox' ? checked : value;
 
     if (name === 'phone') val = val.replace(/\D/g, ''); 
@@ -416,6 +427,12 @@ export const RegisterForm = () => {
     else if (!emailRegex.test(formData.email)) newErrors.email = "Invalid email format";
 
     if (!formData.phone) newErrors.phone = "Required";
+    else if (formData.phone.length < 6) newErrors.phone = "Enter at least 6 digits";
+    else if (formData.phone.length > 20) newErrors.phone = "Enter 20 digits or fewer";
+
+    const pin = String(formData.pinCode || '').trim();
+    const pinErr = pinCodeError(pin);
+    if (pinErr) newErrors.pinCode = pinErr;
     
     if (!formData.password) newErrors.password = "Required";
     else if (formData.password.length < 8) newErrors.password = "Must be at least 8 characters"; 
@@ -442,7 +459,7 @@ export const RegisterForm = () => {
         phone: formData.phone,
         country: formData.country,         
         state: formData.state,
-        pinCode: formData.pinCode,
+        pinCode: pin,
         userType: formData.userType,
         city: null,
         address: null,
@@ -517,13 +534,20 @@ export const RegisterForm = () => {
       </div>
 
       {/* FORM BODY */}
+      <form
+        autoComplete="on"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!loading) handleSubmit();
+        }}
+      >
       <div className="flex flex-col gap-4 lg:gap-4 mb-6">
         <div className="flex gap-4 lg:gap-3">
-          <InputField required name="firstName" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
-          <InputField required name="lastName" placeholder="Last Name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
+          <InputField required name="given-name" autoComplete="given-name" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
+          <InputField required name="family-name" autoComplete="family-name" placeholder="Last Name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
         </div>
         
-        <InputField required name="email" type="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
+        <InputField required name="email" type="email" autoComplete="email" inputMode="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
         
         <div className="flex gap-4 lg:gap-3">
           {/* Country Code Select */}
@@ -535,7 +559,7 @@ export const RegisterForm = () => {
                 options={codeOptions}
              />
           </div>
-          <InputField required name="phone" type="tel" placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
+          <InputField required name="tel-national" type="tel" autoComplete="tel-national" inputMode="tel" maxLength={20} placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
         </div>
 
         <CustomSelect
@@ -556,12 +580,23 @@ export const RegisterForm = () => {
 
         <div className="flex gap-4 lg:gap-3">
           <InputField
-            name="state"
+            name="address-level1"
+            autoComplete="address-level1"
             placeholder={stateRegionLabel}
             value={formData.state}
             onChange={handleChange}
           />
-          <InputField name="pinCode" placeholder="Pin Code" value={formData.pinCode} onChange={handleChange} />
+          <InputField
+            name="postal-code"
+            autoComplete="postal-code"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={20}
+            placeholder="Pin Code"
+            value={formData.pinCode}
+            onChange={handleChange}
+            error={errors.pinCode}
+          />
         </div>
 
         <div className="flex flex-col gap-4 lg:gap-3 mt-2">
@@ -610,7 +645,7 @@ export const RegisterForm = () => {
         </div>
 
         <button 
-          onClick={handleSubmit} 
+          type="submit"
           disabled={loading} 
           className="w-full cursor-pointer bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[14px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -621,6 +656,7 @@ export const RegisterForm = () => {
           Already have an account? <span onClick={() => navigate('/login')} className="text-ink font-bold cursor-pointer hover:underline">Login</span>
         </p>
       </div>
+      </form>
     </div>
   );
 };

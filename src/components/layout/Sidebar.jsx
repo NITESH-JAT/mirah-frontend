@@ -3,18 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
-
-function initialsForUser(u) {
-  const first = String(u?.firstName ?? '').trim();
-  const last = String(u?.lastName ?? '').trim();
-  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
-  if (first.length >= 2) return first.slice(0, 2).toUpperCase();
-  if (first) return first.slice(0, 1).toUpperCase();
-  const email = String(u?.email ?? '').trim();
-  if (email.length >= 2) return email.slice(0, 2).toUpperCase();
-  if (email) return email.slice(0, 1).toUpperCase();
-  return 'U';
-}
+import PresetAvatar from '../profile/PresetAvatar';
 
 function roleLabelForUser(u) {
   const t = String(u?.userType ?? '').trim().toLowerCase();
@@ -298,9 +287,11 @@ export default function Sidebar({ isOpen = false, onClose }) {
           className="flex w-full cursor-pointer items-center gap-3 py-2 text-left"
           aria-label="Open profile"
         >
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush font-sans text-[13px] font-bold tracking-tight text-ink">
-            {initialsForUser(user)}
-          </span>
+          <PresetAvatar
+            profileImageUrl={user?.profileImageUrl}
+            seed={user?.id || user?.email}
+            className="h-11 w-11 shrink-0 rounded-full"
+          />
           <div className="min-w-0 flex-1">
             <p className="truncate font-sans text-[15px] font-bold leading-tight text-ink">{roleLabelForUser(user)}</p>
           </div>

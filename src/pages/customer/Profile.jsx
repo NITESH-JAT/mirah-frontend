@@ -9,8 +9,24 @@ import {
 import { addressLocationParts } from '../../utils/addressLocationParts';
 import CountrySelect from '../../components/CountrySelect';
 import VendorPortfolioPanel from '../../components/vendor/VendorPortfolioPanel';
+import { PIN_CODE_MAX_LENGTH, pinCodeError } from '../../utils/pinCode';
+import PresetAvatar, { PROFILE_AVATARS } from '../../components/profile/PresetAvatar';
 
-const InputField = ({ label, value, onChange, name, readOnly, placeholder, type = "text", inputMode }) => (
+const InputField = ({
+  label,
+  value,
+  onChange,
+  name,
+  readOnly,
+  placeholder,
+  type = "text",
+  inputMode,
+  autoComplete,
+  maxLength,
+  autoCapitalize,
+  spellCheck,
+  error,
+}) => (
   <div className="space-y-1.5">
     {label ? (
       <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{label}</label>
@@ -23,10 +39,16 @@ const InputField = ({ label, value, onChange, name, readOnly, placeholder, type 
       readOnly={readOnly}
       placeholder={placeholder}
       inputMode={inputMode}
+      autoComplete={autoComplete}
+      maxLength={maxLength}
+      autoCapitalize={autoCapitalize}
+      spellCheck={spellCheck}
       className={`w-full px-4 py-3 rounded-xl border text-sm font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 transition-all
-        ${readOnly ? 'bg-cream border-pale text-muted' : 'bg-white border-pale focus:border-walnut'}
+        ${error ? 'border-red-400' : ''}
+        ${readOnly ? 'bg-cream border-pale text-muted' : error ? 'bg-white' : 'bg-white border-pale focus:border-walnut'}
       `}
     />
+    {error ? <p className="text-red-500 text-[11px]">{error}</p> : null}
   </div>
 );
 
@@ -90,8 +112,8 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [pictureUploading, setPictureUploading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
+  const [avatarSaving, setAvatarSaving] = useState(false);
   
   // Data State for Editing
   const [editForm, setEditForm] = useState({});
@@ -222,7 +244,8 @@ export default function Profile() {
   }, [profile?.userType]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
+    const name = e.target.name === 'postal-code' ? 'pinCode' : e.target.name;
+    const { value } = e.target;
     setEditForm(prev => ({ ...prev, [name]: value }));
   };
 
@@ -233,6 +256,11 @@ export default function Profile() {
 
   const handleUpdate = async () => {
     if (profileSaving) return;
+    const profilePinError = pinCodeError(editForm.pinCode);
+    if (profilePinError) {
+      addToast(profilePinError, "error");
+      return;
+    }
     setProfileSaving(true);
     try {
       const updated = await authService.updateProfile(editForm);
@@ -247,21 +275,18 @@ export default function Profile() {
     }
   };
 
-  const handleProfilePictureChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setPictureUploading(true);
+  const handleChooseAvatar = async (avatarId) => {
+    if (avatarSaving) return;
+    setAvatarSaving(true);
     try {
-      const savedUser = await authService.uploadProfilePicture(file);
+      const savedUser = await authService.setProfileAvatar(avatarId);
       setCurrentUser(savedUser);
       setProfile((prev) => ({ ...(prev || {}), profileImageUrl: savedUser?.profileImageUrl }));
-      addToast("Profile picture updated!", "success");
+      addToast("Profile character updated", "success");
     } catch (err) {
-      addToast(err.message || "Failed to upload profile picture", "error");
+      addToast(err.message || "Failed to update profile character", "error");
     } finally {
-      setPictureUploading(false);
-      // reset input so selecting same file works
-      e.target.value = '';
+      setAvatarSaving(false);
     }
   };
 
@@ -394,6 +419,11 @@ export default function Profile() {
 
   const saveAddress = async () => {
     if (addressSaving) return;
+    const addressPinError = pinCodeError(addressForm.pinCode);
+    if (addressPinError) {
+      addToast(addressPinError, "error");
+      return;
+    }
     const payload = {
       addressType: addressForm.type,
       name: String(addressForm.name || '').trim() || undefined,
@@ -532,31 +562,33 @@ export default function Profile() {
         <div className="flex flex-col lg:flex-row gap-8 items-start">
           {/* Avatar Section */}
           <div className="w-full lg:w-auto flex flex-col items-center gap-3">
-            <div className="w-24 h-24 rounded-full p-1 border border-pale relative group">
-              <img 
-                src={
-                  profile?.profileImageUrl ||
-                  `https://ui-avatars.com/api/?name=${profile.firstName}+${profile.lastName}&background=0D8ABC&color=fff&size=128`
-                } 
-                className="w-full h-full rounded-full object-cover" 
-                alt="Profile" 
+            <div className="w-24 h-24 rounded-full overflow-hidden border border-pale">
+              <PresetAvatar
+                profileImageUrl={profile?.profileImageUrl}
+                seed={profile?.id || profile?.email}
+                className="w-full h-full"
+                label="Profile character"
               />
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              id="profile_picture_input"
-              className="hidden"
-              onChange={handleProfilePictureChange}
-            />
-            <button
-              type="button"
-              onClick={() => document.getElementById('profile_picture_input')?.click()}
-              disabled={pictureUploading}
-              className="px-4 py-1.5 rounded-full border border-pale text-xs font-semibold text-mid hover:bg-cream transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {pictureUploading ? 'Uploading…' : 'Change Photo'}
-            </button>
+            <div className="flex flex-wrap justify-center gap-2 max-w-[220px]">
+              {PROFILE_AVATARS.map((avatar) => {
+                const selected = String(profile?.profileImageUrl || '') === `preset:${avatar.id}`;
+                return (
+                  <button
+                    key={avatar.id}
+                    type="button"
+                    aria-label={avatar.label}
+                    disabled={avatarSaving}
+                    onClick={() => handleChooseAvatar(avatar.id)}
+                    className={`w-10 h-10 rounded-full overflow-hidden border cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed ${
+                      selected ? 'border-walnut ring-2 ring-walnut/30' : 'border-pale'
+                    }`}
+                  >
+                    <PresetAvatar avatarId={avatar.id} className="w-full h-full" label={avatar.label} />
+                  </button>
+                );
+              })}
+            </div>
             <div className="text-center">
               <h3 className="font-bold text-ink text-lg">{profile.firstName} {profile.lastName}</h3>
               <p className="text-xs text-muted capitalize">{isJeweller ? 'Jeweller' : 'Customer'}</p>
@@ -597,7 +629,18 @@ export default function Profile() {
               readOnly={!isEditing}
               placeholder={profileStateRegionLabel}
             />
-            <InputField label="Pin Code" name="pinCode" value={editForm.pinCode} onChange={handleInputChange} readOnly={!isEditing} />
+            <InputField
+              label="Pin Code"
+              name="postal-code"
+              autoComplete="postal-code"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={PIN_CODE_MAX_LENGTH}
+              value={editForm.pinCode}
+              onChange={handleInputChange}
+              readOnly={!isEditing}
+              error={isEditing ? pinCodeError(editForm.pinCode) : ''}
+            />
             <CountrySelect
               label="Country"
               value={editForm.country}
@@ -940,11 +983,16 @@ export default function Profile() {
                   />
                   <InputField
                     label="Pin Code"
-                    name="pinCode"
+                    name="postal-code"
+                    autoComplete="postal-code"
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                    maxLength={PIN_CODE_MAX_LENGTH}
                     value={addressForm.pinCode}
                     onChange={(e) => setAddressForm((p) => ({ ...p, pinCode: e.target.value }))}
                     readOnly={false}
                     placeholder="Pin code"
+                    error={pinCodeError(addressForm.pinCode)}
                   />
                   <CountrySelect
                     label="Country"

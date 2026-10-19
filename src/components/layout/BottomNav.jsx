@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +28,28 @@ export default function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [viewportLift, setViewportLift] = useState(0);
+
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const apply = () => {
+      const hiddenBelow = window.innerHeight - vv.height - vv.offsetTop;
+      const lift = hiddenBelow > 1 ? hiddenBelow : 0;
+      setViewportLift(lift);
+      document.documentElement.style.setProperty('--vv-bottom-offset', `${lift}px`);
+    };
+    apply();
+    vv.addEventListener('resize', apply);
+    vv.addEventListener('scroll', apply);
+    window.addEventListener('resize', apply);
+    return () => {
+      vv.removeEventListener('resize', apply);
+      vv.removeEventListener('scroll', apply);
+      window.removeEventListener('resize', apply);
+      document.documentElement.style.removeProperty('--vv-bottom-offset');
+    };
+  }, []);
 
   const userType = String(user?.userType ?? '').trim().toLowerCase();
   const isVendor = userType === 'vendor' || userType === 'jeweller';
@@ -160,7 +182,8 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 flex h-14 items-stretch border-t border-pale bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+      className="fixed left-0 right-0 z-40 flex h-[calc(3.5rem+env(safe-area-inset-bottom))] items-stretch border-t border-pale bg-white pb-[env(safe-area-inset-bottom)] lg:hidden"
+      style={{ bottom: viewportLift }}
       aria-label="Primary"
     >
       {items.map((item) => (

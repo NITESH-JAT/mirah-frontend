@@ -5,6 +5,7 @@ import { projectService } from '../../services/projectService';
 import ImageWithFullscreenZoom from '../../components/ImageWithFullscreenZoom';
 import VendorProjectMetaCard from '../../components/vendor/VendorProjectMetaRows';
 import VendorKycRequiredCard from '../../components/vendor/VendorKycRequiredCard';
+import PresetAvatar from '../../components/profile/PresetAvatar';
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatCurrency } from '../../utils/formatMoney';
 import { useRegion } from '../../context/RegionProvider';
@@ -266,11 +267,6 @@ function customerNameOf(project, details) {
   const name = c?.fullName ?? c?.name ?? joined ?? null;
   const trimmed = typeof name === 'string' ? name.trim() : name;
   return trimmed ? trimmed : null;
-}
-
-function avatarUrlFor(name) {
-  const safe = name || 'Jeweller';
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
 function daysLabel(days) {
@@ -825,7 +821,11 @@ export default function VendorExploreProject() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0 flex flex-1 items-start gap-3">
                               <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                                <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
+                                <PresetAvatar
+                                  profileImageUrl={b?.vendor?.profileImageUrl}
+                                  seed={vendorId || vendorName}
+                                  className="w-full h-full"
+                                />
                               </div>
                               <div className="min-w-0">
                                 <p className="text-[14px] font-extrabold text-ink truncate">{displayName}</p>
@@ -899,7 +899,11 @@ export default function VendorExploreProject() {
                                   <td className="px-4 py-3 align-top">
                                     <div className="flex items-start gap-3 min-w-0">
                                       <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                                        <img src={avatarUrlFor(displayName)} alt="" className="w-full h-full object-cover" />
+                                        <PresetAvatar
+                                          profileImageUrl={b?.vendor?.profileImageUrl}
+                                          seed={vendorId || vendorName}
+                                          className="w-full h-full"
+                                        />
                                       </div>
                                       <div className="min-w-0 pt-0.5">
                                         <p className="text-[13px] font-extrabold text-ink truncate">{displayName}</p>

@@ -8,6 +8,7 @@ import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 import { counterpartDisplayName } from '../../utils/counterpartDisplayName';
+import PresetAvatar from '../../components/profile/PresetAvatar';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -75,11 +76,6 @@ function isProjectFinishedLike(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
   const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
   return Boolean(p?.isFinished) || status === 'finished' || projectStatus === 'completed';
-}
-
-function avatarUrlFor(name) {
-  const safe = name || 'Jeweller';
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(safe)}&background=0D8ABC&color=fff`;
 }
 
 function daysLabel(days) {
@@ -1116,7 +1112,11 @@ export default function ProjectBids() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex flex-1 items-start gap-3">
                             <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                              <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                              <PresetAvatar
+                                profileImageUrl={vendor?.profileImageUrl}
+                                seed={vendorId || vendorName}
+                                className="w-full h-full"
+                              />
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="text-[14px] font-extrabold text-ink truncate">{vendorName}</p>
@@ -1279,7 +1279,11 @@ export default function ProjectBids() {
                             <td className="px-4 py-3 align-middle">
                               <div className="flex items-start gap-3 min-w-0">
                                 <div className="w-10 h-10 rounded-full overflow-hidden border border-pale bg-white shrink-0">
-                                  <img src={avatarUrlFor(vendorName)} alt="" className="w-full h-full object-cover" />
+                                  <PresetAvatar
+                                    profileImageUrl={vendor?.profileImageUrl}
+                                    seed={vendorId || vendorName}
+                                    className="w-full h-full"
+                                  />
                                 </div>
                                 <div className="min-w-0 pt-0.5">
                                   <p className="text-[13px] font-extrabold text-ink truncate">{vendorName}</p>

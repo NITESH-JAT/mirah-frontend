@@ -6,6 +6,7 @@ import {
   normalizeCountryLookupRows,
 } from '../../utils/stateRegionLabel';
 import { authService } from '../../services/authService';
+import { PIN_CODE_MAX_LENGTH, pinCodeError } from '../../utils/pinCode';
 
 export const emptyProjectDeliveryAddress = () => ({
   name: '',
@@ -45,7 +46,8 @@ export function validateProjectDeliveryAddress(a) {
     v(a?.city) &&
     v(a?.state) &&
     v(a?.country) &&
-    v(a?.pinCode)
+    v(a?.pinCode) &&
+    !pinCodeError(a?.pinCode)
   );
 }
 
@@ -211,13 +213,20 @@ export default function ProjectDeliveryAddressFields({
           <label className="text-[11px] font-medium text-ink uppercase tracking-wide">{postalLabel} *</label>
           <input
             type="text"
+            name="postal-code"
             value={form?.pinCode || ''}
             disabled={disabled || locked}
             onChange={(e) => set({ pinCode: e.target.value })}
             className={fieldClass}
             placeholder={postalLabel}
             autoComplete="postal-code"
+            autoCapitalize="characters"
+            spellCheck={false}
+            maxLength={PIN_CODE_MAX_LENGTH}
           />
+          {pinCodeError(form?.pinCode) ? (
+            <p className="text-red-500 text-[11px]">{pinCodeError(form?.pinCode)}</p>
+          ) : null}
         </div>
       </div>
     </div>

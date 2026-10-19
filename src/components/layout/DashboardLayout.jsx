@@ -13,6 +13,8 @@ import { formatCurrency } from '../../utils/formatMoney';
 import { resolveNotificationHref } from '../../utils/notificationNavigation';
 import { CustomerStorefrontProvider, useCustomerStorefront } from '../../context/CustomerStorefrontContext';
 import { useRegion } from '../../context/RegionProvider';
+import PresetAvatar from '../profile/PresetAvatar';
+import { normalizeYouTubeForIframe } from '../../utils/videoEmbed';
 
 // --- TOAST NOTIFICATION COMPONENT ---
 const ToastNotification = ({ id, message, type, title, onClose }) => {
@@ -84,18 +86,6 @@ function formatNoticeDateTime(n) {
 
 
 
-function initialsForUser(u) {
-  const first = String(u?.firstName ?? '').trim();
-  const last = String(u?.lastName ?? '').trim();
-  if (first && last) return `${first[0]}${last[0]}`.toUpperCase();
-  if (first.length >= 2) return first.slice(0, 2).toUpperCase();
-  if (first) return first.slice(0, 1).toUpperCase();
-  const email = String(u?.email ?? '').trim();
-  if (email.length >= 2) return email.slice(0, 2).toUpperCase();
-  if (email) return email.slice(0, 1).toUpperCase();
-  return 'U';
-}
-
 function roleLabelForUser(u) {
   const t = String(u?.userType ?? '').trim().toLowerCase();
   if (t === 'vendor' || t === 'jeweller') return 'Jeweller';
@@ -104,37 +94,6 @@ function roleLabelForUser(u) {
   return 'Guest';
 }
 
-function normalizeYouTubeForIframe(url) {
-  try {
-    const u = new URL(url);
-    const host = String(u.hostname || '').toLowerCase();
-
-    // youtu.be/<id>
-    if (host === 'youtu.be') {
-      const id = u.pathname.split('/').filter(Boolean)[0];
-      return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
-    }
-
-    // youtube.com/watch?v=<id>
-    if (host.includes('youtube.com')) {
-      if (u.pathname === '/watch') {
-        const id = u.searchParams.get('v');
-        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
-      }
-      // youtube.com/shorts/<id>
-      if (u.pathname.startsWith('/shorts/')) {
-        const id = u.pathname.split('/').filter(Boolean)[0] === 'shorts' ? u.pathname.split('/').filter(Boolean)[1] : null;
-        return id ? `https://www.youtube.com/embed/${encodeURIComponent(id)}` : url;
-      }
-      // already embed
-      if (u.pathname.startsWith('/embed/')) return url;
-    }
-
-    return url;
-  } catch {
-    return url;
-  }
-}
 
 export default function DashboardLayout() {
   const { user: currentUser } = useAuth();
@@ -665,7 +624,7 @@ function DashboardLayoutShell() {
       </div>
 
       {/* Main Content Wrapper */}
-      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom))] lg:ml-[260px] lg:pb-0">
+      <div className="relative ml-0 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col pb-[calc(3.5rem+env(safe-area-inset-bottom)+var(--vv-bottom-offset,0px))] lg:ml-[260px] lg:pb-0">
 
         {/* HEADER */}
       <div className={`relative flex h-16 shrink-0 items-center justify-between border-b border-pale bg-white px-4 sm:px-8 sticky top-0 ${headerMenuOpen ? 'z-[270]' : 'z-40'}`}>
@@ -947,9 +906,11 @@ function DashboardLayoutShell() {
                 aria-haspopup="menu"
                 aria-label="Account menu"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush font-sans text-[12px] font-bold tracking-tight text-ink">
-                  {initialsForUser(currentUser)}
-                </span>
+                <PresetAvatar
+                  profileImageUrl={currentUser?.profileImageUrl}
+                  seed={currentUser?.id || currentUser?.email}
+                  className="h-9 w-9 shrink-0 rounded-full"
+                />
                 <span className="hidden min-w-0 truncate font-sans text-[13px] font-medium text-ink sm:inline">
                   {roleLabelForUser(currentUser)}
                 </span>

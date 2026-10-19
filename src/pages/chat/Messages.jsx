@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useOutletContext } from 'react-router-dom';
 import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
+import PresetAvatar from '../../components/profile/PresetAvatar';
 
 const PERSONAL_INFO_BLOCK_TOAST =
   'Please avoid sharing personal contact details, such as phone numbers or addresses, and continue communicating through Arviah. This helps protect your personal data and identity while ensuring a secure transaction. Thank you.';
@@ -32,16 +33,14 @@ function looksLikeBlockedPlaceholderMessage(m) {
   return false;
 }
 
-function avatarUrlFor(user) {
-  const name = fullName(user) || user?.email || 'User';
-  const direct =
-    user?.profileImageUrl ||
-    user?.profileImage ||
-    user?.avatarUrl ||
-    user?.photoUrl ||
-    null;
-  if (direct) return direct;
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6B5545&color=F2E6D4`;
+function Avatar({ user, className }) {
+  return (
+    <PresetAvatar
+      profileImageUrl={user?.profileImageUrl}
+      seed={user?.id || user?.email || fullName(user) || 'user'}
+      className={className}
+    />
+  );
 }
 
 function timeAgoLabel(ts) {
@@ -788,7 +787,7 @@ export default function Messages() {
                     className="w-full text-left px-4 py-3 hover:bg-cream border-b border-pale last:border-0 cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <img src={avatarUrlFor(u)} alt="" className="w-9 h-9 rounded-full" />
+                      <Avatar user={u} className="w-9 h-9 rounded-full" />
                       <div>
                         <p className="text-[13px] font-bold text-ink">{fullName(u) || u.email}</p>
                         <p className="text-[11px] text-muted capitalize">{u.userType}</p>
@@ -844,7 +843,7 @@ export default function Messages() {
                     className="relative h-10 w-10 shrink-0"
                     aria-label={c.isOnline ? 'Online' : 'Offline'}
                   >
-                    <img src={avatarUrlFor(who)} alt="" className="h-10 w-10 rounded-full object-cover" />
+                    <Avatar user={who} className="h-10 w-10 rounded-full" />
                     <span
                       className={`pointer-events-none absolute bottom-0 right-0 block h-[11px] w-[11px] rounded-full border-[2.5px] border-white shadow-sm ${
                         c.isOnline ? 'bg-emerald-500' : 'bg-rose-400'
@@ -902,7 +901,7 @@ export default function Messages() {
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
-                <img src={avatarUrlFor(activeHeaderUser)} alt="" className="w-9 h-9 rounded-full" />
+                <Avatar user={activeHeaderUser} className="w-9 h-9 rounded-full" />
                 <div>
                   <p className="text-[13px] font-bold text-ink">{activeConvo?.admin ? 'Support' : fullName(activeHeaderUser) || 'Conversation'}</p>
                   <div className="mt-0.5 flex items-center gap-2">
@@ -957,11 +956,7 @@ export default function Messages() {
                     return (
                       <div key={String(m.id)} className={`w-full flex ${mine ? 'justify-end' : 'justify-start'}`}>
                         <div className={`flex items-end gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}>
-                          <img
-                            src={avatarUrlFor(senderForAvatar)}
-                            alt=""
-                            className="w-7 h-7 rounded-full shrink-0"
-                          />
+                          <Avatar user={senderForAvatar} className="w-7 h-7 rounded-full shrink-0" />
                           <div className={`max-w-[92%] md:max-w-[84%] px-4 py-2.5 rounded-2xl text-[13px] leading-relaxed
                             ${
                               mine
