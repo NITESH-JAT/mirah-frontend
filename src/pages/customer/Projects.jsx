@@ -109,7 +109,10 @@ function extraFieldsToArray(extraFields) {
       return Array.from(keys)
         .map((k) => ({
           key: String(k || '').trim(),
-          label: String(schema?.[k]?.label || '').trim(),
+          label:
+            k === 'stonesIncluded' || k === 'stones_included'
+              ? 'Does your design include diamonds?'
+              : String(schema?.[k]?.label || '').trim(),
           value: String(values?.[k] ?? '').trim(),
         }))
         .filter((x) => x.key && (x.label || x.value));
@@ -169,7 +172,7 @@ function buildStructuredSpecsPayload(specs) {
   push('twoTonePair', 'Two-tone colours', s.twoTonePair);
   push('twoToneDetails', 'Two-tone specification and additional metal details', s.twoToneDetails);
   push('otherMetalDetails', 'Specify metal', s.otherMetalDetails);
-  push('stonesIncluded', 'Does your design include stones?', s.stonesIncluded);
+  push('stonesIncluded', 'Does your design include diamonds?', s.stonesIncluded);
   push('stoneType', 'Stone type', s.stoneType);
   push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
   push('diamondDetails', 'Diamond details', s.stonesIncluded === 'yes' || String(s.stonesIncluded || '').toLowerCase() === 'yes' ? s.diamondDetails : '');
@@ -3521,7 +3524,7 @@ export default function Projects() {
 
                         <div className="mt-5 space-y-5">
                           <div>
-                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Does your design include stones? *</p>
+                            <p className="text-[11px] font-medium text-ink uppercase tracking-wide mb-2">Does your design include diamonds? *</p>
                             <div className="grid grid-cols-2 gap-2.5">
                               {[
                                 { value: 'yes', label: 'Yes' },

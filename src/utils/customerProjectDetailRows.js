@@ -87,7 +87,10 @@ export function buildCustomerProjectDetailRows(project, opts = {}) {
   const byKey = new Map();
   for (const [k, v] of Object.entries(values)) {
     if (!k || ALWAYS_SKIP.has(k)) continue;
-    const label = schema?.[k]?.label ?? toTitleCase(k);
+    const label =
+      k === 'stonesIncluded' || k === 'stones_included'
+        ? 'Does your design include diamonds?'
+        : (schema?.[k]?.label ?? toTitleCase(k));
     let value = v;
     if (Array.isArray(value)) value = value.filter(Boolean).join(', ');
     else if (value && typeof value === 'object') {
