@@ -1,5 +1,6 @@
 # Mirah Frontend
 
+
 A modern React-based authentication system with role-based access for suppliers and clients. Built with React 19, Vite, and Tailwind CSS.
 
 ## Overview
