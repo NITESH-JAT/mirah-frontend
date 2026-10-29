@@ -27,7 +27,7 @@ export function BidsTableSkeleton({ columns = 3 }) {
           <table className={`w-full border-collapse text-left ${colCount === 4 ? 'min-w-[560px]' : 'min-w-[520px]'}`}>
             <thead>
               <tr className="border-b border-pale bg-walnut/[0.07]">
-                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                 <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Order bid</th>
                 {colCount === 4 ? (

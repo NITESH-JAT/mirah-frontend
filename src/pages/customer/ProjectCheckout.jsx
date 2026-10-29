@@ -102,6 +102,9 @@ export default function ProjectCheckout() {
   const [reportLoading, setReportLoading] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [promoInput, setPromoInput] = useState('');
+  const [promoBusy, setPromoBusy] = useState(false);
+  const [promoError, setPromoError] = useState('');
 
   const load = useCallback(async () => {
     if (!projectId || !type) {
@@ -257,6 +260,46 @@ export default function ProjectCheckout() {
     }
   };
 
+  const promo = checkout?.promo || null;
+  const promoCurrency = checkout?.presentmentCurrency || 'INR';
+  const promoDiscountLabel = promo?.applied
+    ? formatCurrency(promo.discountPresentment ?? promo.discountInr, promo.discountPresentment != null ? promoCurrency : 'INR')
+    : null;
+
+  const applyPromo = async (e) => {
+    e?.preventDefault?.();
+    const code = String(promoInput || '').trim().toUpperCase();
+    if (!code) {
+      setPromoError('Enter a promo code.');
+      return;
+    }
+    setPromoBusy(true);
+    setPromoError('');
+    try {
+      await projectService.applyPromo(projectId, code);
+      setPromoInput('');
+      addToast(`Promo ${code} applied`, 'success');
+      await load();
+    } catch (err) {
+      setPromoError(err?.message || 'This promo code could not be applied.');
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
+  const removePromo = async () => {
+    setPromoBusy(true);
+    setPromoError('');
+    try {
+      await projectService.removePromo(projectId);
+      await load();
+    } catch (err) {
+      addToast(err?.message || 'Could not remove the promo code', 'error');
+    } finally {
+      setPromoBusy(false);
+    }
+  };
+
   const handleInvoice = async () => {
     if (invoiceLoading) return;
     setInvoiceLoading(true);
@@ -316,7 +359,7 @@ export default function ProjectCheckout() {
   }
 
   const awaiting = Boolean(reportedAt || checkout?.bankTransfer?.openLedger?.awaitingVerification);
-  const makerName = checkout?.maker?.name || 'Assigned jeweller';
+  const makerName = checkout?.maker?.name || 'Assigned manufacturer';
   const typeLabel = checkout.fullUpfront ? 'Payment' : type === 'advance' ? 'Advance' : 'Final';
 
   return (
@@ -540,9 +583,76 @@ export default function ProjectCheckout() {
             <p className="mt-1 text-[14px] font-extrabold text-ink">{checkout.project?.title || '—'}</p>
             <p className="mt-1 text-[12px] text-muted">Maker: {makerName}</p>
           </div>
+          {promo && (promo.editable || promo.code) ? (
+            <div className="border-t border-pale pt-3">
+              {promo.code ? (
+                <div
+                  className={`rounded-xl border px-3 py-2 ${
+                    promo.applied ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className={`text-[12px] font-extrabold ${promo.applied ? 'text-green-800' : 'text-amber-800'}`}>
+                        {promo.code} {promo.applied ? 'applied' : 'not applied'}
+                      </p>
+                      <p className={`text-[11px] ${promo.applied ? 'text-green-700' : 'text-amber-700'}`}>
+                        {promo.applied
+                          ? `You save ${promoDiscountLabel} on this project (taken off before GST)`
+                          : promo.expired
+                            ? 'Your promo hold expired. Apply the code again to use it.'
+                            : "This project's quote is below the code's minimum amount."}
+                      </p>
+                    </div>
+                    {promo.editable ? (
+                      <button
+                        type="button"
+                        onClick={removePromo}
+                        disabled={promoBusy}
+                        className="shrink-0 text-[11px] font-bold text-mid underline underline-offset-2 hover:text-ink disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={applyPromo} className="space-y-1.5">
+                  <label htmlFor="project-promo" className="block text-[11px] font-bold uppercase tracking-wide text-muted">
+                    Promo code
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      id="project-promo"
+                      value={promoInput}
+                      onChange={(e) => {
+                        setPromoInput(e.target.value.toUpperCase().replace(/\s+/g, ''));
+                        if (promoError) setPromoError('');
+                      }}
+                      placeholder="Enter code"
+                      maxLength={40}
+                      autoComplete="off"
+                      className="min-w-0 flex-1 rounded-xl border border-pale bg-white px-3 py-2 text-[13px] font-semibold uppercase text-ink placeholder:normal-case placeholder:font-normal"
+                    />
+                    <button
+                      type="submit"
+                      disabled={promoBusy || !promoInput.trim()}
+                      className="shrink-0 rounded-xl border border-walnut px-3 py-2 text-[12px] font-bold text-walnut hover:bg-walnut hover:text-blush disabled:opacity-50"
+                    >
+                      {promoBusy ? 'Applying…' : 'Apply'}
+                    </button>
+                  </div>
+                  {promoError ? <p className="text-[11px] font-semibold text-red-600">{promoError}</p> : null}
+                </form>
+              )}
+            </div>
+          ) : null}
           <div className="border-t border-pale pt-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Amount due</p>
             <p className="mt-1 text-[16px] font-extrabold text-ink">{amountLabel}</p>
+            {promo?.applied ? (
+              <p className="mt-1 text-[11px] font-semibold text-green-700">Includes promo {promo.code}: −{promoDiscountLabel}</p>
+            ) : null}
           </div>
           <button
             type="button"

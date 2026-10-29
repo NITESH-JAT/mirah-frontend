@@ -788,7 +788,7 @@ export default function VendorBidsView() {
                     <table className="w-full min-w-[560px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-pale bg-walnut/[0.07]">
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
@@ -832,7 +832,7 @@ export default function VendorBidsView() {
                           <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
                         </svg>
                       </span>
-                      <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                      <span className="text-[13px] font-semibold text-mid">Other manufacturer bids exist for this project.</span>
                     </div>
                   </div>
                 </div>
@@ -841,7 +841,7 @@ export default function VendorBidsView() {
                     <table className="w-full min-w-[560px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-pale bg-walnut/[0.07]">
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
@@ -862,7 +862,7 @@ export default function VendorBidsView() {
                                   <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
                                 </svg>
                               </span>
-                              <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                              <span className="text-[13px] font-semibold text-mid">Other manufacturer bids exist for this project.</span>
                             </div>
                           </td>
                         </tr>
@@ -888,7 +888,7 @@ export default function VendorBidsView() {
                             <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
                           </svg>
                         </span>
-                        <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                        <span className="text-[13px] font-semibold text-mid">Other manufacturer bids exist for this project.</span>
                       </div>
                     </div>
                   ) : null}
@@ -899,7 +899,7 @@ export default function VendorBidsView() {
                     const price = bidPriceOf(b);
                     const days = bidDaysOf(b);
                     const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
-                    const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                    const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Manufacturer #${vendorId ?? '—'}`;
                     const isWinning =
                       winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
                     const cardHighlight =
@@ -1001,7 +1001,7 @@ export default function VendorBidsView() {
                       <table className="w-full min-w-[560px] text-left border-collapse">
                         <thead>
                           <tr className="border-b border-pale bg-walnut/[0.07]">
-                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                            <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                             <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Actions</th>
@@ -1023,7 +1023,7 @@ export default function VendorBidsView() {
                                       <rect x="50" y="168" width="110" height="8" rx="4" fill="currentColor" />
                                     </svg>
                                   </span>
-                                  <span className="text-[13px] font-semibold text-mid">Other jeweller bids exist for this project.</span>
+                                  <span className="text-[13px] font-semibold text-mid">Other manufacturer bids exist for this project.</span>
                                 </div>
                               </td>
                             </tr>
@@ -1035,7 +1035,7 @@ export default function VendorBidsView() {
                             const price = bidPriceOf(b);
                             const days = bidDaysOf(b);
                             const isMe = myVendorId != null && vendorId != null && String(vendorId) === String(myVendorId);
-                            const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Jeweller #${vendorId ?? '—'}`;
+                            const displayName = isMe ? `${vendorName || 'Me'} (me)` : vendorName || `Manufacturer #${vendorId ?? '—'}`;
                             const isWinning =
                               winningBidId != null && bidId != null && String(winningBidId) === String(bidId);
                             const rowBg =

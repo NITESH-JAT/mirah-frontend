@@ -948,7 +948,7 @@ export default function ProductDetails() {
                       onClick={() => navigate(`/customer/vendors/${vendorId}`)}
                       className="text-[12px] md:text-[13px] font-extrabold text-ink hover:underline"
                     >
-                      View Jeweller profile →
+                      View Manufacturer profile →
                     </button>
                   ) : null}
                 </div>

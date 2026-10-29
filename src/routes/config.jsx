@@ -44,6 +44,7 @@ const VendorReviews = lazy(() => import('../pages/vendor/VendorReviews'));
 const VendorGuidelines = lazy(() => import('../pages/vendor/VendorGuidelines'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 const Faq = lazy(() => import('../pages/customer/Faq'));
+const Unsubscribe = lazy(() => import('../pages/public/Unsubscribe'));
 
 function DashboardToCustomerRedirect() {
   const location = useLocation();
@@ -207,5 +208,8 @@ export const routes = [
   },
   
   // --- FALLBACK ---
+  // Public: reached from email links whether or not the user is signed in.
+  { path: '/unsubscribe', element: <Unsubscribe /> },
+
   { path: '*', element: <Navigate to="/login" replace /> }
 ];

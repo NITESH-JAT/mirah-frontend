@@ -88,7 +88,7 @@ function formatNoticeDateTime(n) {
 
 function roleLabelForUser(u) {
   const t = String(u?.userType ?? '').trim().toLowerCase();
-  if (t === 'vendor' || t === 'jeweller') return 'Jeweller';
+  if (t === 'vendor' || t === 'jeweller') return 'Manufacturer';
   if (t === 'customer') return 'Customer';
   if (t) return t.charAt(0).toUpperCase() + t.slice(1);
   return 'Guest';
@@ -1286,7 +1286,7 @@ function DashboardLayoutShell() {
                       return;
                     }
                     if (!cartSelectedProviderOk) {
-                      addToast('Selected items must be from a same seller (all Arviah products OR same jeweller)', 'error');
+                      addToast('Selected items must be from a same seller (all Arviah products OR same manufacturer)', 'error');
                       return;
                     }
                     const selectedItems = cartDrawerItems.filter((x) => cartSelected.has(String(x.rowKey)));

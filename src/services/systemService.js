@@ -18,4 +18,14 @@ export const systemService = {
     }
     return payload.data;
   },
+
+  /** Public: token comes from the unsubscribe link in marketing emails. */
+  async unsubscribeFromMarketingEmails(token) {
+    const response = await api.post('/api/public/email/unsubscribe', { token });
+    const payload = response?.data;
+    if (!payload?.success) {
+      throw new Error(payload?.message || 'Failed to unsubscribe');
+    }
+    return payload;
+  },
 };

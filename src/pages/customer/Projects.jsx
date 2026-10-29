@@ -1188,7 +1188,7 @@ export default function Projects() {
       return 'Select a jewellery type first to see how to measure.';
     }
     if (type === 'ring') {
-      return 'Use a ring sizer if you have one. Otherwise, measure the inner diameter of a ring that fits you and match it to standard ring size charts. For custom measurements, enter the circumference or diameter as instructed by your jeweller.';
+      return 'Use a ring sizer if you have one. Otherwise, measure the inner diameter of a ring that fits you and match it to standard ring size charts. For custom measurements, enter the circumference or diameter as instructed by your manufacturer.';
     }
     if (type === 'necklace') {
       return 'Measure around your neck with a soft measuring tape at the length you prefer. For necklaces, the common lengths are typically 16–24 inches; choose what feels comfortable.';
@@ -2037,16 +2037,16 @@ export default function Projects() {
     const pid = localProjectIdOf(p);
     if (!pid) return;
     if (!isProjectCompletedLike(p)) {
-      addToast('Jeweller can be reviewed only after project is completed.', 'error');
+      addToast('Manufacturer can be reviewed only after project is completed.', 'error');
       return;
     }
     const existing = vendorReviewOf(p);
     const hasReview = Boolean(p?.hasVendorReview) || Boolean(existing);
     const a = primaryAssignmentOf(p);
     const vendorId = assignmentVendorIdOf(a) ?? existing?.vendorId ?? existing?.vendor_id ?? existing?.vendor?.id ?? null;
-    const vendorName = assignmentVendorNameOf(a) || 'Jeweller';
+    const vendorName = assignmentVendorNameOf(a) || 'Manufacturer';
     if (!vendorId) {
-      addToast('No Jeweller assignment found for this project.', 'error');
+      addToast('No Manufacturer assignment found for this project.', 'error');
       return;
     }
     setVendorReviewFor({ projectId: pid, projectTitle: String(p?.title ?? 'Project'), vendorId, vendorName, hasReview });
@@ -2587,7 +2587,7 @@ export default function Projects() {
                                     onClick={() => openVendorReview(p)}
                                     className="px-4 py-2 rounded-xl border border-pale text-[12px] font-semibold text-mid hover:bg-cream cursor-pointer"
                                   >
-                                    {hasVendorReview ? 'Update review' : 'Review Jeweller'}
+                                    {hasVendorReview ? 'Update review' : 'Review Manufacturer'}
                                   </button>
                                 ) : null}
 
@@ -2703,7 +2703,7 @@ export default function Projects() {
                           <input
                             value={assignmentsSearch}
                             onChange={(e) => setAssignmentsSearch(e.target.value)}
-                            placeholder='Search by Project Title or Jeweller Name'
+                            placeholder='Search by Project Title or Manufacturer Name'
                             className="w-full sm:w-[320px] max-w-full px-4 py-2.5 rounded-xl border border-pale text-[13px] font-semibold text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                           />
                         </div>
@@ -2739,7 +2739,7 @@ export default function Projects() {
                       a?.vendor_name ??
                       a?.vendor?.fullName ??
                       (vendorJoined || null);
-                    const vendorLabel = vendorName || 'Jeweller';
+                    const vendorLabel = vendorName || 'Manufacturer';
                     const statusClass =
                       status === 'accepted'
                         ? 'bg-green-50 border-green-100 text-green-700'
@@ -4661,14 +4661,14 @@ export default function Projects() {
           >
             <div className="px-5 py-4 border-b border-pale flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[14px] font-extrabold text-ink">Review Jeweller</p>
+                <p className="text-[14px] font-extrabold text-ink">Review Manufacturer</p>
                 <p className="mt-1 text-[12px] text-muted truncate">
                   {vendorReviewFor?.vendorName ? (
                     <>
                       For <span className="font-semibold text-ink">{vendorReviewFor.vendorName}</span>
                     </>
                   ) : (
-                    'For Jeweller'
+                    'For Manufacturer'
                   )}
                 </p>
                 {vendorReviewFor?.projectTitle ? (

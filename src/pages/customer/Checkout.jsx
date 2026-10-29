@@ -35,6 +35,10 @@ export default function Checkout() {
   const [partialCalcOpen, setPartialCalcOpen] = useState(false);
   const [partialCalcLoading, setPartialCalcLoading] = useState(false);
   const [partialCalc, setPartialCalc] = useState(null);
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null); // { code, subtotal, discount, total, currency }
+  const [promoApplying, setPromoApplying] = useState(false);
+  const [promoError, setPromoError] = useState('');
   const [pickupOpen, setPickupOpen] = useState(false);
   const [pickupMode, setPickupMode] = useState('offline'); // 'offline' | 'partial'
   const [offlineShopCheckout, setOfflineShopCheckout] = useState({
@@ -166,9 +170,11 @@ export default function Checkout() {
     const subtotal = lineItems.reduce((acc, x) => acc + (Number(x?.lineTotal) || 0), 0);
     const delivery = 0;
     const handling = 0;
-    const total = subtotal + delivery + handling;
-    return { subtotal, delivery, handling, total };
-  }, [lineItems]);
+    // The promo discount comes from the server (cart-level, never spread onto items).
+    const discount = appliedPromo ? Number(appliedPromo.discount) || 0 : 0;
+    const total = appliedPromo?.total != null ? Number(appliedPromo.total) : subtotal + delivery + handling - discount;
+    return { subtotal, delivery, handling, discount, total };
+  }, [appliedPromo, lineItems]);
 
   const offlineAllowed = useMemo(() => {
     const total = Number(totals?.total || 0) || 0;
@@ -248,7 +254,7 @@ export default function Checkout() {
     }
     const list = Array.from(providers);
     const ok = list.length <= 1;
-    const providerLabel = list[0] === 'admin' ? null : vendorName ? `Jeweller: ${vendorName}` : 'Jeweller items';
+    const providerLabel = list[0] === 'admin' ? null : vendorName ? `Manufacturer: ${vendorName}` : 'Manufacturer items';
     return { ok, providerLabel, providers: list };
   }, [selectedItems]);
 
@@ -568,6 +574,7 @@ export default function Checkout() {
       const res = await cartService.calculatePartialPayment({
         cartItemIds: Array.isArray(cartItemIds) && cartItemIds.length ? cartItemIds : undefined,
         productIds: Array.isArray(productIds) && productIds.length ? productIds : undefined,
+        promoCode: appliedPromo?.code || undefined,
       });
       setPartialCalc(parsePartialCalc(res || {}));
     } catch (e) {
@@ -577,6 +584,80 @@ export default function Checkout() {
       setPartialCalcLoading(false);
     }
   };
+
+  // Store promo codes only apply to carts of Arviah's own products.
+  const promoEligible = providerCheck.ok && providerCheck.providers.length === 1 && providerCheck.providers[0] === 'admin';
+
+  const requestPromo = (code) =>
+    cartService.validatePromo({
+      code,
+      cartItemIds: Array.isArray(cartItemIds) && cartItemIds.length ? cartItemIds : undefined,
+      productIds: Array.isArray(productIds) && productIds.length ? productIds : undefined,
+    });
+
+  const applyPromo = async (e) => {
+    e?.preventDefault?.();
+    const code = String(promoInput || '').trim().toUpperCase();
+    if (!code) {
+      setPromoError('Enter a promo code.');
+      return;
+    }
+    setPromoApplying(true);
+    setPromoError('');
+    try {
+      const data = await requestPromo(code);
+      setAppliedPromo({
+        code: data?.code || code,
+        subtotal: Number(data?.subtotal) || 0,
+        discount: Number(data?.discount) || 0,
+        total: Number(data?.total) || 0,
+        currency: data?.currency || lineItems[0]?.currency || 'INR',
+      });
+      setPromoInput('');
+      setPartialCalc(null);
+    } catch (err) {
+      setAppliedPromo(null);
+      setPromoError(err?.message || 'This promo code could not be applied.');
+    } finally {
+      setPromoApplying(false);
+    }
+  };
+
+  const removePromo = () => {
+    setAppliedPromo(null);
+    setPromoError('');
+    setPartialCalc(null);
+  };
+
+  // Selected items changed: re-price the applied code (or drop it if it no longer applies).
+  const promoSelectionKey = lineItems.map((x) => `${x.key}:${x.qty}`).join('|');
+  const appliedPromoCode = appliedPromo?.code;
+  useEffect(() => {
+    if (!appliedPromoCode) return;
+    if (!promoEligible) {
+      setAppliedPromo(null);
+      return;
+    }
+    let cancelled = false;
+    requestPromo(appliedPromoCode)
+      .then((data) => {
+        if (cancelled) return;
+        setAppliedPromo((prev) =>
+          prev
+            ? { ...prev, subtotal: Number(data?.subtotal) || 0, discount: Number(data?.discount) || 0, total: Number(data?.total) || 0 }
+            : prev,
+        );
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setAppliedPromo(null);
+        setPromoError(err?.message || 'This promo code no longer applies to your selection.');
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [promoSelectionKey, promoEligible]);
 
   const proceedCheckout = async (pickup = {}) => {
     if (!hasSelection) return;
@@ -631,6 +712,7 @@ export default function Checkout() {
         showroomId: pickup?.showroomId ?? undefined,
         pickupCountry: pickup?.pickupCountry ?? undefined,
         pickupPostcode: pickup?.pickupPostcode ?? undefined,
+        promoCode: appliedPromo?.code || undefined,
       });
       const parsed = parseCheckout(checkoutRes || {});
       const localOrderId = parsed.localOrderId;
@@ -719,6 +801,11 @@ export default function Checkout() {
       });
       rz.open();
     } catch (e) {
+      // The promo could no longer be used (limit reached, expired…): drop it so the customer can decide.
+      if (e?.response?.data?.data?.promo) {
+        setAppliedPromo(null);
+        setPromoError(e?.message || 'This promo code can no longer be used.');
+      }
       addToast(e?.message || 'Checkout failed', 'error');
     } finally {
       setSubmitting(false);
@@ -950,7 +1037,7 @@ export default function Checkout() {
 
           {!providerCheck.ok ? (
             <div className="mb-4 rounded-2xl border border-red-100 bg-red-50 p-4 text-[12px] text-red-700 font-semibold">
-              Selected items must be from a same seller (all Arviah products OR same jeweller). Please adjust your selection in cart.
+              Selected items must be from a same seller (all Arviah products OR same manufacturer). Please adjust your selection in cart.
             </div>
           ) : null}
 
@@ -1223,11 +1310,67 @@ export default function Checkout() {
                     ))}
                   </div>
 
+                  {promoEligible ? (
+                    <div className="mt-4 border-t border-pale pt-3">
+                      {appliedPromo ? (
+                        <div className="flex items-center justify-between gap-3 rounded-xl border border-green-200 bg-green-50 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="text-[12px] font-extrabold text-green-800">{appliedPromo.code} applied</p>
+                            <p className="text-[11px] text-green-700">
+                              You save {formatCurrency(appliedPromo.discount, appliedPromo.currency)} on this cart
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={removePromo}
+                            className="shrink-0 text-[12px] font-bold text-mid underline underline-offset-2 hover:text-ink cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <form onSubmit={applyPromo} className="space-y-1.5">
+                          <label htmlFor="checkout-promo" className="block text-[12px] font-bold text-mid">
+                            Have a promo code?
+                          </label>
+                          <div className="flex gap-2">
+                            <input
+                              id="checkout-promo"
+                              value={promoInput}
+                              onChange={(e) => {
+                                setPromoInput(e.target.value.toUpperCase().replace(/\s+/g, ''));
+                                if (promoError) setPromoError('');
+                              }}
+                              placeholder="Enter code"
+                              maxLength={40}
+                              autoComplete="off"
+                              className="min-w-0 flex-1 rounded-xl border border-pale bg-white px-3 py-2 text-[13px] font-semibold uppercase text-ink placeholder:normal-case placeholder:font-normal"
+                            />
+                            <button
+                              type="submit"
+                              disabled={promoApplying || !promoInput.trim()}
+                              className="shrink-0 rounded-xl border border-walnut px-4 py-2 text-[12px] font-bold text-walnut hover:bg-walnut hover:text-blush disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            >
+                              {promoApplying ? 'Applying…' : 'Apply'}
+                            </button>
+                          </div>
+                          {promoError ? <p className="text-[11px] font-semibold text-red-600">{promoError}</p> : null}
+                        </form>
+                      )}
+                    </div>
+                  ) : null}
+
                   <div className="mt-4 border-t border-pale pt-3 space-y-2">
-                    <div className="flex items-center justify-between text-mid hidden">
+                    <div className={`flex items-center justify-between text-mid ${totals.discount > 0 ? '' : 'hidden'}`}>
                       <span>Item total</span>
                       <span className="font-bold text-ink">{formatCurrency(totals.subtotal, lineItems[0]?.currency)}</span>
                     </div>
+                    {totals.discount > 0 ? (
+                      <div className="flex items-center justify-between text-green-700">
+                        <span>Promo ({appliedPromo?.code})</span>
+                        <span className="font-bold">−{formatCurrency(totals.discount, lineItems[0]?.currency)}</span>
+                      </div>
+                    ) : null}
                     {Number(totals.delivery || 0) !== 0 ? (
                       <div className="flex items-center justify-between text-mid">
                         <span>Delivery</span>
@@ -1242,7 +1385,7 @@ export default function Checkout() {
                     ) : null}
                     <div
                       className={`flex items-center justify-between ${
-                        Number(totals.delivery || 0) !== 0 || Number(totals.handling || 0) !== 0
+                        Number(totals.delivery || 0) !== 0 || Number(totals.handling || 0) !== 0 || totals.discount > 0
                           ? 'border-t border-pale pt-3'
                           : ''
                       }`}

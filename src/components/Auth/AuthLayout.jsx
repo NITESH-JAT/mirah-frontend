@@ -1,41 +1,40 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import CarouselPanel from './CarouselPanel';
+import AfterSignupPanel from './AfterSignupPanel';
 import logo from '../../assets/logo.png';
 
+/** Header + dot-grid canvas shared by login, signup and verification (mirrors arviahstudio.com). */
 export default function AuthLayout() {
   return (
-    <div className="flex h-[100dvh] max-h-[100dvh] w-full bg-white overflow-hidden font-sans">
-      
-      {/* Left Panel */}
-      <div className="w-full lg:w-1/2 h-full flex flex-col relative bg-white">
-        
-        {/* FIXED NAVBAR */}
-        <div className="w-full px-6 py-5 lg:px-8 lg:py-2 flex items-center gap-2 shrink-0 z-20 bg-white border-b border-transparent">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center shadow-sm shadow-walnut/10 overflow-hidden">
-            <img 
-              src={logo} 
-              alt="Arviah Logo" 
-              className="w-full h-full object-cover" 
-            />
-          </div>
-          <span className="font-serif text-2xl text-ink font-bold italic tracking-tight">Arviah</span>
-        </div>
+    // The app locks body scrolling (dashboard panes scroll themselves), so auth pages own their scroll container.
+    <div className="relative flex h-[100dvh] w-full flex-col overflow-y-auto overflow-x-hidden bg-cream font-jakarta text-mid antialiased">
+      <div className="auth-dots pointer-events-none fixed inset-0" aria-hidden />
 
-        {/* SCROLLABLE CONTENT AREA */}
-        <div className="flex-1 w-full lg:w-[calc(100%-16px)] lg:mx-auto overflow-y-auto overflow-x-hidden custom-scrollbar flex flex-col items-center">
-          <div className="w-full max-w-[420px] lg:max-w-[440px] px-5 sm:px-8 py-2 lg:py-2 my-auto"> 
+      <header className="sticky top-0 z-30 h-[60px] shrink-0 border-b border-pale bg-cream/90 backdrop-blur-md sm:h-[72px] lg:h-[60px]">
+        <div className="mx-auto flex h-full w-full max-w-[1280px] items-center px-5 sm:px-8 lg:max-w-[1064px] lg:px-6">
+          <a href="https://www.arviahstudio.com" className="inline-flex items-center gap-[0.55rem] text-ink" aria-label="Arviah home">
+            <img src={logo} alt="" className="h-[30px] w-auto sm:h-9 lg:h-[30px]" />
+            <span className="font-serif text-[1.35rem] font-bold italic leading-none tracking-[-0.03em] sm:text-[1.5rem] lg:text-[1.25rem]">
+              Arviah
+            </span>
+          </a>
+        </div>
+      </header>
+
+      <main className="relative z-10 mx-auto grid w-full max-w-[1280px] flex-1 px-5 pb-12 pt-5 sm:px-8 sm:pb-16 sm:pt-7 lg:max-w-[1064px] lg:grid-cols-2 lg:gap-10 lg:px-6 lg:pb-6 lg:pt-3">
+        <div className="flex justify-center lg:items-start lg:py-3">
+          <div className="w-full max-w-[480px] lg:max-w-[392px]">
             <Outlet />
           </div>
         </div>
-      </div>
 
-      {/* Right Panel - Carousel (Hidden on Mobile) */}
-      <div className="hidden lg:block w-1/2 h-full p-4 pl-0">
-         <div className="h-full w-full">
-            <CarouselPanel />
-         </div>
-      </div>
+        {/* Stays in view while the form scrolls; desktop only. */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-[84px] h-[calc(100dvh-108px)] min-h-[520px]">
+            <AfterSignupPanel />
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }

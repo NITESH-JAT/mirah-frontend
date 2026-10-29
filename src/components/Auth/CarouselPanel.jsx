@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import gsap from 'gsap';
+import React, { useEffect, useRef, useState } from 'react';
 import img1 from '../../assets/mirah_img1.png';
 import img2 from '../../assets/mirah_img2.png';
 import img3 from '../../assets/mirah_img3.png';
@@ -7,89 +6,99 @@ import img3 from '../../assets/mirah_img3.png';
 const slides = [
   {
     image: img1,
-    title: "Custom Jewellery, Crafted Just for You",
-    desc: "Upload your jewelry idea, describe your vision, and let skilled jewelers transform it into a timeless piece crafted just for you"
+    title: 'Custom jewellery, crafted just for you',
+    desc: 'Upload your jewellery idea, describe your vision, and let skilled manufacturers turn it into a timeless piece made just for you.',
   },
   {
     image: img2,
-    title: "Connect with Skilled Artisans",
-    desc: "Direct access to master makers who bring centuries of tradition to your modern designs."
+    title: 'Connect with skilled artisans',
+    desc: 'Direct access to master makers who bring centuries of tradition to your modern designs.',
   },
   {
     image: img3,
-    title: "Transparent Crafting Process",
-    desc: "Track every step of your jewelry creation, from initial sketch to final polish."
-  }
+    title: 'A transparent crafting process',
+    desc: 'Track every step of your jewellery creation, from first sketch to final polish.',
+  },
 ];
 
+const AUTOPLAY_MS = 5000;
+const FADE_MS = 300;
+
+/** Desktop-only showcase beside the auth forms. Blush panel echoes the marketing site's app section. */
 export default function CarouselPanel() {
   const [active, setActive] = useState(0);
-  const contentRef = useRef(null);
-  const imageRef = useRef(null);
+  const [visible, setVisible] = useState(true);
+  const [paused, setPaused] = useState(false);
+  const fadeTimer = useRef(null);
 
-  const handleFade = (index) => {
+  const goTo = (index) => {
     if (index === active) return;
-    
-    gsap.to([contentRef.current, imageRef.current], {
-      opacity: 0,
-      y: 10,
-      duration: 0.3,
-      onComplete: () => {
-        setActive(index);
-        gsap.to([contentRef.current, imageRef.current], {
-          opacity: 1,
-          y: 0,
-          duration: 0.5,
-          ease: "power2.out"
-        });
-      }
-    });
-  }; 
+    clearTimeout(fadeTimer.current);
+    setVisible(false);
+    fadeTimer.current = setTimeout(() => {
+      setActive(index);
+      setVisible(true);
+    }, FADE_MS);
+  };
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      const next = (active + 1) % slides.length;
-      handleFade(next);
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [active]);
+    if (paused) return undefined;
+    const timer = setTimeout(() => goTo((active + 1) % slides.length), AUTOPLAY_MS);
+    return () => clearTimeout(timer);
+    // goTo only reads `active`, which is already a dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, paused]);
+
+  useEffect(() => () => clearTimeout(fadeTimer.current), []);
+
+  const slide = slides[active];
 
   return (
-
-    <div className="w-full h-full bg-white rounded-[25px] shadow-sm flex items-center justify-center px-8 py-10 overflow-hidden relative">
-      <div className="w-full h-full flex flex-col items-center justify-center">
-        
-
-        <div className="relative w-full flex-1 flex items-center justify-center min-h-0 mb-8">
-          <img 
-            ref={imageRef}
-            src={slides[active].image} 
-            className="max-h-full max-w-full w-auto h-auto object-contain drop-shadow-sm"
-            alt="Jewellery Display" 
-          />
-        </div>
-        
-
-        <div ref={contentRef} className="text-center max-w-[400px] mt-auto shrink-0">
-          <h2 className="font-serif text-[26px] leading-tight font-bold mb-4 text-ink">
-            {slides[active].title}
-          </h2>
-          <p className="font-sans text-muted text-sm leading-relaxed px-2 mb-10">
-            {slides[active].desc}
-          </p>
-        </div>
-
-
-        <div className="flex justify-center gap-2 shrink-0">
-          {slides.map((_, i) => (
-            <button 
-              key={i}
-              onClick={() => handleFade(i)}
-              className={`h-1.5 rounded-full transition-all duration-300 ${active === i ? 'w-8 bg-walnut' : 'w-1.5 bg-pale'}`}
-            />
-          ))}
-        </div>
+    <section
+      aria-roledescription="carousel"
+      aria-label="Why Arviah"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      className="relative flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-pale bg-[radial-gradient(circle_at_50%_38%,var(--color-white)_0%,var(--color-blush)_70%)] px-10 pb-9 pt-10"
+    >
+      <div
+        className={`flex min-h-0 flex-1 items-center justify-center transition-all duration-300 ease-out ${
+          visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+        }`}
+      >
+        <img
+          src={slide.image}
+          alt=""
+          className="max-h-full w-auto max-w-[85%] object-contain drop-shadow-[0_24px_40px_rgba(58,42,30,0.12)]"
+        />
       </div>
-    </div>
+
+      <div
+        aria-live="polite"
+        className={`mx-auto mt-8 max-w-[420px] shrink-0 text-center transition-all duration-300 ease-out ${
+          visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+        }`}
+      >
+        <h2 className="font-jakarta text-[26px] font-bold leading-[1.15] tracking-[-0.04em] text-ink text-balance">
+          {slide.title}
+        </h2>
+        <p className="mt-3 font-jakarta text-[15px] leading-[1.6] text-mid">{slide.desc}</p>
+      </div>
+
+      <div className="mt-7 flex shrink-0 justify-center gap-2">
+        {slides.map((s, i) => (
+          <button
+            key={s.title}
+            type="button"
+            onClick={() => goTo(i)}
+            aria-label={`Show slide ${i + 1}: ${s.title}`}
+            aria-current={active === i ? 'true' : undefined}
+            className={`h-1.5 cursor-pointer rounded-full transition-all duration-300 ${
+              active === i ? 'w-8 bg-walnut' : 'w-1.5 bg-soft hover:bg-muted'
+            }`}
+          />
+        ))}
+      </div>
+    </section>
   );
 }

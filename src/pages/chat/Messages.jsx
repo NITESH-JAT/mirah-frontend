@@ -766,7 +766,7 @@ export default function Messages() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={`Search ${isVendor ? 'customers' : 'jewellers'}`}
+              placeholder={`Search ${isVendor ? 'customers' : 'manufacturers'}`}
               className="w-full bg-cream border border-pale rounded-xl px-4 py-3 text-[13px] font-medium focus:outline-none focus:border-walnut"
             />
             {searching && (

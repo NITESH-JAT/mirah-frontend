@@ -2,129 +2,50 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
+import { ArrowRight, AuthCard, AuthHeading, OutlineButton, PrimaryButton, ToastStack } from './ui';
+import { useToasts } from './authHelpers';
 
-// --- TOAST COMPONENT ---
-const ToastNotification = ({ id, message, type, onClose }) => {
-  const [isExiting, setIsExiting] = useState(false);
-
-  const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => onClose(id), 400); 
-  };
-
-  useEffect(() => {
-    let closeTimer = null;
-    const timer = setTimeout(() => {
-      setIsExiting(true);
-      closeTimer = setTimeout(() => onClose(id), 400);
-    }, 10000);
-    return () => {
-      clearTimeout(timer);
-      if (closeTimer) clearTimeout(closeTimer);
-    };
-  }, [id, onClose]);
-
-  const isError = type === 'error';
-
-  return (
-    <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
-      ${isError ? 'border-red-500' : 'border-green-500'}
-      ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
-    `}>
-      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-        {isError ? (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
-        ) : (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
-        )}
-      </div>
-      <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
-          {isError ? 'Error' : 'Success'}
-        </h4>
-        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
-      </div>
-      <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-          <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
-        </svg>
-      </button>
-    </div>
-  );
-};
-
-// --- UI COMPONENTS ---
-
-const VerificationTab = ({ label, isActive, isVerified, onClick }) => {
-  return (
-    <button
-      onClick={onClick}
-      className={`
-        flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-[12px] border transition-all duration-300 font-sans cursor-pointer
-        ${isActive 
-          ? 'border-walnut bg-white shadow-sm shadow-walnut/5 scale-105' 
-          : 'border-pale bg-cream text-muted hover:bg-white hover:border-pale'
-        }
-      `}
-    >
-       <div className={`
-
-        w-5 h-5 rounded-full flex items-center justify-center border transition-colors
-
-        ${isVerified
-
-          ? 'bg-walnut border-walnut'
-
-          : 'bg-transparent border-pale'
-
-        }
-
-      `}>
-
-        {isVerified && (
-
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor">
-
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-
-          </svg>
-
-        )}
-
-      </div>
-
-      <span className={`text-[14px] font-bold ${isActive || isVerified ? 'text-ink' : 'text-muted'}`}>
-
-        {label}
-
+const VerifyTab = ({ label, isActive, isVerified, onClick }) => (
+  <button
+    type="button"
+    role="tab"
+    aria-selected={isActive}
+    onClick={onClick}
+    className={`flex h-10 flex-1 cursor-pointer items-center justify-center gap-2 rounded-full font-jakarta text-[14px] font-semibold transition-colors ${
+      isActive ? 'bg-walnut text-blush shadow-[0_4px_12px_rgba(107,85,69,0.25)]' : 'text-mid hover:text-ink'
+    } lg:h-8 lg:text-[12.5px]`}
+  >
+    {isVerified ? (
+      <span
+        className={`flex h-[18px] w-[18px] items-center justify-center rounded-full ${isActive ? 'bg-blush text-walnut' : 'bg-green-600 text-white'} lg:h-[15px] lg:w-[15px]`}
+        aria-label="verified"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-3 w-3"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-8 8a1 1 0 01-1.4 0l-4-4a1 1 0 011.4-1.4L8 12.58l7.3-7.3a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
       </span>
-
-    </button>
-
-  );
-
-};
+    ) : null}
+    {label}
+  </button>
+);
 
 const OtpInputGroup = ({ value, onChange, onEnter }) => {
   const inputs = useRef([]);
 
   const handleChange = (val, i) => {
     if (!/^\d*$/.test(val)) return;
-    
+
     const currentChars = value.split('');
     while (currentChars.length < 6) currentChars.push('');
-    
+
     currentChars[i] = val.slice(-1);
     const newValue = currentChars.join('').slice(0, 6);
-    
+
     onChange(newValue);
 
     if (val && i < 5) inputs.current[i + 1]?.focus();
-    
+
     if (newValue.length === 6) {
-        inputs.current[i]?.blur();
-        onEnter(newValue);
+      inputs.current[i]?.blur();
+      onEnter(newValue);
     }
   };
 
@@ -133,23 +54,36 @@ const OtpInputGroup = ({ value, onChange, onEnter }) => {
       inputs.current[i - 1]?.focus();
     }
     if (e.key === 'Enter') {
-      onEnter(value); 
+      onEnter(value);
     }
   };
 
+  // Paste or SMS autofill of the whole code into any box.
+  const handlePaste = (e) => {
+    const digits = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+    if (!digits) return;
+    e.preventDefault();
+    onChange(digits);
+    inputs.current[Math.min(digits.length, 5)]?.focus();
+    if (digits.length === 6) onEnter(digits);
+  };
+
   return (
-    <div className="flex gap-2 lg:gap-3 justify-center w-full max-w-[360px] mx-auto">
+    <div className="flex w-full justify-between gap-2 sm:gap-3">
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <input
           key={i}
-          ref={el => inputs.current[i] = el}
+          ref={(el) => (inputs.current[i] = el)}
           type="text"
           inputMode="numeric"
+          autoComplete={i === 0 ? 'one-time-code' : 'off'}
+          aria-label={`Digit ${i + 1}`}
           maxLength={1}
           value={value[i] || ''}
           onChange={(e) => handleChange(e.target.value, i)}
           onKeyDown={(e) => handleKeyDown(e, i)}
-          className="w-11 h-14 lg:w-10 lg:h-12 border border-pale rounded-[12px] lg:rounded-[8px] text-center text-[22px] font-bold text-mid focus:border-walnut focus:ring-1 focus:ring-walnut/10 focus:outline-none transition-all bg-white shadow-sm font-sans placeholder:text-soft"
+          onPaste={handlePaste}
+          className="h-14 w-full min-w-0 rounded-[14px] border border-pale bg-white text-center font-jakarta text-[22px] font-bold text-ink transition-colors hover:border-soft sm:h-[60px] lg:h-12 lg:rounded-[11px] lg:text-[18px]"
         />
       ))}
     </div>
@@ -162,12 +96,7 @@ export const VerificationForm = () => {
   const navigate = useNavigate();
   const { setUser } = useAuth();
   
-  const [toasts, setToasts] = useState([]);
-  const addToast = (message, type = 'error') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
-  const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id));
+  const { toasts, addToast, removeToast } = useToasts();
 
   const [tempUser, setTempUser] = useState(null);
   const [activeTab, setActiveTab] = useState('phone');
@@ -337,125 +266,80 @@ export const VerificationForm = () => {
 
   const isCurrentVerified = activeTab === 'phone' ? phoneVerified : emailVerified;
   const currentTimer = activeTab === 'phone' ? phoneTimer : emailTimer;
+  const bothVerified = phoneVerified && emailVerified;
 
   return (
-    <div className="w-full flex flex-col items-center pt-6 px-1 h-[calc(100dvh-140px)] lg:h-[82vh]">
+    <div>
+      <ToastStack toasts={toasts} onClose={removeToast} />
 
-      {/* TOAST CONTAINER */}
-      <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
-        <div className="pointer-events-auto">
-             {toasts.map(toast => (
-                <ToastNotification 
-                    key={toast.id} 
-                    id={toast.id} 
-                    message={toast.message} 
-                    type={toast.type} 
-                    onClose={removeToast} 
-                />
-             ))}
+      <AuthHeading
+        size="md"
+        eyebrow="Last step"
+        title="Confirm your account"
+        subtitle="Verify your phone number and email address to finish signing up."
+      />
+
+      <AuthCard className="mt-7 lg:mt-5">
+        <div role="tablist" aria-label="Verify" className="flex rounded-full border border-pale bg-cream p-1">
+          <VerifyTab label="Phone" isActive={activeTab === 'phone'} isVerified={phoneVerified} onClick={() => setActiveTab('phone')} />
+          <VerifyTab label="Email" isActive={activeTab === 'email'} isVerified={emailVerified} onClick={() => setActiveTab('email')} />
         </div>
-      </div>
-      
-      {/* Header */}
-      <div className="shrink-0 text-center mb-8 lg:mb-6 w-full px-4">
-        <h1 className="font-serif text-[30px] lg:text-[24px] font-bold text-ink mb-1">Verification</h1>
-        <p className="font-sans text-muted text-[14px] lg:text-[11px] tracking-wide">
-            Please verify both your phone number and email address.
-        </p>
-      </div>
 
-      {/* Tabs */}
-      <div className="shrink-0 w-full max-w-[340px] flex gap-3 mb-8">
-        <VerificationTab 
-          label="Phone" 
-          isActive={activeTab === 'phone'} 
-          isVerified={phoneVerified} 
-          onClick={() => setActiveTab('phone')}
-        />
-        <VerificationTab 
-          label="Email" 
-          isActive={activeTab === 'email'} 
-          isVerified={emailVerified} 
-          onClick={() => setActiveTab('email')}
-        />
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 w-full flex flex-col items-center animate-fade-in">
-        
         {!isCurrentVerified ? (
-            <>
-                <p className="text-muted font-sans text-[14px] mb-8 text-center max-w-[280px] leading-relaxed">
-                    Enter the 6-digit code sent to <br/>
-                    <span className="font-bold text-ink text-[15px]">
-                        {activeTab === 'phone' ? `${tempUser.countryCode} ${tempUser.phone}` : tempUser.email}
-                    </span>
-                </p>
-
-                <OtpInputGroup 
-                    value={activeTab === 'phone' ? phoneOtp : emailOtp}
-                    onChange={activeTab === 'phone' ? setPhoneOtp : setEmailOtp}
-                    onEnter={handleVerify} 
-                />
-
-                <div className="mt-8 text-center font-sans">
-                    <button 
-                        onClick={handleResend} 
-                        disabled={currentTimer > 0 || loading}
-                        className={`text-[13px] font-semibold transition-colors
-                            ${currentTimer > 0 ? 'text-muted cursor-not-allowed' : 'text-muted hover:text-ink cursor-pointer'}
-                        `}
-                    >
-                        {currentTimer > 0 ? `Resend Code in ${currentTimer}s` : 'Resend Code'}
-                    </button>
-                </div>
-            </>
-        ) : (
-            <div className="flex flex-col items-center justify-center p-8 w-full max-w-[340px] bg-white rounded-[20px] border border-pale shadow-sm shadow-walnut/5">
-                <div className="w-14 h-14 bg-green-50 rounded-full flex items-center justify-center mb-4 border border-green-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                </div>
-                <h3 className="text-ink font-bold text-lg font-serif mb-1">Verified Successfully</h3>
-                <p className="text-muted text-[13px] font-sans text-center mb-6">
-                    {activeTab === 'phone' ? 'Your phone number has been secured.' : 'Your email address has been confirmed.'}
-                </p>
-                
-                {(!phoneVerified || !emailVerified) && (
-                      <button 
-                        onClick={() => setActiveTab(activeTab === 'phone' ? 'email' : 'phone')}
-                        className="w-full py-3 rounded-[12px] bg-cream text-mid text-[13px] font-bold hover:bg-blush transition-colors cursor-pointer border border-pale font-sans"
-                      >
-                        Verify {activeTab === 'phone' ? 'Email' : 'Phone'} Next →
-                      </button>
-                )}
+          <div className="mt-6 lg:mt-5">
+            <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
+              Enter the 6-digit code sent to{' '}
+              <span className="font-semibold text-ink">
+                {activeTab === 'phone' ? `${tempUser.countryCode} ${tempUser.phone}` : tempUser.email}
+              </span>
+            </p>
+            <div className="mt-4 lg:mt-3">
+              <OtpInputGroup
+                value={activeTab === 'phone' ? phoneOtp : emailOtp}
+                onChange={activeTab === 'phone' ? setPhoneOtp : setEmailOtp}
+                onEnter={handleVerify}
+              />
             </div>
-        )}
-
-      </div>
-
-      {/* Bottom Button */}
-      <div className="shrink-0 w-full max-w-[360px] pb-6 px-4">
-        {!isCurrentVerified ? (
-            <button 
-                onClick={() => handleVerify()} 
-                disabled={loading}
-                className="w-full bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-                {loading ? 'Verifying...' : 'Verify Code'}
-            </button>
+            <PrimaryButton onClick={() => handleVerify()} disabled={loading} className="mt-6 w-full lg:mt-5">
+              {loading ? 'Verifying…' : 'Verify code'}
+            </PrimaryButton>
+            <p className="mt-4 text-center font-jakarta text-[14px] text-mid lg:mt-3 lg:text-[12.5px]">
+              Didn't get it?{' '}
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={currentTimer > 0 || loading}
+                className="cursor-pointer font-semibold text-ink underline decoration-soft underline-offset-[3px] hover:decoration-ink disabled:cursor-not-allowed disabled:text-muted disabled:no-underline"
+              >
+                {currentTimer > 0 ? `Resend in ${currentTimer}s` : 'Resend code'}
+              </button>
+            </p>
+          </div>
         ) : (
-            <button 
-                onClick={handleFinalSubmit} 
-                disabled={!phoneVerified || !emailVerified}
-                className="w-full bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[13px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:bg-pale disabled:text-muted disabled:shadow-none disabled:cursor-not-allowed cursor-pointer"
-            >
-                {(!phoneVerified || !emailVerified) ? 'Verify Both to Continue' : 'Complete Registration'}
-            </button>
+          <div className="mt-6 flex flex-col items-center text-center lg:mt-5">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-700 lg:h-10" aria-hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <h2 className="mt-3 font-jakarta text-[18px] font-bold tracking-[-0.02em] text-ink lg:mt-2.5 lg:text-[15px]">
+              {activeTab === 'phone' ? 'Phone number verified' : 'Email address verified'}
+            </h2>
+            <p className="mt-1 font-jakarta text-[14px] text-mid lg:text-[12.5px]">
+              {bothVerified ? 'You’re all set.' : `Next, verify your ${activeTab === 'phone' ? 'email address' : 'phone number'}.`}
+            </p>
+            {bothVerified ? (
+              <PrimaryButton onClick={handleFinalSubmit} className="mt-6 w-full lg:mt-5">
+                Complete registration <ArrowRight />
+              </PrimaryButton>
+            ) : (
+              <OutlineButton onClick={() => setActiveTab(activeTab === 'phone' ? 'email' : 'phone')} className="mt-6 w-full lg:mt-5">
+                Verify {activeTab === 'phone' ? 'email' : 'phone'} next <ArrowRight />
+              </OutlineButton>
+            )}
+          </div>
         )}
-      </div>
-
+      </AuthCard>
     </div>
   );
 };

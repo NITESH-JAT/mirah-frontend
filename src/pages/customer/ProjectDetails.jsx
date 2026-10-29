@@ -1159,12 +1159,12 @@ export default function ProjectDetails() {
                 <div className="mt-4 space-y-1.5">
                   {vendorFullName ? (
                     <p className="text-[12px] text-muted">
-                      Jeweller:{' '}
+                      Manufacturer:{' '}
                       <span className="font-extrabold text-ink">{vendorLoading ? 'Loading…' : vendorFullName}</span>
                     </p>
                   ) : vendorId ? (
                     <p className="text-[12px] text-muted">
-                      Jeweller:{' '}
+                      Manufacturer:{' '}
                       <span className="font-extrabold text-ink">{vendorLoading ? 'Loading…' : `#${vendorId}`}</span>
                     </p>
                   ) : null}
@@ -1181,7 +1181,7 @@ export default function ProjectDetails() {
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                         <circle cx="12" cy="7" r="4" />
                       </svg>
-                      Jeweller Profile
+                      Manufacturer Profile
                     </button>
                     <button
                       type="button"
@@ -1191,7 +1191,7 @@ export default function ProjectDetails() {
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
                         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                       </svg>
-                      Message Jeweller
+                      Message Manufacturer
                     </button>
                   </div>
                 ) : null}

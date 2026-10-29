@@ -20,8 +20,8 @@ function formatDate(ts) {
 function vendorNameOf(v) {
   const first = String(v?.firstName ?? '').trim();
   const raw = String(v?.fullName ?? v?.vendorName ?? v?.name ?? first).trim();
-  const label = raw || 'Jeweller';
-  return label.split(/\s+/)[0] || 'Jeweller';
+  const label = raw || 'Manufacturer';
+  return label.split(/\s+/)[0] || 'Manufacturer';
 }
 
 function starRow(rating) {
@@ -136,7 +136,7 @@ export default function VendorProfile() {
       setPortfolioPage(1);
     } catch (e) {
       if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
-      addToast(e?.message || 'Failed to load jeweller', 'error');
+      addToast(e?.message || 'Failed to load manufacturer', 'error');
       setVendor(null);
       setLoadFailed(true);
     }
@@ -249,7 +249,7 @@ export default function VendorProfile() {
               <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
-          <p className="mt-4 font-serif text-[22px] font-bold text-ink md:text-[24px]">Jeweller not found</p>
+          <p className="mt-4 font-serif text-[22px] font-bold text-ink md:text-[24px]">Manufacturer not found</p>
           <p className="mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted">
             This profile isn’t available, or the link may be incorrect.
           </p>
@@ -310,7 +310,7 @@ export default function VendorProfile() {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0" aria-hidden="true">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
             </svg>
-            Message Jeweller
+            Message Manufacturer
           </button>
         </div>
 

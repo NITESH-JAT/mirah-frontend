@@ -1020,6 +1020,24 @@ export default function Orders() {
                   <div className="mt-4 rounded-2xl border border-pale p-4">
                     <p className="text-[12px] font-extrabold text-ink">Amount</p>
                     <div className="mt-3 space-y-2 text-[12px]">
+                      {Number(detailsOrder?.discountAmount || 0) > 0 ? (
+                        <>
+                          <div className="flex items-center justify-between text-mid">
+                            <span>Item total</span>
+                            <span className="font-bold text-ink">
+                              {formatCurrency(
+                                detailsOrder?.subtotalAmount ??
+                                  Number(detailsOrder?.totalAmount || 0) + Number(detailsOrder?.discountAmount || 0),
+                                detailsOrder?.currency,
+                              )}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-green-700">
+                            <span>Promo{detailsOrder?.promoCode ? ` (${detailsOrder.promoCode})` : ''}</span>
+                            <span className="font-bold">−{formatCurrency(detailsOrder.discountAmount, detailsOrder?.currency)}</span>
+                          </div>
+                        </>
+                      ) : null}
                       <div className="flex items-center justify-between text-mid">
                         <span>Total</span>
                         <span className="font-extrabold text-ink">

@@ -98,8 +98,10 @@ export const cartService = {
     showroomId = null,
     pickupCountry = null,
     pickupPostcode = null,
+    promoCode = null,
   } = {}) => {
     const body = { paymentMethod };
+    if (promoCode) body.promoCode = promoCode;
     if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
     else body.productIds = productIds;
     if (showroomId != null) body.showroomId = showroomId;
@@ -109,11 +111,21 @@ export const cartService = {
     return unwrap(res);
   },
 
-  calculatePartialPayment: async ({ cartItemIds = [], productIds = [] } = {}) => {
+  calculatePartialPayment: async ({ cartItemIds = [], productIds = [], promoCode = null } = {}) => {
     const body = {};
+    if (promoCode) body.promoCode = promoCode;
     if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
     else body.productIds = productIds;
     const res = await api.post('/api/user/cart/partial-payment/calculate', body);
+    return unwrap(res);
+  },
+
+  /** Checks a promo code against the selected cart lines; resolves to { code, subtotal, discount, total, currency }. */
+  validatePromo: async ({ code, cartItemIds = [], productIds = [] } = {}) => {
+    const body = { code };
+    if (Array.isArray(cartItemIds) && cartItemIds.length) body.cartItemIds = cartItemIds;
+    else body.productIds = productIds;
+    const res = await api.post('/api/user/cart/promo/validate', body);
     return unwrap(res);
   },
 

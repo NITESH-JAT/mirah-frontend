@@ -7,7 +7,7 @@ import PresetAvatar from '../profile/PresetAvatar';
 
 function roleLabelForUser(u) {
   const t = String(u?.userType ?? '').trim().toLowerCase();
-  if (t === 'vendor' || t === 'jeweller') return 'Jeweller';
+  if (t === 'vendor' || t === 'jeweller') return 'Manufacturer';
   if (t === 'customer') return 'Customer';
   if (t) return t.charAt(0).toUpperCase() + t.slice(1);
   return 'Guest';

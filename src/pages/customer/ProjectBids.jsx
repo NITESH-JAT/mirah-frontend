@@ -52,7 +52,7 @@ function vendorNameFromBid(b) {
   return (
     counterpartDisplayName(vendor) ||
     counterpartDisplayName({ name: b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? vendor?.name }) ||
-    'Jeweller'
+    'Manufacturer'
   );
 }
 
@@ -271,7 +271,7 @@ function BidsTableSkeleton({ embedded = false } = {}) {
           <table className="w-full min-w-[520px] border-collapse text-left">
             <thead>
               <tr className="border-b border-pale bg-walnut/[0.07]">
-                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                 <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                 <th className="px-4 py-3 text-right text-[11px] font-extrabold uppercase tracking-wide text-muted">Order bid</th>
               </tr>
@@ -634,7 +634,7 @@ export default function ProjectBids() {
   })();
 
   const openOverride = (bid) => {
-    const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Jeweller';
+    const vendorName = String(bid?.vendorName ?? bid?.vendor_name ?? '').trim() || 'Manufacturer';
     const amount = Number(bid?.amount ?? bid?.price ?? bid?.bidAmount ?? bid?.bid_price ?? NaN);
     const noOfDays = Number(bid?.noOfDays ?? bid?.daysToComplete ?? bid?.days_to_complete ?? bid?.no_of_days ?? NaN);
     const bidEntryId = bid?.bidEntryId ?? bid?.bid_entry_id ?? bid?.id ?? bid?._id ?? null;
@@ -649,13 +649,13 @@ export default function ProjectBids() {
   const startAssignOrChange = (bid) => {
     if (!bid || Boolean(actionLoading?.override)) return;
     if (overrideLocked) {
-      addToast('Jeweller can no longer be changed after payment or deferred production.', 'error');
+      addToast('Manufacturer can no longer be changed after payment or deferred production.', 'error');
       return;
     }
     const vendorId = bid?.vendorId ?? bid?.vendor_id ?? bid?.vendor?.id ?? bid?.vendor?._id ?? null;
     const isAssigned = vendorId != null && assignedVendorId != null && String(vendorId) === String(assignedVendorId);
     if (isAssigned) {
-      addToast('This jeweller is already assigned.', 'error');
+      addToast('This manufacturer is already assigned.', 'error');
       return;
     }
     openOverride(bid);
@@ -668,10 +668,10 @@ export default function ProjectBids() {
       const payload = { bidEntryId: overrideFor.bidEntryId, amount: overrideFor.amount, noOfDays: overrideFor.noOfDays };
       if (activeAssignment) {
         await projectService.reassignWinner(projectId, payload);
-        addToast('Jeweller updated. Please pay in full to start production.', 'success');
+        addToast('Manufacturer updated. Please pay in full to start production.', 'success');
       } else {
         await projectService.selectWinner(projectId, payload);
-        addToast('Jeweller selected. Please pay in full to start production.', 'success');
+        addToast('Manufacturer selected. Please pay in full to start production.', 'success');
       }
       setOverrideOpen(false);
       setOverrideFor(null);
@@ -679,7 +679,7 @@ export default function ProjectBids() {
       await loadBids();
       navigate(`/customer/projects/${projectId}`, { state: navStateForProject() });
     } catch (e) {
-      addToast(e?.message || 'Failed to assign Jeweller', 'error');
+      addToast(e?.message || 'Failed to assign Manufacturer', 'error');
     } finally {
       setActionLoading((p) => ({ ...(p || {}), override: false }));
     }
@@ -885,7 +885,7 @@ export default function ProjectBids() {
                     </p>
                   ) : null}
                   <p className="text-[11px] text-muted leading-relaxed">
-                    Jeweller bids and Estimated Total are for the entire order
+                    Manufacturer bids and Estimated Total are for the entire order
                     {quantityPiecesLabel(quantityRequiredRaw) ? ` (${quantityPiecesLabel(quantityRequiredRaw)})` : ''}
                     , not per piece.
                   </p>
@@ -929,7 +929,7 @@ export default function ProjectBids() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder='Search "Jewellers"'
+                    placeholder='Search "Manufacturers"'
                     className="input-search-quiet-focus w-full rounded-xl border border-pale bg-cream/40 py-2.5 pl-10 pr-3 text-[13px] font-semibold text-mid"
                   />
                 </div>
@@ -1030,7 +1030,7 @@ export default function ProjectBids() {
                 const noBidsYet = !Array.isArray(bids) || bids.length === 0;
                 const emptyTitle = noBidsYet ? 'No bids yet' : 'No bids found';
                 const emptyHint = noBidsYet
-                  ? 'Jewellers haven’t placed a bid on this project yet.'
+                  ? 'Manufacturers haven’t placed a bid on this project yet.'
                   : 'Try adjusting search or sorting.';
                 return (
               <>
@@ -1052,7 +1052,7 @@ export default function ProjectBids() {
                     <table className="w-full min-w-[520px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-pale bg-walnut/[0.07]">
-                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                          <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                           <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
@@ -1089,7 +1089,7 @@ export default function ProjectBids() {
                     const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                     const vendor = b?.vendor ?? null;
                     const vendorJoined = String(vendor?.firstName ?? '').trim();
-                    const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
+                    const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Manufacturer'));
                     const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                     const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
                     const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
@@ -1227,8 +1227,8 @@ export default function ProjectBids() {
                                   {actionLoading?.override
                                     ? 'Updating…'
                                     : activeAssignment
-                                      ? 'Change Jeweller'
-                                      : 'Select Jeweller & Pay'}
+                                      ? 'Change Manufacturer'
+                                      : 'Select Manufacturer & Pay'}
                                 </button>
                               ) : null}
                             </div>
@@ -1245,7 +1245,7 @@ export default function ProjectBids() {
                   <table className="w-full min-w-[640px] text-left border-collapse">
                     <thead>
                       <tr className="border-b border-pale bg-walnut/[0.07]">
-                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Jeweller</th>
+                        <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Manufacturer</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted">Delivery</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Order bid</th>
                         <th className="px-4 py-3 text-[11px] font-extrabold uppercase tracking-wide text-muted text-right">Action</th>
@@ -1256,7 +1256,7 @@ export default function ProjectBids() {
                         const bidId = String(b?.bidEntryId ?? b?.bid_entry_id ?? b?.id ?? b?._id ?? '');
                         const vendor = b?.vendor ?? null;
                         const vendorJoined = String(vendor?.firstName ?? '').trim();
-                        const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Jeweller'));
+                        const vendorName = String(b?.vendorName ?? b?.vendor_name ?? vendor?.fullName ?? (vendorJoined || 'Manufacturer'));
                         const amount = Number(b?.amount ?? b?.price ?? b?.bidAmount ?? b?.bid_price ?? NaN);
                         const days = Number(b?.noOfDays ?? b?.daysToComplete ?? b?.days_to_complete ?? b?.no_of_days ?? NaN);
                         const rating = b?.vendorOverallProjectRating?.averageRating ?? b?.vendorOverallProjectRating?.avg ?? null;
@@ -1398,8 +1398,8 @@ export default function ProjectBids() {
                                   {actionLoading?.override
                                     ? 'Updating…'
                                     : activeAssignment
-                                      ? 'Change Jeweller'
-                                      : 'Select Jeweller & Pay'}
+                                      ? 'Change Manufacturer'
+                                      : 'Select Manufacturer & Pay'}
                                 </button>
                               ) : null}
                             </td>
@@ -1463,16 +1463,16 @@ export default function ProjectBids() {
         <div className="fixed inset-0 z-[95] bg-ink/25 flex items-end md:items-center justify-center px-3 md:px-4" onMouseDown={() => setOverrideOpen(false)}>
           <div className="w-full max-w-md bg-white rounded-t-2xl md:rounded-2xl shadow-sm border border-pale overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b border-pale">
-              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Change Jeweller' : 'Select Jeweller'}</p>
+              <p className="text-[14px] font-extrabold text-ink">{activeAssignment ? 'Change Manufacturer' : 'Select Manufacturer'}</p>
               <p className="mt-1 text-[12px] text-muted">
                 {activeAssignment ? (
                   <>
                     This will assign the project to{' '}
-                    <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> instead. You will need to pay in full before production starts.
+                    <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Manufacturer'}</span> instead. You will need to pay in full before production starts.
                   </>
                 ) : (
                   <>
-                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Jeweller'}</span> to start production.
+                    Assign this project to <span className="font-semibold text-ink">{overrideFor?.vendorName || 'Manufacturer'}</span> to start production.
                   </>
                 )}
               </p>
@@ -1524,11 +1524,11 @@ export default function ProjectBids() {
           return (
             String(priceDnaFor?.vendorName ?? priceDnaFor?.vendor_name ?? priceDnaFor?.vendor?.fullName ?? '').trim() ||
             joined ||
-            'Jeweller'
+            'Manufacturer'
           );
         })()}
         title="Estimated Total"
-        subtitle="Full project pricing for this jeweller’s entire-order bid: quote, taxes, duties, and shipping — based on your delivery address and their location."
+        subtitle="Full project pricing for this manufacturer’s entire-order bid: quote, taxes, duties, and shipping — based on your delivery address and their location."
       />
     </div>
   );

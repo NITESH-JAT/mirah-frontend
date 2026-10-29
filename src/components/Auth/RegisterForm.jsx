@@ -1,355 +1,108 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import {
   extractCountryCodesList,
+  getPostalCodeLabelForCountry,
   getStateRegionLabelForCountry,
 } from '../../utils/stateRegionLabel';
-import {
-  formatDialCodeOptionLabel,
-  formatDialCodeTriggerLabel,
-  isoCountryCodeToFlagEmoji,
-} from '../../utils/countryFlag';
 import { pinCodeError } from '../../utils/pinCode';
+import {
+  ArrowLeft,
+  ArrowRight,
+  AuthHeading,
+  Checkbox,
+  Field,
+  OutlineButton,
+  PasswordInput,
+  PhoneInput,
+  PrimaryButton,
+  RoleCard,
+  SearchSelect,
+  StepProgress,
+  TextInput,
+  TextLink,
+  ToastStack,
+} from './ui';
+import { toDialCodeOptions, useToasts } from './authHelpers';
 
-// --- HELPER COMPONENTS ---
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STEP_ONE_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'password', 'confirmPassword'];
+const isIndia = (country) => /^india$/i.test(String(country || '').trim());
 
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const listener = (event) => {
-      if (!ref.current || ref.current.contains(event.target)) return;
-      handler(event);
-    };
-    document.addEventListener("mousedown", listener);
-    document.addEventListener("touchstart", listener);
-    return () => {
-      document.removeEventListener("mousedown", listener);
-      document.removeEventListener("touchstart", listener);
-    };
-  }, [ref, handler]);
+function validateStepOne(formData) {
+  const errors = {};
+  if (!formData.firstName.trim()) errors.firstName = 'Required';
+  if (!formData.lastName.trim()) errors.lastName = 'Required';
+  if (!formData.email) errors.email = 'Required';
+  else if (!EMAIL_RE.test(formData.email)) errors.email = 'Enter a valid email address';
+  if (!formData.phone) errors.phone = 'Required';
+  else if (formData.phone.length < 6) errors.phone = 'Enter at least 6 digits';
+  else if (formData.phone.length > 20) errors.phone = 'Enter 20 digits or fewer';
+  if (!formData.password) errors.password = 'Required';
+  else if (formData.password.length < 8) errors.password = 'Must be at least 8 characters';
+  if (formData.confirmPassword !== formData.password) errors.confirmPassword = 'Passwords do not match';
+  return errors;
 }
 
-// 1. NOTIFICATION TOAST COMPONENT
-const ToastNotification = ({ id, message, type, onClose }) => {
-  const [isExiting, setIsExiting] = useState(false);
+function validateStepTwo(formData) {
+  const errors = {};
+  if (!formData.country) errors.country = 'Required';
+  const pinErr = pinCodeError(String(formData.pinCode || '').trim());
+  if (pinErr) errors.pinCode = pinErr;
+  if (!formData.termsAccepted) errors.termsAccepted = 'You must accept the terms';
+  return errors;
+}
 
-  const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => onClose(id), 400);
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000); // 10 seconds auto-dismiss
-    return () => clearTimeout(timer);
-  }, []);
-
-  const isError = type === 'error';
-
-  return (
-    <div className={`
-      relative w-[300px] sm:w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
-      ${isError ? 'border-red-500' : 'border-green-500'}
-      ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
-    `}>
-      {/* Icon */}
-      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-        {isError ? (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
-        ) : (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
-          {isError ? 'Error' : 'Success'}
-        </h4>
-        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
-      </div>
-
-      {/* Close Button */}
-      <button 
-        onClick={handleClose} 
-        className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-          <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
-        </svg>
-      </button>
-    </div>
-  );
-};
-
-const InputField = ({ label, className, type="text", readOnly, required, error, onBlur, ...props }) => (
-  <div className={`w-full ${className}`}>
-    {label && (
-      <label className="block text-ink text-sm font-medium mb-1">
-        {label} {required && <span className="text-red-500 text-sm ml-1">*</span>}
-      </label>
-    )}
-    <input
-      type={type}
-      readOnly={readOnly}
-      onBlur={onBlur}
-      {...props}
-      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans 
-        ${readOnly ? 'bg-cream text-muted' : 'bg-white'}
-        ${error 
-          ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-          : 'border-pale focus:border-walnut focus:ring-walnut/10'
-        }
-      `}
-    />
-    {error && <p className="text-red-500 text-[11px] mt-1 ml-1">{error}</p>}
-  </div>
-);
-
-const PasswordInput = ({ placeholder, value, onChange, onBlur, name, required, error }) => {
-  const [show, setShow] = useState(false);
-  const isMaxReached = value && value.length === 15;
-
-  return (
-    <div className="w-full">
-       <div className="relative">
-        <input
-          type={show ? "text" : "password"}
-          name={name}
-          autoComplete="new-password"
-          maxLength={15}
-          placeholder={required ? `${placeholder} *` : placeholder}
-          value={value}
-          onChange={onChange}
-          onBlur={onBlur}
-          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] lg:rounded-[8px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans pr-10
-            ${error 
-              ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-              : 'border-pale focus:border-walnut focus:ring-walnut/10'
-            }
-          `}
-        />
-        
-        {isMaxReached && (
-          <span className="absolute right-12 top-1/2 -translate-y-1/2 text-[10px] text-orange-500 font-semibold bg-white px-1">
-            Max 15
-          </span>
-        )}
-
-        <button 
-          type="button"
-          onClick={() => setShow(!show)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors cursor-pointer"
-        >
-          {show ? (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
-          ) : (
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          )}
-        </button>
-      </div>
-      {error && <p className="text-red-500 text-[11px] mt-1 ml-1">{error}</p>}
-    </div>
-  );
-};
-
-const CustomSelect = ({ options, placeholder, value, onChange, disabled, className }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const wrapperRef = useRef(null);
-  const searchInputRef = useRef(null);
-
-  const close = () => {
-    setIsOpen(false);
-    setSearchTerm('');
-  };
-
-  useClickOutside(wrapperRef, close);
-
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) searchInputRef.current.focus();
-  }, [isOpen]);
-
-  const handleSelect = (optionValue) => {
-    onChange({ target: { value: optionValue } });
-    close();
-  };
-
-  const filteredOptions = useMemo(() => {
-    if (!searchTerm) return options;
-    const lowerTerm = searchTerm.toLowerCase();
-    
-    return options.filter(opt => {
-      if (opt.searchData) {
-        return Object.values(opt.searchData).some(val => 
-          String(val).toLowerCase().includes(lowerTerm)
-        );
-      }
-      const label = opt.label || opt;
-      const val = opt.value || opt;
-      return String(label).toLowerCase().includes(lowerTerm) || String(val).toLowerCase().includes(lowerTerm);
-    });
-  }, [options, searchTerm]);
-
-  const selectedOption = options.find(o => (o.value || o) === value);
-  const isDialSelect = Boolean(selectedOption?.code || options.some((o) => o?.code || o?.searchData?.code));
-  const selectedLabel = selectedOption
-    ? isDialSelect
-      ? formatDialCodeTriggerLabel({
-          iso: selectedOption.code || selectedOption.searchData?.code,
-          phoneCode: selectedOption.value,
-          fallback: selectedOption.label,
-        }) || selectedOption.label
-      : selectedOption.label || selectedOption.value
-    : value || placeholder;
-  const isPlaceholder = !value;
-  const selectedFlagIso = selectedOption?.code || selectedOption?.searchData?.code;
-
-  return (
-    <div className={`relative w-full ${className}`} ref={wrapperRef}>
-      <div 
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-        className={`w-full px-5 py-4 lg:px-4 lg:py-3 pr-10 lg:pr-8 rounded-[12px] lg:rounded-[8px] border border-pale text-[15px] lg:text-[14px] font-medium bg-white focus:outline-none focus:border-walnut focus:ring-1 focus:ring-walnut/10 transition-all cursor-pointer flex items-center
-          ${disabled ? 'bg-cream text-muted cursor-not-allowed' : 'hover:border-pale'}
-          ${isPlaceholder ? 'text-muted' : 'text-mid'}
-        `}
-      >
-        <span className="truncate flex items-center gap-1.5">
-          {isDialSelect && selectedFlagIso ? (
-            <span className="text-[16px] leading-none" aria-hidden>
-              {isoCountryCodeToFlagEmoji(selectedFlagIso)}
-            </span>
-          ) : null}
-          <span>
-            {isDialSelect && selectedOption?.value ? selectedOption.value : selectedLabel}
-          </span>
-        </span>
-      </div>
-      <div className="absolute right-4 lg:right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={`w-4 h-4 lg:w-3.5 lg:h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
-      </div>
-      {isOpen && !disabled && (
-        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-pale rounded-[12px] lg:rounded-[8px] shadow-sm z-50 overflow-hidden flex flex-col">
-          <div className="p-2 border-b border-pale bg-cream/50">
-            <input
-              ref={searchInputRef}
-              type="text"
-              autoComplete="off"
-              placeholder="Search..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-1.5 text-[13px] lg:text-[12px] border border-pale rounded-md focus:outline-none focus:border-walnut font-sans bg-white"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          <ul className="max-h-[160px] overflow-y-auto custom-scrollbar">
-            {filteredOptions.length > 0 ? (
-              filteredOptions.map((opt, idx) => {
-                const val = opt.value || opt;
-                const iso = opt.code || opt.searchData?.code;
-                const lab = isDialSelect
-                  ? formatDialCodeOptionLabel({ phoneCode: val }) || val
-                  : opt.label || opt;
-                return (
-                  <li 
-                    key={idx}
-                    onClick={() => handleSelect(val)}
-                    className={`px-5 py-3 lg:px-4 lg:py-2.5 text-[15px] lg:text-[13px] text-mid hover:bg-cream cursor-pointer border-b border-pale last:border-0
-                      ${val === value ? 'bg-walnut/5 text-ink font-semibold' : ''}
-                    `}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {isDialSelect && iso ? (
-                        <span className="text-[15px] leading-none" aria-hidden>
-                          {isoCountryCodeToFlagEmoji(iso)}
-                        </span>
-                      ) : null}
-                      <span>{lab}</span>
-                    </span>
-                  </li>
-                );
-              })
-            ) : (
-              <li className="px-5 py-3 lg:px-4 lg:py-2.5 text-[13px] text-muted italic text-center">No results found</li>
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// --- MAIN REGISTER FORM ---
 export const RegisterForm = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const step = searchParams.get('step') === '2' ? 2 : 1;
+  const { toasts, addToast, removeToast } = useToasts();
+
   const [loading, setLoading] = useState(false);
-  const [countryData, setCountryData] = useState([]); 
-  const [toasts, setToasts] = useState([]);
-  
+  const [countryRows, setCountryRows] = useState([]);
   const [errors, setErrors] = useState({});
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
-    countryCode: '', phone: '', country: '', state: '', 
+    countryCode: '', phone: '', country: '', state: '',
     pinCode: '', userType: 'customer', termsAccepted: false,
     isSeepzPrimaryProductionUnit: false,
   });
 
-  // --- NOTIFICATION HELPERS ---
-  const addToast = (message, type = 'error') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
-
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  // Step 2 is only reachable through Continue; a refresh or deep link starts over.
+  useEffect(() => {
+    if (step === 2 && Object.keys(validateStepOne(formData)).length) {
+      setSearchParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   // --- LOAD DATA & GEO ---
   useEffect(() => {
     const initData = async () => {
       try {
         const data = extractCountryCodesList(await authService.getCountryCodes());
-
-        const validCountries = data.map(c => ({
-          dial_code: c.phoneCode,
-          code: c.countryCode, 
-          name: c.countryName
-        }));
-
-        setCountryData(validCountries);
-
+        setCountryRows(data);
         try {
           const geoRes = await fetch('https://ipapi.co/json/');
           const geoInfo = await geoRes.json();
-          
-          if (geoInfo && validCountries.length > 0) {
-            const matchedCode = validCountries.find(c => c.code === geoInfo.country_code);
-            const matchedName = validCountries.find(c => c.name === geoInfo.country_name) || matchedCode;
-
-            setFormData(prev => ({
-              ...prev,
-              countryCode: matchedCode ? matchedCode.dial_code : validCountries[0]?.dial_code,
-              country: matchedName ? matchedName.name : validCountries[0]?.name
-            }));
-          } else {
-             throw new Error("Geo failed");
-          }
+          if (!geoInfo || !data.length) throw new Error('Geo failed');
+          const matchedCode = data.find((c) => c.countryCode === geoInfo.country_code);
+          const matchedName = data.find((c) => c.countryName === geoInfo.country_name) || matchedCode;
+          setFormData((prev) => ({
+            ...prev,
+            countryCode: matchedCode ? matchedCode.phoneCode : data[0]?.phoneCode,
+            country: matchedName ? matchedName.countryName : data[0]?.countryName,
+          }));
         } catch {
-          if (validCountries.length > 0) {
-            const india = validCountries.find(c => c.name === "India" || c.code === "IN" || c.dial_code === "+91");
-            const fallback = india || validCountries[0];
-
-            setFormData(prev => ({ 
-              ...prev, 
-              countryCode: fallback.dial_code, 
-              country: fallback.name 
-            }));
+          const fallback = data.find((c) => c.countryName === 'India' || c.countryCode === 'IN' || c.phoneCode === '+91') || data[0];
+          if (fallback) {
+            setFormData((prev) => ({ ...prev, countryCode: fallback.phoneCode, country: fallback.countryName }));
           }
         }
-
       } catch {
-        setCountryData([]);
+        setCountryRows([]);
       }
     };
     initData();
@@ -358,305 +111,270 @@ export const RegisterForm = () => {
   // --- CROSS-TAB TERMS ---
   useEffect(() => {
     const handleStorageChange = (e) => {
-      if (e.key === 'termsAcceptedSignal') {
-        setFormData(prev => {
-           setErrors(errs => {
-             const newErrs = { ...errs };
-             delete newErrs.termsAccepted;
-             return newErrs;
-           });
-           return { ...prev, termsAccepted: true };
-        });
-      }
+      if (e.key !== 'termsAcceptedSignal') return;
+      setFormData((prev) => ({ ...prev, termsAccepted: true }));
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.termsAccepted;
+        return next;
+      });
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // --- HANDLERS ---
+  const clearError = (name) =>
+    setErrors((prev) => {
+      if (!prev[name]) return prev;
+      const next = { ...prev };
+      delete next[name];
+      return next;
+    });
+
+  const setField = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+    clearError(name);
+  };
 
   const handleChange = (e) => {
-    const { value, checked, type } = e.target;
-    const fieldNames = {
-      'given-name': 'firstName',
-      'family-name': 'lastName',
-      'tel-national': 'phone',
-      'address-level1': 'state',
-      'postal-code': 'pinCode',
-    };
-    const name = fieldNames[e.target.name] || e.target.name;
+    const { name, value, checked, type } = e.target;
     let val = type === 'checkbox' ? checked : value;
-
-    if (name === 'phone') val = val.replace(/\D/g, ''); 
-    if ((name === 'password' || name === 'confirmPassword') && val.length > 15) return; 
-
-    setFormData(prev => ({ ...prev, [name]: val }));
-
-    if (errors[name]) {
-        setErrors(prev => {
-            const newErrs = { ...prev };
-            delete newErrs[name];
-            return newErrs;
-        });
-    }
+    if (name === 'phone') val = val.replace(/\D/g, '');
+    if ((name === 'password' || name === 'confirmPassword') && val.length > 15) return;
+    setField(name, val);
   };
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
-    
-    // Check length
     if ((name === 'password' || name === 'confirmPassword') && value.length > 0 && value.length < 8) {
-      setErrors(prev => ({ ...prev, [name]: "Must be at least 8 characters" }));
+      setErrors((prev) => ({ ...prev, [name]: 'Must be at least 8 characters' }));
     }
-
-    // Check matching on blur of confirmPassword
     if (name === 'confirmPassword' && value && value !== formData.password) {
-        setErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }));
+      setErrors((prev) => ({ ...prev, confirmPassword: 'Passwords do not match' }));
     }
   };
 
-  const handleSubmit = async () => {
-    // 1. Validate All
-    const newErrors = {};
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
-    if (!formData.firstName) newErrors.firstName = "Required";
-    if (!formData.lastName) newErrors.lastName = "Required";
-    
-    if (!formData.email) newErrors.email = "Required";
-    else if (!emailRegex.test(formData.email)) newErrors.email = "Invalid email format";
+  const handleContinue = (e) => {
+    e.preventDefault();
+    const stepErrors = validateStepOne(formData);
+    if (Object.keys(stepErrors).length) {
+      setErrors(stepErrors);
+      return;
+    }
+    setErrors({});
+    setSearchParams({ step: '2' });
+    window.scrollTo({ top: 0 });
+  };
 
-    if (!formData.phone) newErrors.phone = "Required";
-    else if (formData.phone.length < 6) newErrors.phone = "Enter at least 6 digits";
-    else if (formData.phone.length > 20) newErrors.phone = "Enter 20 digits or fewer";
+  const backToStepOne = () => {
+    // Step 2 was pushed by Continue, so going back keeps browser history in sync.
+    navigate(-1);
+  };
 
-    const pin = String(formData.pinCode || '').trim();
-    const pinErr = pinCodeError(pin);
-    if (pinErr) newErrors.pinCode = pinErr;
-    
-    if (!formData.password) newErrors.password = "Required";
-    else if (formData.password.length < 8) newErrors.password = "Must be at least 8 characters"; 
-
-    if (formData.confirmPassword !== formData.password) newErrors.confirmPassword = "Passwords do not match";
-    if (!formData.termsAccepted) newErrors.termsAccepted = "You must accept the terms";
-
-    // 2. If Errors, Show them and stop
-    if (Object.keys(newErrors).length > 0) {
-        setErrors(newErrors);
-        addToast("Please fill in all required fields correctly.", "error");
-        return;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (loading) return;
+    const stepErrors = validateStepTwo(formData);
+    if (Object.keys(stepErrors).length) {
+      setErrors(stepErrors);
+      return;
     }
 
-    // 3. Submit
     setLoading(true);
-    
     const payload = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        password: formData.password,
-        countryCode: formData.countryCode, 
-        phone: formData.phone,
-        country: formData.country,         
-        state: formData.state,
-        pinCode: pin,
-        userType: formData.userType,
-        city: null,
-        address: null,
-        ...(formData.userType === 'vendor' && /^india$/i.test(String(formData.country || '').trim())
-          ? { isSeepzPrimaryProductionUnit: Boolean(formData.isSeepzPrimaryProductionUnit) }
-          : {}),
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      email: formData.email,
+      password: formData.password,
+      countryCode: formData.countryCode,
+      phone: formData.phone,
+      country: formData.country,
+      state: formData.state,
+      pinCode: String(formData.pinCode || '').trim(),
+      userType: formData.userType,
+      city: null,
+      address: null,
+      ...(formData.userType === 'vendor' && isIndia(formData.country)
+        ? { isSeepzPrimaryProductionUnit: Boolean(formData.isSeepzPrimaryProductionUnit) }
+        : {}),
     };
 
     try {
       await authService.signup(payload);
-      addToast("Account created successfully!", "success");
+      addToast('Account created. Let’s verify your phone and email.', 'success');
       setTimeout(() => navigate('/verification'), 1000);
     } catch (err) {
-      addToast(err.message || "Registration Failed", "error");
+      const message = err.message || 'Registration failed';
+      // Duplicate email/phone belongs to step 1: send the user back to fix it there.
+      const field = /e-?mail/i.test(message) ? 'email' : /phone|mobile/i.test(message) ? 'phone' : null;
+      if (field && STEP_ONE_FIELDS.includes(field)) {
+        setErrors({ [field]: message });
+        backToStepOne();
+      }
+      addToast(message, 'error');
       setLoading(false);
     }
   };
 
-  const codeOptions = useMemo(() => {
-    return countryData.map(c => ({
-      value: c.dial_code,
-      code: c.code,
-      countryName: c.name,
-      label: formatDialCodeTriggerLabel({
-        iso: c.code,
-        phoneCode: c.dial_code,
-        fallback: `${c.code} ${c.dial_code}`,
-      }),
-      searchData: { code: c.code, dial: c.dial_code, name: c.name } 
-    }));
-  }, [countryData]);
+  const codeOptions = useMemo(() => toDialCodeOptions(countryRows), [countryRows]);
+  const countryOptions = useMemo(
+    () => countryRows.map((c) => ({ value: c.countryName, label: c.countryName, searchData: { name: c.countryName } })),
+    [countryRows]
+  );
+  const countryLookup = useMemo(
+    () => countryRows.map((c) => ({ code: c.countryCode, name: c.countryName })),
+    [countryRows]
+  );
+  const stateLabel = getStateRegionLabelForCountry(formData.country, countryLookup) || 'State';
+  const postalLabel = getPostalCodeLabelForCountry(formData.country, countryLookup) || 'Postal code';
 
-  const countryNameOptions = useMemo(() => {
-    return countryData.map(c => ({
-      value: c.name,
-      label: c.name,
-      searchData: { name: c.name }
-    }));
-  }, [countryData]);
-
-  const stateRegionLabel = useMemo(
-    () => getStateRegionLabelForCountry(formData.country, countryData),
-    [formData.country, countryData]
+  const isBuyer = formData.userType === 'customer';
+  const signInFooter = (
+    <p className="text-center font-jakarta text-[14px] text-mid lg:text-[12.5px]">
+      Already registered? <TextLink onClick={() => navigate('/login')}>Sign in</TextLink>
+    </p>
   );
 
   return (
-    <div className="w-full relative pb-20 lg:pb-0 overflow-x-hidden pt-2">
-      <div className="fixed top-6 right-6 z-50 flex flex-col items-end pointer-events-none">
-        <div className="pointer-events-auto">
-             {toasts.map(toast => (
-                <ToastNotification 
-                   key={toast.id} 
-                   id={toast.id} 
-                   message={toast.message} 
-                   type={toast.type} 
-                   onClose={removeToast} 
-                />
-             ))}
-        </div>
-      </div>
+    <div>
+      <ToastStack toasts={toasts} onClose={removeToast} />
 
-      {/* HEADER */}
-      <div className="shrink-0 text-center mb-6 lg:mb-6">
-        <h1 className="font-serif text-[30px] lg:text-[28px] font-bold text-ink mb-1">Create Your Account</h1>
-        <p className="font-sans text-muted text-[14px] lg:text-[13px] tracking-wide mb-4 lg:mb-4">Join our community of jewelry lovers.</p>
-        
-        {/* Role Switcher */}
-        <div className="bg-blush p-1.5 lg:p-1 rounded-xl lg:rounded-lg flex max-w-[320px] mx-auto">
-          <button onClick={() => setFormData({...formData, userType: 'customer', isSeepzPrimaryProductionUnit: false})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'customer' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a User</button>
-          <button onClick={() => setFormData({...formData, userType: 'vendor'})} className={`cursor-pointer flex-1 py-3 lg:py-2 rounded-lg lg:rounded-[6px] text-[14px] lg:text-[13px] font-semibold transition-all font-sans ${formData.userType === 'vendor' ? 'bg-white text-ink shadow-sm' : 'text-muted hover:text-mid'}`}>As a Jeweller</button>
-        </div>
-      </div>
-
-      {/* FORM BODY */}
-      <form
-        autoComplete="on"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (!loading) handleSubmit();
-        }}
-      >
-      <div className="flex flex-col gap-4 lg:gap-4 mb-6">
-        <div className="flex gap-4 lg:gap-3">
-          <InputField required name="given-name" autoComplete="given-name" placeholder="First Name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
-          <InputField required name="family-name" autoComplete="family-name" placeholder="Last Name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
-        </div>
-        
-        <InputField required name="email" type="email" autoComplete="email" inputMode="email" placeholder="Email Address" value={formData.email} onChange={handleChange} error={errors.email} />
-        
-        <div className="flex gap-4 lg:gap-3">
-          {/* Country Code Select */}
-          <div className="w-[120px] lg:w-[110px] shrink-0">
-             <CustomSelect
-                placeholder="Code"
-                value={formData.countryCode}
-                onChange={(e) => setFormData(p => ({...p, countryCode: e.target.value}))}
-                options={codeOptions}
-             />
+      {step === 1 ? (
+        <form onSubmit={handleContinue} noValidate autoComplete="on">
+          <AuthHeading size="md" title="Create your free account" />
+          <div className="mt-4 lg:mt-3">
+            <StepProgress step={1} />
           </div>
-          <InputField required name="tel-national" type="tel" autoComplete="tel-national" inputMode="tel" maxLength={20} placeholder="Phone Number" value={formData.phone} onChange={handleChange} error={errors.phone} />
-        </div>
 
-        <CustomSelect
-            placeholder="Select Country"
-            value={formData.country}
-            onChange={(e) => {
-              const country = e.target.value;
-              const isIndia = /^india$/i.test(String(country || '').trim());
-              setFormData((p) => ({
-                ...p,
-                country,
-                // SEEPZ only applies to India jewellers
-                ...(isIndia ? {} : { isSeepzPrimaryProductionUnit: false }),
-              }));
-            }}
-            options={countryNameOptions}
-        />
-
-        <div className="flex gap-4 lg:gap-3">
-          <InputField
-            name="address-level1"
-            autoComplete="address-level1"
-            placeholder={stateRegionLabel}
-            value={formData.state}
-            onChange={handleChange}
-          />
-          <InputField
-            name="postal-code"
-            autoComplete="postal-code"
-            autoCapitalize="characters"
-            spellCheck={false}
-            maxLength={20}
-            placeholder="Pin Code"
-            value={formData.pinCode}
-            onChange={handleChange}
-            error={errors.pinCode}
-          />
-        </div>
-
-        <div className="flex flex-col gap-4 lg:gap-3 mt-2">
-            <PasswordInput required name="password" placeholder="Password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
-            <PasswordInput required name="confirmPassword" placeholder="Confirm Password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
-        </div>
-
-        {formData.userType === 'vendor' && /^india$/i.test(String(formData.country || '').trim()) ? (
-          <label className="mt-1 flex items-start gap-2.5 px-1 cursor-pointer">
-            <input
-              type="checkbox"
-              name="isSeepzPrimaryProductionUnit"
-              checked={Boolean(formData.isSeepzPrimaryProductionUnit)}
-              onChange={handleChange}
-              className="mt-0.5 w-4 h-4 rounded border-pale text-ink focus:ring-walnut cursor-pointer"
+          <div role="radiogroup" aria-label="Account type" className="mt-5 grid grid-cols-2 gap-3 lg:mt-4 lg:gap-2.5">
+            <RoleCard
+              selected={isBuyer}
+              onSelect={() => setFormData((p) => ({ ...p, userType: 'customer', isSeepzPrimaryProductionUnit: false }))}
+              title="Buyer"
+              description="Retailer, brand, designer or individual"
             />
-            <span className="text-[12px] lg:text-[13px] font-sans text-ink leading-snug">
-              My primary production unit is in SEEPZ
-            </span>
-          </label>
-        ) : null}
-      </div>
+            <RoleCard
+              selected={!isBuyer}
+              onSelect={() => setFormData((p) => ({ ...p, userType: 'vendor' }))}
+              title="Manufacturer"
+              description="Workshop or production business"
+            />
+          </div>
 
-      {/* FOOTER */}
-      <div className="shrink-0">
-        <div className="flex items-center gap-2 mb-5 lg:mb-4 px-1">
-          <input 
-            type="checkbox" 
-            name="termsAccepted"
-            checked={formData.termsAccepted}
-            onChange={handleChange}
-            className={`w-4 h-4 rounded border-pale focus:ring-walnut cursor-pointer ${errors.termsAccepted ? 'ring-2 ring-red-500' : 'text-ink'}`}
-          />
-          <label className={`text-[12px] font-sans ${errors.termsAccepted ? 'text-red-500' : 'text-ink'}`}>
-              I agree to the 
-              <a 
-                href="/terms" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-ink font-medium cursor-pointer hover:underline mx-1"
-              >
-                Terms & Conditions
-              </a> 
-              <span className="text-red-500">*</span>
-          </label>
-        </div>
+          <div className="mt-5 space-y-3.5 lg:mt-4 lg:space-y-2.5">
+            <div className="grid grid-cols-2 gap-3 lg:gap-2.5">
+              <Field label="First name" htmlFor="reg-first" error={errors.firstName}>
+                <TextInput id="reg-first" name="firstName" autoComplete="given-name" placeholder="First name" value={formData.firstName} onChange={handleChange} error={errors.firstName} />
+              </Field>
+              <Field label="Last name" htmlFor="reg-last" error={errors.lastName}>
+                <TextInput id="reg-last" name="lastName" autoComplete="family-name" placeholder="Last name" value={formData.lastName} onChange={handleChange} error={errors.lastName} />
+              </Field>
+            </div>
+            <Field label="Email address" htmlFor="reg-email" error={errors.email}>
+              <TextInput id="reg-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} error={errors.email} />
+            </Field>
+            <Field label="Phone number" htmlFor="reg-phone" error={errors.phone}>
+              <PhoneInput
+                id="reg-phone"
+                codeOptions={codeOptions}
+                countryCode={formData.countryCode}
+                onCountryCodeChange={(countryCode) => setFormData((p) => ({ ...p, countryCode }))}
+                name="phone"
+                autoComplete="tel-national"
+                placeholder="Phone number"
+                value={formData.phone}
+                onChange={handleChange}
+                error={errors.phone}
+              />
+            </Field>
+            <div className="grid gap-3.5 sm:grid-cols-2 sm:gap-3 lg:gap-2.5">
+              <Field label="Password" htmlFor="reg-password" error={errors.password}>
+                <PasswordInput id="reg-password" name="password" autoComplete="new-password" placeholder="Create password" value={formData.password} onChange={handleChange} onBlur={handleBlur} error={errors.password} />
+              </Field>
+              <Field label="Confirm password" htmlFor="reg-confirm" error={errors.confirmPassword}>
+                <PasswordInput id="reg-confirm" name="confirmPassword" autoComplete="new-password" placeholder="Re-enter password" value={formData.confirmPassword} onChange={handleChange} onBlur={handleBlur} error={errors.confirmPassword} />
+              </Field>
+            </div>
+          </div>
 
-        <button 
-          type="submit"
-          disabled={loading} 
-          className="w-full cursor-pointer bg-walnut text-blush py-4 lg:py-3 rounded-full lg:rounded-[20px] text-[16px] lg:text-[14px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all font-sans disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? 'Creating...' : 'Next'}
-        </button>
+          {/* Pinned to the bottom of the screen while the form is taller than the window, so Continue is always in view. */}
+          <div className="sticky bottom-0 z-10 -mx-5 mt-3 bg-gradient-to-t from-cream from-75% to-cream/0 px-5 pb-4 pt-5 sm:-mx-8 sm:px-8 lg:-mx-3 lg:px-3 lg:pb-3 lg:pt-4">
+            <PrimaryButton type="submit" className="w-full">
+              Continue <ArrowRight />
+            </PrimaryButton>
+          </div>
+          <div className="border-t border-pale pt-5 lg:pt-4">{signInFooter}</div>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate autoComplete="on">
+          <AuthHeading size="md" title="Finish creating your account" />
+          <div className="mt-5 lg:mt-4">
+            <StepProgress step={2} />
+          </div>
+          <p className="mt-4 font-jakarta text-[14px] text-mid lg:mt-3 lg:text-[12.5px]">
+            <span className="font-semibold text-ink">{isBuyer ? 'Buyer' : 'Manufacturer'} account</span>
+            <span className="mx-2 text-soft" aria-hidden>·</span>
+            <TextLink onClick={backToStepOne}>Change</TextLink>
+          </p>
 
-        <p className="text-center text-[13px] lg:text-[14px] text-muted mt-5 lg:mt-4 font-sans font-medium">
-          Already have an account? <span onClick={() => navigate('/login')} className="text-ink font-bold cursor-pointer hover:underline">Login</span>
-        </p>
-      </div>
-      </form>
+          <div className="mt-6 space-y-4 lg:mt-5 lg:space-y-3">
+            <Field label="Country" error={errors.country}>
+              <SearchSelect
+                options={countryOptions}
+                placeholder="Select country"
+                searchPlaceholder="Search country…"
+                value={formData.country}
+                error={errors.country}
+                onChange={(e) => {
+                  const country = e.target.value;
+                  setFormData((p) => ({
+                    ...p,
+                    country,
+                    // SEEPZ only applies to India manufacturers
+                    ...(isIndia(country) ? {} : { isSeepzPrimaryProductionUnit: false }),
+                  }));
+                  clearError('country');
+                }}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-3 lg:gap-2.5">
+              <Field label={stateLabel} htmlFor="reg-state">
+                <TextInput id="reg-state" name="state" autoComplete="address-level1" placeholder={`Enter ${stateLabel.toLowerCase()}`} value={formData.state} onChange={handleChange} />
+              </Field>
+              <Field label={postalLabel} htmlFor="reg-pin" error={errors.pinCode}>
+                <TextInput id="reg-pin" name="pinCode" autoComplete="postal-code" autoCapitalize="characters" spellCheck={false} maxLength={20} placeholder={`Enter ${postalLabel.toLowerCase()}`} value={formData.pinCode} onChange={handleChange} error={errors.pinCode} />
+              </Field>
+            </div>
+
+            {!isBuyer && isIndia(formData.country) ? (
+              <Checkbox name="isSeepzPrimaryProductionUnit" checked={Boolean(formData.isSeepzPrimaryProductionUnit)} onChange={handleChange}>
+                My primary production unit is in SEEPZ
+              </Checkbox>
+            ) : null}
+
+            <div>
+              <Checkbox name="termsAccepted" checked={formData.termsAccepted} onChange={handleChange} error={errors.termsAccepted}>
+                I agree to the{' '}
+                <TextLink href="/terms" target="_blank" rel="noopener noreferrer">
+                  Terms &amp; Conditions
+                </TextLink>
+              </Checkbox>
+              {errors.termsAccepted ? <p className="ml-[30px] mt-1 font-jakarta text-[12px] text-red-600 lg:text-[11px]">{errors.termsAccepted}</p> : null}
+            </div>
+          </div>
+
+          <p className="mt-5 font-jakarta text-[13px] text-mid lg:mt-4 lg:text-[12px]">Account registration is free.</p>
+          <div className="mt-4 grid grid-cols-[2fr_3fr] gap-3 lg:mt-3 lg:gap-2.5">
+            <OutlineButton onClick={backToStepOne} disabled={loading} className="px-4 lg:px-3.5">
+              <ArrowLeft /> Back
+            </OutlineButton>
+            <PrimaryButton type="submit" disabled={loading} className="px-4 lg:px-3.5">
+              {loading ? 'Creating…' : 'Create account'} {!loading && <ArrowRight />}
+            </PrimaryButton>
+          </div>
+          <div className="mt-6 lg:mt-5">{signInFooter}</div>
+        </form>
+      )}
     </div>
   );
 };

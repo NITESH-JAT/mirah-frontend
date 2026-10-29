@@ -391,6 +391,19 @@ export const projectService = {
     return unwrap(res);
   },
 
+  /** Applies a promo code to the project (discount on the manufacturer quote, before GST). */
+  applyPromo: async (projectId, code) => {
+    if (!projectId) return null;
+    const res = await api.post(`/api/user/projects/${projectId}/promo`, { code });
+    return unwrap(res);
+  },
+
+  removePromo: async (projectId) => {
+    if (!projectId) return null;
+    const res = await api.delete(`/api/user/projects/${projectId}/promo`);
+    return unwrap(res);
+  },
+
   initiateBankTransfer: async (projectId, { type, transferKind } = {}, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.post(

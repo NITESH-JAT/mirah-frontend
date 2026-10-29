@@ -379,7 +379,7 @@ export default function VendorProjects() {
     return (
       <div className="w-full pb-10 animate-fade-in">
         <div className="rounded-2xl border border-pale bg-cream p-6 text-[13px] text-mid">
-          This page is available for vendors only.
+          This page is available for manufacturers only.
         </div>
       </div>
     );

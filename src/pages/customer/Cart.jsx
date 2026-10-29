@@ -241,7 +241,7 @@ export default function Cart() {
       return;
     }
     if (!selectedProviderOk) {
-      addToast('Selected items must be from a same seller (all Arviah products OR same jeweller)', 'error');
+      addToast('Selected items must be from a same seller (all Arviah products OR same manufacturer)', 'error');
       return;
     }
     const selectedItems = items.filter((x) => selected.has(String(x.rowKey)));

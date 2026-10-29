@@ -1,346 +1,94 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
 import {
-  formatDialCodeOptionLabel,
-  formatDialCodeTriggerLabel,
-  isoCountryCodeToFlagEmoji,
-} from '../../utils/countryFlag';
+  ArrowLeft,
+  ArrowRight,
+  AuthCard,
+  AuthHeading,
+  Field,
+  OrDivider,
+  OutlineButton,
+  PasswordInput,
+  PhoneInput,
+  PrimaryButton,
+  SegmentedTabs,
+  TextInput,
+  TextLink,
+  ToastStack,
+} from './ui';
+import { toDialCodeOptions, useToasts } from './authHelpers';
 
-const globalStyles = `
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-  @keyframes fadeOut {
-    from { opacity: 1; }
-    to { opacity: 0; }
-  }
-  .animate-slide-in { animation: slideIn 0.4s ease-out forwards; }
-  .animate-fade-out { animation: fadeOut 0.4s ease-out forwards; }
-`;
-
-const ToastNotification = ({ id, message, type, onClose }) => {
-  const [isExiting, setIsExiting] = useState(false);
-
-  const handleClose = () => {
-    setIsExiting(true);
-    setTimeout(() => onClose(id), 400); 
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => handleClose(), 10000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const isError = type === 'error';
-
-  return (
-    <div className={`
-      relative w-[320px] bg-white rounded-[12px] shadow-sm border-l-4 p-4 mb-3 flex gap-3 items-start transition-all
-      ${isError ? 'border-red-500' : 'border-green-500'}
-      ${isExiting ? 'animate-fade-out' : 'animate-slide-in'}
-    `}>
-      <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${isError ? 'bg-red-50 text-red-500' : 'bg-green-50 text-green-500'}`}>
-        {isError ? (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" /></svg>
-        ) : (
-           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm13.36-1.814a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" /></svg>
-        )}
-      </div>
-      <div className="flex-1 pt-0.5">
-        <h4 className={`font-sans text-[15px] font-bold leading-none mb-1 ${isError ? 'text-red-600' : 'text-ink'}`}>
-          {isError ? 'Error' : 'Success'}
-        </h4>
-        <p className="text-muted font-sans text-[13px] leading-snug">{message}</p>
-      </div>
-      <button onClick={handleClose} className="shrink-0 text-muted hover:text-muted transition-colors cursor-pointer p-1">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-          <path fillRule="evenodd" d="M5.47 5.47a.75.75 0 011.06 0L12 10.94l5.47-5.47a.75.75 0 111.06 1.06L13.06 12l5.47 5.47a.75.75 0 11-1.06 1.06L12 13.06l-5.47 5.47a.75.75 0 01-1.06-1.06L10.94 12 5.47 6.53a.75.75 0 010-1.06z" clipRule="evenodd" />
-        </svg>
-      </button>
-    </div>
-  );
-};
-
-function useClickOutside(ref, handler) {
-  useEffect(() => {
-    const listener = (event) => {
-      if (!ref.current || ref.current.contains(event.target)) return;
-      handler(event);
-    };
-    document.addEventListener("mousedown", listener);
-    document.addEventListener("touchstart", listener);
-    return () => {
-      document.removeEventListener("mousedown", listener);
-      document.removeEventListener("touchstart", listener);
-    };
-  }, [ref, handler]);
-}
-
-const MainLayout = ({ children }) => (
-    <div className="w-full flex flex-col relative">
-        {children}
-    </div>
-);
-
-const InputField = ({ label, className, type="text", readOnly, required, error, ...props }) => (
-  <div className={`w-full ${className}`}>
-    {label && (
-      <label className="block text-ink text-sm font-medium mb-1">
-        {label} {required && <span className="text-red-500 text-sm ml-1">*</span>}
-      </label>
-    )}
-    <input
-      type={type}
-      readOnly={readOnly}
-      {...props}
-      className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans 
-        ${readOnly ? 'bg-cream text-muted' : 'bg-white'}
-        ${error 
-          ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-          : 'border-pale focus:border-walnut focus:ring-walnut/10'
-        }
-      `}
-    />
-    {error && <p className="text-red-500 text-[11px] mt-1 ml-1">{error}</p>}
-  </div>
-);
-
-const PasswordInput = ({ placeholder, value, onChange, name, required, error }) => {
-  const [show, setShow] = useState(false);
-  return (
-    <div className="w-full">
-       <div className="relative">
-        <input
-          type={show ? "text" : "password"}
-          name={name}
-          maxLength={15}
-          placeholder={required ? `${placeholder} *` : placeholder}
-          value={value}
-          onChange={onChange}
-          className={`w-full px-5 py-4 lg:px-4 lg:py-3 rounded-[12px] border text-mid text-[15px] lg:text-[14px] font-medium placeholder:text-muted focus:outline-none focus:ring-1 transition-all font-sans pr-10
-            ${error 
-              ? 'border-red-400 focus:border-red-500 focus:ring-red-500/10' 
-              : 'border-pale focus:border-walnut focus:ring-walnut/10'
-            }
-          `}
-        />
-        <button 
-          type="button"
-          onClick={() => setShow(!show)}
-          className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-ink transition-colors cursor-pointer"
-        >
-          {show ? (
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
-          ) : (
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
-          )}
-        </button>
-      </div>
-      {error && <p className="text-red-500 text-[11px] mt-1 ml-1">{error}</p>}
-    </div>
-  );
-};
-
-const CustomSelect = ({ options, placeholder, value, onChange }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const wrapperRef = useRef(null);
-  const searchInputRef = useRef(null);
-
-  useClickOutside(wrapperRef, () => {
-      setIsOpen(false);
-      setSearchTerm("");
-  });
-
-  useEffect(() => {
-    if (isOpen && searchInputRef.current) {
-        searchInputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const filteredOptions = useMemo(() => {
-    if (!searchTerm) return options;
-    const lowerTerm = searchTerm.toLowerCase();
-    return options.filter(opt => 
-        opt.label.toLowerCase().includes(lowerTerm) || 
-        String(opt.value).includes(lowerTerm) ||
-        (opt.countryName && opt.countryName.toLowerCase().includes(lowerTerm))
-    );
-  }, [options, searchTerm]);
-
-  const selectedOption = options.find((o) => (o.value || o) === value);
-  const selectedLabel =
-    selectedOption
-      ? formatDialCodeTriggerLabel({
-          iso: selectedOption.code,
-          phoneCode: selectedOption.value,
-          fallback: selectedOption.label,
-        }) ||
-        selectedOption.label ||
-        value
-      : value || placeholder;
-
-  return (
-    <div className="relative w-full" ref={wrapperRef}>
-      <div 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-4 lg:px-3 lg:py-3 pr-8 rounded-[12px] border border-pale text-[15px] lg:text-[14px] font-medium bg-white cursor-pointer flex items-center hover:border-pale transition-colors"
-      >
-        <span className="truncate flex items-center gap-1.5">
-          {selectedOption?.code ? (
-            <span className="text-[16px] leading-none" aria-hidden>
-              {isoCountryCodeToFlagEmoji(selectedOption.code)}
-            </span>
-          ) : null}
-          <span>{selectedOption?.value || selectedLabel}</span>
-        </span>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
-           <svg xmlns="http://www.w3.org/2000/svg" className={`w-3.5 h-3.5 transition-transform ${isOpen ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
-        </div>
-      </div>
-      
-      {isOpen && (
-        <div className="absolute top-full left-0 w-full mt-1 bg-white border border-pale rounded-[12px] shadow-sm z-50 overflow-hidden">
-          <div className="p-2 border-b border-pale bg-cream/50">
-             <input 
-               ref={searchInputRef}
-               type="text" 
-               placeholder="Search country..." 
-               className="w-full px-2 py-2 text-[13px] border border-pale rounded-md focus:outline-none focus:border-walnut"
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-               onClick={(e) => e.stopPropagation()}
-             />
-          </div>
-          <ul className="max-h-[180px] overflow-y-auto custom-scrollbar">
-            {filteredOptions.length > 0 ? (
-                filteredOptions.map((opt, idx) => (
-                    <li 
-                        key={idx} 
-                        onClick={() => { onChange({ target: { value: opt.value } }); setIsOpen(false); setSearchTerm(""); }} 
-                        className="px-3 py-3 text-[13px] text-mid hover:bg-cream cursor-pointer border-b border-pale last:border-0"
-                    >
-                    <span className="inline-flex items-center gap-1.5">
-                      {opt.code ? (
-                        <span className="text-[15px] leading-none" aria-hidden>
-                          {isoCountryCodeToFlagEmoji(opt.code)}
-                        </span>
-                      ) : null}
-                      <span>
-                        {formatDialCodeOptionLabel({ phoneCode: opt.value }) ||
-                          opt.value}
-                      </span>
-                    </span>
-                    </li>
-                ))
-            ) : (
-                <li className="px-3 py-3 text-[12px] text-muted text-center italic">No results found</li>
-            )}
-          </ul>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const VerificationTab = ({ label, isActive, onClick }) => (
-  <button onClick={onClick} className={`flex-1 flex items-center justify-center py-3.5 px-6 lg:py-2.5 rounded-full border transition-all duration-300 cursor-pointer ${isActive ? 'border-walnut bg-white shadow-sm shadow-walnut/5 text-ink font-bold' : 'border-pale bg-cream text-muted hover:bg-white hover:border-pale'}`}>
-    <span className="text-[14px]">{label}</span>
-  </button>
-);
+const CONTACT_TABS = [
+  { value: 'phone', label: 'Phone' },
+  { value: 'email', label: 'Email' },
+];
 
 export const LoginForm = () => {
   const navigate = useNavigate();
   const { setUser } = useAuth();
-   
-  const [view, setView] = useState('login'); 
-  const [loginType, setLoginType] = useState('phone'); 
-   
+  const { toasts, addToast, removeToast } = useToasts();
+
+  /** 'login' | 'forgot-request' | 'forgot-reset' */
+  const [view, setView] = useState('login');
+  const [loginType, setLoginType] = useState('phone');
   const [loading, setLoading] = useState(false);
-  const [countryCodes, setCountryCodes] = useState([]);
-  const [toasts, setToasts] = useState([]);
-   
+  const [countryRows, setCountryRows] = useState([]);
+
   const [formData, setFormData] = useState({
     email: '',
     phone: '',
     countryCode: '',
     password: '',
     otp: '',
-    newPassword: ''
+    newPassword: '',
+    confirmNewPassword: '',
   });
 
-  const addToast = (message, type = 'error') => {
-    const id = Date.now();
-    setToasts(prev => [...prev, { id, message, type }]);
-  };
-
-  const removeToast = (id) => {
-    setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  const codeOptions = useMemo(() => toDialCodeOptions(countryRows), [countryRows]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const response = await authService.getCountryCodes();
-        const data = Array.isArray(response) ? response : (response.data || []);
-        const validCodes = data.map(c => ({
-          value: c.phoneCode,
-          label: formatDialCodeTriggerLabel({
-            iso: c.countryCode,
-            phoneCode: c.phoneCode,
-            fallback: `${c.countryCode} ${c.phoneCode}`,
-          }),
-          countryName: c.countryName,
-          code: c.countryCode
-        }));
-        
-        setCountryCodes(validCodes);
+        const data = Array.isArray(response) ? response : response.data || [];
+        setCountryRows(data);
 
         try {
-            const geoRes = await fetch('https://ipapi.co/json/');
-            const geoInfo = await geoRes.json();
-            
-            if (geoInfo && validCodes.length > 0) {
-               const matched = validCodes.find(c => c.code === geoInfo.country_code);
-               if (matched && !formData.countryCode) {
-                   setFormData(prev => ({ ...prev, countryCode: matched.value }));
-               }
-            } else {
-               throw new Error("Geo match failed");
-            }
+          const geoRes = await fetch('https://ipapi.co/json/');
+          const geoInfo = await geoRes.json();
+          const matched = geoInfo && data.find((c) => c.countryCode === geoInfo.country_code);
+          if (!matched) throw new Error('Geo match failed');
+          setFormData((prev) => (prev.countryCode ? prev : { ...prev, countryCode: matched.phoneCode }));
         } catch {
-            if (validCodes.length > 0 && !formData.countryCode) {
-                const india = validCodes.find(c => c.countryName === "India" || c.code === "IN" || c.value === "+91");
-                const fallback = india || validCodes[0];
-                setFormData(prev => ({ ...prev, countryCode: fallback.value }));
-            }
+          const fallback = data.find((c) => c.countryName === 'India' || c.countryCode === 'IN' || c.phoneCode === '+91') || data[0];
+          if (fallback) setFormData((prev) => (prev.countryCode ? prev : { ...prev, countryCode: fallback.phoneCode }));
         }
-
-      } catch (e) { 
-          console.error(e); 
-          addToast("Failed to load country codes.", "error");
+      } catch (e) {
+        console.error(e);
+        addToast('Failed to load country codes.', 'error');
       }
     };
     loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
+  const handleChange = (e) => setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
 
-  const handleLogin = async () => {
+  const contactPayload = () => ({
+    type: loginType,
+    email: loginType === 'email' ? formData.email : null,
+    phone: loginType === 'phone' ? formData.phone : null,
+    countryCode: loginType === 'phone' ? formData.countryCode : null,
+  });
+
+  const handleLogin = async (e) => {
+    e?.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
-      const payload = {
-        type: loginType,
-        email: loginType === 'email' ? formData.email : null,
-        phone: loginType === 'phone' ? formData.phone : null,
-        countryCode: loginType === 'phone' ? formData.countryCode : null,
-        password: formData.password
-      };
-
-      const userData = await authService.login(payload);
+      const userData = await authService.login({ ...contactPayload(), password: formData.password });
 
       const isVerified = userData?.isVerified === true || (userData?.phoneVerified && userData?.emailVerified);
 
@@ -353,219 +101,243 @@ export const LoginForm = () => {
         // If vendor and KYC verified, land on Explore page; otherwise use KYC flow
         const vendorLanding = kycStatus === 'accepted' ? '/vendor/explore' : '/vendor/kyc';
         navigate(isVendor ? vendorLanding : '/customer');
-        addToast("Welcome back!", "success");
+        addToast('Welcome back!', 'success');
       } else {
         localStorage.setItem('mirah_temp_user', JSON.stringify(userData));
         navigate('/verification');
-        addToast("Please verify your account.", "error");
+        addToast('Please verify your account.', 'error');
       }
-
     } catch (err) {
-      const errorMsg = (err.message || "").toLowerCase();
-      
+      const errorMsg = (err.message || '').toLowerCase();
+
       if (errorMsg.includes('verify') || errorMsg.includes('otp') || errorMsg.includes('not verified')) {
-         
-         const backendData = err.data || (err.response?.data?.data);
-       if(backendData) {
-           const tempUser = {
-              ...backendData,
-              email: backendData.email || (loginType === 'email' ? formData.email : undefined),
-              phone: backendData.phone || (loginType === 'phone' ? formData.phone : undefined),
-              countryCode: backendData.countryCode || (loginType === 'phone' ? formData.countryCode : undefined)
-           };
-           localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
-           setTimeout(() => navigate('/verification'), 1500);
-           addToast("Please verify your account.", "error");
-       } else {
-           addToast(err.message, "error");
-       }
-    } else {
-       addToast(err.message || "Login failed", "error");
-    }
-  } finally {
+        const backendData = err.data || err.response?.data?.data;
+        if (backendData) {
+          const tempUser = {
+            ...backendData,
+            email: backendData.email || (loginType === 'email' ? formData.email : undefined),
+            phone: backendData.phone || (loginType === 'phone' ? formData.phone : undefined),
+            countryCode: backendData.countryCode || (loginType === 'phone' ? formData.countryCode : undefined),
+          };
+          localStorage.setItem('mirah_temp_user', JSON.stringify(tempUser));
+          setTimeout(() => navigate('/verification'), 1500);
+          addToast('Please verify your account.', 'error');
+        } else {
+          addToast(err.message, 'error');
+        }
+      } else {
+        addToast(err.message || 'Login failed', 'error');
+      }
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleForgotRequest = async () => {
+  const handleForgotRequest = async (e) => {
+    e?.preventDefault();
+    if (loading) return;
     setLoading(true);
     try {
-      const payload = {
-        type: loginType,
-        email: loginType === 'email' ? formData.email : null,
-        phone: loginType === 'phone' ? formData.phone : null,
-        countryCode: loginType === 'phone' ? formData.countryCode : null
-      };
-
-      await authService.forgotPassword(payload);
+      await authService.forgotPassword(contactPayload());
       setView('forgot-reset');
-      addToast("OTP sent successfully!", "success");
+      addToast('We sent you a 6-digit code.', 'success');
     } catch (err) {
-      addToast("Error: " + (err.message || err), "error");
+      addToast(err.message || String(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResetPassword = async () => {
+  const handleResetPassword = async (e) => {
+    e?.preventDefault();
+    if (loading) return;
     if (formData.newPassword.length < 8) {
-        addToast("Password must be at least 8 chars", "error");
-        return;
+      addToast('Password must be at least 8 characters.', 'error');
+      return;
+    }
+    if (formData.newPassword !== formData.confirmNewPassword) {
+      addToast('Passwords do not match.', 'error');
+      return;
     }
     setLoading(true);
     try {
-      const payload = {
-        type: loginType,
-        email: loginType === 'email' ? formData.email : null,
-        phone: loginType === 'phone' ? formData.phone : null,
-        countryCode: loginType === 'phone' ? formData.countryCode : null,
-        otp: formData.otp,
-        newPassword: formData.newPassword
-      };
-
-      await authService.resetPassword(payload);
-      addToast("Password Reset Successfully! Please login.", "success");
+      await authService.resetPassword({ ...contactPayload(), otp: formData.otp, newPassword: formData.newPassword });
+      addToast('Password reset. Please sign in with your new password.', 'success');
       setView('login');
-      setFormData(prev => ({ ...prev, password: '', otp: '', newPassword: '' }));
+      setFormData((prev) => ({ ...prev, password: '', otp: '', newPassword: '', confirmNewPassword: '' }));
     } catch (err) {
-      addToast("Reset Failed: " + (err.message || err), "error");
+      addToast(err.message || String(err), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const renderHeader = (title, sub) => (
-    <div className="shrink-0 text-center px-4 mb-6 lg:mb-8">
-      <h1 className="font-serif text-[30px] lg:text-[36px] font-bold text-ink mb-2">{title}</h1>
-      <p className="font-sans text-muted text-[14px] leading-relaxed">{sub}</p>
-    </div>
-  );
+  const contactInput =
+    loginType === 'phone' ? (
+      <PhoneInput
+        codeOptions={codeOptions}
+        countryCode={formData.countryCode}
+        onCountryCodeChange={(countryCode) => setFormData((prev) => ({ ...prev, countryCode }))}
+        name="phone"
+        autoComplete="tel-national"
+        aria-label="Phone number"
+        placeholder="Phone number"
+        value={formData.phone}
+        onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value.replace(/\D/g, '') }))}
+      />
+    ) : (
+      <TextInput
+        type="email"
+        name="email"
+        inputMode="email"
+        autoComplete="email"
+        aria-label="Email address"
+        placeholder="you@example.com"
+        value={formData.email}
+        onChange={handleChange}
+      />
+    );
 
-  const renderTabs = () => (
-    <div className="shrink-0 w-full max-w-[360px] flex gap-5 mx-auto mb-6 lg:mb-8">
-      <VerificationTab label="Phone" isActive={loginType === 'phone'} onClick={() => setLoginType('phone')} />
-      <VerificationTab label="Email" isActive={loginType === 'email'} onClick={() => setLoginType('email')} />
-    </div>
-  );
-
-  const renderContactInputs = () => (
-    <div className="w-full mb-5">
-      {loginType === 'phone' ? (
-        <div className="flex gap-4">
-          <div className="w-[110px] shrink-0">
-             <CustomSelect 
-               placeholder="Code" 
-               value={formData.countryCode} 
-               onChange={(e) => setFormData({...formData, countryCode: e.target.value})} 
-               options={countryCodes} 
-             />
-          </div>
-          <InputField 
-            placeholder="Phone Number" 
-            name="phone"
-            value={formData.phone} 
-            onChange={(e) => setFormData({...formData, phone: e.target.value.replace(/\D/g,'')})} 
-          />
-        </div>
-      ) : (
-        <div>
-          <InputField 
-            placeholder="Email Address" 
-            name="email"
-            value={formData.email} 
-            onChange={handleChange} 
-          />
-        </div>
-      )}
-    </div>
-  );
+  const destination = loginType === 'phone' ? `${formData.countryCode} ${formData.phone}`.trim() : formData.email;
 
   return (
     <>
-      <style>{globalStyles}</style>
-      
-      <div className="fixed top-6 right-6 z-[100] flex flex-col items-end pointer-events-none">
-        <div className="pointer-events-auto">
-             {toasts.map(toast => (
-                <ToastNotification 
-                    key={toast.id} 
-                    id={toast.id} 
-                    message={toast.message} 
-                    type={toast.type} 
-                    onClose={removeToast} 
-                />
-             ))}
-        </div>
-      </div>
+      <ToastStack toasts={toasts} onClose={removeToast} />
 
       {view === 'login' && (
-        <MainLayout>
-          {renderHeader("Welcome Back", "Login to access Arviah Platform.")}
-          <div className="w-full max-w-[420px] mx-auto pb-4">
-              {renderTabs()}
-              <div className="w-full space-y-5">
-                  {renderContactInputs()}
-                  <div>
-                      <PasswordInput 
-                      placeholder="Password" 
-                      name="password"
-                      value={formData.password} 
-                      onChange={handleChange} 
-                      />
-                  </div>
-                  <div className="flex justify-end pt-1">
-                      <button onClick={() => setView('forgot-request')} className="text-[13px] text-muted font-medium hover:text-ink transition-colors px-2 py-1 cursor-pointer">
-                      Forgot Password?
-                      </button>
-                  </div>
+        <div>
+          <AuthHeading
+            eyebrow="New to Arviah?"
+            title="Find your next manufacturing partner."
+            subtitle="Create an account to start your jewellery requirement."
+          />
+          <PrimaryButton className="mt-7 w-full lg:mt-5" onClick={() => navigate('/register')}>
+            Create a free account <ArrowRight />
+          </PrimaryButton>
+
+          <OrDivider />
+
+          <AuthCard>
+            <p className="font-jakarta text-[13px] font-medium text-mid lg:text-[12px]">Already have an account?</p>
+            <h2 className="mt-1 font-jakarta text-[22px] font-bold tracking-[-0.03em] text-ink lg:text-[18px]">Sign in</h2>
+
+            <form className="mt-5 lg:mt-4" onSubmit={handleLogin} noValidate>
+              <SegmentedTabs label="Sign in with" options={CONTACT_TABS} value={loginType} onChange={setLoginType} />
+              <div className="mt-4 space-y-3 lg:mt-3 lg:space-y-2.5">
+                {contactInput}
+                <PasswordInput
+                  name="password"
+                  aria-label="Password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                />
               </div>
-          </div>
-          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleLogin} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
-              {loading ? 'Logging in...' : 'Login'}
-            </button>
-            <p className="text-center text-[14px] text-muted mt-6 font-sans font-medium">
-              Don't have an account? <span onClick={() => navigate('/register')} className="text-ink font-bold cursor-pointer hover:underline">Sign Up</span>
-            </p>
-          </div>
-        </MainLayout>
+              <div className="mt-5 flex flex-col-reverse items-center gap-4 sm:flex-row sm:justify-between lg:mt-4">
+                <TextLink className="text-[14px] lg:text-[12.5px]" onClick={() => setView('forgot-request')}>
+                  Forgot password?
+                </TextLink>
+                <OutlineButton type="submit" disabled={loading} className="w-full sm:w-auto sm:min-w-[150px]">
+                  {loading ? 'Signing in…' : 'Sign in'}
+                </OutlineButton>
+              </div>
+            </form>
+          </AuthCard>
+        </div>
       )}
 
       {view === 'forgot-request' && (
-        <MainLayout>
-          {renderHeader("Forgot Password", "Enter your details to receive a reset code.")}
-          <div className="w-full max-w-[420px] mx-auto pb-4">
-             {renderTabs()}
-             {renderContactInputs()}
-          </div>
-          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleForgotRequest} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
-              {loading ? 'Sending Code...' : 'Send OTP'}
-            </button>
-            <button onClick={() => setView('login')} className="w-full mt-4 text-muted text-[14px] hover:text-mid py-2 font-medium cursor-pointer">Cancel</button>
-          </div>
-        </MainLayout>
+        <div>
+          <BackLink onClick={() => setView('login')}>Back to sign in</BackLink>
+          <AuthHeading
+            size="md"
+            title="Reset your password"
+            subtitle="Enter the phone number or email on your account and we'll send you a 6-digit code."
+          />
+          <AuthCard className="mt-7 lg:mt-5">
+            <form onSubmit={handleForgotRequest} noValidate>
+              <SegmentedTabs label="Reset with" options={CONTACT_TABS} value={loginType} onChange={setLoginType} />
+              <div className="mt-4 lg:mt-3">{contactInput}</div>
+              <PrimaryButton type="submit" disabled={loading} className="mt-5 w-full lg:mt-4">
+                {loading ? 'Sending code…' : 'Send code'} {!loading && <ArrowRight />}
+              </PrimaryButton>
+            </form>
+          </AuthCard>
+        </div>
       )}
 
       {view === 'forgot-reset' && (
-        <MainLayout>
-          {renderHeader("Reset Password", `Enter the code sent to your ${loginType}.`)}
-          <div className="w-full max-w-[420px] mx-auto pb-4 space-y-6">
-            <div>
-              <InputField placeholder="Enter 6-digit OTP" name="otp" value={formData.otp} onChange={handleChange} className="text-center text-lg tracking-widest"/>
-            </div>
-            <div>
-               <PasswordInput placeholder="New Password (Min 8 chars)" name="newPassword" value={formData.newPassword} onChange={handleChange} />
-            </div>
-          </div>
-          <div className="w-full max-w-[420px] mx-auto mt-8 lg:mt-6">
-            <button onClick={handleResetPassword} disabled={loading} className="w-full bg-walnut text-blush py-4 lg:py-3.5 rounded-full text-[16px] font-bold shadow-sm shadow-walnut/10 active:scale-[0.98] hover:bg-walnut/90 transition-all disabled:opacity-70 cursor-pointer">
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-             <button onClick={() => setView('login')} className="w-full mt-4 text-muted text-[14px] hover:text-mid py-2 font-medium cursor-pointer">Back to Login</button>
-          </div>
-        </MainLayout>
+        <div>
+          <BackLink onClick={() => setView('forgot-request')}>Change {loginType === 'phone' ? 'phone number' : 'email'}</BackLink>
+          <AuthHeading
+            size="md"
+            title="Choose a new password"
+            subtitle={
+              <>
+                Enter the code we sent to <span className="font-semibold text-ink">{destination}</span>.
+              </>
+            }
+          />
+          <AuthCard className="mt-7 lg:mt-5">
+            <form onSubmit={handleResetPassword} noValidate className="space-y-4 lg:space-y-3">
+              <Field label="6-digit code" htmlFor="reset-otp">
+                <TextInput
+                  id="reset-otp"
+                  name="otp"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  placeholder="••••••"
+                  value={formData.otp}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, otp: e.target.value.replace(/\D/g, '') }))}
+                  className="tracking-[0.4em]"
+                />
+              </Field>
+              <Field label="New password" htmlFor="reset-new">
+                <PasswordInput
+                  id="reset-new"
+                  name="newPassword"
+                  autoComplete="new-password"
+                  placeholder="At least 8 characters"
+                  value={formData.newPassword}
+                  onChange={handleChange}
+                />
+              </Field>
+              <Field label="Confirm new password" htmlFor="reset-confirm">
+                <PasswordInput
+                  id="reset-confirm"
+                  name="confirmNewPassword"
+                  autoComplete="new-password"
+                  placeholder="Re-enter your new password"
+                  value={formData.confirmNewPassword}
+                  onChange={handleChange}
+                />
+              </Field>
+              <PrimaryButton type="submit" disabled={loading} className="!mt-6 w-full">
+                {loading ? 'Resetting…' : 'Reset password'}
+              </PrimaryButton>
+            </form>
+            <p className="mt-5 text-center font-jakarta text-[14px] text-mid lg:mt-4 lg:text-[12.5px]">
+              Didn't get a code?{' '}
+              <TextLink onClick={handleForgotRequest} disabled={loading}>
+                Send again
+              </TextLink>
+            </p>
+          </AuthCard>
+        </div>
       )}
     </>
   );
 };
+
+function BackLink({ children, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="mb-6 inline-flex cursor-pointer items-center gap-1.5 font-jakarta text-[14px] font-semibold text-mid transition-colors hover:text-ink lg:mb-5 lg:text-[12.5px]"
+    >
+      <ArrowLeft /> {children}
+    </button>
+  );
+}

@@ -71,6 +71,8 @@ export function CustomerPriceBreakdownModal({
   const estimatedLocalDuty = pickNum(tariff, ['estimatedLocalDutyInr', 'estimated_local_duty_inr']);
   const localTaxRate = pickNum(tariff, ['localTaxRate', 'local_tax_rate']);
   const bundled = pickNum(tariff, ['bundledCustomerDue', 'bundled_customer_due']);
+  const promoDiscount = pickNum(tariff, ['promoDiscountInr']);
+  const promoCode = String(tariff?.promoCode || '').trim();
   const adv = pickNum(tariff, ['advanceCustomerDue', 'advance_customer_due']);
   const fin = pickNum(tariff, ['finalCustomerDue', 'final_customer_due']);
   const jewelleryTaxKind =
@@ -161,7 +163,7 @@ export function CustomerPriceBreakdownModal({
             <p className="mt-1 text-[12px] text-muted leading-relaxed">{subtitle}</p>
             {vendorName ? (
               <p className="mt-2 text-[12px] text-mid">
-                Jeweller:&nbsp;<span className="font-extrabold text-ink">{vendorName}</span>
+                Manufacturer:&nbsp;<span className="font-extrabold text-ink">{vendorName}</span>
               </p>
             ) : null}
           </div>
@@ -198,7 +200,7 @@ export function CustomerPriceBreakdownModal({
                   ) : null}
                   {jewellerPortion != null ? (
                     <p className="mt-2 text-[12px] text-mid leading-relaxed">
-                      Totals below are for the full project (entire order) using this jeweller&apos;s quote and Arviah&apos;s
+                      Totals below are for the full project (entire order) using this manufacturer&apos;s quote and Arviah&apos;s
                       tariff for your delivery country.
                     </p>
                   ) : null}
@@ -218,7 +220,7 @@ export function CustomerPriceBreakdownModal({
                     {formatPlace(jewellerLoc) ? (
                       <div className="flex items-start justify-between gap-3 py-2.5">
                         <span className="text-[12px] font-semibold text-mid pr-2">
-                          Jeweller location{jewellerLoc?.isSeepz ? ' (SEEPZ)' : ''}
+                          Manufacturer location{jewellerLoc?.isSeepz ? ' (SEEPZ)' : ''}
                         </span>
                         <span className="text-[12px] font-extrabold text-ink text-right">{formatPlace(jewellerLoc)}</span>
                       </div>
@@ -235,8 +237,18 @@ export function CustomerPriceBreakdownModal({
 
               <p className="text-[11px] font-extrabold text-muted uppercase tracking-wide mb-1">Complete price DNA</p>
               <div className="rounded-xl border border-pale divide-y divide-pale px-3">
-                <ModalRow label="Jeweller quote for this project" value={jewellerPortion} currency={currency} />
+                <ModalRow label="Manufacturer quote for this project" value={jewellerPortion} currency={currency} />
                 <ModalRow label="Arviah Marketplace & QC Services" value={commission} currency={currency} />
+                {promoDiscount != null && promoDiscount > 0 ? (
+                  <div className="flex items-start justify-between gap-3 py-2.5 text-green-700">
+                    <span className="text-[12px] font-semibold pr-2">
+                      Promo discount{promoCode ? ` (${promoCode})` : ''}
+                    </span>
+                    <span className="text-[12px] font-extrabold text-right tabular-nums shrink-0">
+                      −{formatCurrency(promoDiscount, currency)}
+                    </span>
+                  </div>
+                ) : null}
                 {Gj != null && Gj > 0 ? (
                   <ModalRow label="GST (3% of quote + markup)" value={Gj} muted currency={currency} />
                 ) : isInternationalCustomer || jewelleryGstWaived ? (
@@ -260,7 +272,7 @@ export function CustomerPriceBreakdownModal({
                     ) : null}
                     {(importDuty == null || importDuty <= 0) && (intlShipping == null || intlShipping <= 0) ? (
                       <p className="px-0 py-2 text-[11px] text-muted leading-relaxed">
-                        No cross-border import duty or international shipping is applied for this jeweller + delivery country pair.
+                        No cross-border import duty or international shipping is applied for this manufacturer + delivery country pair.
                       </p>
                     ) : null}
                   </>
@@ -290,7 +302,7 @@ export function CustomerPriceBreakdownModal({
                   {fullUpfront ? (
                     <>
                       <p className="text-[11px] text-muted mb-2 leading-relaxed">
-                        Payment is due when you select your jeweller to start production.
+                        Payment is due when you select your manufacturer to start production.
                       </p>
                       <div className="rounded-xl border border-pale divide-y divide-pale px-3">
                         <ModalRow label="Payment due" value={adv ?? bundled} currency={currency} />

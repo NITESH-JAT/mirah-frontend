@@ -20,6 +20,8 @@
 @theme {
   --font-serif: 'Cormorant Garamond', serif;
   --font-sans: 'Inter', sans-serif;
+  /* Auth screens: matches the marketing site (arviahstudio.com). */
+  --font-jakarta: 'Plus Jakarta Sans', 'Inter', sans-serif;
 
   --color-ink: #3a2a1e;
   --color-walnut: #6b5545;
@@ -232,4 +234,12 @@ input.input-search-quiet-focus:focus-visible:not(:disabled):not([type='checkbox'
   outline: none !important;
   box-shadow: none !important;
   border-color: var(--color-pale) !important;
+}
+
+/* Auth screens: dot grid from the marketing site hero, faded toward the edges. */
+.auth-dots {
+  background-image: radial-gradient(var(--color-pale) 1.1px, transparent 1.1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 75%);
 }

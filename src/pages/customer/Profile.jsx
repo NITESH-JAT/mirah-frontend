@@ -591,7 +591,7 @@ export default function Profile() {
             </div>
             <div className="text-center">
               <h3 className="font-bold text-ink text-lg">{profile.firstName} {profile.lastName}</h3>
-              <p className="text-xs text-muted capitalize">{isJeweller ? 'Jeweller' : 'Customer'}</p>
+              <p className="text-xs text-muted capitalize">{isJeweller ? 'Manufacturer' : 'Customer'}</p>
             </div>
           </div>
 

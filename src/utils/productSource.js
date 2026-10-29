@@ -44,15 +44,15 @@ export function isVendorProduct(p) {
 export function vendorSourceText(p) {
   if (!isVendorProduct(p)) return null;
   const name = getVendorDisplayName(p);
-  if (name) return `From Jeweller ${name}`;
-  return 'From Jeweller';
+  if (name) return `From Manufacturer ${name}`;
+  return 'From Manufacturer';
 }
 
 export function sourceBadgeText(p) {
   const vendorId = getVendorId(p);
   if (vendorId == null) return null;
   const name = getVendorDisplayName(p);
-  if (name) return `From Jeweller ${name}`;
-  return 'From Jeweller';
+  if (name) return `From Manufacturer ${name}`;
+  return 'From Manufacturer';
 }
 
