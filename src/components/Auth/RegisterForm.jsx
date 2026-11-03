@@ -271,7 +271,7 @@ export const RegisterForm = () => {
               </Field>
             </div>
             <Field label="Email address" htmlFor="reg-email" error={errors.email}>
-              <TextInput id="reg-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" value={formData.email} onChange={handleChange} error={errors.email} />
+              <TextInput id="reg-email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="you@yourdomain.com" value={formData.email} onChange={handleChange} error={errors.email} />
             </Field>
             <Field label="Phone number" htmlFor="reg-phone" error={errors.phone}>
               <PhoneInput

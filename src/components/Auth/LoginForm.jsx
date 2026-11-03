@@ -192,7 +192,7 @@ export const LoginForm = () => {
         inputMode="email"
         autoComplete="email"
         aria-label="Email address"
-        placeholder="you@example.com"
+        placeholder="you@yourdomain.com"
         value={formData.email}
         onChange={handleChange}
       />
