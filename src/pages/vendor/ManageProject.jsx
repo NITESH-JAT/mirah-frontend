@@ -12,8 +12,8 @@ import { formatCurrency } from '../../utils/formatMoney';
 import { vendorPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { pickProjectThumbnailUrl } from '../../utils/projectThumbnail';
-import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 import { quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
+import { formatStoneQualityBracket, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
 
 function pickBreakdownNum(breakdown, ...keys) {
   if (!breakdown || typeof breakdown !== 'object') return null;
@@ -48,6 +48,11 @@ function MoneyRow({ label, value, currency = 'INR', tone = 'neutral', hint = nul
   );
 }
 
+
+function isCanceledRequest(err) {
+  const e = err ?? {};
+  return e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED' || e?.name === 'AbortError';
+}
 
 function formatDateTime(ts) {
   if (!ts) return '—';
@@ -318,6 +323,11 @@ function metaRowsOf(project) {
       }
     }
     const key = String(k).trim();
+    // Custom stone quality text is shown inside the bracket row, not as its own row.
+    if (isStoneQualityCustomKey(key)) continue;
+    if (isStoneQualityBracketKey(key) && typeof value === 'string') {
+      value = formatStoneQualityBracket(value, values.stoneQualityCustom ?? values.stone_quality_custom);
+    }
     if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
       if (normalized === 'custom') value = 'Custom';
@@ -546,7 +556,6 @@ export default function VendorManageProject() {
     }
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
-  const deliveryDetailRows = useMemo(() => buildVendorDeliveryDetailRows(project), [project]);
 
   const finishedLike = useMemo(() => isFinishedLike(project), [project]);
   const advanceStatus = useMemo(
@@ -1326,7 +1335,6 @@ export default function VendorManageProject() {
 
             <div className="hidden lg:block mt-4 space-y-4">
               <VendorProjectMetaCard rows={remainingMetaRows} />
-              <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               <AttachmentsCard />
             </div>
           </div>
@@ -1336,9 +1344,6 @@ export default function VendorManageProject() {
               <DetailsCardsRow />
               <div className="mt-4">
                 <VendorProjectMetaCard rows={remainingMetaRows} />
-              </div>
-              <div className="mt-4">
-                <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               </div>
               <div className="mt-4 space-y-4">
                 <AttachmentsCard />

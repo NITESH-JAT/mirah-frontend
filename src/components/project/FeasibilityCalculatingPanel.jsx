@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ArviahLogoReveal from '../brand/ArviahLogoReveal';
+import { STONE_QUALITY_CUSTOM, formatStoneQualityBracket } from '../../utils/stoneQualityBracket';
 
 /**
  * Status lines for the Review calculating screen, based on metal / stone choices.
@@ -8,7 +9,9 @@ export function buildFeasibilityStatusMessages(specs = {}) {
   const metal = String(specs?.metalType || '').trim().toLowerCase();
   const stonesYes = String(specs?.stonesIncluded || 'no').trim().toLowerCase() === 'yes';
   const stoneType = String(specs?.stoneType || '').trim().toLowerCase();
-  const quality = String(specs?.stoneQualityBracket || '').trim();
+  const bracket = String(specs?.stoneQualityBracket || '').trim();
+  // "Custom: …" reads oddly inside the sentence, so custom brackets use the generic line.
+  const quality = bracket && bracket !== STONE_QUALITY_CUSTOM ? formatStoneQualityBracket(bracket) : '';
 
   const messages = ['Analyzing your reference and design details…'];
 

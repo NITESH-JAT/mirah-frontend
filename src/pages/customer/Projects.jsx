@@ -35,6 +35,13 @@ import {
 import { authService } from '../../services/authService';
 import { isYouTubeUrl, normalizeYouTubeForIframe } from '../../utils/videoEmbed';
 import logo from '../../assets/logo.png';
+import {
+  STONE_QUALITY_CUSTOM,
+  STONE_QUALITY_CUSTOM_MAX,
+  STONE_QUALITY_OPTIONS,
+  formatStoneQualityBracket,
+} from '../../utils/stoneQualityBracket';
+import { refreshNavBadges } from '../../hooks/useNavBadges';
 
 const METAL_SWATCH_BY_LABEL = {
   Gold: '#E4B84A',
@@ -175,6 +182,11 @@ function buildStructuredSpecsPayload(specs) {
   push('stonesIncluded', 'Does your design include diamonds?', s.stonesIncluded);
   push('stoneType', 'Stone type', s.stoneType);
   push('stoneQualityBracket', 'Preferred stone quality bracket', s.stoneQualityBracket);
+  push(
+    'stoneQualityCustom',
+    'Custom stone quality',
+    s.stoneQualityBracket === STONE_QUALITY_CUSTOM ? s.stoneQualityCustom : '',
+  );
   push('diamondDetails', 'Diamond details', s.stonesIncluded === 'yes' || String(s.stonesIncluded || '').toLowerCase() === 'yes' ? s.diamondDetails : '');
   push('engravingDetails', 'Stamping or engraving details', s.engravingDetails);
   push(
@@ -255,6 +267,18 @@ function localProjectIdOf(p) {
 function isPdfUrl(url) {
   return String(url || '').toLowerCase().split('?')[0].endsWith('.pdf');
 }
+
+function isVideoUrl(url) {
+  return /\.(mp4|mov|webm|m4v|3gp)$/.test(String(url || '').toLowerCase().split('?')[0]);
+}
+
+/** Attachments: images, PDFs and videos, up to 100MB each (matches the backend limit). */
+const ATTACHMENT_MAX_BYTES = 100 * 1024 * 1024;
+const ATTACHMENT_VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/3gpp'];
+const isAllowedAttachmentType = (type) => {
+  const t = String(type || '').toLowerCase();
+  return t.startsWith('image/') || t === 'application/pdf' || ATTACHMENT_VIDEO_TYPES.includes(t);
+};
 
 function isImageUrl(url) {
   const u = String(url || '').toLowerCase().split('?')[0];
@@ -506,12 +530,6 @@ function isPaymentPaid(block) {
   return s === 'paid';
 }
 
-function isInvoicePaymentPending(block) {
-  if (!block) return false;
-  const status = normalizePaymentStatus(block?.status, { finishedLike: false });
-  return status !== 'paid' && status !== 'not_applicable';
-}
-
 function isFinishedLike(p) {
   const status = String(p?.status ?? '').trim().toLowerCase();
   const projectStatus = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
@@ -699,6 +717,8 @@ export default function Projects() {
         'stone_type',
         'stoneQualityBracket',
         'stone_quality_bracket',
+        'stoneQualityCustom',
+        'stone_quality_custom',
         'diamondDetails',
         'diamond_details',
         'engravingDetails',
@@ -764,7 +784,19 @@ export default function Projects() {
   const [listPage, setListPage] = useState(1);
   const [listSearchDraft, setListSearchDraft] = useState('');
   const [listSearch, setListSearch] = useState('');
-  const [listFilter, setListFilter] = useState('all'); // all | action_required | active | completed | drafts
+  // all | action_required | active | completed | drafts — read up front so the first fetch uses the right tab.
+  const [listFilter, setListFilter] = useState(() => {
+    const valid = ['all', 'action_required', 'active', 'completed', 'drafts'];
+    try {
+      const fromUrl = String(new URLSearchParams(location.search || '').get('filter') || '').trim().toLowerCase();
+      if (valid.includes(fromUrl)) return fromUrl;
+      const stored = String(sessionStorage.getItem(PROJECTS_LIST_FILTER_KEY) || '').trim().toLowerCase();
+      if (valid.includes(stored)) return stored;
+    } catch {
+      // ignore
+    }
+    return 'all';
+  });
 
   const urlListFilter = useMemo(() => {
     try {
@@ -872,6 +904,7 @@ export default function Projects() {
       stonesIncluded: 'no', // 'yes' | 'no'
       stoneType: '',
       stoneQualityBracket: '',
+      stoneQualityCustom: '',
       diamondDetails: '',
       engravingDetails: '',
       changesComparedToReference: '',
@@ -1058,6 +1091,9 @@ export default function Projects() {
           if (!stoneType) return 'Stone type is required';
           if (stoneType.toLowerCase().includes('natural')) {
             if (!String(s?.stoneQualityBracket || '').trim()) return 'Preferred stone quality bracket is required';
+            if (s?.stoneQualityBracket === STONE_QUALITY_CUSTOM && !String(s?.stoneQualityCustom || '').trim()) {
+              return 'Describe your custom stone quality';
+            }
           }
         }
         return null;
@@ -1170,6 +1206,9 @@ export default function Projects() {
   const createStepScrollRef = useRef(null);
   const listAbortRef = useRef(null);
   const listSearchRef = useRef('');
+  // The assignments view lists every project's assignments, so it ignores the list tab filter.
+  const listQueryFilter = activeTab === 'assignments' ? 'all' : listFilter;
+  const listQueryFilterRef = useRef(listQueryFilter);
   const listSearchDebounceRef = useRef(null);
   const listSearchDebounceSkipFirstRef = useRef(true);
   const listSearchDebounceSkipAfterClearRef = useRef(false);
@@ -1207,6 +1246,7 @@ export default function Projects() {
 
   const loadProjects = useCallback(async ({ nextPage = 1, append = false, search } = {}) => {
     const resolvedSearch = search !== undefined ? search : listSearchRef.current;
+    const resolvedFilter = listQueryFilterRef.current;
     if (listAbortRef.current) listAbortRef.current.abort();
     const ctrl = new AbortController();
     listAbortRef.current = ctrl;
@@ -1219,9 +1259,12 @@ export default function Projects() {
         page: nextPage,
         limit: 10,
         search: String(resolvedSearch ?? '').trim() || undefined,
+        filter: resolvedFilter,
         signal: ctrl.signal,
       });
       const incoming = Array.isArray(res?.items) ? res.items : [];
+      // The list reloads after create / post / delete, so keep the menu count in step.
+      if (!append) refreshNavBadges();
       setProjects((prev) => {
         if (!append) return incoming;
         const base = Array.isArray(prev) ? prev : [];
@@ -1235,7 +1278,7 @@ export default function Projects() {
         }
         return merged;
       });
-      setListMeta(res?.meta || { page: nextPage, totalPages: 1, total: null });
+      setListMeta(res?.meta || { page: nextPage, totalPages: 1, total: null, filterCounts: null });
       setListPage(nextPage);
     } catch (e) {
       if (e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
@@ -1280,12 +1323,15 @@ export default function Projects() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listSearchDraft]);
 
+  // Initial load, and a fresh page 1 whenever the tab changes (filtering happens on the server).
   useEffect(() => {
+    listQueryFilterRef.current = listQueryFilter;
     void loadProjects({ nextPage: 1, append: false, search: String(listSearchDraft || '').trim() });
-    return () => {
-      if (listAbortRef.current) listAbortRef.current.abort();
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listQueryFilter]);
+
+  useEffect(() => () => {
+    if (listAbortRef.current) listAbortRef.current.abort();
   }, []);
 
   useEffect(() => {
@@ -1345,6 +1391,7 @@ export default function Projects() {
         stonesIncluded: 'no',
         stoneType: '',
         stoneQualityBracket: '',
+        stoneQualityCustom: '',
         diamondDetails: '',
         engravingDetails: '',
         changesComparedToReference: '',
@@ -1418,6 +1465,7 @@ export default function Projects() {
         stonesIncluded: pickMeta('stonesIncluded', 'stones_included') || 'no',
         stoneType: pickMeta('stoneType', 'stone_type'),
         stoneQualityBracket: pickMeta('stoneQualityBracket', 'stone_quality_bracket'),
+        stoneQualityCustom: pickMeta('stoneQualityCustom', 'stone_quality_custom'),
         diamondDetails: pickMeta('diamondDetails', 'diamond_details'),
         engravingDetails: pickMeta('engravingDetails', 'engraving_details'),
         changesComparedToReference: pickMeta('changesComparedToReference', 'changes_compared_to_reference'),
@@ -1488,6 +1536,7 @@ export default function Projects() {
         stonesIncluded: 'no',
         stoneType: '',
         stoneQualityBracket: '',
+        stoneQualityCustom: '',
         diamondDetails: '',
         engravingDetails: '',
         changesComparedToReference: '',
@@ -1512,21 +1561,29 @@ export default function Projects() {
     if (!list.length) return;
     setAttachmentUploading(true);
     try {
-      const valid = list.filter((f) => {
-        const t = String(f?.type || '').toLowerCase();
-        return t.startsWith('image/') || t === 'application/pdf';
-      });
-      if (!valid.length) {
-        addToast('Only images and PDFs are allowed', 'error');
-        return;
+      const wrongType = list.filter((f) => !isAllowedAttachmentType(f?.type));
+      const tooBig = list.filter((f) => isAllowedAttachmentType(f?.type) && Number(f?.size || 0) > ATTACHMENT_MAX_BYTES);
+      const valid = list.filter((f) => isAllowedAttachmentType(f?.type) && Number(f?.size || 0) <= ATTACHMENT_MAX_BYTES);
+      if (wrongType.length) addToast('Only images, PDFs and videos (MP4, MOV, WebM) are allowed', 'error');
+      if (tooBig.length) {
+        addToast(`${tooBig.map((f) => f.name).join(', ')} ${tooBig.length > 1 ? 'are' : 'is'} over 100MB`, 'error');
       }
-      const res = await projectService.uploadAttachments(valid);
-      const urls = Array.isArray(res?.urls) ? res.urls : [];
+      if (!valid.length) return;
+
+      // One file per request keeps large videos from piling up in a single upload.
+      const urls = [];
+      for (const file of valid) {
+        const res = await projectService.uploadAttachments([file]);
+        const got = Array.isArray(res?.urls) ? res.urls : [];
+        if (got.length) {
+          urls.push(...got);
+          setCreateForm((prev) => ({ ...prev, attachments: [...coerceUrlArray(prev?.attachments), ...got] }));
+        }
+      }
       if (!urls.length) {
         addToast('Upload succeeded but no URL returned.', 'error');
         return;
       }
-      setCreateForm((prev) => ({ ...prev, attachments: [...coerceUrlArray(prev?.attachments), ...urls] }));
       addToast(urls.length > 1 ? 'Files uploaded' : 'File uploaded', 'success');
     } catch (e) {
       addToast(e?.message || 'Upload failed', 'error');
@@ -1964,6 +2021,7 @@ export default function Projects() {
           stonesIncluded: 'no',
           stoneType: '',
           stoneQualityBracket: '',
+          stoneQualityCustom: '',
           diamondDetails: '',
           engravingDetails: '',
           changesComparedToReference: '',
@@ -2094,7 +2152,9 @@ export default function Projects() {
 
   const canLoadMore = listPage < Number(listMeta?.totalPages || 1);
   const empty = !listLoading && (projects || []).length === 0;
-  const showFirstProjectWelcome = empty && !String(listSearch || '').trim();
+  const filterCounts = listMeta?.filterCounts ?? null;
+  const showFirstProjectWelcome =
+    empty && !String(listSearch || '').trim() && (listFilter === 'all' || filterCounts?.all === 0);
 
   useEffect(() => {
     if (!showFirstProjectWelcome) return undefined;
@@ -2112,62 +2172,9 @@ export default function Projects() {
     };
   }, [showFirstProjectWelcome]);
 
-  const projectCategories = useMemo(() => {
-    const list = Array.isArray(projects) ? projects : [];
-    const out = { all: list, actionRequired: [], active: [], completed: [], drafts: [] };
+  // The server already filtered by the selected tab.
+  const visibleProjects = projects;
 
-    for (const p of list) {
-      const statusKey = String(p?.status ?? '').trim().toLowerCase();
-      const projectStatusKey = String(p?.projectStatus ?? p?.project_status ?? '').trim().toLowerCase();
-      const windows = bidWindowsOf(p);
-      const latestBidWindowId = p?.latestBidWindowId ?? p?.latest_bid_window_id ?? null;
-      const hasBidHistory = Boolean(latestBidWindowId != null) || (Array.isArray(windows) && windows.length > 0);
-      const activeWindow = activeBidWindowOf(p);
-      const biddingRunning = Boolean(activeWindow);
-      const allWindowsFinished = allBidWindowsFinished(p);
-
-      const advancePayment = paymentBlockOf(p, 'advance');
-      const finalPayment = paymentBlockOf(p, 'final');
-      const reviewExists = Boolean(p?.hasVendorReview) || Boolean(vendorReviewOf(p));
-      const needsReview = isProjectCompletedLike(p) && !reviewExists;
-      const needsInvoiceAction =
-        isInvoicePaymentPending(advancePayment) ||
-        isInvoicePaymentPending(finalPayment);
-
-      const isDraft =
-        statusKey === 'draft' &&
-        projectStatusKey === 'started' &&
-        !hasBidHistory;
-      const isActive =
-        statusKey === 'running' &&
-        projectStatusKey === 'started' &&
-        biddingRunning;
-      const isCompleted =
-        projectStatusKey === 'cancelled' ||
-        statusKey === 'cancelled' ||
-        statusKey === 'canceled' ||
-        isProjectCompletedLike(p) ||
-        (statusKey === 'running' && projectStatusKey === 'started' && allWindowsFinished && !hasBidHistory);
-      const isActionRequired = needsInvoiceAction || needsReview;
-
-      if (isDraft) out.drafts.push(p);
-      if (isActive) out.active.push(p);
-      if (isCompleted) out.completed.push(p);
-      if (isActionRequired) out.actionRequired.push(p);
-    }
-
-    return out;
-  }, [projects]);
-
-  const visibleProjects = useMemo(() => {
-    if (listFilter === 'action_required') return projectCategories.actionRequired;
-    if (listFilter === 'active') return projectCategories.active;
-    if (listFilter === 'completed') return projectCategories.completed;
-    if (listFilter === 'drafts') return projectCategories.drafts;
-    return projectCategories.all;
-  }, [listFilter, projectCategories]);
-
-  const filterEmpty = !listLoading && (projects || []).length > 0 && (visibleProjects || []).length === 0;
 
   const assignmentRows = useMemo(() => {
     const list = Array.isArray(projects) ? projects : [];
@@ -2283,7 +2290,7 @@ export default function Projects() {
                           {
                             id: 'action_required',
                             label: 'Action Required',
-                            count: projectCategories.actionRequired.length,
+                            count: Number(filterCounts?.action_required ?? 0),
                             pending: !listHydrated || listLoading,
                           },
                           { id: 'active', label: 'Active', count: null },
@@ -2354,7 +2361,7 @@ export default function Projects() {
 
                 <div
                   className={`mt-4 flex min-h-0 flex-1 flex-col ${
-                    !listLoading && !empty && !filterEmpty && visibleProjects.length > 0 ? 'justify-between gap-4' : ''
+                    !listLoading && !empty && visibleProjects.length > 0 ? 'justify-between gap-4' : ''
                   }`}
                 >
                 {listLoading ? (
@@ -2406,7 +2413,7 @@ export default function Projects() {
                       ) : null}
                     </div>
                   </div>
-                ) : empty || filterEmpty ? (
+                ) : empty ? (
                   <div className="flex min-h-[min(420px,calc(100vh-260px))] flex-1 flex-col items-center justify-center px-4 py-12 text-center">
                     <div className="mx-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-pale bg-cream text-muted">
                       <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3557,7 +3564,7 @@ export default function Projects() {
                                         ...(p.specs || {}),
                                         stonesIncluded: opt.value,
                                         ...(opt.value === 'no'
-                                          ? { stoneType: '', stoneQualityBracket: '', diamondDetails: '' }
+                                          ? { stoneType: '', stoneQualityBracket: '', stoneQualityCustom: '', diamondDetails: '' }
                                           : {}),
                                       },
                                     }))
@@ -3596,6 +3603,7 @@ export default function Projects() {
                                           ...(p.specs || {}),
                                           stoneType: 'Lab-Grown Diamonds',
                                           stoneQualityBracket: '',
+                                          stoneQualityCustom: '',
                                         },
                                       }))
                                     }
@@ -3613,16 +3621,21 @@ export default function Projects() {
                                     </p>
                                     <DiamondQualityGuideLink />
                                   </div>
-                                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                                    {[
-                                      { value: 'Standard', sparks: 1 },
-                                      { value: 'Premium', sparks: 2 },
-                                      { value: 'Luxury', sparks: 3 },
-                                    ].map((opt) => (
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                    {STONE_QUALITY_OPTIONS.map((opt) => (
                                       <SpecChoiceCard
                                         key={opt.value}
-                                        label={opt.value}
-                                        iconNode={<SparkleTier count={opt.sparks} />}
+                                        label={opt.label}
+                                        iconNode={
+                                          opt.value === STONE_QUALITY_CUSTOM ? (
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-walnut" aria-hidden="true">
+                                              <path d="M12 20h9" />
+                                              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                                            </svg>
+                                          ) : (
+                                            <SparkleTier count={opt.sparks} />
+                                          )
+                                        }
                                         selected={String(createForm?.specs?.stoneQualityBracket || '') === opt.value}
                                         onClick={() =>
                                           setCreateForm((p) => ({
@@ -3633,6 +3646,30 @@ export default function Projects() {
                                       />
                                     ))}
                                   </div>
+                                  {createForm?.specs?.stoneQualityBracket === STONE_QUALITY_CUSTOM ? (
+                                    // Same grid as the cards so the box spans under "Tier 1" and "Custom" (full width on phone).
+                                    <div className="mt-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                                    <div className="col-span-2 sm:col-start-3">
+                                      <label htmlFor="stone-quality-custom" className="sr-only">
+                                        Custom stone quality
+                                      </label>
+                                      <input
+                                        id="stone-quality-custom"
+                                        type="text"
+                                        value={createForm?.specs?.stoneQualityCustom || ''}
+                                        maxLength={STONE_QUALITY_CUSTOM_MAX}
+                                        onChange={(e) =>
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), stoneQualityCustom: e.target.value },
+                                          }))
+                                        }
+                                        placeholder="e.g. G–H colour, VS1 clarity"
+                                        className="w-full px-3 py-2 rounded-xl border text-[13px] font-medium text-mid focus:outline-none focus:ring-1 focus:ring-walnut/20 border-pale focus:border-walnut"
+                                      />
+                                    </div>
+                                    </div>
+                                  ) : null}
                                   <p className="mt-2 text-[12px] text-muted">
                                     Based on your selected quality bracket and budget, we will determine the appropriate stone colour, clarity, and size.
                                   </p>
@@ -3802,7 +3839,7 @@ export default function Projects() {
                           <div className="flex items-center justify-between gap-3">
                             <div>
                               <p className="text-[11px] font-medium text-ink uppercase tracking-wide">Attachments</p>
-                              <p className="text-[12px] text-muted">Upload project attachments (images/PDF).</p>
+                              <p className="text-[12px] text-muted">Upload images, PDFs or videos (up to 100MB each).</p>
                             </div>
                             <button
                               type="button"
@@ -3815,7 +3852,7 @@ export default function Projects() {
                             <input
                               ref={attachmentInputRef}
                               type="file"
-                              accept="image/*,application/pdf"
+                              accept="image/*,application/pdf,video/mp4,video/quicktime,video/webm,video/x-m4v,video/3gpp"
                               multiple
                               className="hidden"
                               onChange={(e) => {
@@ -3862,6 +3899,15 @@ export default function Projects() {
                                         <div className="mt-1 text-[10px] font-bold">PDF</div>
                                       </div>
                                     </div>
+                                  ) : isVideoUrl(url) ? (
+                                    <video
+                                      src={url}
+                                      controls
+                                      preload="metadata"
+                                      playsInline
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-full h-24 object-contain bg-black"
+                                    />
                                   ) : (
                                     <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
                                   )}
@@ -4237,7 +4283,7 @@ export default function Projects() {
                               <div><span className="text-muted">Stone type:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneType}</span></div>
                             ) : null}
                             {String(createForm?.specs?.stoneQualityBracket || '').trim() ? (
-                              <div><span className="text-muted">Preferred stone quality bracket:</span> <span className="font-semibold text-ink">{createForm?.specs?.stoneQualityBracket}</span></div>
+                              <div><span className="text-muted">Preferred stone quality bracket:</span> <span className="font-semibold text-ink">{formatStoneQualityBracket(createForm?.specs?.stoneQualityBracket, createForm?.specs?.stoneQualityCustom)}</span></div>
                             ) : null}
                             {String(createForm?.specs?.stonesIncluded || '').toLowerCase() === 'yes' && String(createForm?.specs?.diamondDetails || '').trim() ? (
                               <div className="md:col-span-2"><span className="text-muted">Diamond details:</span> <span className="font-semibold text-ink whitespace-pre-wrap">{String(createForm?.specs?.diamondDetails || '').trim()}</span></div>
@@ -4373,6 +4419,15 @@ export default function Projects() {
                                         <div className="text-[10px] font-extrabold">PDF</div>
                                       </div>
                                     </div>
+                                  ) : isVideoUrl(url) ? (
+                                    <video
+                                      src={url}
+                                      controls
+                                      preload="metadata"
+                                      playsInline
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="w-full h-24 object-contain bg-black"
+                                    />
                                   ) : (
                                     <SafeImage src={url} alt="" className="w-full h-24 object-contain bg-white p-2" />
                                   )}

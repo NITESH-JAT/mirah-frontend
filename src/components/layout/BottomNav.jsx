@@ -3,8 +3,10 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
+import NavCountBadge from './NavCountBadge';
+import { useNavBadges } from '../../hooks/useNavBadges';
 
-const BottomNavButton = ({ label, active, onClick, children }) => (
+const BottomNavButton = ({ label, active, onClick, children, badgeCount = 0, badgeLabel = '' }) => (
   <button
     type="button"
     onClick={onClick}
@@ -19,7 +21,10 @@ const BottomNavButton = ({ label, active, onClick, children }) => (
         ${active ? 'bg-[#F2E6D4]' : 'bg-transparent'}
       `}
     >
-      {children}
+      <span className="relative inline-flex">
+        {children}
+        <NavCountBadge count={badgeCount} label={badgeLabel} />
+      </span>
     </span>
   </button>
 );
@@ -63,6 +68,7 @@ export default function BottomNav() {
   const isVendorProjectsRoute = isVendor && path.startsWith('/vendor/projects');
   const profilePath = isVendor ? '/vendor/profile' : '/customer/profile';
   const { navVisible: storeNavVisible } = useCustomerStorefront();
+  const navBadges = useNavBadges();
 
   const items = [];
 
@@ -127,6 +133,8 @@ export default function BottomNav() {
     items.push({
       key: 'vendor-messages',
       label: 'Chat',
+      badgeCount: navBadges.unreadChats,
+      badgeLabel: 'unread chats',
       path: '/vendor/messages',
       active: path.startsWith('/vendor/messages'),
       icon: (
@@ -137,6 +145,8 @@ export default function BottomNav() {
     items.push({
       key: 'projects',
       label: 'My Artisan',
+      badgeCount: navBadges.artisanProjects,
+      badgeLabel: 'draft and active projects',
       path: '/customer/projects?tab=list',
       active: isProjectsRoute,
       icon: (
@@ -162,6 +172,8 @@ export default function BottomNav() {
     items.push({
       key: 'messages',
       label: 'Chat',
+      badgeCount: navBadges.unreadChats,
+      badgeLabel: 'unread chats',
       path: '/customer/messages',
       active: path === '/customer/messages' || path.startsWith('/customer/messages'),
       icon: (
@@ -192,6 +204,8 @@ export default function BottomNav() {
           label={item.label}
           active={item.active}
           onClick={() => navigate(item.path)}
+          badgeCount={item.badgeCount}
+          badgeLabel={item.badgeLabel}
         >
           {item.icon}
         </BottomNavButton>

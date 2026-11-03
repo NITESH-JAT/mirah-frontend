@@ -4,6 +4,8 @@ import logo from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { useCustomerStorefront } from '../../context/CustomerStorefrontContext';
 import PresetAvatar from '../profile/PresetAvatar';
+import NavCountBadge from './NavCountBadge';
+import { useNavBadges } from '../../hooks/useNavBadges';
 
 function roleLabelForUser(u) {
   const t = String(u?.userType ?? '').trim().toLowerCase();
@@ -13,7 +15,7 @@ function roleLabelForUser(u) {
   return 'Guest';
 }
 
-const NavItem = ({ icon, label, subtitle, path, active, emphasize = false }) => {
+const NavItem = ({ icon, label, subtitle, path, active, emphasize = false, badgeCount = 0, badgeLabel = '' }) => {
   const navigate = useNavigate();
   return (
     <div
@@ -39,11 +41,12 @@ const NavItem = ({ icon, label, subtitle, path, active, emphasize = false }) => 
       `}
     >
       <div
-        className={`mt-0.5 shrink-0 ${
+        className={`relative mt-0.5 shrink-0 ${
           active || emphasize ? 'text-ink' : 'text-muted group-hover:text-ink'
         }`}
       >
         {icon}
+        <NavCountBadge count={badgeCount} label={badgeLabel} />
       </div>
       <div className="min-w-0 flex-1 pt-px">
         <span
@@ -94,6 +97,7 @@ export default function Sidebar({ isOpen = false, onClose }) {
   const isProjectsRoute = !isVendor && location.pathname.startsWith('/customer/projects');
   const isVendorProjectsRoute = isVendor && location.pathname.startsWith('/vendor/projects');
   const { navVisible: storeNavVisible } = useCustomerStorefront();
+  const navBadges = useNavBadges();
 
   const baseTitle = (() => {
     const p = location.pathname || '';
@@ -224,6 +228,8 @@ export default function Sidebar({ isOpen = false, onClose }) {
               path="/vendor/messages"
               label="Chat"
               subtitle="Talk with your clients"
+              badgeCount={navBadges.unreadChats}
+              badgeLabel="unread chats"
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -239,6 +245,8 @@ export default function Sidebar({ isOpen = false, onClose }) {
               label="My Artisan"
               subtitle="Your bespoke requests"
               emphasize
+              badgeCount={navBadges.artisanProjects}
+              badgeLabel="draft and active projects"
               icon={<ArviahNavIcon active={isProjectsRoute} />}
             />
             {storeNavVisible ? (
@@ -266,6 +274,8 @@ export default function Sidebar({ isOpen = false, onClose }) {
               path="/customer/messages"
               label="Chat"
               subtitle="Stay in touch with your artisans"
+              badgeCount={navBadges.unreadChats}
+              badgeLabel="unread chats"
               icon={
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

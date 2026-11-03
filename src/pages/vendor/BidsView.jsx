@@ -10,8 +10,8 @@ import PresetAvatar from '../../components/profile/PresetAvatar';
 import { BidsTableSkeleton, VendorExploreProjectSkeleton } from '../../components/project/VendorProjectPageSkeleton';
 import { formatCurrency } from '../../utils/formatMoney';
 import { vendorPresentmentCurrency } from '../../utils/projectMoney';
-import { buildVendorDeliveryDetailRows } from '../../utils/customerProjectDetailRows';
 import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
+import { formatStoneQualityBracket, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -174,6 +174,11 @@ function metaRowsOf(project) {
       }
     }
     const key = String(k).trim();
+    // Custom stone quality text is shown inside the bracket row, not as its own row.
+    if (isStoneQualityCustomKey(key)) continue;
+    if (isStoneQualityBracketKey(key) && typeof value === 'string') {
+      value = formatStoneQualityBracket(value, values.stoneQualityCustom ?? values.stone_quality_custom);
+    }
     if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
       if (normalized === 'custom') value = 'Custom';
@@ -419,7 +424,6 @@ export default function VendorBidsView() {
     }
     return rows;
   }, [customSizeDisplay, metaRows, sizeModeRaw]);
-  const deliveryDetailRows = useMemo(() => buildVendorDeliveryDetailRows(project), [project]);
   const customerId = useMemo(() => customerIdOf(project, details), [details, project]);
   const customerName = useMemo(() => customerNameOf(project, details), [details, project]);
 
@@ -741,7 +745,6 @@ export default function VendorBidsView() {
 
             <div className="hidden lg:block mt-4 space-y-4">
               <VendorProjectMetaCard rows={remainingMetaRows} />
-              <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               <AttachmentsCard />
             </div>
           </div>
@@ -751,9 +754,6 @@ export default function VendorBidsView() {
               <DetailsCard />
               <div className="mt-4">
                 <VendorProjectMetaCard rows={remainingMetaRows} />
-              </div>
-              <div className="mt-4">
-                <VendorProjectMetaCard rows={deliveryDetailRows} title="Delivery Details" />
               </div>
               <div className="mt-4">
                 <AttachmentsCard />

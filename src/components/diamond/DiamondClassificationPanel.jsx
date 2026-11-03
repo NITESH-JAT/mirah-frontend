@@ -1,16 +1,16 @@
 import React from 'react';
 
-function BadgeLuxury({ children = 'Luxury' }) {
+function BadgeLuxury({ children = 'Tier 1 (Luxury)' }) {
   return (
-    <span className="inline-flex items-center justify-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-900 md:text-[11px]">
+    <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-900 md:text-[11px]">
       {children}
     </span>
   );
 }
 
-function BadgePremium({ children = 'Premium' }) {
+function BadgePremium({ children = 'Tier 2 (Premium)' }) {
   return (
-    <span className="inline-flex items-center justify-center rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-900 md:text-[11px]">
+    <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-900 md:text-[11px]">
       {children}
     </span>
   );
@@ -18,8 +18,8 @@ function BadgePremium({ children = 'Premium' }) {
 
 function BadgeStandard() {
   return (
-    <span className="inline-flex items-center justify-center rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-800 md:text-[11px]">
-      Standard*
+    <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-800 md:text-[11px]">
+      Tier 3 (Standard)*
     </span>
   );
 }
@@ -71,7 +71,7 @@ export default function DiamondClassificationPanel({ className = '', showTitle =
       ) : null}
 
       <div className={`overflow-x-auto rounded-xl border border-pale/80 bg-neutral-50/80 ${showTitle ? 'mt-4' : ''}`}>
-        <table className="w-full min-w-[520px] border-collapse text-center text-ink">
+        <table className="w-full min-w-[760px] border-collapse text-center text-ink">
           <thead>
             <tr className="border-b border-pale bg-neutral-200/90">
               <th className="px-2 py-3 text-left text-[11px] font-extrabold uppercase tracking-wide text-ink md:px-3 md:text-[12px]">
@@ -109,10 +109,10 @@ export default function DiamondClassificationPanel({ className = '', showTitle =
           <span className="font-bold text-ink">* Inclusion Rule:</span> Visible black inclusions downgrade quality by one level.
         </p>
         <p>
-          <span className="font-bold text-ink">Standard Constraint:</span> Stones in Standard category must not have visible black inclusions.
+          <span className="font-bold text-ink">Tier 3 (Standard) constraint:</span> Stones in the Tier 3 (Standard) category must not have visible black inclusions.
         </p>
         <p>
-          <span className="font-bold text-ink">Rejection:</span> If downgraded below Standard, do not use the stone.
+          <span className="font-bold text-ink">Rejection:</span> If downgraded below Tier 3 (Standard), do not use the stone.
         </p>
       </div>
     </div>

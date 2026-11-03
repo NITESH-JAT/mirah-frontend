@@ -49,10 +49,11 @@ function fallbackProjectInvoiceFilename(projectId, rawTitle) {
 }
 
 export const projectService = {
-  list: async ({ page = 1, limit = 10, status, search, signal } = {}) => {
+  list: async ({ page = 1, limit = 10, status, search, filter, signal } = {}) => {
     const params = { page, limit };
     if (status) params.status = status;
     if (search) params.search = search;
+    if (filter && filter !== 'all') params.filter = filter;
     const res = await api.get('/api/user/projects', { params, signal });
     const data = unwrap(res) || {};
     const itemsRaw = data?.projects ?? data?.items ?? data?.results ?? data?.data ?? data ?? [];
@@ -61,7 +62,8 @@ export const projectService = {
     const totalPages = Number(metaRaw?.totalPages ?? metaRaw?.pages ?? metaRaw?.lastPage ?? 1) || 1;
     const total = metaRaw?.total ?? metaRaw?.totalItems ?? metaRaw?.count ?? data?.total ?? null;
     const currentPage = Number(metaRaw?.page ?? metaRaw?.currentPage ?? page) || page;
-    return { items, meta: { page: currentPage, totalPages, total } };
+    const filterCounts = data?.filterCounts ?? metaRaw?.filterCounts ?? null;
+    return { items, meta: { page: currentPage, totalPages, total, filterCounts } };
   },
 
   getFirstProjectVideo: async () => {

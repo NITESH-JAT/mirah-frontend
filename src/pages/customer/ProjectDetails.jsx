@@ -13,6 +13,7 @@ import { projectPresentmentCurrency } from '../../utils/projectMoney';
 import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel';
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
+import { formatStoneQualityBracket, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -292,6 +293,11 @@ function metaRowsOf(project) {
       value = confirmed ? 'Confirmed' : 'Not confirmed';
     } else if (typeof value === 'boolean') {
       value = value ? 'Yes' : 'No';
+    }
+    // Custom stone quality text is shown inside the bracket row, not as its own row.
+    if (isStoneQualityCustomKey(key)) continue;
+    if (isStoneQualityBracketKey(key) && typeof value === 'string') {
+      value = formatStoneQualityBracket(value, values.stoneQualityCustom ?? values.stone_quality_custom);
     }
     if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
       const normalized = value.trim().toLowerCase();

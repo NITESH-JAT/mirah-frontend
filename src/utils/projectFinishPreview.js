@@ -29,6 +29,7 @@ import imgOtherMetalCircle from '../assets/project-specs/other-metal-circle.png'
 import imgOtherMetalWithStones from '../assets/project-specs/other-metal-with-stones.png';
 import imgTwoToneGold from '../assets/project-specs/two-tone-gold.png';
 import imgTwoToneWithStones from '../assets/project-specs/two-tone-with-stones.png';
+import { formatStoneQualityBracket } from './stoneQualityBracket';
 
 export { naturalPictogram, labPictogram, imgOtherMetalCircle as otherMetalCircle };
 
@@ -157,7 +158,7 @@ export function buildFinishCaption(specs = {}, { includeDiamonds = true } = {}) 
     else parts.push('with diamonds');
     const bracket = String(specs.stoneQualityBracket || '').trim();
     if (bracket && stoneType.toLowerCase().includes('natural')) {
-      parts.push(bracket.toLowerCase());
+      parts.push(formatStoneQualityBracket(bracket, specs.stoneQualityCustom).toLowerCase());
     }
   } else if (includeDiamonds && stones === 'no' && metal) {
     parts.push('no stones');

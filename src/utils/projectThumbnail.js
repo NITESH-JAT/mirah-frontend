@@ -43,5 +43,6 @@ export function pickProjectThumbnailUrl(project) {
   const img = urls.find((u) => isLikelyImageUrl(u));
   if (img) return img;
 
-  return urls.find((u) => /^https?:\/\//i.test(u)) || null;
+  // Never fall back to a video: it cannot render as a thumbnail image.
+  return urls.find((u) => /^https?:\/\//i.test(u) && !/\.(mp4|mov|webm|m4v|3gp)(\?|#|$)/i.test(u)) || null;
 }

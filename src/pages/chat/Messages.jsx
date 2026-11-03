@@ -4,6 +4,7 @@ import EmojiPicker from 'emoji-picker-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatService } from '../../services/chatService';
 import PresetAvatar from '../../components/profile/PresetAvatar';
+import { refreshNavBadges } from '../../hooks/useNavBadges';
 
 const PERSONAL_INFO_BLOCK_TOAST =
   'Please avoid sharing personal contact details, such as phone numbers or addresses, and continue communicating through Arviah. This helps protect your personal data and identity while ensuring a secure transaction. Thank you.';
@@ -348,7 +349,10 @@ export default function Messages() {
   const loadMessagesFor = async (convo) => {
     if (!convo) return;
     if (String(convo.id) === 'support' && convo.isPlaceholder) {
+      loadSeqRef.current += 1;
+      if (msgLoadAbortRef.current) msgLoadAbortRef.current.abort();
       setMessages([]);
+      setLoadingMessages(false);
       lastSeenRef.current = { ts: 0, id: null };
       return;
     }
@@ -372,6 +376,8 @@ export default function Messages() {
       setMessages(normalized);
       lastSeenRef.current = newestKey;
       msgBackoffMsRef.current = 0;
+      // Opening a chat marks it read on the server, so the menu's unread count can drop now.
+      refreshNavBadges();
 
       // Merge updated conversation (includes online flags) into list
       if (res?.conversation) {
@@ -830,9 +836,13 @@ export default function Messages() {
                   key={String(c.id)}
                   type="button"
                   onClick={() => {
-                    setActiveConvoId(c.id);
-                    setLoadingMessages(true);
-                    setMessages([]);
+                    // Only a different conversation triggers a fetch (the load effect keys on the id),
+                    // so only then clear the thread and show the loader.
+                    if (String(c.id) !== String(activeConvoId)) {
+                      setActiveConvoId(c.id);
+                      setLoadingMessages(!c.isPlaceholder);
+                      setMessages([]);
+                    }
                     if (window.innerWidth < 768) setMobileView('thread');
                   }}
                   className={`w-full px-6 py-4 flex items-start gap-3 text-left border-b border-pale cursor-pointer transition-colors
@@ -936,9 +946,37 @@ export default function Messages() {
             <div className="flex-1 min-h-0 relative bg-cream overflow-hidden">
               <div className="h-full overflow-y-auto px-5 py-6 space-y-3 relative z-10">
                 {loadingMessages ? (
-                  <div className="text-[13px] text-muted">Loading messages…</div>
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center"
+                  >
+                    <svg
+                      className="animate-spin text-walnut"
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" opacity="0.2" />
+                      <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+                    </svg>
+                    <p className="text-[13px] font-semibold text-muted">Loading messages…</p>
+                  </div>
                 ) : visibleMessages.length === 0 ? (
-                  <div className="text-[13px] text-muted">No messages yet.</div>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-6 text-center">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-blush text-walnut" aria-hidden="true">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                    </span>
+                    <p className="text-[13px] font-semibold text-muted">No messages yet.</p>
+                    <p className="max-w-[260px] text-[12px] text-muted">
+                      {activeConvo?.admin ? 'Send a message and our support team will reply here.' : 'Say hello to start the conversation.'}
+                    </p>
+                  </div>
                 ) : (
                   visibleMessages.map((m) => {
                     const isAdminMsg = String(m.senderType || '').toLowerCase() === 'admin';

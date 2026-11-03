@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import DiamondClassificationPanel from './DiamondClassificationPanel';
 
 /**
- * Opens the diamond color×clarity classification chart (Standard / Premium / Luxury).
+ * Opens the diamond color×clarity classification chart (Tier 3 Standard / Tier 2 Premium / Tier 1 Luxury).
  */
 export default function DiamondQualityGuideLink({
   className = '',
