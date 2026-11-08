@@ -2,12 +2,13 @@
  * Parse and apply AI feasibility suggestion actions to project create-form specs.
  * Actions are schema-validated specs patches (multi-field allowed).
  */
+import { formatStoneQualityBracket } from './stoneQualityBracket';
 
 const METAL_PURITY_VALUES = ['9KT', '14KT', '18KT', '22KT'];
 const STONE_QUALITY_ORDER = ['Standard', 'Premium', 'Luxury'];
 const METAL_COLOURS = ['Yellow', 'White', 'Rose', 'Two-tone'];
 const SIZE_MODES = ['standard', 'custom'];
-const SIZE_UNITS = ['cm', 'in'];
+const SIZE_UNITS = ['mm', 'cm', 'in'];
 const MAX_TEXT = 2000;
 
 export function normalizeMetalPurityToken(raw) {
@@ -21,9 +22,14 @@ export function normalizeMetalPurityToken(raw) {
   return METAL_PURITY_VALUES.includes(kt) ? kt : null;
 }
 
+/** Customers see tiers (Tier 1 = Luxury … Tier 3 = Standard), so suggestions may name either. */
+const STONE_QUALITY_BY_TIER = { 1: 'Luxury', 2: 'Premium', 3: 'Standard' };
+
 function normalizeStoneQualityBracket(raw) {
   const s = String(raw || '').trim();
   if (!s) return null;
+  const tier = /^tier\s*([123])$/i.exec(s);
+  if (tier) return STONE_QUALITY_BY_TIER[tier[1]];
   const hit = STONE_QUALITY_ORDER.find((x) => x.toLowerCase() === s.toLowerCase());
   return hit || null;
 }
@@ -292,8 +298,8 @@ export function inferSuggestionActionFromText(text, suggestionIndex, review, spe
   }
 
   const bracketExplicit =
-    s.match(/(?:from\s+)?(Standard|Premium|Luxury)\s+(?:to|→)\s+(Standard|Premium|Luxury)/i) ||
-    s.match(/(?:choose|select|switch to|use)\s+(Standard|Premium|Luxury)/i);
+    s.match(/(?:from\s+)?(Standard|Premium|Luxury|Tier\s*[123])\s+(?:to|→)\s+(Standard|Premium|Luxury|Tier\s*[123])/i) ||
+    s.match(/(?:choose|select|switch to|use)\s+(Standard|Premium|Luxury|Tier\s*[123])/i);
   if (bracketExplicit) {
     const target = normalizeStoneQualityBracket(bracketExplicit[bracketExplicit.length - 1]);
     if (target && target !== String(specs?.stoneQualityBracket || '').trim()) {
@@ -429,7 +435,7 @@ function labelForPatchKey(key, value, options = {}) {
     case 'metalPurity':
       return `Set metal purity to ${String(value).replace('KT', 'k')}`;
     case 'stoneQualityBracket':
-      return `Set stone quality to ${value}`;
+      return `Set stone quality to ${formatStoneQualityBracket(value)}`;
     case 'stoneType':
       return `Switch to ${value}`;
     case 'preferredDeliveryDays':

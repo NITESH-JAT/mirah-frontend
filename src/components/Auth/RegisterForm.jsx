@@ -23,6 +23,8 @@ import {
   TextInput,
   TextLink,
   ToastStack,
+  COMMUNICATIONS_CONSENT_ERROR,
+  CommunicationsConsent,
 } from './ui';
 import { toDialCodeOptions, useToasts } from './authHelpers';
 
@@ -51,6 +53,7 @@ function validateStepTwo(formData) {
   const pinErr = pinCodeError(String(formData.pinCode || '').trim());
   if (pinErr) errors.pinCode = pinErr;
   if (!formData.termsAccepted) errors.termsAccepted = 'You must accept the terms';
+  if (!formData.communicationsConsent) errors.communicationsConsent = COMMUNICATIONS_CONSENT_ERROR;
   return errors;
 }
 
@@ -66,7 +69,7 @@ export const RegisterForm = () => {
   const [formData, setFormData] = useState({
     firstName: '', lastName: '', email: '', password: '', confirmPassword: '',
     countryCode: '', phone: '', country: '', state: '',
-    pinCode: '', userType: 'customer', termsAccepted: false,
+    pinCode: '', userType: 'customer', termsAccepted: false, communicationsConsent: false,
     isSeepzPrimaryProductionUnit: false,
   });
 
@@ -192,6 +195,7 @@ export const RegisterForm = () => {
       state: formData.state,
       pinCode: String(formData.pinCode || '').trim(),
       userType: formData.userType,
+      communicationsConsent: formData.communicationsConsent === true,
       city: null,
       address: null,
       ...(formData.userType === 'vendor' && isIndia(formData.country)
@@ -361,6 +365,12 @@ export const RegisterForm = () => {
               </Checkbox>
               {errors.termsAccepted ? <p className="ml-[30px] mt-1 font-jakarta text-[12px] text-red-600 lg:text-[11px]">{errors.termsAccepted}</p> : null}
             </div>
+
+            <CommunicationsConsent
+              checked={formData.communicationsConsent}
+              onChange={handleChange}
+              error={errors.communicationsConsent}
+            />
           </div>
 
           <p className="mt-5 font-jakarta text-[13px] text-mid lg:mt-4 lg:text-[12px]">Account registration is free.</p>

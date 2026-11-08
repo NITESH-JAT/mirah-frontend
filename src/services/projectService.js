@@ -445,6 +445,25 @@ export const projectService = {
     window.URL.revokeObjectURL(url);
   },
 
+  /** Manufacturer: the project brief as a PDF to hand to the factory. */
+  downloadManufacturingBrief: async (projectId, { title } = {}) => {
+    if (!projectId) return;
+    const res = await api.get(`/api/user/projects/${projectId}/manufacturing-brief`, { responseType: 'blob' });
+    const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
+    const disp = res?.headers?.['content-disposition'] ?? res?.headers?.['Content-Disposition'];
+    const slug = String(title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+    const filename = parseFilenameFromDisposition(disp) || `${slug || `project-${projectId}`}-manufacturing-brief.pdf`;
+
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
   getVendorPaymentDetails: async (projectId, { signal } = {}) => {
     if (!projectId) return null;
     const res = await api.get(`/api/user/projects/${projectId}/payment-details`, { signal });

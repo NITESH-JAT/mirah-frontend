@@ -1,4 +1,5 @@
 import { apiClient as api } from './apiClient';
+import { normalizeSizeSystems } from '../utils/sizeSystems';
 
 function unwrap(response) {
   return response?.data?.data ?? response?.data;
@@ -201,7 +202,8 @@ export const productService = {
             return { size, sizeDimension, unit };
           })
           .filter(Boolean);
-        return { id: Number.isFinite(id) ? id : null, name, sizes };
+        const howToMeasure = typeof x?.howToMeasure === 'string' && x.howToMeasure.trim() ? x.howToMeasure.trim() : null;
+        return { id: Number.isFinite(id) ? id : null, name, sizes, sizeSystems: normalizeSizeSystems(x?.sizeSystems), howToMeasure };
       })
       .filter(Boolean);
   },

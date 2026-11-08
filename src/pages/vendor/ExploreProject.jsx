@@ -15,7 +15,7 @@ import {
   estimateOrderBudget,
   quantityPiecesLabel,
 } from '../../utils/vendorBidOrderCopy';
-import { formatStoneQualityBracket, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
+import { formatStoneQualityForManufacturer, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -168,7 +168,7 @@ function metaRowsOf(project) {
     // Custom stone quality text is shown inside the bracket row, not as its own row.
     if (isStoneQualityCustomKey(key)) continue;
     if (isStoneQualityBracketKey(key) && typeof value === 'string') {
-      value = formatStoneQualityBracket(value, values.stoneQualityCustom ?? values.stone_quality_custom);
+      value = formatStoneQualityForManufacturer(value, values.stoneQualityCustom ?? values.stone_quality_custom);
     }
     if ((key === 'sizeMode' || key === 'size_mode') && typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
@@ -729,7 +729,7 @@ export default function VendorExploreProject() {
 
             {/* Desktop-only: meta + attachments below image/buttons */}
             <div className="hidden lg:block mt-4 space-y-4">
-              <VendorProjectMetaCard rows={remainingMetaRows} />
+              <VendorProjectMetaCard rows={remainingMetaRows} projectId={projectId} projectTitle={project?.title} />
               <AttachmentsCard />
             </div>
           </div>
@@ -739,7 +739,7 @@ export default function VendorExploreProject() {
             <div className="lg:hidden">
               <DetailsCard />
               <div className="mt-4">
-                <VendorProjectMetaCard rows={remainingMetaRows} />
+                <VendorProjectMetaCard rows={remainingMetaRows} projectId={projectId} projectTitle={project?.title} />
               </div>
               <div className="mt-4">
                 <AttachmentsCard />

@@ -2,7 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 import { useAuth } from '../../context/AuthContext';
-import { ArrowRight, AuthCard, AuthHeading, OutlineButton, PrimaryButton, ToastStack } from './ui';
+import {
+  ArrowRight,
+  AuthCard,
+  AuthHeading,
+  COMMUNICATIONS_CONSENT_ERROR,
+  CommunicationsConsent,
+  OutlineButton,
+  PrimaryButton,
+  ToastStack,
+} from './ui';
 import { useToasts } from './authHelpers';
 
 const VerifyTab = ({ label, isActive, isVerified, onClick }) => (
@@ -111,6 +120,10 @@ export const VerificationForm = () => {
   
   // Independent Timers
   const [phoneTimer, setPhoneTimer] = useState(0);
+  // Accounts without recorded consent get no SMS until they tick the box here (login skips the text).
+  const [smsConsentNeeded, setSmsConsentNeeded] = useState(false);
+  const [smsConsent, setSmsConsent] = useState(false);
+  const [smsConsentError, setSmsConsentError] = useState('');
   const [emailTimer, setEmailTimer] = useState(0);
 
   // Load User Data
@@ -126,6 +139,7 @@ export const VerificationForm = () => {
 
       setPhoneVerified(pVerified);
       setEmailVerified(eVerified);
+      setSmsConsentNeeded(!pVerified && userData.communicationsConsentRequired === true);
 
       if (pVerified && !eVerified) {
          setActiveTab('email');
@@ -195,7 +209,29 @@ export const VerificationForm = () => {
         setEmailTimer(30);
       }
     } catch (err) {
+      if (isPhone && err?.code === 'COMMUNICATIONS_CONSENT_REQUIRED') setSmsConsentNeeded(true);
       addToast(err.message || "Failed to resend", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConsentAndSend = async () => {
+    if (!smsConsent) {
+      setSmsConsentError(COMMUNICATIONS_CONSENT_ERROR);
+      return;
+    }
+    setLoading(true);
+    try {
+      await authService.resendPhoneOtp(tempUser.phone, tempUser.countryCode, { communicationsConsent: true });
+      const nextUser = { ...tempUser, communicationsConsentRequired: false };
+      setTempUser(nextUser);
+      localStorage.setItem('mirah_temp_user', JSON.stringify(nextUser));
+      setSmsConsentNeeded(false);
+      setPhoneTimer(30);
+      addToast('Code sent to your phone!', 'success');
+    } catch (err) {
+      addToast(err.message || 'Failed to send code', 'error');
     } finally {
       setLoading(false);
     }
@@ -285,7 +321,27 @@ export const VerificationForm = () => {
           <VerifyTab label="Email" isActive={activeTab === 'email'} isVerified={emailVerified} onClick={() => setActiveTab('email')} />
         </div>
 
-        {!isCurrentVerified ? (
+        {!isCurrentVerified && activeTab === 'phone' && smsConsentNeeded ? (
+          <div className="mt-6 lg:mt-5">
+            <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
+              We'll text a 6-digit code to{' '}
+              <span className="font-semibold text-ink">{`${tempUser.countryCode} ${tempUser.phone}`}</span>
+            </p>
+            <div className="mt-4 lg:mt-3">
+              <CommunicationsConsent
+                checked={smsConsent}
+                onChange={(e) => {
+                  setSmsConsent(e.target.checked);
+                  if (e.target.checked) setSmsConsentError('');
+                }}
+                error={smsConsentError}
+              />
+            </div>
+            <PrimaryButton onClick={handleConsentAndSend} disabled={loading} className="mt-6 w-full lg:mt-5">
+              {loading ? 'Sending…' : 'Text me a code'}
+            </PrimaryButton>
+          </div>
+        ) : !isCurrentVerified ? (
           <div className="mt-6 lg:mt-5">
             <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
               Enter the 6-digit code sent to{' '}

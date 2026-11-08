@@ -17,6 +17,8 @@ import {
   TextInput,
   TextLink,
   ToastStack,
+  COMMUNICATIONS_CONSENT_ERROR,
+  CommunicationsConsent,
 } from './ui';
 import { toDialCodeOptions, useToasts } from './authHelpers';
 
@@ -33,6 +35,8 @@ export const LoginForm = () => {
   /** 'login' | 'forgot-request' | 'forgot-reset' */
   const [view, setView] = useState('login');
   const [loginType, setLoginType] = useState('phone');
+  const [forgotConsent, setForgotConsent] = useState(false);
+  const [forgotConsentError, setForgotConsentError] = useState('');
   const [loading, setLoading] = useState(false);
   const [countryRows, setCountryRows] = useState([]);
 
@@ -109,8 +113,13 @@ export const LoginForm = () => {
       }
     } catch (err) {
       const errorMsg = (err.message || '').toLowerCase();
+      const needsVerification =
+        (err.data || err.response?.data?.data)?.communicationsConsentRequired === true ||
+        errorMsg.includes('verify') ||
+        errorMsg.includes('otp') ||
+        errorMsg.includes('not verified');
 
-      if (errorMsg.includes('verify') || errorMsg.includes('otp') || errorMsg.includes('not verified')) {
+      if (needsVerification) {
         const backendData = err.data || err.response?.data?.data;
         if (backendData) {
           const tempUser = {
@@ -136,9 +145,13 @@ export const LoginForm = () => {
   const handleForgotRequest = async (e) => {
     e?.preventDefault();
     if (loading) return;
+    if (!forgotConsent) {
+      setForgotConsentError(COMMUNICATIONS_CONSENT_ERROR);
+      return;
+    }
     setLoading(true);
     try {
-      await authService.forgotPassword(contactPayload());
+      await authService.forgotPassword({ ...contactPayload(), communicationsConsent: true });
       setView('forgot-reset');
       addToast('We sent you a 6-digit code.', 'success');
     } catch (err) {
@@ -258,6 +271,16 @@ export const LoginForm = () => {
             <form onSubmit={handleForgotRequest} noValidate>
               <SegmentedTabs label="Reset with" options={CONTACT_TABS} value={loginType} onChange={setLoginType} />
               <div className="mt-4 lg:mt-3">{contactInput}</div>
+              <div className="mt-4 lg:mt-3">
+                <CommunicationsConsent
+                  checked={forgotConsent}
+                  onChange={(e) => {
+                    setForgotConsent(e.target.checked);
+                    if (e.target.checked) setForgotConsentError('');
+                  }}
+                  error={forgotConsentError}
+                />
+              </div>
               <PrimaryButton type="submit" disabled={loading} className="mt-5 w-full lg:mt-4">
                 {loading ? 'Sending code…' : 'Send code'} {!loading && <ArrowRight />}
               </PrimaryButton>

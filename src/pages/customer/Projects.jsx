@@ -6,6 +6,8 @@ import { productService } from '../../services/productService';
 import SafeImage from '../../components/SafeImage';
 import { FinishPreviewPanel, SpecChoiceCard, SparkleTier } from '../../components/project/SpecChoiceCards';
 import FeasibilityCalculatingPanel from '../../components/project/FeasibilityCalculatingPanel';
+import SizeSystemPicker from '../../components/project/SizeSystemPicker';
+import { validateSizeSystemSpecs } from '../../utils/sizeSystems';
 import ProjectDeliveryAddressFields, {
   emptyProjectDeliveryAddress,
   normalizeDeliveryFromProject,
@@ -432,6 +434,22 @@ function projectStatusCardLabel(p) {
   return toTitleCase(status || 'draft');
 }
 
+/**
+ * The AI's cost-saving steps are numbered "Tier 1–4" internally. Stone quality is shown to customers as
+ * "Tier 1–3", so name the steps by what they change instead.
+ */
+const FEASIBILITY_STEP_LABELS = {
+  'tier 1': 'Diamond quality',
+  'tier 2': 'Metal purity',
+  'tier 3': 'Design change',
+  'tier 4': 'Lab-grown diamonds',
+};
+
+function feasibilityStepLabel(step) {
+  const raw = String(step ?? '').trim();
+  return FEASIBILITY_STEP_LABELS[raw.toLowerCase()] || raw;
+}
+
 function bidWindowsOf(p) {
   const bidModel = p?.bidModel ?? p?.bid_model ?? null;
   const windows =
@@ -619,9 +637,14 @@ function normalizeJewelleryTypeKey(t) {
     .replace(/[\s_-]+/g, '');
 }
 
-function defaultSizeCustomUnitForJewelleryType(jewelleryType) {
+function isRingJewelleryType(jewelleryType) {
   const key = normalizeJewelleryTypeKey(jewelleryType);
-  if (key === 'ring') return 'mm';
+  return key === 'ring' || key === 'rings';
+}
+
+function defaultSizeCustomUnitForJewelleryType(jewelleryType) {
+  if (isRingJewelleryType(jewelleryType)) return 'mm';
+  const key = normalizeJewelleryTypeKey(jewelleryType);
   if (key === 'necklace' || key === 'pendant') return 'in';
   return 'cm';
 }
@@ -679,7 +702,7 @@ export default function Projects() {
   const { addToast } = useOutletContext();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currency: regionCurrency = 'INR', budgetExample = '25000' } = useRegion();
+  const { currency: regionCurrency = 'INR', budgetExample = '25000', countryCode: regionCountryCode = null } = useRegion();
 
   const PROJECTS_TAB_KEY = 'mirah_projects_last_tab';
   const PROJECTS_LIST_FILTER_KEY = 'mirah_projects_last_list_filter';
@@ -980,6 +1003,20 @@ export default function Projects() {
     () => getSizeOptionsForType(selectedJewelleryType),
     [getSizeOptionsForType, selectedJewelleryType],
   );
+  // Rings (and any type the admin gives size systems) use the US / UK / India / Custom picker.
+  const getSizeSystemsForType = useCallback(
+    (name) => {
+      const key = normalizeJewelleryTypeKey(name);
+      if (!key) return [];
+      const match = jewelleryTypes.find((t) => normalizeJewelleryTypeKey(t?.name) === key);
+      return Array.isArray(match?.sizeSystems) ? match.sizeSystems : [];
+    },
+    [jewelleryTypes],
+  );
+  const sizeSystemsForSelectedType = useMemo(
+    () => getSizeSystemsForType(selectedJewelleryType),
+    [getSizeSystemsForType, selectedJewelleryType],
+  );
   const selectedTypeHasPresetSizes = sizeOptionsForSelectedType.length > 0;
   const stepLabels = useMemo(
     () => [
@@ -1045,6 +1082,9 @@ export default function Projects() {
 
         const jewelleryType = String(s?.jewelleryType || '').trim();
         if (!jewelleryType) return 'Jewellery type is required';
+
+        const typeSizeSystems = getSizeSystemsForType(jewelleryType);
+        if (typeSizeSystems.length) return validateSizeSystemSpecs(typeSizeSystems, s);
 
         const sizeMode = String(s?.sizeMode || 'standard').trim().toLowerCase();
         if (sizeMode === 'custom') {
@@ -1125,7 +1165,7 @@ export default function Projects() {
 
       return null;
     },
-    [createForm, enabledProjectMetalTypes],
+    [createForm, enabledProjectMetalTypes, getSizeSystemsForType],
   );
 
   const createMetalTypeOptions = useMemo(
@@ -1221,28 +1261,16 @@ export default function Projects() {
     (createLoading || attachmentUploading || referenceUploading || listMyProjectLoading);
 
   const [howToMeasureOpen, setHowToMeasureOpen] = useState(false);
+  // Admin-written per jewellery type (Product categories → How to measure).
   const howToMeasureText = useMemo(() => {
-    const type = String(createForm?.specs?.jewelleryType || '').trim().toLowerCase();
-    if (!type) {
-      return 'Select a jewellery type first to see how to measure.';
-    }
-    if (type === 'ring') {
-      return 'Use a ring sizer if you have one. Otherwise, measure the inner diameter of a ring that fits you and match it to standard ring size charts. For custom measurements, enter the circumference or diameter as instructed by your manufacturer.';
-    }
-    if (type === 'necklace') {
-      return 'Measure around your neck with a soft measuring tape at the length you prefer. For necklaces, the common lengths are typically 16–24 inches; choose what feels comfortable.';
-    }
-    if (type === 'bracelet' || type === 'flexi bangle') {
-      return 'Wrap a soft measuring tape around your wrist where you’ll wear the bracelet/bangle. Add a little extra space for comfort depending on fit preference.';
-    }
-    if (type === 'earrings') {
-      return 'Earrings are typically not sized like rings/necklaces. If you need a specific drop length, measure from your earlobe to the desired point and enter as custom measurement.';
-    }
-    if (type === 'pendant') {
-      return 'For pendants, sizing is usually based on pendant dimensions. If you need a specific pendant size or chain length, measure the desired length and enter it as custom measurement.';
-    }
-    return 'Measure using a soft measuring tape and enter your custom measurement in cm or inches.';
-  }, [createForm?.specs?.jewelleryType]);
+    const key = normalizeJewelleryTypeKey(createForm?.specs?.jewelleryType);
+    if (!key) return 'Select a jewellery type first to see how to measure.';
+    const match = jewelleryTypes.find((t) => normalizeJewelleryTypeKey(t?.name) === key);
+    return (
+      match?.howToMeasure ||
+      'Measure using a soft measuring tape and enter your custom measurement. If you are unsure, book a consultation and we will help you.'
+    );
+  }, [createForm?.specs?.jewelleryType, jewelleryTypes]);
 
   const loadProjects = useCallback(async ({ nextPage = 1, append = false, search } = {}) => {
     const resolvedSearch = search !== undefined ? search : listSearchRef.current;
@@ -3209,7 +3237,8 @@ export default function Projects() {
                                     const nextType = String(e.target.value || '');
                                     // If the selected category has no preset sizes, switch to
                                     // manual entry directly; otherwise start with the preset list.
-                                    const hasPresets = getSizeOptionsForType(nextType).length > 0;
+                                    const hasPresets =
+                                      getSizeSystemsForType(nextType).length > 0 || getSizeOptionsForType(nextType).length > 0;
                                     setCreateForm((p) => ({
                                       ...p,
                                       specs: {
@@ -3252,68 +3281,81 @@ export default function Projects() {
                                     How to Measure
                                   </button>
                                 </div>
-                                {selectedTypeHasPresetSizes ? (
-                                  <select
-                                    value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
-                                    onChange={(e) => {
-                                      const v = String(e.target.value || '');
-                                      if (v === 'custom') {
-                                        setCreateForm((p) => ({
-                                          ...p,
-                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
-                                        }));
-                                      } else {
-                                        setCreateForm((p) => ({
-                                          ...p,
-                                          specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
-                                        }));
-                                      }
-                                    }}
-                                    className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                                  >
-                                    <option value="">Select</option>
-                                    {sizeOptionsForSelectedType.map((label) => (
-                                      <option key={label} value={label}>
-                                        {label}
-                                      </option>
-                                    ))}
-                                    <option value="custom">Enter custom measurement</option>
-                                  </select>
+                                {sizeSystemsForSelectedType.length ? (
+                                  <SizeSystemPicker
+                                    systems={sizeSystemsForSelectedType}
+                                    specs={createForm?.specs}
+                                    countryCode={regionCountryCode}
+                                    onChange={(patch) =>
+                                      setCreateForm((p) => ({ ...p, specs: { ...(p.specs || {}), ...patch } }))
+                                    }
+                                  />
                                 ) : (
-                                  <p className="text-[12px] text-muted">
-                                    No preset sizes for this jewellery type — please enter the measurement manually.
-                                  </p>
-                                )}
-                                {(!selectedTypeHasPresetSizes || createForm?.specs?.sizeMode === 'custom') ? (
-                                  <div className="mt-2 grid grid-cols-2 gap-2">
-                                    <input
-                                      type="number"
-                                      value={createForm?.specs?.sizeCustomValue || ''}
-                                      onChange={(e) =>
-                                        setCreateForm((p) => ({
-                                          ...p,
-                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '', sizeCustomValue: e.target.value },
-                                        }))
-                                      }
-                                      className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
-                                      placeholder="Measurement"
-                                    />
+                                  <>
+                                  {selectedTypeHasPresetSizes ? (
                                     <select
-                                      value={createForm?.specs?.sizeCustomUnit || defaultSizeCustomUnitForJewelleryType(createForm?.specs?.jewelleryType)}
-                                      onChange={(e) =>
-                                        setCreateForm((p) => ({
-                                          ...p,
-                                          specs: { ...(p.specs || {}), sizeMode: 'custom', sizeCustomUnit: e.target.value },
-                                        }))
-                                      }
+                                      value={createForm?.specs?.sizeMode === 'custom' ? 'custom' : (createForm?.specs?.sizeStandard || '')}
+                                      onChange={(e) => {
+                                        const v = String(e.target.value || '');
+                                        if (v === 'custom') {
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '' },
+                                          }));
+                                        } else {
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), sizeMode: 'standard', sizeStandard: v },
+                                          }));
+                                        }
+                                      }}
                                       className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
                                     >
-                                      <option value="mm">mm</option>
-                                      <option value="cm">cm</option>
-                                      <option value="in">inches</option>
+                                      <option value="">Select</option>
+                                      {sizeOptionsForSelectedType.map((label) => (
+                                        <option key={label} value={label}>
+                                          {label}
+                                        </option>
+                                      ))}
+                                      <option value="custom">Enter custom measurement</option>
                                     </select>
-                                  </div>
-                                ) : null}
+                                  ) : (
+                                    <p className="text-[12px] text-muted">
+                                      No preset sizes for this jewellery type — please enter the measurement manually.
+                                    </p>
+                                  )}
+                                  {(!selectedTypeHasPresetSizes || createForm?.specs?.sizeMode === 'custom') ? (
+                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                      <input
+                                        type="number"
+                                        value={createForm?.specs?.sizeCustomValue || ''}
+                                        onChange={(e) =>
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), sizeMode: 'custom', sizeStandard: '', sizeCustomValue: e.target.value },
+                                          }))
+                                        }
+                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
+                                        placeholder="Measurement"
+                                      />
+                                      <select
+                                        value={createForm?.specs?.sizeCustomUnit || defaultSizeCustomUnitForJewelleryType(createForm?.specs?.jewelleryType)}
+                                        onChange={(e) =>
+                                          setCreateForm((p) => ({
+                                            ...p,
+                                            specs: { ...(p.specs || {}), sizeMode: 'custom', sizeCustomUnit: e.target.value },
+                                          }))
+                                        }
+                                        className="w-full px-4 py-3 rounded-xl border text-[13px] font-medium text-mid bg-white border-pale focus:outline-none focus:ring-1 focus:ring-walnut/20 focus:border-walnut"
+                                      >
+                                        <option value="mm">mm</option>
+                                        <option value="cm">cm</option>
+                                        <option value="in">inches</option>
+                                      </select>
+                                    </div>
+                                  ) : null}
+                                  </>
+                                )}
                               </div>
                             ) : null}
                           </div>
@@ -4100,7 +4142,7 @@ export default function Projects() {
 
                             {Array.isArray(feasibilityReview?.tiersApplied) && feasibilityReview.tiersApplied.length ? (
                               <div className="mt-3">
-                                <p className="text-[11px] font-medium text-mid uppercase tracking-wide">Tiers applied</p>
+                                <p className="text-[11px] font-medium text-mid uppercase tracking-wide">Changes considered</p>
                                 <div className="mt-2 flex flex-nowrap items-center gap-x-2 overflow-x-auto pb-0.5 text-[12px] text-mid [scrollbar-width:thin]">
                                   {feasibilityReview.tiersApplied.map((t, idx) => (
                                     <Fragment key={`tier-${idx}`}>
@@ -4109,7 +4151,7 @@ export default function Projects() {
                                           ·
                                         </span>
                                       ) : null}
-                                      <span className="shrink-0 whitespace-nowrap">{String(t)}</span>
+                                      <span className="shrink-0 whitespace-nowrap">{feasibilityStepLabel(t)}</span>
                                     </Fragment>
                                   ))}
                                 </div>

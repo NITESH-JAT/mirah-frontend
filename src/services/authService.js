@@ -94,9 +94,9 @@ export const authService = {
     }
   },
 
-  resendPhoneOtp: async (phone, countryCode) => {
+  resendPhoneOtp: async (phone, countryCode, extra = {}) => {
     try {
-      await api.post('/api/user/auth/resend-otp', { phone, countryCode });
+      await api.post('/api/user/auth/resend-otp', { phone, countryCode, ...extra });
       return true;
     } catch (error) {
       throw error.response?.data || { message: "Failed to resend phone OTP" };

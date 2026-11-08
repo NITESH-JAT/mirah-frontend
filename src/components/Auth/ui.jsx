@@ -332,6 +332,31 @@ export function Checkbox({ checked, onChange, name, error, children }) {
   );
 }
 
+/**
+ * Required opt-in to verification codes and order updates by email/SMS. Kept separate from the Terms box:
+ * Brevo needs unbundled, documented consent before we text a number. Wording must match the backend
+ * (mira-backend/src/utils/communicationsConsent.ts); bump the version there when it changes.
+ */
+export const COMMUNICATIONS_CONSENT_ERROR = 'Please agree to emails and texts to receive your code';
+
+export function CommunicationsConsent({ checked, onChange, error, name = 'communicationsConsent' }) {
+  return (
+    <div>
+      <Checkbox name={name} checked={checked} onChange={onChange} error={error}>
+        I agree to emails and texts for order updates and verification
+      </Checkbox>
+      <p className="ml-[30px] mt-1 font-jakarta text-[11.5px] leading-[1.5] text-muted lg:ml-[25px] lg:text-[10.5px]">
+        Arviah sends verification codes and order updates by email and SMS. Message frequency varies. Msg &amp; data
+        rates may apply. Reply STOP to opt out of texts, HELP for help.{' '}
+        <TextLink href="/terms#messaging" target="_blank" rel="noopener noreferrer" className="font-medium">
+          Messaging terms
+        </TextLink>
+      </p>
+      {error ? <p className="ml-[30px] mt-1 font-jakarta text-[12px] text-red-600 lg:ml-[25px] lg:text-[11px]">{error}</p> : null}
+    </div>
+  );
+}
+
 // --- Controls ---
 
 export function SegmentedTabs({ options, value, onChange, label }) {

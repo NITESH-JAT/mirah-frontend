@@ -1,6 +1,6 @@
 import React from 'react';
 
-function BadgeLuxury({ children = 'Tier 1 (Luxury)' }) {
+function BadgeTier1({ children = 'Tier 1' }) {
   return (
     <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-violet-900 md:text-[11px]">
       {children}
@@ -8,7 +8,7 @@ function BadgeLuxury({ children = 'Tier 1 (Luxury)' }) {
   );
 }
 
-function BadgePremium({ children = 'Tier 2 (Premium)' }) {
+function BadgeTier2({ children = 'Tier 2' }) {
   return (
     <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-900 md:text-[11px]">
       {children}
@@ -16,10 +16,10 @@ function BadgePremium({ children = 'Tier 2 (Premium)' }) {
   );
 }
 
-function BadgeStandard() {
+function BadgeTier3() {
   return (
     <span className="inline-flex items-center justify-center whitespace-nowrap rounded-full bg-neutral-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-neutral-800 md:text-[11px]">
-      Tier 3 (Standard)*
+      Tier 3*
     </span>
   );
 }
@@ -31,34 +31,34 @@ const TABLE_ROWS = [
   {
     color: 'G',
     cells: [
-      <BadgeLuxury key="g1" />,
-      <BadgeLuxury key="g2" />,
-      <BadgePremium key="g3" />,
-      <BadgePremium key="g4" />,
-      <BadgeStandard key="g5" />,
-      <BadgeStandard key="g6" />,
+      <BadgeTier1 key="g1" />,
+      <BadgeTier1 key="g2" />,
+      <BadgeTier2 key="g3" />,
+      <BadgeTier2 key="g4" />,
+      <BadgeTier3 key="g5" />,
+      <BadgeTier3 key="g6" />,
     ],
   },
   {
     color: 'H',
     cells: [
-      <BadgeLuxury key="h1" />,
-      <BadgeLuxury key="h2" />,
-      <BadgePremium key="h3" />,
-      <BadgePremium key="h4" />,
-      <BadgeStandard key="h5" />,
-      <BadgeStandard key="h6" />,
+      <BadgeTier1 key="h1" />,
+      <BadgeTier1 key="h2" />,
+      <BadgeTier2 key="h3" />,
+      <BadgeTier2 key="h4" />,
+      <BadgeTier3 key="h5" />,
+      <BadgeTier3 key="h6" />,
     ],
   },
   {
     color: 'I',
     cells: [
-      <BadgeLuxury key="i1" />,
-      <BadgePremium key="i2" />,
-      <BadgePremium key="i3" />,
-      <BadgeStandard key="i4" />,
-      <BadgeStandard key="i5" />,
-      <BadgeStandard key="i6" />,
+      <BadgeTier1 key="i1" />,
+      <BadgeTier2 key="i2" />,
+      <BadgeTier2 key="i3" />,
+      <BadgeTier3 key="i4" />,
+      <BadgeTier3 key="i5" />,
+      <BadgeTier3 key="i6" />,
     ],
   },
 ];
@@ -109,10 +109,10 @@ export default function DiamondClassificationPanel({ className = '', showTitle =
           <span className="font-bold text-ink">* Inclusion Rule:</span> Visible black inclusions downgrade quality by one level.
         </p>
         <p>
-          <span className="font-bold text-ink">Tier 3 (Standard) constraint:</span> Stones in the Tier 3 (Standard) category must not have visible black inclusions.
+          <span className="font-bold text-ink">Tier 3 constraint:</span> Stones in the Tier 3 category must not have visible black inclusions.
         </p>
         <p>
-          <span className="font-bold text-ink">Rejection:</span> If downgraded below Tier 3 (Standard), do not use the stone.
+          <span className="font-bold text-ink">Rejection:</span> If downgraded below Tier 3, do not use the stone.
         </p>
       </div>
     </div>

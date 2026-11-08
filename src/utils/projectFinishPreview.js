@@ -158,7 +158,7 @@ export function buildFinishCaption(specs = {}, { includeDiamonds = true } = {}) 
     else parts.push('with diamonds');
     const bracket = String(specs.stoneQualityBracket || '').trim();
     if (bracket && stoneType.toLowerCase().includes('natural')) {
-      parts.push(formatStoneQualityBracket(bracket, specs.stoneQualityCustom).toLowerCase());
+      parts.push(formatStoneQualityBracket(bracket, specs.stoneQualityCustom));
     }
   } else if (includeDiamonds && stones === 'no' && metal) {
     parts.push('no stones');
