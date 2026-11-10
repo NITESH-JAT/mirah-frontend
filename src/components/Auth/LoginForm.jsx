@@ -39,6 +39,24 @@ export const LoginForm = () => {
   const [forgotConsentError, setForgotConsentError] = useState('');
   const [loading, setLoading] = useState(false);
   const [countryRows, setCountryRows] = useState([]);
+  // Admin setting: when mobile OTP is off, password reset codes go by email only.
+  const [phoneOtpEnabled, setPhoneOtpEnabled] = useState(true);
+  const forgotTabs = phoneOtpEnabled ? CONTACT_TABS : CONTACT_TABS.filter((t) => t.value === 'email');
+
+  useEffect(() => {
+    let cancelled = false;
+    authService.getVerificationSettings().then((settings) => {
+      if (!cancelled && settings) setPhoneOtpEnabled(settings.phoneOtpEnabled);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openForgotPassword = () => {
+    if (!phoneOtpEnabled) setLoginType('email');
+    setView('forgot-request');
+  };
 
   const [formData, setFormData] = useState({
     email: '',
@@ -155,6 +173,10 @@ export const LoginForm = () => {
       setView('forgot-reset');
       addToast('We sent you a 6-digit code.', 'success');
     } catch (err) {
+      if (err?.code === 'PHONE_OTP_DISABLED') {
+        setPhoneOtpEnabled(false);
+        setLoginType('email');
+      }
       addToast(err.message || String(err), 'error');
     } finally {
       setLoading(false);
@@ -247,7 +269,7 @@ export const LoginForm = () => {
                 />
               </div>
               <div className="mt-5 flex flex-col-reverse items-center gap-4 sm:flex-row sm:justify-between lg:mt-4">
-                <TextLink className="text-[14px] lg:text-[12.5px]" onClick={() => setView('forgot-request')}>
+                <TextLink className="text-[14px] lg:text-[12.5px]" onClick={openForgotPassword}>
                   Forgot password?
                 </TextLink>
                 <OutlineButton type="submit" disabled={loading} className="w-full sm:w-auto sm:min-w-[150px]">
@@ -265,12 +287,18 @@ export const LoginForm = () => {
           <AuthHeading
             size="md"
             title="Reset your password"
-            subtitle="Enter the phone number or email on your account and we'll send you a 6-digit code."
+            subtitle={
+              phoneOtpEnabled
+                ? "Enter the phone number or email on your account and we'll send you a 6-digit code."
+                : "Enter the email on your account and we'll send you a 6-digit code."
+            }
           />
           <AuthCard className="mt-7 lg:mt-5">
             <form onSubmit={handleForgotRequest} noValidate>
-              <SegmentedTabs label="Reset with" options={CONTACT_TABS} value={loginType} onChange={setLoginType} />
-              <div className="mt-4 lg:mt-3">{contactInput}</div>
+              {forgotTabs.length > 1 ? (
+                <SegmentedTabs label="Reset with" options={forgotTabs} value={loginType} onChange={setLoginType} />
+              ) : null}
+              <div className={forgotTabs.length > 1 ? 'mt-4 lg:mt-3' : ''}>{contactInput}</div>
               <div className="mt-4 lg:mt-3">
                 <CommunicationsConsent
                   checked={forgotConsent}

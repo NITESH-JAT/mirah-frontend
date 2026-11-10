@@ -56,6 +56,18 @@ export const authService = {
     }
   },
 
+  /** Public: { phoneOtpEnabled }. When false, sign-up needs the email code only (admin setting). */
+  getVerificationSettings: async () => {
+    try {
+      const response = await api.get('/api/user/auth/verification-settings');
+      const data = response.data?.data || {};
+      return { phoneOtpEnabled: data.phoneOtpEnabled !== false };
+    } catch {
+      // Unknown: let the caller fall back to what signup/login told it.
+      return null;
+    }
+  },
+
   //  SIGNUP
   signup: async (userData) => {
     try {

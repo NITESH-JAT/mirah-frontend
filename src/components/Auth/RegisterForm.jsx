@@ -204,8 +204,12 @@ export const RegisterForm = () => {
     };
 
     try {
-      await authService.signup(payload);
-      addToast('Account created. Let’s verify your phone and email.', 'success');
+      const res = await authService.signup(payload);
+      const phoneNeeded = res?.data?.phoneVerificationRequired !== false;
+      addToast(
+        phoneNeeded ? 'Account created. Let’s verify your phone and email.' : 'Account created. Let’s verify your email.',
+        'success',
+      );
       setTimeout(() => navigate('/verification'), 1000);
     } catch (err) {
       const message = err.message || 'Registration failed';

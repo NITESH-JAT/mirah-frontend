@@ -125,6 +125,8 @@ export const VerificationForm = () => {
   const [smsConsent, setSmsConsent] = useState(false);
   const [smsConsentError, setSmsConsentError] = useState('');
   const [emailTimer, setEmailTimer] = useState(0);
+  // False when the admin has turned mobile OTP off: only the email code is needed.
+  const [phoneRequired, setPhoneRequired] = useState(true);
 
   // Load User Data
   useEffect(() => {
@@ -137,11 +139,13 @@ export const VerificationForm = () => {
       const pVerified = userData.isPhoneVerified === true || userData.phoneVerified === true || userData.phoneVerified === "true";
       const eVerified = userData.isEmailVerified === true || userData.emailVerified === true || userData.emailVerified === "true";
 
+      const needsPhone = (userData.phoneVerificationRequired ?? userData.data?.phoneVerificationRequired) !== false;
       setPhoneVerified(pVerified);
       setEmailVerified(eVerified);
-      setSmsConsentNeeded(!pVerified && userData.communicationsConsentRequired === true);
+      setPhoneRequired(needsPhone);
+      setSmsConsentNeeded(needsPhone && !pVerified && userData.communicationsConsentRequired === true);
 
-      if (pVerified && !eVerified) {
+      if (!needsPhone || (pVerified && !eVerified)) {
          setActiveTab('email');
       }
 
@@ -149,6 +153,28 @@ export const VerificationForm = () => {
       navigate('/register');
     }
   }, [navigate]);
+
+  // The live setting wins over what signup/login reported (an admin may have changed it since).
+  useEffect(() => {
+    let cancelled = false;
+    authService.getVerificationSettings().then((settings) => {
+      if (cancelled || !settings) return;
+      setPhoneRequired(settings.phoneOtpEnabled);
+      if (!settings.phoneOtpEnabled) {
+        setActiveTab('email');
+        setSmsConsentNeeded(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const switchToEmailOnly = () => {
+    setPhoneRequired(false);
+    setSmsConsentNeeded(false);
+    setActiveTab('email');
+  };
 
   // Handle Timers
   useEffect(() => {
@@ -186,6 +212,7 @@ export const VerificationForm = () => {
       setTempUser(prev => ({ ...prev, ...updatedData }));
       
     } catch (err) {
+      if (err?.code === 'PHONE_OTP_DISABLED') switchToEmailOnly();
       addToast(err.message || "Verification Failed", "error");
     } finally {
       setLoading(false);
@@ -210,6 +237,7 @@ export const VerificationForm = () => {
       }
     } catch (err) {
       if (isPhone && err?.code === 'COMMUNICATIONS_CONSENT_REQUIRED') setSmsConsentNeeded(true);
+      if (err?.code === 'PHONE_OTP_DISABLED') switchToEmailOnly();
       addToast(err.message || "Failed to resend", "error");
     } finally {
       setLoading(false);
@@ -231,6 +259,7 @@ export const VerificationForm = () => {
       setPhoneTimer(30);
       addToast('Code sent to your phone!', 'success');
     } catch (err) {
+      if (err?.code === 'PHONE_OTP_DISABLED') switchToEmailOnly();
       addToast(err.message || 'Failed to send code', 'error');
     } finally {
       setLoading(false);
@@ -241,10 +270,10 @@ export const VerificationForm = () => {
 
       const storedTemp = JSON.parse(localStorage.getItem('mirah_temp_user') || '{}');
       
-      const finalUser = { 
-          ...storedTemp, 
-          isPhoneVerified: true, 
-          isEmailVerified: true 
+      const finalUser = {
+          ...storedTemp,
+          isPhoneVerified: phoneVerified,
+          isEmailVerified: true
       };
 
       // CHECK FOR TOKEN
@@ -302,7 +331,7 @@ export const VerificationForm = () => {
 
   const isCurrentVerified = activeTab === 'phone' ? phoneVerified : emailVerified;
   const currentTimer = activeTab === 'phone' ? phoneTimer : emailTimer;
-  const bothVerified = phoneVerified && emailVerified;
+  const bothVerified = emailVerified && (phoneVerified || !phoneRequired);
 
   return (
     <div>
@@ -312,17 +341,23 @@ export const VerificationForm = () => {
         size="md"
         eyebrow="Last step"
         title="Confirm your account"
-        subtitle="Verify your phone number and email address to finish signing up."
+        subtitle={
+          phoneRequired
+            ? 'Verify your phone number and email address to finish signing up.'
+            : 'Verify your email address to finish signing up.'
+        }
       />
 
       <AuthCard className="mt-7 lg:mt-5">
-        <div role="tablist" aria-label="Verify" className="flex rounded-full border border-pale bg-cream p-1">
-          <VerifyTab label="Phone" isActive={activeTab === 'phone'} isVerified={phoneVerified} onClick={() => setActiveTab('phone')} />
-          <VerifyTab label="Email" isActive={activeTab === 'email'} isVerified={emailVerified} onClick={() => setActiveTab('email')} />
-        </div>
+        {phoneRequired ? (
+          <div role="tablist" aria-label="Verify" className="flex rounded-full border border-pale bg-cream p-1">
+            <VerifyTab label="Phone" isActive={activeTab === 'phone'} isVerified={phoneVerified} onClick={() => setActiveTab('phone')} />
+            <VerifyTab label="Email" isActive={activeTab === 'email'} isVerified={emailVerified} onClick={() => setActiveTab('email')} />
+          </div>
+        ) : null}
 
         {!isCurrentVerified && activeTab === 'phone' && smsConsentNeeded ? (
-          <div className="mt-6 lg:mt-5">
+          <div className={phoneRequired ? 'mt-6 lg:mt-5' : ''}>
             <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
               We'll text a 6-digit code to{' '}
               <span className="font-semibold text-ink">{`${tempUser.countryCode} ${tempUser.phone}`}</span>
@@ -342,7 +377,7 @@ export const VerificationForm = () => {
             </PrimaryButton>
           </div>
         ) : !isCurrentVerified ? (
-          <div className="mt-6 lg:mt-5">
+          <div className={phoneRequired ? 'mt-6 lg:mt-5' : ''}>
             <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
               Enter the 6-digit code sent to{' '}
               <span className="font-semibold text-ink">
@@ -372,7 +407,7 @@ export const VerificationForm = () => {
             </p>
           </div>
         ) : (
-          <div className="mt-6 flex flex-col items-center text-center lg:mt-5">
+          <div className={`flex flex-col items-center text-center ${phoneRequired ? 'mt-6 lg:mt-5' : ''}`}>
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-green-50 text-green-700 lg:h-10" aria-hidden>
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
