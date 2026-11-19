@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams, useSearchParams } from 'react-router-dom';
 import { projectService } from '../../services/projectService';
 import { formatCurrency } from '../../utils/formatMoney';
+import BuyerDetailsForm from '../../components/projects/BuyerDetailsForm';
 
 function loadRazorpay() {
   return new Promise((resolve) => {
@@ -304,7 +305,14 @@ export default function ProjectCheckout() {
     if (invoiceLoading) return;
     setInvoiceLoading(true);
     try {
-      await projectService.downloadInvoice(projectId, { title: checkout?.project?.title });
+      if (checkout?.proforma?.documentId) {
+        await projectService.downloadDocument(projectId, {
+          id: checkout.proforma.documentId,
+          number: checkout.proforma.number,
+        });
+      } else {
+        await projectService.downloadInvoice(projectId, { title: checkout?.project?.title });
+      }
     } catch (e) {
       addToast(e?.message || 'Failed to download invoice', 'error');
     } finally {
@@ -654,14 +662,39 @@ export default function ProjectCheckout() {
               <p className="mt-1 text-[11px] font-semibold text-green-700">Includes promo {promo.code}: −{promoDiscountLabel}</p>
             ) : null}
           </div>
+          {checkout.proforma ? (
+            <div className="rounded-xl border border-pale bg-cream/60 px-3 py-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Proforma invoice</p>
+              <p className="mt-0.5 text-[13px] font-extrabold text-ink" data-testid="proforma-number">
+                {checkout.proforma.number}
+              </p>
+              {checkout.proforma.validUntil ? (
+                <p className="text-[11px] text-muted">
+                  Valid until{' '}
+                  {new Date(checkout.proforma.validUntil).toLocaleDateString(undefined, {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={handleInvoice}
             disabled={invoiceLoading}
             className="w-full px-4 py-2.5 rounded-xl border border-pale text-[12px] font-bold text-mid hover:bg-cream disabled:opacity-50"
           >
-            {invoiceLoading ? 'Preparing…' : 'Download Invoice'}
+            {invoiceLoading ? 'Preparing…' : checkout.proforma ? 'Download proforma' : 'Download Invoice'}
           </button>
+          <BuyerDetailsForm
+            projectId={projectId}
+            details={checkout.buyerDetails}
+            domestic={Boolean(checkout.buyerIsDomestic)}
+            onSaved={load}
+            addToast={addToast}
+          />
           <div className="rounded-xl bg-cream border border-pale p-3 text-[11px] text-muted leading-relaxed">
             <p className="font-bold text-ink text-[12px]">What happens next</p>
             <p className="mt-1.5">

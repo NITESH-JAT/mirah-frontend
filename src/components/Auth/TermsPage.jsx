@@ -61,20 +61,20 @@ export const TermsPage = () => {
           </section>
 
           <section id="messaging" className="scroll-mt-24">
-            <h3 className="mb-1.5 font-jakarta text-[15px] font-bold text-ink lg:text-[13.5px]">5. Email &amp; SMS Messaging</h3>
+            <h3 className="mb-1.5 font-jakarta text-[15px] font-bold text-ink lg:text-[13.5px]">5. Email &amp; WhatsApp Messaging</h3>
             <p>
-             Arviah (arviahstudio.com) sends account and order messages by email and SMS to the email address and
-             mobile number on your account, once you agree to "emails and texts for order updates and
+             Arviah (arviahstudio.com) sends account and order messages by email and WhatsApp to the email address and
+             mobile number on your account, once you agree to "emails and WhatsApp messages for order updates and
              verification" when you sign up, reset your password or verify your phone.
             </p>
             <ul className="mt-2 list-disc space-y-1.5 pl-5">
              <li><strong>What we send:</strong> one-time verification and password reset codes, and updates about your orders and projects (for example confirmations, payments, production and delivery). These messages are not marketing.</li>
              <li><strong>How often:</strong> message frequency varies with your account activity.</li>
-             <li><strong>Cost:</strong> message and data rates may apply, depending on your mobile carrier and plan.</li>
-             <li><strong>Opting out:</strong> reply STOP to any text to stop receiving texts. You can also email us to opt out. Verification codes are needed to sign in securely, so after opting out of texts you may need to verify by email instead.</li>
-             <li><strong>Help:</strong> reply HELP to any text, or email <a className="underline" href="mailto:support@arviahstudio.com">support@arviahstudio.com</a>.</li>
-             <li><strong>Carriers:</strong> mobile carriers are not liable for delayed or undelivered messages.</li>
-             <li><strong>Your data:</strong> agreeing to messages is not required to browse Arviah. We record when and how you agreed. Text messaging originator opt-in data and consent will not be shared with any third parties.</li>
+             <li><strong>Cost:</strong> WhatsApp messages use your mobile data or Wi-Fi; data charges from your provider may apply.</li>
+             <li><strong>Opting out:</strong> email us, or block Arviah&apos;s WhatsApp number, to stop receiving WhatsApp messages. Verification codes are needed to sign in securely, so after opting out you may need to verify by email instead.</li>
+             <li><strong>Help:</strong> email <a className="underline" href="mailto:support@arviahstudio.com">support@arviahstudio.com</a>.</li>
+             <li><strong>Delivery:</strong> WhatsApp messages are delivered by WhatsApp (Meta). We are not liable for delayed or undelivered messages.</li>
+             <li><strong>Your data:</strong> agreeing to messages is not required to browse Arviah. We record when and how you agreed. Your opt-in and consent are not shared with third parties, other than WhatsApp delivering the messages to you.</li>
             </ul>
           </section>
           <p className="text-[12px] italic text-muted lg:text-[11px]">Last updated: November 2026</p>

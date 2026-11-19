@@ -445,6 +445,42 @@ export const projectService = {
     window.URL.revokeObjectURL(url);
   },
 
+  /** Customer: the project's current proforma, receipt vouchers and invoice. */
+  listDocuments: async (projectId, { signal } = {}) => {
+    if (!projectId) return [];
+    const res = await api.get(`/api/user/projects/${projectId}/documents`, { signal });
+    const data = unwrap(res) || {};
+    return Array.isArray(data.documents) ? data.documents : [];
+  },
+
+  /** Customer: download one document (proforma / receipt / invoice) as PDF. */
+  downloadDocument: async (projectId, doc) => {
+    if (!projectId || !doc?.id) return;
+    const res = await api.get(`/api/user/projects/${projectId}/documents/${doc.id}/pdf`, { responseType: 'blob' });
+    const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
+    const disp = res?.headers?.['content-disposition'] ?? res?.headers?.['Content-Disposition'];
+    const fallback = `Arviah-${String(doc.number || 'document').replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`;
+    const filename = parseFilenameFromDisposition(disp) || fallback;
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+
+  /** Customer: business name, tax ID and billing address for the order's documents. */
+  saveBuyerDetails: async (projectId, body) => {
+    try {
+      const res = await api.put(`/api/user/projects/${projectId}/buyer-details`, body);
+      return unwrap(res);
+    } catch (error) {
+      throw error.response?.data || { message: 'Could not save details' };
+    }
+  },
+
   /** Manufacturer: the project brief as a PDF to hand to the factory. */
   downloadManufacturingBrief: async (projectId, { title } = {}) => {
     if (!projectId) return;

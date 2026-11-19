@@ -289,7 +289,7 @@ export const LoginForm = () => {
             title="Reset your password"
             subtitle={
               phoneOtpEnabled
-                ? "Enter the phone number or email on your account and we'll send you a 6-digit code."
+                ? "Enter the phone number or email on your account and we'll send you a 6-digit code (on WhatsApp for a phone number)."
                 : "Enter the email on your account and we'll send you a 6-digit code."
             }
           />
@@ -325,7 +325,7 @@ export const LoginForm = () => {
             title="Choose a new password"
             subtitle={
               <>
-                Enter the code we sent to <span className="font-semibold text-ink">{destination}</span>.
+                Enter the code we sent {loginType === 'phone' ? 'on WhatsApp ' : ''}to <span className="font-semibold text-ink">{destination}</span>.
               </>
             }
           />

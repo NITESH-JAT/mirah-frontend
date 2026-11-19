@@ -67,7 +67,7 @@ const OtpInputGroup = ({ value, onChange, onEnter }) => {
     }
   };
 
-  // Paste or SMS autofill of the whole code into any box.
+  // Paste or autofill of the whole code into any box.
   const handlePaste = (e) => {
     const digits = (e.clipboardData?.getData('text') || '').replace(/\D/g, '').slice(0, 6);
     if (!digits) return;
@@ -120,7 +120,7 @@ export const VerificationForm = () => {
   
   // Independent Timers
   const [phoneTimer, setPhoneTimer] = useState(0);
-  // Accounts without recorded consent get no SMS until they tick the box here (login skips the text).
+  // Accounts without recorded consent get no WhatsApp code until they tick the box here (login skips sending).
   const [smsConsentNeeded, setSmsConsentNeeded] = useState(false);
   const [smsConsent, setSmsConsent] = useState(false);
   const [smsConsentError, setSmsConsentError] = useState('');
@@ -228,7 +228,7 @@ export const VerificationForm = () => {
     try {
       if (isPhone) {
         await authService.resendPhoneOtp(tempUser.phone, tempUser.countryCode);
-        addToast("Code resent to your phone!", "success");
+        addToast("Code resent on WhatsApp!", "success");
         setPhoneTimer(30);
       } else {
         await authService.resendEmailOtp(tempUser.email);
@@ -257,7 +257,7 @@ export const VerificationForm = () => {
       localStorage.setItem('mirah_temp_user', JSON.stringify(nextUser));
       setSmsConsentNeeded(false);
       setPhoneTimer(30);
-      addToast('Code sent to your phone!', 'success');
+      addToast('Code sent on WhatsApp!', 'success');
     } catch (err) {
       if (err?.code === 'PHONE_OTP_DISABLED') switchToEmailOnly();
       addToast(err.message || 'Failed to send code', 'error');
@@ -359,7 +359,7 @@ export const VerificationForm = () => {
         {!isCurrentVerified && activeTab === 'phone' && smsConsentNeeded ? (
           <div className={phoneRequired ? 'mt-6 lg:mt-5' : ''}>
             <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
-              We'll text a 6-digit code to{' '}
+              We'll send a 6-digit code on WhatsApp to{' '}
               <span className="font-semibold text-ink">{`${tempUser.countryCode} ${tempUser.phone}`}</span>
             </p>
             <div className="mt-4 lg:mt-3">
@@ -373,13 +373,13 @@ export const VerificationForm = () => {
               />
             </div>
             <PrimaryButton onClick={handleConsentAndSend} disabled={loading} className="mt-6 w-full lg:mt-5">
-              {loading ? 'Sending…' : 'Text me a code'}
+              {loading ? 'Sending…' : 'Send code on WhatsApp'}
             </PrimaryButton>
           </div>
         ) : !isCurrentVerified ? (
           <div className={phoneRequired ? 'mt-6 lg:mt-5' : ''}>
             <p className="font-jakarta text-[14px] leading-[1.6] text-mid lg:text-[12.5px]">
-              Enter the 6-digit code sent to{' '}
+              Enter the 6-digit code sent {activeTab === 'phone' ? 'on WhatsApp ' : ''}to{' '}
               <span className="font-semibold text-ink">
                 {activeTab === 'phone' ? `${tempUser.countryCode} ${tempUser.phone}` : tempUser.email}
               </span>

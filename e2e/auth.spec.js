@@ -47,9 +47,12 @@ test.describe('Auth pages (redesign)', () => {
     await page.goto('/login');
     await page.getByRole('button', { name: 'Forgot password?' }).click();
     await expect(page.getByRole('heading', { name: 'Reset your password' })).toBeVisible();
-    await page.getByRole('tab', { name: 'Email' }).click();
+    // Phone/Email tabs only appear while phone codes on WhatsApp are on; otherwise it's email only.
+    const emailTab = page.getByRole('tab', { name: 'Email' });
+    if (await emailTab.count()) await emailTab.click();
     await expect(page.getByLabel('Email address')).toHaveAttribute('placeholder', 'you@yourdomain.com');
     await page.getByLabel('Email address').fill(user.email);
+    await page.getByRole('checkbox', { name: /I agree to emails and WhatsApp messages/ }).check();
     await page.getByRole('button', { name: /Send code/ }).click();
 
     // The E2E backend sends through the fake Brevo server, so read the code from the captured email.
@@ -57,7 +60,6 @@ test.describe('Auth pages (redesign)', () => {
     await expect
       .poll(async () => {
         const all = await (await fetch(`${state().brevoUrl}/__emails`)).json();
-        console.log('DEBUG emails', state().brevoUrl, all.map((e) => e.to.join(',') + ' ' + e.subject));
         const emails = all.filter((e) => e.to.includes(user.email));
         const html = emails.map((e) => e.htmlContent).join('\n');
         otp = (/\b(\d{6})\b/.exec(html.replace(/<[^>]+>/g, ' ')) || [])[1] || null;

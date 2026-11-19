@@ -1,17 +1,24 @@
 import { test, expect, api, adminToken } from './support/fixtures.js';
 
-// Admin "Mobile OTP" switch: with it off the app asks for the email code only.
+// Admin "Phone OTP on WhatsApp" switch: with it off the app asks for the email code only.
 test.describe('Mobile OTP turned off', () => {
   let original = true;
 
   const setPhoneOtp = async (phoneOtpEnabled) => {
-    const res = await api('PUT', '/api/admin/settings/verification', { token: await adminToken(), body: { phoneOtpEnabled } });
+    const token = await adminToken();
+    if (phoneOtpEnabled) {
+      // Turning it on needs a working WhatsApp: a successful test code first (the E2E backend uses a mock).
+      const phone = `+919${Math.floor(100000000 + Math.random() * 899999999)}`;
+      const test = await api('POST', '/api/admin/settings/verification/whatsapp/test', { token, body: { phone } });
+      if (test.status !== 200) throw new Error(`test code failed: ${test.status} ${test.body?.message}`);
+    }
+    const res = await api('PUT', '/api/admin/settings/verification', { token, body: { phoneOtpEnabled } });
     if (res.status !== 200) throw new Error(`setting failed: ${res.status} ${res.body?.message}`);
   };
 
   test.beforeAll(async () => {
     const res = await api('GET', '/api/admin/settings/verification', { token: await adminToken() });
-    original = res.body?.data?.phoneOtpEnabled !== false;
+    original = res.body?.data?.phoneOtpEffective === true;
     await setPhoneOtp(false);
   });
 

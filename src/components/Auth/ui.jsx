@@ -333,21 +333,21 @@ export function Checkbox({ checked, onChange, name, error, children }) {
 }
 
 /**
- * Required opt-in to verification codes and order updates by email/SMS. Kept separate from the Terms box:
- * Brevo needs unbundled, documented consent before we text a number. Wording must match the backend
- * (mira-backend/src/utils/communicationsConsent.ts); bump the version there when it changes.
+ * Required opt-in to verification codes and order updates by email/WhatsApp. Kept separate from the Terms box:
+ * WhatsApp needs a documented opt-in that names WhatsApp before we message a number. Wording must match the
+ * backend (mira-backend/src/utils/communicationsConsent.ts); bump the version there when it changes.
  */
-export const COMMUNICATIONS_CONSENT_ERROR = 'Please agree to emails and texts to receive your code';
+export const COMMUNICATIONS_CONSENT_ERROR = 'Please agree to emails and WhatsApp messages to receive your code';
 
 export function CommunicationsConsent({ checked, onChange, error, name = 'communicationsConsent' }) {
   return (
     <div>
       <Checkbox name={name} checked={checked} onChange={onChange} error={error}>
-        I agree to emails and texts for order updates and verification
+        I agree to emails and WhatsApp messages for order updates and verification
       </Checkbox>
       <p className="ml-[30px] mt-1 font-jakarta text-[11.5px] leading-[1.5] text-muted lg:ml-[25px] lg:text-[10.5px]">
-        Arviah sends verification codes and order updates by email and SMS. Message frequency varies. Msg &amp; data
-        rates may apply. Reply STOP to opt out of texts, HELP for help.{' '}
+        Arviah sends verification codes and order updates by email and WhatsApp. Message frequency varies. You can
+        opt out at any time.{' '}
         <TextLink href="/terms#messaging" target="_blank" rel="noopener noreferrer" className="font-medium">
           Messaging terms
         </TextLink>

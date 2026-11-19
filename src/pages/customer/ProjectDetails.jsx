@@ -14,6 +14,7 @@ import { invoiceProjectStatusLabel } from '../../utils/invoiceProjectStatusLabel
 import { buildCustomerDeliveryDetailRows, buildCustomerProjectDetailRows } from '../../utils/customerProjectDetailRows';
 import { estimateOrderBudget, quantityPiecesLabel } from '../../utils/vendorBidOrderCopy';
 import { formatStoneQualityBracket, isStoneQualityBracketKey, isStoneQualityCustomKey } from '../../utils/stoneQualityBracket';
+import ProjectDocumentsList from '../../components/projects/ProjectDocumentsList';
 
 function isCanceledRequest(err) {
   const e = err ?? {};
@@ -469,6 +470,7 @@ export default function ProjectDetails() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [details, setDetails] = useState(null);
   const [invoiceLoading, setInvoiceLoading] = useState(false);
+  const [documents, setDocuments] = useState([]);
   const [completeLoading, setCompleteLoading] = useState(false);
   const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
   const [priceBreakdownOpen, setPriceBreakdownOpen] = useState(false);
@@ -887,6 +889,12 @@ export default function ProjectDetails() {
       if (abortRef.current !== ctrl) return;
       setDetails(res || null);
       setLoadFailed(!res);
+      projectService
+        .listDocuments(projectId, { signal: ctrl.signal })
+        .then((docs) => {
+          if (abortRef.current === ctrl) setDocuments(Array.isArray(docs) ? docs : []);
+        })
+        .catch(() => {});
     } catch (e) {
       if (isCanceledRequest(e) || abortRef.current !== ctrl) return;
       addToast(e?.message || 'Failed to load project', 'error');
@@ -1298,6 +1306,7 @@ export default function ProjectDetails() {
                       />
                     ) : null}
                   </div>
+                    {documents.length ? null : (
                     <button
                       type="button"
                       onClick={downloadInvoice}
@@ -1306,6 +1315,7 @@ export default function ProjectDetails() {
                     >
                       {invoiceLoading ? 'Downloading…' : 'Download Invoice'}
                     </button>
+                    )}
                   </div>
                   <div
                     className={`mt-3 grid gap-3 ${
@@ -1422,6 +1432,7 @@ export default function ProjectDetails() {
                         ? 'Note: Production has started. Advance payment is due before dispatch. Final payment can be paid after project completion.'
                         : 'Note: Advance payment is required to start the project. Final payment can be paid after project completion.'}
                   </p>
+                  <ProjectDocumentsList projectId={projectId} documents={documents} addToast={addToast} />
                 </div>
               )}
             </div>
