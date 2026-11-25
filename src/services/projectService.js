@@ -337,11 +337,40 @@ export const projectService = {
     return unwrap(res);
   },
 
-  getShipmentLabelUrl: async (projectId, shipmentId, { signal } = {}) => {
+  /** Shipping label PDF (stored when the Sequel pickup was booked). */
+  getShipmentLabelBlob: async (projectId, shipmentId, { signal } = {}) => {
     if (!projectId || !shipmentId) return null;
-    const res = await api.get(`/api/user/projects/${projectId}/shipments/${shipmentId}/label`, { signal });
-    const data = unwrap(res);
-    return data?.url ?? data?.data?.url ?? null;
+    let res;
+    try {
+      res = await api.get(`/api/user/projects/${projectId}/shipments/${shipmentId}/label`, { signal, responseType: 'blob' });
+    } catch (e) {
+      // With responseType 'blob' the error body is a Blob too: read the server's message from it.
+      const body = e?.response?.data;
+      if (body instanceof Blob) {
+        const text = await body.text().catch(() => '');
+        let message = '';
+        try {
+          message = JSON.parse(text)?.message || '';
+        } catch {
+          /* not JSON */
+        }
+        if (message) throw new Error(message);
+      }
+      throw e;
+    }
+    const blob = res?.data instanceof Blob ? res.data : new Blob([res?.data], { type: 'application/pdf' });
+    if (blob.type && !/pdf/.test(blob.type)) {
+      // An error came back as JSON instead of the PDF.
+      const text = await blob.text().catch(() => '');
+      let message = 'Label not available';
+      try {
+        message = JSON.parse(text)?.message || message;
+      } catch {
+        /* keep the default */
+      }
+      throw new Error(message);
+    }
+    return blob;
   },
 
   discardShipment: async (projectId, shipmentId, { reason, signal } = {}) => {
@@ -351,9 +380,16 @@ export const projectService = {
   },
 
   downloadShipmentLabel: async (projectId, shipmentId) => {
-    const url = await projectService.getShipmentLabelUrl(projectId, shipmentId);
-    if (!url) throw new Error('Label URL not available');
-    window.open(url, '_blank', 'noopener,noreferrer');
+    const blob = await projectService.getShipmentLabelBlob(projectId, shipmentId);
+    if (!blob) throw new Error('Label not available');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Sequel-label-${shipmentId}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
   },
 
   getDetails: async (projectId, { signal } = {}) => {

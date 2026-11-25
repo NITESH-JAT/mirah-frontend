@@ -45,6 +45,7 @@ const VendorGuidelines = lazy(() => import('../pages/vendor/VendorGuidelines'));
 const Messages = lazy(() => import('../pages/chat/Messages'));
 const Faq = lazy(() => import('../pages/customer/Faq'));
 const Unsubscribe = lazy(() => import('../pages/public/Unsubscribe'));
+const TrackParcel = lazy(() => import('../pages/public/TrackParcel'));
 
 function DashboardToCustomerRedirect() {
   const location = useLocation();
@@ -210,6 +211,8 @@ export const routes = [
   // --- FALLBACK ---
   // Public: reached from email links whether or not the user is signed in.
   { path: '/unsubscribe', element: <Unsubscribe /> },
+  // Public: parcel tracking linked from the invoice / dispatch email.
+  { path: '/track/:docket', element: <TrackParcel /> },
 
   { path: '*', element: <Navigate to="/login" replace /> }
 ];

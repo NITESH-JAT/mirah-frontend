@@ -377,14 +377,18 @@ export default function VendorManageProject() {
   const [shipmentWorking, setShipmentWorking] = useState(false);
   const [shipmentPackageModalOpen, setShipmentPackageModalOpen] = useState(false);
   const [shipmentDiscardModalOpen, setShipmentDiscardModalOpen] = useState(false);
-  /** India dual-option: 'shiprocket' | 'self_ship' | null until user picks */
+  /** India dual-option: 'courier' (Sequel pickup) | 'self_ship' | null until user picks */
   const [shippingMethod, setShippingMethod] = useState(null);
   const [shipmentPackageForm, setShipmentPackageForm] = useState({
-    weightGrams: '',
+    netWeightGrams: '',
+    grossWeightGrams: '',
     lengthCm: '',
     breadthCm: '',
     heightCm: '',
     declaredValueInr: '',
+    lockNumber: '',
+    pickupDate: '',
+    pickupSlot: '',
   });
   const [shipmentPackageError, setShipmentPackageError] = useState('');
   const abortRef = useRef(null);
@@ -746,7 +750,7 @@ export default function VendorManageProject() {
   }, [finalPayment, ledger]);
 
   const activeInbound = shipmentModel?.inbound ?? null;
-  const inboundMode = String(shipmentModel?.inboundMode || shipmentModel?.inbound_mode || 'shiprocket').toLowerCase();
+  const inboundMode = String(shipmentModel?.inboundMode || shipmentModel?.inbound_mode || 'courier').toLowerCase();
   const isChoiceMode = inboundMode === 'choice';
   const isSelfShipMode = inboundMode === 'self_ship';
   const qcHubAddress = shipmentModel?.qcHubAddress ?? shipmentModel?.qc_hub_address ?? null;
@@ -781,7 +785,7 @@ export default function VendorManageProject() {
   }, [currentOperationalStatusKey, qcEntries]);
 
   // After receive, hide Generate unless QC failed and a reship is needed.
-  // Flags come from the API (India + Shiprocket enabled → both; foreign / Shiprocket off → self-ship only).
+  // Flags come from the API (India → Sequel pickup; manufacturers abroad → self-ship only).
   const canGenerateShipment = Boolean(
     shipmentModel?.flags?.canGenerateInbound && (!inboundReceivedAtArviah || qcFailedPendingRework),
   );
@@ -811,15 +815,15 @@ export default function VendorManageProject() {
     : canMarkSelfShipped && !canGenerateShipment
       ? 'self_ship'
       : canGenerateShipment && !canMarkSelfShipped
-        ? 'shiprocket'
+        ? 'courier'
         : null;
 
   useEffect(() => {
     if (!showMethodChooser) return;
-    if (shippingMethod === 'shiprocket' && !canGenerateShipment) {
+    if (shippingMethod === 'courier' && !canGenerateShipment) {
       setShippingMethod(canMarkSelfShipped ? 'self_ship' : null);
     } else if (shippingMethod === 'self_ship' && !canMarkSelfShipped) {
-      setShippingMethod(canGenerateShipment ? 'shiprocket' : null);
+      setShippingMethod(canGenerateShipment ? 'courier' : null);
     }
   }, [showMethodChooser, shippingMethod, canGenerateShipment, canMarkSelfShipped]);
 
@@ -1022,55 +1026,59 @@ export default function VendorManageProject() {
       Number.isFinite(agreedAmount) && agreedAmount > 0 ? String(Math.round(agreedAmount)) : '';
 
     setShipmentPackageForm({
-      weightGrams: '',
+      netWeightGrams: '',
+      grossWeightGrams: '',
       lengthCm: '',
       breadthCm: '',
       heightCm: '',
       declaredValueInr: defaultDeclaredValue,
+      lockNumber: '',
+      pickupDate: '',
+      pickupSlot: '',
     });
     setShipmentPackageError('');
     setShipmentPackageModalOpen(true);
   };
 
   const parseShipmentPackageForm = () => {
+    const f = shipmentPackageForm;
     const fields = [
-      ['weightGrams', 'Weight (grams)'],
+      ['netWeightGrams', 'Net weight (grams)'],
+      ['grossWeightGrams', 'Gross weight (grams)'],
       ['lengthCm', 'Length (cm)'],
       ['breadthCm', 'Breadth (cm)'],
       ['heightCm', 'Height (cm)'],
       ['declaredValueInr', 'Declared value (INR)'],
     ];
     for (const [key, label] of fields) {
-      if (!String(shipmentPackageForm[key] ?? '').trim()) {
-        return { ok: false, message: `${label} is required.` };
-      }
+      if (!String(f[key] ?? '').trim()) return { ok: false, message: `${label} is required.` };
     }
-
-    const weightGrams = Number(shipmentPackageForm.weightGrams);
-    const lengthCm = Number(shipmentPackageForm.lengthCm);
-    const breadthCm = Number(shipmentPackageForm.breadthCm);
-    const heightCm = Number(shipmentPackageForm.heightCm);
-    const declaredValueInr = Number(shipmentPackageForm.declaredValueInr);
-
-    if (!Number.isFinite(weightGrams) || weightGrams < 10 || weightGrams > 50000) {
-      return { ok: false, message: 'Weight must be between 10 and 50,000 grams.' };
-    }
-    if (!Number.isFinite(lengthCm) || lengthCm < 1 || lengthCm > 200) {
-      return { ok: false, message: 'Length must be between 1 and 200 cm.' };
-    }
-    if (!Number.isFinite(breadthCm) || breadthCm < 1 || breadthCm > 200) {
-      return { ok: false, message: 'Breadth must be between 1 and 200 cm.' };
-    }
-    if (!Number.isFinite(heightCm) || heightCm < 1 || heightCm > 200) {
-      return { ok: false, message: 'Height must be between 1 and 200 cm.' };
-    }
-    if (!Number.isFinite(declaredValueInr) || declaredValueInr < 1 || declaredValueInr > 10000000) {
-      return { ok: false, message: 'Declared value must be between ₹1 and ₹1,00,00,000.' };
-    }
-
+    const netWeightGrams = Number(f.netWeightGrams);
+    const grossWeightGrams = Number(f.grossWeightGrams);
+    const lengthCm = Number(f.lengthCm);
+    const breadthCm = Number(f.breadthCm);
+    const heightCm = Number(f.heightCm);
+    const declaredValueInr = Number(f.declaredValueInr);
+    const inRange = (v, min, max) => Number.isFinite(v) && v >= min && v <= max;
+    if (!inRange(netWeightGrams, 1, 9999)) return { ok: false, message: 'Net weight must be between 1 and 9,999 grams.' };
+    if (!inRange(grossWeightGrams, 1, 50000)) return { ok: false, message: 'Gross weight must be between 1 and 50,000 grams.' };
+    if (grossWeightGrams < netWeightGrams) return { ok: false, message: 'Gross weight (with the box) can’t be less than the net weight.' };
+    if (![lengthCm, breadthCm, heightCm].every((d) => inRange(d, 1, 200))) return { ok: false, message: 'Box sides must be between 1 and 200 cm.' };
+    if (!inRange(declaredValueInr, 1, 10000000)) return { ok: false, message: 'Declared value must be between ₹1 and ₹1,00,00,000.' };
+    if (f.pickupSlot && !f.pickupDate) return { ok: false, message: 'Choose the pickup day for this slot.' };
     return {
       ok: true,
-      payload: { weightGrams, lengthCm, breadthCm, heightCm, declaredValueInr },
+      payload: {
+        netWeightGrams,
+        grossWeightGrams,
+        lengthCm,
+        breadthCm,
+        heightCm,
+        declaredValueInr,
+        lockNumber: f.lockNumber.trim() || undefined,
+        pickupDate: f.pickupDate || undefined,
+        pickupSlot: f.pickupSlot || undefined,
+      },
     };
   };
 
@@ -1085,7 +1093,7 @@ export default function VendorManageProject() {
     setShipmentWorking(true);
     try {
       await projectService.generateInboundShipment(projectId, parsed.payload);
-      addToast('Shipping tag generated.', 'success');
+      addToast('Pickup booked with Sequel 247.', 'success');
       setShipmentPackageModalOpen(false);
       await load();
       const refreshed = await projectService.getDetails(projectId);
@@ -1094,7 +1102,7 @@ export default function VendorManageProject() {
         await projectService.downloadShipmentLabel(projectId, inbound.id);
       }
     } catch (e) {
-      addToast(e?.message || 'Failed to generate shipping tag', 'error');
+      addToast(e?.message || 'Could not book the pickup', 'error');
     } finally {
       setShipmentWorking(false);
     }
@@ -1157,11 +1165,11 @@ export default function VendorManageProject() {
     setShipmentWorking(true);
     try {
       await projectService.discardShipment(projectId, activeInbound.id);
-      addToast('Shipment discarded.', 'success');
+      addToast(isSelfShipInbound ? 'Marked as not shipped.' : 'Pickup cancelled.', 'success');
       setShipmentDiscardModalOpen(false);
       await load();
     } catch (e) {
-      addToast(e?.message || 'Cannot discard shipment', 'error');
+      addToast(e?.message || 'Cannot cancel this pickup', 'error');
     } finally {
       setShipmentWorking(false);
     }
@@ -1527,7 +1535,7 @@ export default function VendorManageProject() {
                                     }
                                     value={row.freight}
                                     tone="minus"
-                                    hint={row.awb ? `AWB ${row.awb}` : undefined}
+                                    hint={row.awb ? `Docket ${row.awb}` : undefined}
                                   />
                                 );
                               }
@@ -1662,12 +1670,12 @@ export default function VendorManageProject() {
                               ? 'QC needs a reship. Choose how you want to send jewellery back to Arviah QC.'
                               : isSelfShipMode
                                 ? 'QC needs a reship. Send again to the Arviah QC address below, then confirm you’ve shipped.'
-                                : 'QC needs a reship. Generate a new shipping label to send jewellery back to Arviah QC.'
+                                : 'QC needs a reship. Book a new secure pickup to send the jewellery back to Arviah QC.'
                             : showMethodChooser
                               ? 'Choose how you want to send your jewellery to Arviah QC.'
                               : isSelfShipMode
                                 ? 'Ship the jewellery to Arviah QC yourself using the address below. Inbound shipping is not charged on your payout.'
-                                : 'Generate a shipping label to send jewellery to Arviah QC. Pickup uses your registered profile address.'}
+                                : 'Book a secure pickup (Sequel 247) to send the jewellery to Arviah QC. Pickup is from your registered profile address.'}
                       </p>
 
                       {showMethodChooser ? (
@@ -1680,10 +1688,10 @@ export default function VendorManageProject() {
                             <button
                               type="button"
                               role="radio"
-                              aria-checked={shippingMethod === 'shiprocket'}
-                              onClick={() => setShippingMethod('shiprocket')}
+                              aria-checked={shippingMethod === 'courier'}
+                              onClick={() => setShippingMethod('courier')}
                               className={`relative flex h-full min-h-[7.5rem] flex-col rounded-xl border p-3.5 text-left transition-colors ${
-                                shippingMethod === 'shiprocket'
+                                shippingMethod === 'courier'
                                   ? 'border-walnut bg-[#f7f1ea] shadow-sm'
                                   : 'border-pale bg-cream/40 hover:border-soft'
                               }`}
@@ -1691,18 +1699,18 @@ export default function VendorManageProject() {
                               <span className="flex items-start gap-2.5">
                                 <span
                                   className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                                    shippingMethod === 'shiprocket' ? 'border-walnut bg-walnut' : 'border-muted bg-white'
+                                    shippingMethod === 'courier' ? 'border-walnut bg-walnut' : 'border-muted bg-white'
                                   }`}
                                   aria-hidden
                                 >
-                                  {shippingMethod === 'shiprocket' ? (
+                                  {shippingMethod === 'courier' ? (
                                     <span className="h-1.5 w-1.5 rounded-full bg-blush" />
                                   ) : null}
                                 </span>
                                 <span className="min-w-0">
-                                  <span className="block text-[13px] font-extrabold text-ink">Shiprocket Pickup</span>
+                                  <span className="block text-[13px] font-extrabold text-ink">Secure pickup (Sequel 247)</span>
                                   <span className="mt-1 block text-[11px] leading-relaxed text-mid">
-                                    We’ll generate your shipping label and arrange pickup from your registered address.
+                                    Insured jewellery courier: Sequel collects the sealed box from your registered address.
                                   </span>
                                 </span>
                               </span>
@@ -1743,14 +1751,14 @@ export default function VendorManageProject() {
                         </div>
                       ) : null}
 
-                      {effectiveShippingMethod === 'shiprocket' && canGenerateShipment ? (
+                      {effectiveShippingMethod === 'courier' && canGenerateShipment ? (
                         <div className="mt-4 border-t border-pale pt-4">
                           <div className="rounded-xl border border-pale bg-cream/50 px-3.5 py-3">
-                            <p className="text-[12px] font-extrabold text-ink">Shiprocket pickup</p>
+                            <p className="text-[12px] font-extrabold text-ink">Secure pickup (Sequel 247)</p>
                             <p className="mt-2 text-[11px] font-bold uppercase tracking-wide text-muted">Pickup from</p>
                             <p className="mt-0.5 text-[12px] text-ink">Your registered address</p>
                             <p className="mt-3 text-[11px] leading-relaxed text-mid">
-                              Courier charges, if applicable, may be deducted from your payout.
+                              Sequel’s charge for this pickup is deducted from your payout. Hand over the box sealed; Sequel staff carry ID.
                             </p>
                             <div className="mt-3 flex justify-end">
                               <button
@@ -1764,7 +1772,7 @@ export default function VendorManageProject() {
                                   <polyline points="7 10 12 15 17 10" />
                                   <line x1="12" x2="12" y1="15" y2="3" />
                                 </svg>
-                                {shipmentWorking ? 'Generating…' : 'Generate shipping label'}
+                                {shipmentWorking ? 'Booking…' : 'Book pickup'}
                               </button>
                             </div>
                           </div>
@@ -1819,7 +1827,7 @@ export default function VendorManageProject() {
                           {activeInbound?.awbCode ? (
                             <>
                               {' '}
-                              · AWB <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                              · Docket <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
                             </>
                           ) : null}
                         </p>
@@ -1835,7 +1843,11 @@ export default function VendorManageProject() {
                       ) : null}
                       {!inboundReceivedAtArviah && activeInbound?.awbCode ? (
                         <p className="mt-3 text-[12px] text-mid">
-                          AWB: <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                          Sequel docket: <span className="font-extrabold text-ink">{activeInbound.awbCode}</span>
+                          {activeInbound.providerStatusLabel ? <> · {activeInbound.providerStatusLabel}</> : null}
+                          {activeInbound.pickupDate ? (
+                            <> · pickup {activeInbound.pickupDate}{activeInbound.pickupSlot ? ` ${activeInbound.pickupSlot}` : ''}</>
+                          ) : null}
                           {activeInbound.trackingUrl ? (
                             <>
                               {' '}
@@ -1857,7 +1869,7 @@ export default function VendorManageProject() {
                               disabled={shipmentWorking}
                               className="inline-flex items-center gap-2 rounded-xl border border-pale bg-white px-4 py-2.5 text-[12px] font-extrabold text-ink hover:bg-cream disabled:opacity-50"
                             >
-                              Download shipping label
+                              Download label
                             </button>
                           ) : null}
                           {canDiscardShipment ? (
@@ -1867,14 +1879,14 @@ export default function VendorManageProject() {
                               disabled={shipmentWorking}
                               className="inline-flex items-center gap-2 rounded-xl border border-red-100 bg-red-50 px-4 py-2.5 text-[12px] font-extrabold text-red-700 hover:bg-red-100 disabled:opacity-50"
                             >
-                              {isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
+                              {isSelfShipInbound ? 'Undo shipped' : 'Cancel pickup'}
                             </button>
                           ) : null}
                         </div>
                       ) : null}
                       {inboundInFlight && inboundDiscardBlocked ? (
                         <p className="mt-2 text-[11px] text-muted">
-                          Courier has picked up this shipment — discard is no longer available.
+                          Sequel has collected the box — the pickup can no longer be cancelled.
                         </p>
                       ) : null}
                     </div>
@@ -1968,98 +1980,99 @@ export default function VendorManageProject() {
                         aria-modal="true"
                       >
                         <div className="px-5 py-4 border-b border-pale">
-                          <p className="text-[14px] font-extrabold text-ink">Package Details</p>
+                          <p className="text-[14px] font-extrabold text-ink">Book secure pickup</p>
                           <p className="mt-1 text-[12px] text-muted">
-                            Enter package weight, box size, and declared value for this shipment.
+                            Sequel 247 collects the sealed box from your registered address and brings it to Arviah QC.
                           </p>
                         </div>
                         <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                          {[
+                            ['netWeightGrams', 'Net weight (g)', 'metal, no packaging', '0.01'],
+                            ['grossWeightGrams', 'Gross weight (g)', 'with the box', '0.01'],
+                            ['declaredValueInr', 'Declared value (₹)', 'sets the insurance', '1'],
+                          ].map(([key, label, hint, step]) => (
+                            <label key={key} className="block">
+                              <span className="text-[11px] font-bold text-mid">
+                                {label}
+                                <span className="text-red-600"> *</span>
+                              </span>
+                              <input
+                                type="number"
+                                min="0"
+                                step={step}
+                                required
+                                placeholder={hint}
+                                value={shipmentPackageForm[key]}
+                                onChange={(e) => setShipmentPackageForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                              />
+                            </label>
+                          ))}
                           <label className="block">
-                            <span className="text-[11px] font-bold text-mid">
-                              Weight (grams)<span className="text-red-600"> *</span>
-                            </span>
+                            <span className="text-[11px] font-bold text-mid">Seal / lock no.</span>
                             <input
-                              type="number"
-                              min="10"
-                              max="50000"
-                              step="1"
-                              required
-                              value={shipmentPackageForm.weightGrams}
-                              onChange={(e) =>
-                                setShipmentPackageForm((prev) => ({ ...prev, weightGrams: e.target.value }))
-                              }
-                              className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                            />
-                          </label>
-                          <label className="block">
-                            <span className="text-[11px] font-bold text-mid">
-                              Declared value (₹)<span className="text-red-600"> *</span>
-                            </span>
-                            <input
-                              type="number"
-                              min="1"
-                              step="1"
-                              required
-                              value={shipmentPackageForm.declaredValueInr}
-                              onChange={(e) =>
-                                setShipmentPackageForm((prev) => ({ ...prev, declaredValueInr: e.target.value }))
-                              }
+                              type="text"
+                              placeholder="optional"
+                              value={shipmentPackageForm.lockNumber}
+                              onChange={(e) => setShipmentPackageForm((prev) => ({ ...prev, lockNumber: e.target.value }))}
                               className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
                             />
                           </label>
                           <div className="col-span-2 grid grid-cols-3 gap-3">
-                            <label className="block">
-                              <span className="text-[11px] font-bold text-mid">
-                                Length (cm)<span className="text-red-600"> *</span>
-                              </span>
-                              <input
-                                type="number"
-                                min="1"
-                                max="200"
-                                step="0.1"
-                                required
-                                value={shipmentPackageForm.lengthCm}
-                                onChange={(e) =>
-                                  setShipmentPackageForm((prev) => ({ ...prev, lengthCm: e.target.value }))
-                                }
-                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="text-[11px] font-bold text-mid">
-                                Breadth (cm)<span className="text-red-600"> *</span>
-                              </span>
-                              <input
-                                type="number"
-                                min="1"
-                                max="200"
-                                step="0.1"
-                                required
-                                value={shipmentPackageForm.breadthCm}
-                                onChange={(e) =>
-                                  setShipmentPackageForm((prev) => ({ ...prev, breadthCm: e.target.value }))
-                                }
-                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                              />
-                            </label>
-                            <label className="block">
-                              <span className="text-[11px] font-bold text-mid">
-                                Height (cm)<span className="text-red-600"> *</span>
-                              </span>
-                              <input
-                                type="number"
-                                min="1"
-                                max="200"
-                                step="0.1"
-                                required
-                                value={shipmentPackageForm.heightCm}
-                                onChange={(e) =>
-                                  setShipmentPackageForm((prev) => ({ ...prev, heightCm: e.target.value }))
-                                }
-                                className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
-                              />
-                            </label>
+                            {[
+                              ['lengthCm', 'Length (cm)'],
+                              ['breadthCm', 'Breadth (cm)'],
+                              ['heightCm', 'Height (cm)'],
+                            ].map(([key, label]) => (
+                              <label key={key} className="block">
+                                <span className="text-[11px] font-bold text-mid">
+                                  {label}
+                                  <span className="text-red-600"> *</span>
+                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="200"
+                                  step="0.1"
+                                  required
+                                  value={shipmentPackageForm[key]}
+                                  onChange={(e) => setShipmentPackageForm((prev) => ({ ...prev, [key]: e.target.value }))}
+                                  className="mt-1 w-full rounded-xl border border-pale px-3 py-2 text-[12px]"
+                                />
+                              </label>
+                            ))}
                           </div>
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">Pickup day</span>
+                            <select
+                              value={shipmentPackageForm.pickupDate}
+                              onChange={(e) => setShipmentPackageForm((prev) => ({ ...prev, pickupDate: e.target.value }))}
+                              className="mt-1 w-full rounded-xl border border-pale bg-white px-3 py-2 text-[12px]"
+                            >
+                              <option value="">Let Sequel choose</option>
+                              {(shipmentModel?.pickupOptions?.days || []).map((d, i) => (
+                                <option key={d} value={d}>
+                                  {i === 0 ? 'Today' : 'Tomorrow'} ({d.slice(8, 10)}/{d.slice(5, 7)})
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="text-[11px] font-bold text-mid">Pickup time</span>
+                            <select
+                              value={shipmentPackageForm.pickupSlot}
+                              disabled={!shipmentPackageForm.pickupDate}
+                              onChange={(e) => setShipmentPackageForm((prev) => ({ ...prev, pickupSlot: e.target.value }))}
+                              className="mt-1 w-full rounded-xl border border-pale bg-white px-3 py-2 text-[12px] disabled:opacity-50"
+                            >
+                              <option value="">Any time</option>
+                              {(shipmentModel?.pickupOptions?.slots || []).map((slot) => (
+                                <option key={slot} value={slot}>
+                                  {slot}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
                         </div>
                         {shipmentPackageError ? (
                           <p className="px-5 pb-2 text-[12px] text-red-600">{shipmentPackageError}</p>
@@ -2079,7 +2092,7 @@ export default function VendorManageProject() {
                             disabled={shipmentWorking}
                             className="flex-1 px-4 py-2.5 rounded-xl text-[12px] font-extrabold bg-walnut text-blush hover:opacity-90 disabled:opacity-50"
                           >
-                            {shipmentWorking ? 'Generating…' : 'Generate shipping label'}
+                            {shipmentWorking ? 'Booking…' : 'Book pickup'}
                           </button>
                         </div>
                       </div>
@@ -2105,12 +2118,12 @@ export default function VendorManageProject() {
                         <div className="px-5 py-4 border-b border-pale flex items-center justify-between gap-3">
                           <div className="min-w-0">
                             <p className="text-[14px] font-extrabold text-ink">
-                              {isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
+                              {isSelfShipInbound ? 'Undo shipped' : 'Cancel pickup'}
                             </p>
                             <p className="mt-1 text-[12px] text-muted">
                               {isSelfShipInbound
                                 ? 'This will clear the “I’ve shipped” status so you can mark it again after sending.'
-                                : 'This will cancel the current shipping tag. You can generate a new one later if needed.'}
+                                : 'This cancels the Sequel pickup (only possible before Sequel collects the box). You can book a new one later.'}
                             </p>
                           </div>
                           <button
@@ -2149,7 +2162,7 @@ export default function VendorManageProject() {
                             disabled={shipmentWorking}
                             className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-red-600 text-white text-[12px] font-bold hover:bg-red-700 disabled:opacity-50"
                           >
-                            {shipmentWorking ? 'Discarding…' : isSelfShipInbound ? 'Undo shipped' : 'Discard shipment'}
+                            {shipmentWorking ? 'Cancelling…' : isSelfShipInbound ? 'Undo shipped' : 'Cancel pickup'}
                           </button>
                         </div>
                       </div>
